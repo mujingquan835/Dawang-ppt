@@ -1,0 +1,22 @@
+# Generated decks and runtime artifacts
+output/
+**/output/
+**/node_modules/
+**/.cache/
+**/.tmp/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+**/.npmrc
+!**/npmrc.template
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Upstream npm publishing workspace is not part of this GitHub-installed fork
+npm-dist/

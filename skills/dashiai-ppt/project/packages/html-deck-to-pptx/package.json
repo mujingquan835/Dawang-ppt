@@ -1,0 +1,36 @@
+{
+  "name": "html-deck-to-pptx",
+  "version": "0.1.0",
+  "description": "Export a rendered HTML slide deck to an EDITABLE .pptx. Hard cases (gradients, SVG, complex backgrounds) stay editable via a per-node fidelity fallback chain (screenshot the region yet re-extract its text from the live DOM), instead of flattening to flat images.",
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "src/"
+  ],
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "html",
+    "dom",
+    "editable",
+    "export",
+    "slides",
+    "deck"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "peerDependencies": {
+    "pptxgenjs": "^4.0.1",
+    "playwright-core": "^1.60.0"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pngjs": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

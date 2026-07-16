@@ -1,0 +1,35 @@
+DashiAI PPT Export Engine — Proprietary License
+专有许可
+
+Copyright (c) 2026 chuspeeism. All rights reserved.
+
+This package ("html-deck-to-pptx", the DashiAI PPT export engine) is
+proprietary software. It is licensed, not open-sourced.
+
+Permission is granted to use this package SOLELY as an integrated
+component of the DashiAI PPT skill, for generating, previewing, and
+exporting presentations produced by that skill.
+
+The following are expressly prohibited without prior written permission
+from the copyright holder:
+
+- extracting, copying, or redistributing this package (in source or
+  bundled form) separately from the DashiAI PPT skill;
+- using this package, in whole or in part, in any other software,
+  product, or service;
+- modifying, reverse engineering, or creating derivative works of this
+  package, except to the extent such restriction is prohibited by
+  applicable law.
+
+Versions of this package released on or before v0.2.7 were published
+under the MIT License; that grant remains valid for those historical
+versions only and does not extend to this or any later version.
+
+本包(DashiAI PPT 导出引擎)为专有软件,仅授权作为 DashiAI PPT skill 的
+组成部分使用,用于该 skill 生成、预览与导出演示文稿。未经版权人书面许可,
+禁止将本包(源码或打包形态)从 skill 中单独提取、复制、再分发,禁止用于
+任何其他软件、产品或服务。v0.2.7 及之前版本曾以 MIT 协议发布,该授权仅对
+那些历史版本持续有效,不适用于本版本及后续版本。
+
+For commercial licensing, contact the copyright holder via
+https://github.com/chuspeeism/dashiAI-ppt-skill

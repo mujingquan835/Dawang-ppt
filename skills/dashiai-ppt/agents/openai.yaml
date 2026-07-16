@@ -1,0 +1,6 @@
+interface:
+  display_name: "DashiAI PPT"
+  short_description: "Create and safely revise editable PPT decks"
+  icon_small: "./assets/skill/dashiai-ppt-small.png"
+  icon_large: "./assets/skill/dashiai-ppt.png"
+  default_prompt: "Use $dashiai-ppt to create a new editable presentation or safely revise an existing deck."

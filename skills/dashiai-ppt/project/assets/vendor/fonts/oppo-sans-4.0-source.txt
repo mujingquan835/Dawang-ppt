@@ -1,0 +1,13 @@
+OPPO Sans 4.0 bundled font source
+
+Official introduction and download page:
+https://www.coloros.com/article/A00000074/
+
+Official archive URL used for this unmodified copy:
+https://coloros-website-cn.allawnfs.com/font/OPPO_Sans_4.0.zip
+
+Bundled TTF SHA-256:
+6c7d5864c661516e1f400d9f21e4297f2e2a0719909691e29607cc4ef484a9f4
+
+Copyright 2024 Guangdong OPPO Mobile Telecommunications Corp., Ltd.
+See oppo-sans-4.0-license-notice.txt in this directory for the complete license.

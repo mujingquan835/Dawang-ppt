@@ -1,0 +1,16 @@
+name: 💡 功能建议 / Feature Request
+description: 新功能、新主题风格或体验改进建议 / New features, new theme styles, or UX improvement ideas
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: 想解决什么问题? / What problem are you trying to solve?
+      description: 描述场景与痛点,比场景化的解决方案更有帮助 / Describe the scenario and pain point — this is more helpful than a specific proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的功能形态(可选) / What would you like it to look like? (optional)
+      description: 如果你已经想好了希望它长什么样,写在这里 / If you already have something in mind, describe it here

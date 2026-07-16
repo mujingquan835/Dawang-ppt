@@ -1,0 +1,50 @@
+name: 🐛 问题反馈 / Bug Report
+description: 生成、编辑、预览或导出过程中遇到的错误 / Errors encountered during generation, editing, preview, or export
+labels: [bug]
+body:
+  - type: dropdown
+    id: stage
+    attributes:
+      label: 问题发生在哪个环节? / Which stage did the issue occur in?
+      options:
+        - 安装/更新 skill / Install/update the skill
+        - 生成 PPT(渲染失败或内容不对) / Generate PPT (render failure or wrong content)
+        - 浏览器内编辑/预览 / In-browser edit/preview
+        - 导出 PDF / Export PDF
+        - 导出 PPTX / Export PPTX
+        - 其他 / Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 使用环境 / Environment
+      description: 操作系统 + 使用的 Agent(如 macOS + Claude Code、Windows + Codex、豆包 等) / OS + the agent you used (e.g. macOS + Claude Code, Windows + Codex, Doubao, etc.)
+      placeholder: "例如: Windows 11 + Codex / e.g. Windows 11 + Codex"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Skill 版本 / Skill Version
+      description: 安装目录里 SKILL.md 的「当前版本」;不确定可以让 AI 帮你看 / The "Current Version" field in SKILL.md inside your install directory; if unsure, ask your AI agent to check for you
+      placeholder: "例如: 0.1.36 / e.g. 0.1.36"
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述与复现步骤 / Description & steps to reproduce
+      description: 做了什么 → 期望什么 → 实际发生了什么 / What you did → what you expected → what actually happened
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 报错信息/截图 / Error messages / screenshots
+      description: 页面弹窗文字、浏览器控制台(F12)的红色报错、或终端输出;截图直接拖进来 / Text from an on-page dialog, red errors in the browser console (F12), or terminal output; you can drag screenshots directly into this box
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 导出类问题请先自查 / For export issues, please self-check first
+      options:
+        - label: 已确认页面是通过 http://127.0.0.1:<端口>/ 打开的(不是双击 HTML 文件) / Confirmed the page was opened via http://127.0.0.1:<port>/ (not by double-clicking the HTML file)
+        - label: 已更新到最新版 skill 并重新生成过一次 / Updated to the latest skill version and regenerated once

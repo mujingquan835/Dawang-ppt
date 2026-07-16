@@ -1,0 +1,46 @@
+{
+  "title": "AI 产品组合策略",
+  "goal": "面向管理层说明 AI 产品组合的优先级、投入节奏和落地路径",
+  "audience": "管理层",
+  "owner": "产品策略团队",
+  "randomSeed": "theme02-example",
+  "pageCount": 5,
+  "themePack": "theme02",
+  "slides": [
+    {
+      "layout": "theme02_page001",
+      "props": {
+        "kicker": "示例封面",
+        "title": "AI 产品组合策略",
+        "subtitle": "面向管理层说明 AI 产品组合的优先级、投入节奏和落地路径"
+      }
+    },
+    {
+      "layout": "theme02_page006",
+      "props": {
+        "kicker": "示例页面 2",
+        "title": "AI 产品组合策略 · 2"
+      }
+    },
+    {
+      "layout": "theme02_page021",
+      "props": {
+        "kicker": "示例页面 3",
+        "lead": "面向管理层说明 AI 产品组合的优先级、投入节奏和落地路径"
+      }
+    },
+    {
+      "layout": "theme02_page044",
+      "props": {
+        "kicker": "示例页面 4",
+        "title": "AI 产品组合策略 · 4"
+      }
+    },
+    {
+      "layout": "theme02_page074",
+      "props": {
+        "kicker": "示例页面 5"
+      }
+    }
+  ]
+}
