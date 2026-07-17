@@ -281,7 +281,7 @@ export async function handlePdfAssemble(req, res) {
     const { PDFDocument } = await import('pdf-lib');
     const pdf = await PDFDocument.create();
     pdf.setTitle(String(payload.title || 'Deck PDF Export'));
-    pdf.setAuthor('DashiAI PPT');
+    pdf.setAuthor('@大师的AI小灶');
     pdf.setSubject('Browser-captured PDF export');
     const PDF_W = 16 * 72;
     const PDF_H = 9 * 72;

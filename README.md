@@ -1,4 +1,4 @@
-# DashiAI PPT Skill · 大师 PPT / 网页 PPT / 可编辑 PPTX
+# 大师 PPT Skill · 网页编辑 / 可编辑 PPTX
 
 ![GitHub stars](https://img.shields.io/github/stars/mujingquan835/dashiai-ppt-skill?style=flat-square)
 ![Skill](https://img.shields.io/badge/Skill-Agent-111111?style=flat-square)
@@ -17,13 +17,15 @@
 
 一个真正适合职场人的 PPT Skill。把文档丢给你的 AI Agent，每一页都自带编辑控制台的 PPT Skill——不满意的地方直接在浏览器里改，改完还能一键导出成真实的、可编辑的 PPTX。
 
-> 本仓库是基于 [chuspeeism/dashi-ppt-skill](https://github.com/chuspeeism/dashi-ppt-skill) 的公开增强版，保留上游版权与许可证声明。演示素材继续引用上游 Release 资源。
+**作者与维护者：[@大师的AI小灶](https://github.com/mujingquan835) · GitHub [mujingquan835](https://github.com/mujingquan835)**
+
+> 这是由 @大师的AI小灶 持续设计与维护的公开增强版，基于 [chuspeeism/dashi-ppt-skill](https://github.com/chuspeeism/dashi-ppt-skill) 开发。本版新增与修改部分归增强版作者，上游原始代码及专有导出引擎保留其原版权和许可声明。演示素材继续引用上游 Release 资源。
 
 - 12 套视觉主题
 - 1020 个版式页面
 - 8576 个可调控件
 - 从 12 套主题中智能匹配 9 套并生成九宫格供确认
-- 支持对已有 DashiAI PPT 做带快照、最小差异的安全返工
+- 支持对已有大师 PPT / DashiAI PPT 做带快照、最小差异的安全返工
 - 内嵌 OPPO Sans 4.0，并支持全局与单段字体调整
 
 ![生成效果演示](https://github.com/chuspeeism/dashi-ppt-skill/releases/download/readme-assets-v1/hero-result.gif)
@@ -196,4 +198,6 @@ npm --prefix <project目录> run export:pdf  -- <PPT输出目录>/ppt
 
 **例外**：子包 `project/packages/html-deck-to-pptx`（导出引擎）为**专有组件**，仅授权作为本 skill 的组成部分使用，不得单独提取、复制或再分发（详见该目录下的 LICENSE；其 v0.2.7 及之前的历史版本曾以 MIT 发布，该授权仅对历史版本有效）。
 
-Copyright (c) 2026 [chuspeeism](https://github.com/chuspeeism)。完整协议文本见根目录 [LICENSE](LICENSE) 文件。如需 AGPL-3.0 之外的商业授权，请联系作者。
+增强版新增与修改内容 Copyright (c) 2026 [mujingquan835](https://github.com/mujingquan835) / @大师的AI小灶。
+
+上游原始项目 Copyright (c) 2026 [chuspeeism](https://github.com/chuspeeism)。完整协议文本见 [LICENSE](LICENSE)，详细归属见 [NOTICE.md](NOTICE.md)。AGPL-3.0 之外的上游商业授权仍需联系原版权人。

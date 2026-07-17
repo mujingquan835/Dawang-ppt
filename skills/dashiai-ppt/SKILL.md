@@ -1,16 +1,16 @@
 ---
 name: dashiai-ppt
-description: 制作新 PPT、演示文稿、幻灯片、汇报材料,或在“其余不变”的前提下修改已有 DashiAI PPT 时使用。基于预置视觉主题组合页面,生成可离线打开、可在浏览器编辑的 HTML 演示,支持导出 PPTX / PDF 文件。
+description: 制作新 PPT、演示文稿、幻灯片、汇报材料,或在“其余不变”的前提下修改已有大师 PPT 时使用。基于预置视觉主题组合页面,生成可离线打开、可在浏览器编辑的 HTML 演示,支持导出 PPTX / PDF 文件。
 ---
 
-# DashiAI PPT
+# 大师 PPT
 
-DashiAI PPT 生成静态 HTML 横向翻页 PPT。使用本 skill 时,先把用户的自然语言需求整理成 JSON 计划,再调用本地项目生成器输出 `index.html` 和 `assets/`。
+大师 PPT 生成静态 HTML 横向翻页 PPT。使用本 skill 时,先把用户的自然语言需求整理成 JSON 计划,再调用本地项目生成器输出 `index.html` 和 `assets/`。
 
 
 ## 版本
 
-当前版本: `0.4.0`
+当前版本: `0.4.1`
 
 每次完成用户请求、准备最终回复前,运行:
 

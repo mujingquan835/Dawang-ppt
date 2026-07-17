@@ -2029,7 +2029,7 @@
   <div class="preview-author" aria-label="作者信息">
     <div class="preview-author-name">@大师的AI小灶</div>
     <div class="preview-author-links" aria-label="作者社媒链接">
-      <a href="https://github.com/chuspeeism/dashi-ppt-skill" target="_blank" rel="noopener noreferrer" data-platform="github" aria-label="GitHub" title="GitHub">
+      <a href="https://github.com/mujingquan835/dashiai-ppt-skill" target="_blank" rel="noopener noreferrer" data-platform="github" aria-label="GitHub" title="GitHub">
         <img src="assets/social-icons/github.svg" data-social-icon="github" alt="" aria-hidden="true">
       </a>
       <a href="https://www.douyin.com/user/MS4wLjABAAAAohe8JB4RvITJitJ69b7cV4NTaYTMYrVI43C-3SUnPPc" target="_blank" rel="noopener noreferrer" data-platform="douyin" aria-label="抖音" title="抖音">
@@ -2232,11 +2232,11 @@
     '关闭': 'Close',
     '导出需要预览服务': 'Export requires the preview service',
     '当前非 HTTP 模式,无法导出': 'Not served over HTTP — export unavailable',
-    '直接打开本地 HTML 文件时没有导出服务。把下面的提示词发给 AI,让它用 DashiAI PPT 的预览服务打开后再导出:': 'Opening the local HTML file directly has no export service. Send the prompt below to your AI so it opens the deck with the DashiAI PPT preview service, then export:',
+    '直接打开本地 HTML 文件时没有导出服务。把下面的提示词发给 AI,让它用大师 PPT 的预览服务打开后再导出:': 'Opening the local HTML file directly has no export service. Send the prompt below to your AI so it opens the deck with the Master PPT preview service, then export:',
     '发送给 AI,启动预览服务:': 'Send to your AI to start the preview service:',
     '帮我用 dashiai-ppt 的预览服务启动这个 PPT 的预览 {dir}': 'Please start the preview of this deck with the dashiai-ppt preview service: {dir}',
     '当前服务不支持导出': 'This server does not support export',
-    '这个地址后面没有可用的导出服务(可能是一个纯静态文件服务器,或预览服务已退出)。把下面的提示词发给 AI,让它用 DashiAI PPT 自带的预览服务重新启动:': 'No export service is available at this address (it may be a plain static file server, or the preview service has exited). Send the prompt below to your AI so it restarts the deck with the DashiAI PPT preview service:',
+    '这个地址后面没有可用的导出服务(可能是一个纯静态文件服务器,或预览服务已退出)。把下面的提示词发给 AI,让它用大师 PPT 自带的预览服务重新启动:': 'No export service is available at this address (it may be a plain static file server, or the preview service has exited). Send the prompt below to your AI so it restarts the deck with the Master PPT preview service:',
     '发送给 AI,重启预览服务:': 'Send to your AI to restart the preview service:',
     '帮我用 dashiai-ppt 的预览服务重新启动这个 PPT 的预览': 'Please restart the preview of this deck with the dashiai-ppt preview service',
     '也可以直接跟 AI 说:': 'Or simply tell your AI:',
@@ -7382,7 +7382,7 @@ refreshRailCatalog();
     const { PDFDocument } = window.PDFLib;
     const pdf = await PDFDocument.create();
     pdf.setTitle(title || 'Deck PDF Export');
-    pdf.setAuthor('DashiAI PPT');
+    pdf.setAuthor('@大师的AI小灶');
     pdf.setSubject('Browser-captured PDF export');
     const PDF_W = 16 * 72, PDF_H = 9 * 72;
     for(const dataUrl of pages){
@@ -8646,7 +8646,7 @@ refreshRailCatalog();
   const EXPORT_GUIDE_COPY = {
     file: {
       title: window.__deckI18n.ui('当前非 HTTP 模式,无法导出'),
-      desc: window.__deckI18n.ui('直接打开本地 HTML 文件时没有导出服务。把下面的提示词发给 AI,让它用 DashiAI PPT 的预览服务打开后再导出:'),
+      desc: window.__deckI18n.ui('直接打开本地 HTML 文件时没有导出服务。把下面的提示词发给 AI,让它用大师 PPT 的预览服务打开后再导出:'),
       startLabel: window.__deckI18n.ui('发送给 AI,启动预览服务:'),
       // 提示词必须指名 dashiai-ppt 的预览服务:只说"启动 http 服务"会诱导 AI 用
       // python -m http.server 等静态服务器,那正是 no-service 场景的事故根源。
@@ -8654,7 +8654,7 @@ refreshRailCatalog();
     },
     'no-service': {
       title: window.__deckI18n.ui('当前服务不支持导出'),
-      desc: window.__deckI18n.ui('这个地址后面没有可用的导出服务(可能是一个纯静态文件服务器,或预览服务已退出)。把下面的提示词发给 AI,让它用 DashiAI PPT 自带的预览服务重新启动:'),
+      desc: window.__deckI18n.ui('这个地址后面没有可用的导出服务(可能是一个纯静态文件服务器,或预览服务已退出)。把下面的提示词发给 AI,让它用大师 PPT 自带的预览服务重新启动:'),
       startLabel: window.__deckI18n.ui('发送给 AI,重启预览服务:'),
       startPrompt: () => window.__deckI18n.ui('帮我用 dashiai-ppt 的预览服务重新启动这个 PPT 的预览'),
     },

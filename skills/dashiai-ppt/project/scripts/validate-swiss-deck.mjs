@@ -271,6 +271,13 @@ if (!previewPanelSource) {
   }
 
   const expectedXiaohongshuHref = 'https://www.xiaohongshu.com/user/profile/62e0c2bb000000001501408c?xsec_token=ABrZskc1MUcZWWuuMx7Fw52HYKSmhrHM2leT3iiPnMmG8%3D&amp;xsec_source=pc_search';
+  const expectedGithubHref = 'https://github.com/mujingquan835/dashiai-ppt-skill';
+  const githubAnchor = socialAnchors.find(([, , platform]) => platform === 'github');
+  const githubAttrs = githubAnchor ? `${githubAnchor[1]} ${githubAnchor[3]}` : '';
+  const githubHref = githubAttrs.match(/\bhref="([^"]+)"/)?.[1] || '';
+  if (githubHref && githubHref !== expectedGithubHref) {
+    errors.push('Preview console GitHub href must point to the maintained enhanced-edition repository.');
+  }
   const xiaohongshuAnchor = socialAnchors.find(([, , platform]) => platform === 'xiaohongshu');
   const xiaohongshuAttrs = xiaohongshuAnchor ? `${xiaohongshuAnchor[1]} ${xiaohongshuAnchor[3]}` : '';
   const xiaohongshuHref = xiaohongshuAttrs.match(/\bhref="([^"]+)"/)?.[1] || '';

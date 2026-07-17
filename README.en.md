@@ -1,4 +1,4 @@
-# DashiAI PPT Skill · Web Decks / Per-Page Console / Editable PPTX Export
+# Master PPT Skill · Web Editing / Editable PPTX Export
 
 ![GitHub stars](https://img.shields.io/github/stars/mujingquan835/dashiai-ppt-skill?style=flat-square)
 ![Skill](https://img.shields.io/badge/Skill-Agent-111111?style=flat-square)
@@ -17,13 +17,15 @@
 
 A PPT skill built for people who actually present at work. Hand a document to your AI agent and get back a deck where every page carries its own editing console — fix whatever you don't like right in the browser, then export a real, editable PPTX with one click.
 
-> This public enhanced edition is based on [chuspeeism/dashi-ppt-skill](https://github.com/chuspeeism/dashi-ppt-skill) and preserves the upstream copyright and license notices. Demo media continues to use upstream Release assets.
+**Author and maintainer: [@Master's AI Workshop](https://github.com/mujingquan835) · GitHub [mujingquan835](https://github.com/mujingquan835)**
+
+> This public enhanced edition is designed and maintained by @Master's AI Workshop and is based on [chuspeeism/dashi-ppt-skill](https://github.com/chuspeeism/dashi-ppt-skill). Copyright in this edition's additions and modifications belongs to the enhanced-edition author; the upstream source and proprietary export engine retain their original copyright and license notices. Demo media continues to use upstream Release assets.
 
 - 12 visual themes
 - 1,020 layout pages
 - 8,576 tunable controls
 - Smart ranking of 9 themes from the 12-theme library, presented as a confirmation grid
-- Snapshot-backed, minimal-diff revision for existing DashiAI PPT decks
+- Snapshot-backed, minimal-diff revision for existing Master PPT / DashiAI PPT decks
 - Bundled OPPO Sans 4.0 with global and per-text font controls
 
 ![Generated deck demo](https://github.com/chuspeeism/dashi-ppt-skill/releases/download/readme-assets-v1/hero-result.gif)
@@ -192,4 +194,6 @@ This project is open-sourced under the **GNU Affero General Public License v3.0 
 
 **Exception**: the subpackage `project/packages/html-deck-to-pptx` (the export engine) is a **proprietary component**, licensed for use only as an integrated part of this skill — extracting, copying, or redistributing it separately is prohibited (see the LICENSE in that directory; versions up to v0.2.7 were historically published under MIT, and that grant applies to those versions only).
 
-Copyright (c) 2026 [chuspeeism](https://github.com/chuspeeism). Full license text in the root [LICENSE](LICENSE) file. For commercial licensing beyond AGPL-3.0, contact the author.
+Additions and modifications in this enhanced edition Copyright (c) 2026 [mujingquan835](https://github.com/mujingquan835) / @Master's AI Workshop.
+
+Upstream project Copyright (c) 2026 [chuspeeism](https://github.com/chuspeeism). See [LICENSE](LICENSE) for the full license and [NOTICE.md](NOTICE.md) for attribution details. Commercial licensing of upstream material beyond AGPL-3.0 remains with the original copyright holder.
