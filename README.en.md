@@ -27,6 +27,7 @@ A PPT skill built for people who actually present at work. Hand a document to yo
 - Smart ranking of 9 themes from the 12-theme library, presented as a confirmation grid
 - Snapshot-backed, minimal-diff revision for existing Master PPT / DashiAI PPT decks
 - Bundled OPPO Sans 4.0 with global and per-text font controls
+- Newly exported PDF / PPTX document properties identify `@大师的AI小灶` as the author
 
 ![Generated deck demo](https://github.com/chuspeeism/dashi-ppt-skill/releases/download/readme-assets-v1/hero-result.gif)
 

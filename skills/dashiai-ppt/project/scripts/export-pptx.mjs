@@ -23,6 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { launchExportBrowser } from './preview/launch-export-browser.mjs';
+import { brandPptxFile } from './pptx-metadata.mjs';
 import { exportEditablePptxFromUrl } from '../packages/html-deck-to-pptx/src/editable.mjs';
 import { exportScreenshotPdfFromUrl } from '../packages/html-deck-to-pptx/src/screenshot.mjs';
 
@@ -87,6 +88,7 @@ async function main() {
       console.log(`PDF exported: ${path.relative(CALLER_CWD, outFile)} (${result.pages} page(s))`);
     } else {
       const result = await exportEditablePptxFromUrl(browser, url, { outFile, title });
+      await brandPptxFile(outFile);
       console.log(`PPTX exported: ${path.relative(CALLER_CWD, outFile)} (${result.slideCount} slide(s), ${result.textObjects} editable text object(s))`);
       if (result.warnings?.length) {
         console.log(`${result.warnings.length} export warning(s); see report for detail if one was requested.`);

@@ -27,6 +27,7 @@
 - 从 12 套主题中智能匹配 9 套并生成九宫格供确认
 - 支持对已有大师 PPT / DashiAI PPT 做带快照、最小差异的安全返工
 - 内嵌 OPPO Sans 4.0，并支持全局与单段字体调整
+- 新导出的 PDF / PPTX 文件属性作者统一为 `@大师的AI小灶`
 
 ![生成效果演示](https://github.com/chuspeeism/dashi-ppt-skill/releases/download/readme-assets-v1/hero-result.gif)
 

@@ -4,6 +4,7 @@
 import { createReadStream, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { scrubLocalPaths } from '../scrub-local-paths.mjs';
+import { brandPptxBuffer, brandPptxFile } from '../pptx-metadata.mjs';
 import { launchExportBrowser } from './launch-export-browser.mjs';
 import { isExportRequestAllowed } from '../preview-export-auth.mjs';
 import { atomicWriteFileSync, extractDataUrlMedia, isValidDeckState, mergeStateIntoIndexHtml } from '../persist-deck-state.mjs';
@@ -72,6 +73,7 @@ export async function handleEditablePptxExport(req, res) {
         snapshot: payload.snapshot || null,
         onProgress: update => updateExportProgress(progressId, update),
       });
+      await brandPptxFile(outFile);
     } finally {
       await closeBrowser(browser);
     }
@@ -229,7 +231,7 @@ export async function handlePptxStore(req, res, requestUrl) {
     const baseName = `${timestampForFile()}-${safeDownloadName(fileName)}`;
     const outFile = path.join(EXPORT_DIR, `${baseName}.pptx`);
     mkdirSync(path.dirname(outFile), { recursive: true });
-    writeFileSync(outFile, bytes);
+    writeFileSync(outFile, await brandPptxBuffer(bytes));
     res.writeHead(200, { 'content-type': 'application/json;charset=utf-8', 'cache-control': 'no-store' });
     res.end(JSON.stringify({
       ok: true,
