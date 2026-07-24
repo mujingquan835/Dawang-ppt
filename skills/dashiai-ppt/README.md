@@ -69,13 +69,19 @@
 
 ## 安装说明
 
-推荐从 GitHub 一键安装：
+推荐直接下载完整安装包：
+
+https://github.com/mujingquan835/dashiai-ppt-skill/releases/download/v0.4.1/dashiai-ppt-skill-v0.4.1.zip
+
+解压后，将其中的 `dashiai-ppt` 目录放到本机 Skill 目录中，然后重新打开会话。
+
+也可以从 GitHub 一键安装：
 
 ```bash
 npx skills add https://github.com/mujingquan835/dashiai-ppt-skill --skill dashiai-ppt
 ```
 
-也可以把整个 `dashiai-ppt` 目录手动放到本机 Skill 目录中，然后重新打开会话。
+仓库包含完整主题资源和约 22 MB 的字体文件。网络较慢时，安装器可能在 `Cloning repository…` 停留数分钟；若克隆超时，请改用上方完整 ZIP。
 
 本机需要能运行 Node.js 20+ 和 npm。首次生成时依赖会自动准备。
 

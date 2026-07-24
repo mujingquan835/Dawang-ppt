@@ -46,7 +46,13 @@ The skill shows you theme previews to pick from, and you can ask the agent to re
 
 ## Get Started in 30 Seconds
 
-**Install or update directly from this repository:**
+### Option 1: Download the complete package (recommended)
+
+[**Download the complete v0.4.1 Skill ZIP**](https://github.com/mujingquan835/dashiai-ppt-skill/releases/download/v0.4.1/dashiai-ppt-skill-v0.4.1.zip)
+
+Extract the archive, place its `dashiai-ppt` directory in your agent's Skill directory, and restart the session. The package includes the full theme library, bundled font, generator, and export runtime without requiring a Git clone.
+
+### Option 2: Install or update from GitHub
 
 ```bash
 npx skills add https://github.com/mujingquan835/dashiai-ppt-skill --skill dashiai-ppt
@@ -54,11 +60,15 @@ npx skills add https://github.com/mujingquan835/dashiai-ppt-skill --skill dashia
 
 Install and update use the same command. Re-run it to fetch the latest repository version.
 
+> The repository includes the full theme assets and a roughly 22 MB font file. On slower connections, the installer can remain at `Cloning repository…` for several minutes while it is still downloading. If the clone times out, use the complete ZIP above.
+
 Or hand this to your AI agent:
 
 ```text
 Install the dashiai-ppt skill for me: npx skills add https://github.com/mujingquan835/dashiai-ppt-skill --skill dashiai-ppt
 ```
+
+If your agent has no installer, download the [main branch source ZIP](https://github.com/mujingquan835/dashiai-ppt-skill/archive/refs/heads/main.zip), extract it, and use `skills/dashiai-ppt` manually.
 
 Requirements: Node.js 20+ and npm; exporting PPTX / PDF requires Chrome / Chromium / Edge installed locally.
 

@@ -46,7 +46,13 @@ Skill 会展示预览让你选择主题，可以随时让 Agent 整套换掉。�
 
 ## 快速开始
 
-**从本仓库一键安装/更新**：
+### 方式一：下载完整包（推荐）
+
+[**下载 v0.4.1 完整 Skill ZIP**](https://github.com/mujingquan835/dashiai-ppt-skill/releases/download/v0.4.1/dashiai-ppt-skill-v0.4.1.zip)
+
+解压后，将其中的 `dashiai-ppt` 目录放入本机 Agent 的 Skill 目录，再重新打开会话。压缩包包含完整主题、字体、生成器和导出能力，不需要额外克隆 Git 仓库。
+
+### 方式二：从 GitHub 一键安装/更新
 
 ```bash
 npx skills add https://github.com/mujingquan835/dashiai-ppt-skill --skill dashiai-ppt
@@ -54,11 +60,15 @@ npx skills add https://github.com/mujingquan835/dashiai-ppt-skill --skill dashia
 
 安装和更新使用同一条命令，重新运行即可拉取仓库中的最新版本。
 
+> 仓库包含完整主题资源和约 22 MB 的字体文件。网络较慢时，安装器可能在 `Cloning repository…` 停留数分钟；这通常仍在下载，请不要提前中断。若克隆超时，请改用上方完整 ZIP。
+
 让 AI Agent 帮你安装：
 
 ```text
 帮我安装 dashiai-ppt skill：npx skills add https://github.com/mujingquan835/dashiai-ppt-skill --skill dashiai-ppt
 ```
+
+没有 Agent 安装器时，也可下载 [main 分支源码 ZIP](https://github.com/mujingquan835/dashiai-ppt-skill/archive/refs/heads/main.zip)，解压后手动使用 `skills/dashiai-ppt`。
 
 环境要求：Node.js 20+ 和 npm；导出 PPTX / PDF 需要本机装有 Chrome / Chromium / Edge。
 
