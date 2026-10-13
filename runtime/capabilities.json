@@ -1,0 +1,63 @@
+{
+  "version": "0.1.0",
+  "styles": {
+    "indigo-due-diligence": {
+      "status": "implemented-engineering-verified",
+      "compositions": [
+        "evidence",
+        "case",
+        "comparison",
+        "process",
+        "table",
+        "action"
+      ],
+      "userVisualReview": "pending",
+      "OfficeWPS": "pending"
+    },
+    "moon-white-imagery": {
+      "status": "implemented-engineering-verified",
+      "compositions": [
+        "evidence",
+        "case",
+        "comparison",
+        "process",
+        "table",
+        "action"
+      ],
+      "userVisualReview": "pending",
+      "OfficeWPS": "pending"
+    },
+    "blue-line-courseware": {
+      "status": "implemented-engineering-verified",
+      "compositions": [
+        "evidence",
+        "case",
+        "comparison",
+        "process",
+        "table",
+        "action"
+      ],
+      "userVisualReview": "pending",
+      "OfficeWPS": "pending"
+    }
+  },
+  "nativeObjects": [
+    "text",
+    "image",
+    "shape",
+    "line",
+    "table"
+  ],
+  "unsupported": [
+    "nativeChart",
+    "SmartArt",
+    "arbitraryPptxImport",
+    "automaticStyleTransfer"
+  ],
+  "legacy": {
+    "theme01": "bounded-regression",
+    "theme09": "bounded-regression",
+    "mediaBackflow": false,
+    "adaptiveGeometry": false
+  }
+}

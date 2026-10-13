@@ -1,0 +1,726 @@
+{
+  "documents": [
+    {
+      "id": "01_strategy/01/en/dusk-violet-consulting.md",
+      "name": "dusk-violet-consulting",
+      "category": "01_strategy",
+      "sha256": "a48c25db24dbd5f04d6471c1c3a2eb4dbdc2055f70c3b8111c8ee33d88b3a4b5",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "dusk-violet-consulting"
+      ]
+    },
+    {
+      "id": "01_strategy/02/en/indigo-due-diligence.md",
+      "name": "indigo-due-diligence",
+      "category": "01_strategy",
+      "sha256": "71db85633188d89607e8d1827a4a95f1a1cbe4669c98fe8edd76379f823b09c3",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "indigo-due-diligence"
+      ]
+    },
+    {
+      "id": "01_strategy/03/en/pine-green-strategy.md",
+      "name": "pine-green-strategy",
+      "category": "01_strategy",
+      "sha256": "9b6fdba1e13c7da2181da7aaf013511f1b42fd09463c9811dd608d66ee2df545",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "pine-green-strategy"
+      ]
+    },
+    {
+      "id": "01_strategy/04/en/red-black-business.md",
+      "name": "red-black-business",
+      "category": "01_strategy",
+      "sha256": "1891c8ca3cc8aef181bfd76e3493d937e361165bacf497058ba6a0b781dd3d2f",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "red-black-business"
+      ]
+    },
+    {
+      "id": "01_strategy/05/en/moss-green-transformation.md",
+      "name": "moss-green-transformation",
+      "category": "01_strategy",
+      "sha256": "53a83e7e800fbae335a5898af0e884f088a277e945e75886a0ffebb68cd7ccdc",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "moss-green-transformation"
+      ]
+    },
+    {
+      "id": "01_strategy/06/en/map-strategy.md",
+      "name": "map-strategy",
+      "category": "01_strategy",
+      "sha256": "c42db2dc47f9dda6b1caa8079df156db9e7959d05c4ea74d3d1dba6c7fa08f83",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "map-strategy"
+      ]
+    },
+    {
+      "id": "02_business/01/en/honey-orange-memo.md",
+      "name": "honey-orange-memo",
+      "category": "02_business",
+      "sha256": "a79f55609d1d91a38934f6474f009fcc925c20c2b24c4599f86ccd80947608ac",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "honey-orange-memo"
+      ]
+    },
+    {
+      "id": "02_business/02/en/lake-blue-memo.md",
+      "name": "lake-blue-memo",
+      "category": "02_business",
+      "sha256": "6601608ea1e3542eb6cae185834e21c9a90c5d09d813fee9f743b45d6b0f4c6d",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "lake-blue-memo"
+      ]
+    },
+    {
+      "id": "02_business/03/en/xuan-paper-annual.md",
+      "name": "xuan-paper-annual",
+      "category": "02_business",
+      "sha256": "00e108f9748c3e5c7feb6c7ead60015cd2e0b4c11caa7721099fa0b0b2ca5c66",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "xuan-paper-annual"
+      ]
+    },
+    {
+      "id": "02_business/04/en/lead-gray-quarterly.md",
+      "name": "lead-gray-quarterly",
+      "category": "02_business",
+      "sha256": "a15187918f7bcf0c068db084451eb035554479c81b0e4585426ad5f619bc4db2",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "lead-gray-quarterly"
+      ]
+    },
+    {
+      "id": "02_business/05/en/ink-green-market-trends.md",
+      "name": "ink-green-market-trends",
+      "category": "02_business",
+      "sha256": "813d0807b6a6af8ba3d9afc204a8703b8ea44d0ed9eba6ea885ab5bfb09e64a9",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "ink-green-market-trends"
+      ]
+    },
+    {
+      "id": "02_business/06/en/orange-tech.md",
+      "name": "orange-tech",
+      "category": "02_business",
+      "sha256": "75b31493f7e326312a35fde307fb389365d1355c8243c21568b261ddf0aa366f",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "orange-tech"
+      ]
+    },
+    {
+      "id": "03_work/01/en/sky-blue-wayfinding.md",
+      "name": "sky-blue-wayfinding",
+      "category": "03_work",
+      "sha256": "a2038a5149ac3febcea9cc42bac5790bcab86b112c2ba4fe755b0ba444b3f017",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "sky-blue-wayfinding"
+      ]
+    },
+    {
+      "id": "03_work/02/en/mist-blue-travelogue.md",
+      "name": "mist-blue-travelogue",
+      "category": "03_work",
+      "sha256": "663b3fe85363d240a9f8e38022212632f31ee90b2de000a6b8d66f2c71a46fc0",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "mist-blue-travelogue"
+      ]
+    },
+    {
+      "id": "03_work/03/en/warm-jade-annual-report.md",
+      "name": "warm-jade-annual-report",
+      "category": "03_work",
+      "sha256": "bb853f698050186f6753473d3447bcf99b8df0241622b9f645cc14dfdbe5d250",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "warm-jade-annual-report"
+      ]
+    },
+    {
+      "id": "03_work/04/en/color-stripes-documentary.md",
+      "name": "color-stripes-documentary",
+      "category": "03_work",
+      "sha256": "5bdcbd5f021c99e3a9bc37d5410d2f6dc729a775c477e575125bf925b95c9988",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "color-stripes-documentary"
+      ]
+    },
+    {
+      "id": "03_work/05/en/moon-white-imagery.md",
+      "name": "moon-white-imagery",
+      "category": "03_work",
+      "sha256": "3dfe63eb34198982802fa76acbbd3a792b8d34614a5e1ce968c6e6c4965b1023",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "moon-white-imagery"
+      ]
+    },
+    {
+      "id": "03_work/06/en/red-white-business.md",
+      "name": "red-white-business",
+      "category": "03_work",
+      "sha256": "02700e8b9f009b3fa5cec673dbcfab1c0b5dbb161d51695a2589d9edfa896f79",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "red-white-business"
+      ]
+    },
+    {
+      "id": "04_promotion/01/en/cream-collage.md",
+      "name": "cream-collage",
+      "category": "04_promotion",
+      "sha256": "81e0ef548a8b515f4522acd53f57071e38914c81ab7ecf3f649093d99900247f",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "cream-collage"
+      ]
+    },
+    {
+      "id": "04_promotion/02/en/silk-yellow-magazine.md",
+      "name": "silk-yellow-magazine",
+      "category": "04_promotion",
+      "sha256": "9d1017f3fc21c2327442b2b762e5dc0f21c27674b87e0b0eae8a8b4fa7b26ac2",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "silk-yellow-magazine"
+      ]
+    },
+    {
+      "id": "04_promotion/03/en/pine-soot-pictorial.md",
+      "name": "pine-soot-pictorial",
+      "category": "04_promotion",
+      "sha256": "7ebfb029e69012e9460191507016ef7b8e116c018dcd036d0d9374a6356736d2",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "pine-soot-pictorial"
+      ]
+    },
+    {
+      "id": "04_promotion/04/en/gold-orange-type-journal.md",
+      "name": "gold-orange-type-journal",
+      "category": "04_promotion",
+      "sha256": "d17a9dd9b2e7827af7dcff099b5376c493dfd10ef76766f63dccd2d3a4c1d043",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "gold-orange-type-journal"
+      ]
+    },
+    {
+      "id": "04_promotion/05/en/silver-gray-luxury-magazine.md",
+      "name": "silver-gray-luxury-magazine",
+      "category": "04_promotion",
+      "sha256": "d1dccbae157399a41c26257748f41ba2f9f56d638a3c87a0b81086aced2bccd1",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "silver-gray-luxury-magazine"
+      ]
+    },
+    {
+      "id": "04_promotion/06/en/fresh-brand.md",
+      "name": "fresh-brand",
+      "category": "04_promotion",
+      "sha256": "bf4a27937456aa5cafa001603f2062be45854b98f9d5c487cc05e0015bbf5fad",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "fresh-brand"
+      ]
+    },
+    {
+      "id": "05_academic/01/en/pink-purple-diagnosis.md",
+      "name": "pink-purple-diagnosis",
+      "category": "05_academic",
+      "sha256": "7ea8a474249e50146d2e287981709bf2aa6e81ba66b467a7eb2f66eab109eb55",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "pink-purple-diagnosis"
+      ]
+    },
+    {
+      "id": "05_academic/02/en/teal-green-academic-defense.md",
+      "name": "teal-green-academic-defense",
+      "category": "05_academic",
+      "sha256": "edf5481950e75eee8b531bb6e54d8b29db7a811e9529ea5215d86156f2554309",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "teal-green-academic-defense"
+      ]
+    },
+    {
+      "id": "05_academic/03/en/pastel-derivation.md",
+      "name": "pastel-derivation",
+      "category": "05_academic",
+      "sha256": "6c43c6553deefb2cfddc2ffdb5def51080c927469aaa7b96328964316cbceecc",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "pastel-derivation"
+      ]
+    },
+    {
+      "id": "05_academic/04/en/paper-white-courseware.md",
+      "name": "paper-white-courseware",
+      "category": "05_academic",
+      "sha256": "988afcc62005542f7efcc27f573c395a3887e1aedd291152ed4f5ab58fb30a2a",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "paper-white-courseware"
+      ]
+    },
+    {
+      "id": "05_academic/05/en/blue-line-courseware.md",
+      "name": "blue-line-courseware",
+      "category": "05_academic",
+      "sha256": "75fca304e56562ea638980f64a1fba60ede6bd29737740f313fac0f4695ad482",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "blue-line-courseware"
+      ]
+    },
+    {
+      "id": "05_academic/06/en/dark-themed-data.md",
+      "name": "dark-themed-data",
+      "category": "05_academic",
+      "sha256": "b8540b4bd8cda0dd6e3e567426bfe77299974140036a81162c4339fa8f36265e",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "dark-themed-data"
+      ]
+    },
+    {
+      "id": "academic/blue-line-courseware/design.md",
+      "name": "design",
+      "category": "academic",
+      "sha256": "cbceb29f83eefbab1b593923948344fc60143cb124fed37885eb78c07034701b",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "blue-line-courseware"
+      ]
+    },
+    {
+      "id": "academic/deep-blue-atlas/design.md",
+      "name": "design",
+      "category": "academic",
+      "sha256": "9ec1dceff1768027c704261feee85c39ff84d4812a5eabdb116194452be7670a",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "deep-blue-atlas"
+      ]
+    },
+    {
+      "id": "academic/paper-white-courseware/design.md",
+      "name": "design",
+      "category": "academic",
+      "sha256": "afd099d9cd40a30c1a393c9910604b9caf8e4c6d8a1f490efad29b8da21cda53",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "paper-white-courseware"
+      ]
+    },
+    {
+      "id": "academic/pastel-derivation/design.md",
+      "name": "design",
+      "category": "academic",
+      "sha256": "8c959783f95073be9c7f1df7382a987640e1f7b43ca23ae9e95b0211860ab83a",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "pastel-derivation"
+      ]
+    },
+    {
+      "id": "academic/teal-green-academic-defense/design.md",
+      "name": "design",
+      "category": "academic",
+      "sha256": "2945f10d4844153aa26add53feabf105c54701216662154ca5ccf3353bdf11c9",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "teal-green-academic-defense"
+      ]
+    },
+    {
+      "id": "academic/wine-red-data/design.md",
+      "name": "design",
+      "category": "academic",
+      "sha256": "6b6fa9f7ec50ea38a466dcd904682a129ac0d0c5f7b929ad788aa1b915876d1a",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "wine-red-data"
+      ]
+    },
+    {
+      "id": "consulting/apricot-white-brief/design.md",
+      "name": "design",
+      "category": "consulting",
+      "sha256": "94a912c08d769a44e7b13a8332fda0148299d708cb4d21beed5847feb0f67fc9",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "apricot-white-brief"
+      ]
+    },
+    {
+      "id": "consulting/indigo-due-diligence/design.md",
+      "name": "design",
+      "category": "consulting",
+      "sha256": "34ac9b1cdda0f344aaa1a36c5dca3ba5daad148295fc86642a4bdff96e948557",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "indigo-due-diligence"
+      ]
+    },
+    {
+      "id": "consulting/marine-blue-research/design.md",
+      "name": "design",
+      "category": "consulting",
+      "sha256": "be40268248dcc50fba0e2ed06ad7427c80bf4ebc3b68c8403270a7ca9a658a62",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "marine-blue-research"
+      ]
+    },
+    {
+      "id": "consulting/moss-green-transformation/design.md",
+      "name": "design",
+      "category": "consulting",
+      "sha256": "f7f4e31e18f7ecd50017527c821003787aec2c0cd522842e213c4c017c4ffa81",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "moss-green-transformation"
+      ]
+    },
+    {
+      "id": "consulting/pine-green-strategy/design.md",
+      "name": "design",
+      "category": "consulting",
+      "sha256": "29ed43e59579278a2fcd93f4ec4d915041c73c5a51a8e50111e2b16be7e7f121",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "pine-green-strategy"
+      ]
+    },
+    {
+      "id": "consulting/red-black-growth/design.md",
+      "name": "design",
+      "category": "consulting",
+      "sha256": "83f3c08597dc51ae32aed1bcf7ec8210e27f2e003d6cff3a90be95c908531c8f",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "red-black-growth"
+      ]
+    },
+    {
+      "id": "finance/black-gold-ledger/design.md",
+      "name": "design",
+      "category": "finance",
+      "sha256": "03e708f0b2a347f3de053b98081daffb875a51fe6570761234cfbacf32ca805b",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "black-gold-ledger"
+      ]
+    },
+    {
+      "id": "finance/ebony-ledger/design.md",
+      "name": "design",
+      "category": "finance",
+      "sha256": "8d162c31122401419a011d1be21b0608aeae19df778ff443d7a2eeac9e13623c",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "ebony-ledger"
+      ]
+    },
+    {
+      "id": "finance/honey-orange-memo/design.md",
+      "name": "design",
+      "category": "finance",
+      "sha256": "08af45cf6170095695d426e43a5d4a407d5579f4b092edef853eae0e957dea69",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "honey-orange-memo"
+      ]
+    },
+    {
+      "id": "finance/lake-blue-memo/design.md",
+      "name": "design",
+      "category": "finance",
+      "sha256": "d866c14b688afd597e5ac27eda35385669b50b5bc52852cd195db1439c00bcd8",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "lake-blue-memo"
+      ]
+    },
+    {
+      "id": "finance/prospect-annual/design.md",
+      "name": "design",
+      "category": "finance",
+      "sha256": "f84d64c4d10a8ebd0cc7161cacd85b338bbce295df552e9445ce2c109da76cd9",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "prospect-annual"
+      ]
+    },
+    {
+      "id": "finance/rice-paper-annual/design.md",
+      "name": "design",
+      "category": "finance",
+      "sha256": "b98b50eced346dc6d86c00cf0acfeb32298b0e9521fb3bbee2b5889b6b82abbf",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "rice-paper-annual"
+      ]
+    },
+    {
+      "id": "promotion/aqua-charity-report/design.md",
+      "name": "design",
+      "category": "promotion",
+      "sha256": "26209fc8f074e44d139e977db283a79920954a2a15b045e4359d78cba14fd148",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "aqua-charity-report"
+      ]
+    },
+    {
+      "id": "promotion/cream-collage/design.md",
+      "name": "design",
+      "category": "promotion",
+      "sha256": "9f8cfef54ff28d9ee8a9d998325b97e90bdd4f45703cc7f20d2a9cd40ba9b2ce",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "cream-collage"
+      ]
+    },
+    {
+      "id": "promotion/pine-soot-pictorial/design.md",
+      "name": "design",
+      "category": "promotion",
+      "sha256": "f755132236574cb66d8937d55e3cde5df5ad5900ff19ae6960e7d9bbbd0705bd",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "pine-soot-pictorial"
+      ]
+    },
+    {
+      "id": "promotion/silk-yellow-magazine/design.md",
+      "name": "design",
+      "category": "promotion",
+      "sha256": "935291996cc74934c6980fddfceb7eeeda96b98cae573e379d657e22ed47ea90",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "silk-yellow-magazine"
+      ]
+    },
+    {
+      "id": "promotion/silver-gray-luxury-magazine/design.md",
+      "name": "design",
+      "category": "promotion",
+      "sha256": "883ca1821b3cfcf0d3b5282296168a8cbb361e675611709fccbc8fc40dc69ed1",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "silver-gray-luxury-magazine"
+      ]
+    },
+    {
+      "id": "promotion/travel-green-handbook/design.md",
+      "name": "design",
+      "category": "promotion",
+      "sha256": "5e960091a9f92bb95a5a0afb28d5341d4c58b74d36a7f83dd37c1854bb221018",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "travel-green-handbook"
+      ]
+    },
+    {
+      "id": "work/blue-flame-brand/design.md",
+      "name": "design",
+      "category": "work",
+      "sha256": "49c6d12df76e72e8940e99b5251ddeb8b31a570a1fa8d217f9f672e39a7dc924",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "blue-flame-brand"
+      ]
+    },
+    {
+      "id": "work/electric-violet-business/design.md",
+      "name": "design",
+      "category": "work",
+      "sha256": "30b7f007eeb5fc7495f98a22240847504c02c002a6413e5ac7afcf0901a923cb",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "electric-violet-business"
+      ]
+    },
+    {
+      "id": "work/moon-white-imagery/design.md",
+      "name": "design",
+      "category": "work",
+      "sha256": "30e29b39a01630a1fa91b915731a5529b559fcec42a32def2c071be3f0c9dfcd",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "moon-white-imagery"
+      ]
+    },
+    {
+      "id": "work/sky-blue-wayfinding/design.md",
+      "name": "design",
+      "category": "work",
+      "sha256": "da54734ef2f533e72b11f8d75fe8d2a8629489d2f3491214c0589bc938a69e65",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "sky-blue-wayfinding"
+      ]
+    },
+    {
+      "id": "work/warm-clay-works/design.md",
+      "name": "design",
+      "category": "work",
+      "sha256": "8c4db65126cbb7a2e80c444a5ee7e6d07e219c2dd4d604f1392dc704398bd856",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "warm-clay-works"
+      ]
+    },
+    {
+      "id": "work/warm-jade-annual-report/design.md",
+      "name": "design",
+      "category": "work",
+      "sha256": "5961b8a59ad467f283fe1e6aa49b7866784e876f4b30a6a0dae83d9508a1d735",
+      "status": "collected",
+      "source": "Binaryify/open-kimi-ppt-skill; local snapshot 2026-10-13",
+      "redistributed": false,
+      "aliases": [
+        "warm-jade-annual-report"
+      ]
+    }
+  ],
+  "note": "Index only; upstream has no declared license. Original text is not redistributed. Hash duplicate groups are exact matches only.",
+  "exactDuplicateGroups": []
+}

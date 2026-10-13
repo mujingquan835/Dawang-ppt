@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dawang-PPT"
+  short_description: "内容驱动的中文演示制作、编辑与本地 PPTX 导出"
+  default_prompt: "使用 $dawang-ppt，先保全事实与硬要求，再规划构图、风格并验证实际交付。"

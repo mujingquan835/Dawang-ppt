@@ -17,3 +17,7 @@ Copyright (c) 2026 chuspeeism. Upstream AGPL-3.0 material retains its original c
 The bundled `skills/dashiai-ppt/project/packages/html-deck-to-pptx` export engine is proprietary upstream material. Its own `LICENSE` file controls that component and has not been replaced or reassigned.
 
 Third-party dependencies, fonts, visual assets, and demo media retain their respective copyright and license notices.
+
+## Dawang-PPT
+
+Dawang-PPT 0.1.0 additions are maintained by mujingquan835. The new runtime does not use the proprietary DashiAI export engine. Kimi design document text is not redistributed; the repository contains an index and independently authored adaptations.

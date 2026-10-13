@@ -1,13 +1,22 @@
 {
-  "name": "dashi-ppt-skill",
+  "name": "Dawang-ppt",
   "owner": {
     "name": "大师的AI小灶"
   },
   "metadata": {
-    "description": "DashiAI PPT skill marketplace",
-    "version": "0.4.0"
+    "description": "Dawang-PPT content-driven presentation skill",
+    "version": "0.1.0"
   },
   "plugins": [
+    {
+      "name": "dawang-ppt",
+      "description": "内容驱动中文演示制作与本地可编辑 PPTX 导出",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/dawang-ppt"
+      ]
+    },
     {
       "name": "dashiai-ppt",
       "description": "制作 PPT、演示文稿、幻灯片、汇报材料时使用。DashiAI PPT 基于预置视觉主题组合页面,生成可离线打开、可在浏览器编辑的 HTML 演示,支持导出 PPTX / PDF 文件。",

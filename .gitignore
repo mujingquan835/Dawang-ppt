@@ -20,3 +20,9 @@ output/
 
 # Upstream npm publishing workspace is not part of this GitHub-installed fork
 npm-dist/
+
+# Local dependency symlinks are also excluded
+node_modules
+**/node_modules
+*.pptx
+*.pdf
