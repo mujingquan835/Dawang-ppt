@@ -1,0 +1,23 @@
+{
+  "themeKeys": [
+    "theme09",
+    "theme13",
+    "theme16",
+    "theme17"
+  ],
+  "editorChecks": [
+    "text",
+    "image",
+    "font",
+    "props",
+    "order",
+    "duplicate",
+    "delete",
+    "skip",
+    "undo",
+    "save"
+  ],
+  "previousRuntime": "historical-only",
+  "syntheticData": true,
+  "privateEvidence": "output/fusion-v1/baseline (not in Git)"
+}

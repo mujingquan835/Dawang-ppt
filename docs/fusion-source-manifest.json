@@ -1,0 +1,1631 @@
+{
+  "baselineCommit": "2bb1c7167d125ba7ebb9a635c2427ede3b19eb27",
+  "localRuntimeVersion": "0.4.1",
+  "runtimeFiles": [
+    {
+      "path": "npmrc.template",
+      "sha256": "3fc62c79e2d5c41dd6446a8b328705ea8384bd99c9a6b3ec2f6e9de1dbe612bc"
+    },
+    {
+      "path": ".npmrc",
+      "sha256": "379672c8cb40eac366de112ace2402f312e5907db36b904527429f74dd2eb486"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "b9aec336dfe4b47e542842dd3ce60d5017ee606bd2eec8f8d2f5194683df5af4"
+    },
+    {
+      "path": "package.json",
+      "sha256": "241bbde27fce85bce7c25250c5b257305a6ebaa15253ec46453d8f84de34a33d"
+    },
+    {
+      "path": "layout-manifest.json",
+      "sha256": "1cec2c24f72890da88afee59f12f6daf7c8254c6852abd5ac17efa6731bbf8e2"
+    },
+    {
+      "path": "scripts/validate-goal-copy.mjs",
+      "sha256": "2d2347b24f3bd108079e74091c01277ff8775e935f9fd68c9530a93c0bbd49c6"
+    },
+    {
+      "path": "scripts/skill-workflow-utils.mjs",
+      "sha256": "412871387623f5cefd3204dc12bcc04d68f7c0f1b434b7bcfe94aeb5ff06e504"
+    },
+    {
+      "path": "scripts/export-pptx.mjs",
+      "sha256": "839e49494b83d82a65608c225761d35982c79b7d73300373c55f0e0718b4aa01"
+    },
+    {
+      "path": "scripts/ensure-registry.mjs",
+      "sha256": "1489fc9808d0e4623551e953ceaff9b64f6d4226a9b050816abe6c95383ea98f"
+    },
+    {
+      "path": "scripts/preview-freshness.mjs",
+      "sha256": "53fd19406ac30d1300d0bfcfa58c482d51024c614bbe3a665b5598c8cb911620"
+    },
+    {
+      "path": "scripts/qa-moon-white.mjs",
+      "sha256": "9160626c68b34c8fb3e97746909c5fad716dbb83558c697de1cd84def25775d9"
+    },
+    {
+      "path": "scripts/build-moon-white.mjs",
+      "sha256": "3779fdf66498604cbe2c03c32e77e4daac042582bffd19905d77104895c2082d"
+    },
+    {
+      "path": "scripts/layout-query.mjs",
+      "sha256": "94df3dc876d5f22edcf3f7c3c2b6eb6c4f0cd8e6ef312de1fc7c2e29a60d7222"
+    },
+    {
+      "path": "scripts/preview-export-auth.mjs",
+      "sha256": "34ad82f4de3668232979ee8be85ce45cb3018e50b23008b8586d5cb0e941da37"
+    },
+    {
+      "path": "scripts/write-safe-props.mjs",
+      "sha256": "6ba31c7d9074e990f62df8615d437b989cbf1deecc53e5c3610bd65a6f053dcd"
+    },
+    {
+      "path": "scripts/scrub-local-paths.mjs",
+      "sha256": "92a7b1e2e1c25cbf3f5900d360326384f5711d89a15731785ac9fbcaed0fbb9f"
+    },
+    {
+      "path": "scripts/preview-path.mjs",
+      "sha256": "71f4eeb2f87bd7a40f13c577e9335935dee648cc2e7b49096cb42dad8bd79fab"
+    },
+    {
+      "path": "scripts/revise-goal.mjs",
+      "sha256": "a06448eb4d43b8066a3aa9b58598b905107b72663cd32fa4eaf8687251e9bd95"
+    },
+    {
+      "path": "scripts/build-theme-style-grid.mjs",
+      "sha256": "e8e3ec56801e9ad8f83d160d77e08f7f51e8e9765b25c8a25a86df0ce356ce69"
+    },
+    {
+      "path": "scripts/serve-preview-https.mjs",
+      "sha256": "862960b2212e616bb951e2a242ebe5350777f651cea31ae1866fc7509bfa8d96"
+    },
+    {
+      "path": "scripts/validate-goal-spec.mjs",
+      "sha256": "fa90c4443ad865c2a2c908b6ab8420acb57d72387c5d553b8921cf4160d092ce"
+    },
+    {
+      "path": "scripts/openssl-path.mjs",
+      "sha256": "17c663bd3c60e9814ad7f9720ca42a0c5e55449c0bc12f91ce1b89d3bed6f55e"
+    },
+    {
+      "path": "scripts/inspect-layout.mjs",
+      "sha256": "eb300d9d200641ea4a8b133c3cc917ff71131e77997c30d2a515e27bdecc64e2"
+    },
+    {
+      "path": "scripts/pptx-metadata.mjs",
+      "sha256": "07c18af2b98ad3f99ed7aa889622e069090148fe214d3b2dd7e49a9101910fc5"
+    },
+    {
+      "path": "scripts/goal-scaffold.mjs",
+      "sha256": "2a1188f356cd36ea4ee5fbc5d8ab9f144fb3317813ac82ff4ab41be228b10eec"
+    },
+    {
+      "path": "scripts/persist-deck-state.mjs",
+      "sha256": "3d5058366947b184e340b88654ee56a45884fce02ac6e8da1c3a7290dc8f5eed"
+    },
+    {
+      "path": "scripts/command-paths.mjs",
+      "sha256": "774de3049ee1f656ba87da54ceecc12792060d9a9c197147d2e5e387578a79bd"
+    },
+    {
+      "path": "scripts/render-goal-deck.jsx",
+      "sha256": "6bffb384a43a9520aba64c8a0a1d736814dc9b6d1b85375a9e63cd621cd042c4"
+    },
+    {
+      "path": "scripts/stage-media.mjs",
+      "sha256": "d02da2a646b2bf2bf6ad52aa6555d3adffe9f25c80138ed816f73cd78bd07369"
+    },
+    {
+      "path": "scripts/start-preview-server.mjs",
+      "sha256": "44497981a21e6a7cd7ab092ec98b09a9a4f69cbde7b0788317c69366c3c71aea"
+    },
+    {
+      "path": "scripts/chrome-path.mjs",
+      "sha256": "dd54d5e4e92da82990d4d8a81df15f4ad1602fc399bf93dba0b10ad592083301"
+    },
+    {
+      "path": "scripts/validate-swiss-deck.mjs",
+      "sha256": "3026159feb2057bfe057a26593a51254fe7ee91493acac9f258ddd9bc040cb3a"
+    },
+    {
+      "path": "i18n/zh-en.json",
+      "sha256": "80654d41fcf37b5c770a0f0f8db189dad09be30930aaa4363bb3c6a1c773d9ba"
+    },
+    {
+      "path": "assets/template-swiss.html",
+      "sha256": "7f23ad2ad0e484a828b842441c59cc843c1f423fe0d8067feca2dc49fcfee351"
+    },
+    {
+      "path": "src/generated-metadata-writer.mjs",
+      "sha256": "81509baa44ef2d152bea1e007d84cc952ff1e0c27664ef983c9d8bc9a94ad265"
+    },
+    {
+      "path": "src/propContracts.jsx",
+      "sha256": "2264e4a7ae06e9f2591b56c081a68d49695dd2997fa75c91cbc5fa45b052add1"
+    },
+    {
+      "path": "src/options.jsx",
+      "sha256": "c015aa33bc55bfbbc8f93e68855086c5a95ba2073cf496d64aa295fc96fd7188"
+    },
+    {
+      "path": "src/i18n.mjs",
+      "sha256": "8f0e18cbd18d3f55c7b3ad86c709cf213f0c5bdbd1d17d454f9bc1b61a501ff9"
+    },
+    {
+      "path": "src/deckComposer.jsx",
+      "sha256": "da1e2690d07a9da9ab251053761626afd0f7f6999ac38258a26265efa2c32089"
+    },
+    {
+      "path": "src/types.d.ts",
+      "sha256": "49c8194ca2a214796f38c83933c60694e987d0bf087847c36298d8251ccef88d"
+    },
+    {
+      "path": "src/control-naming.mjs",
+      "sha256": "aec3132deb95dbc3884cca073816edd0903baf617e573244815a5e7f19bc0c37"
+    },
+    {
+      "path": "src/renderDeck.jsx",
+      "sha256": "153ece50ac20a71bf873c9aca8da92ee5206dc22a5a73093ca1f29212c6393fa"
+    },
+    {
+      "path": "src/metadata-serialize.mjs",
+      "sha256": "44bedcbc06a2aa5bfc28caa685871a5894e13c92f2d54712ee29103a3cb4a616"
+    },
+    {
+      "path": "src/react-shim.js",
+      "sha256": "25a06b6578cc1ad7aecea9106b12a5e1d540065989b80e14f73253f63c13adf3"
+    },
+    {
+      "path": "src/runtime-assets.mjs",
+      "sha256": "9d8acb2a4db7e124edfaa8e67a9b97b9f3b7a11357f6a59d7f869d1ba745be61"
+    },
+    {
+      "path": "src/i18n-core.mjs",
+      "sha256": "6704a29695d4b5c6da104481a78b82e05218e03e1f3f276f9604a1d452e1f329"
+    },
+    {
+      "path": "src/prop-contract-core.mjs",
+      "sha256": "7e0d22a6a013b738a816c2be25b25a6875ae51f35cbad039120dd0fa5c07ca62"
+    },
+    {
+      "path": "src/accepted-themes.mjs",
+      "sha256": "444454789ec067c41b807125f6773c37d74b8d462949e5e6568107e8a58efc27"
+    },
+    {
+      "path": "src/components/index.jsx",
+      "sha256": "547989c43bf8e6be0c12845d9f7060c5031ed9f760f7f57a80cb6f8837946ec2"
+    },
+    {
+      "path": "src/view-model/context.jsx",
+      "sha256": "b9da9550cf4c31d074477cfd4d4f93cc25759f4876cb7009fe956e8b86f2a8f7"
+    },
+    {
+      "path": "src/view-model/index.jsx",
+      "sha256": "c9bf0baca361dac55eaf7b3f942551e05b1e1e03d09977962f56e5a1501f66b7"
+    },
+    {
+      "path": "src/components/shell/index.jsx",
+      "sha256": "6bed3cb9eb407dda6df48997d3db1f918ab62066cc8b3855a97e5d83ad47e332"
+    },
+    {
+      "path": "src/components/shell/SlideShell.jsx",
+      "sha256": "34ba9992ddc5120b3e93aa26c70f209682891633512b7915f823f8f7dea37976"
+    },
+    {
+      "path": "src/components/themes/runtime-helpers.jsx",
+      "sha256": "42ee9e76a78fd0b127700f058c3a9933fae9ce2b07b11897801eeebd556704ac"
+    },
+    {
+      "path": "src/components/themes/generated-metadata.js",
+      "sha256": "c2e1a5052d0f806a02fd485877ab011ee512416e790d3915fd9019c86fe52dfe"
+    },
+    {
+      "path": "src/components/themes/theme-catalog.js",
+      "sha256": "72ee58332a692a3f833cb58c20c47ef76d930960eedd29a28f8d02a7842e3fb1"
+    },
+    {
+      "path": "src/components/themes/unicorn-background.jsx",
+      "sha256": "ac262545cb8bc1a711fbed44715073ae62bdcd14e68a6739915cf23677375797"
+    },
+    {
+      "path": "src/components/themes/index.jsx",
+      "sha256": "7dacc7c9e9410b792228fb9811f138da5e7b1ed6dd8010dfee22ff7c3ffebd71"
+    },
+    {
+      "path": "src/components/themes/runtime-build.mjs",
+      "sha256": "97315439f647f2ae573f2299499b6eac6e15c1f94f353eab581de7e87265b879"
+    },
+    {
+      "path": "src/components/themes/theme-registry-codegen.mjs",
+      "sha256": "5a60daeb06a8a0b2553a523bc55325dc4e4fe2188def5bdd64a1777e29cdae50"
+    },
+    {
+      "path": "src/components/themes/decorative-overrides.mjs",
+      "sha256": "81193f97e23855f1ff4dc4a878532aa640b19046c850f29b65779930c758c764"
+    },
+    {
+      "path": "src/components/themes/chart-safety.mjs",
+      "sha256": "642bdc91dca1cd5ecadd1e2c15dd7690b55cefc0bed2594d639e2274d063a933"
+    },
+    {
+      "path": "src/components/themes/client-runtime.jsx",
+      "sha256": "d7380178642a2d7deba68a4ad60e28bd1276a0523ef67837db9e6dc206f54890"
+    },
+    {
+      "path": "src/components/themes/theme03/overrides.js",
+      "sha256": "d9e7783993782e434d965e5166ee57a76f877fcfe906bce8a6c7c25ee500a847"
+    },
+    {
+      "path": "src/components/themes/theme03/metadata.js",
+      "sha256": "3488b547e04b3ed5228d11be5c6dd1e486b37956cd3e2eaae9cd67e8418a90fe"
+    },
+    {
+      "path": "src/components/themes/theme04/overrides.js",
+      "sha256": "53110a7662e3034ac0802173e426fe5a978f4596bec6a2565838bea7961c51cd"
+    },
+    {
+      "path": "src/components/themes/theme04/TEXT_CONTROL_POLICY.md",
+      "sha256": "d10a9bd9f637030e88d9afef4717e03330833ee9ed706fd8cc57455cafb06dfc"
+    },
+    {
+      "path": "src/components/themes/theme04/metadata.js",
+      "sha256": "a9cb3bab7e15c18d78a229efde78751e9a7de3b54bc8831a25efa7770d107068"
+    },
+    {
+      "path": "src/components/themes/theme05/metadata.js",
+      "sha256": "6810a3cbc48ba4dc0c42b94cdf47206b98331545d8528946e2f84d5eebdd7a6e"
+    },
+    {
+      "path": "src/components/themes/theme02/overrides.js",
+      "sha256": "3c48d6484bc76814e7f10adacf57a72e517a7deaaa1c0adee401c97ee559215e"
+    },
+    {
+      "path": "src/components/themes/theme02/metadata.js",
+      "sha256": "e393baf163fa634f0972bc806c5470f45549783a05518556d3120f225adad4bf"
+    },
+    {
+      "path": "src/components/themes/theme11/metadata.js",
+      "sha256": "0e75f6683fbb63045e60e2c07671241f9fd9ae6dfa9a5b4be2bb99dd63951e4d"
+    },
+    {
+      "path": "src/components/themes/theme16/runtime.jsx",
+      "sha256": "acb47288d3cbfb1ac6d8bc9473e6e6e14cf6cfa75045e40a547c8bbc96c3b988"
+    },
+    {
+      "path": "src/components/themes/theme17/runtime.jsx",
+      "sha256": "c48539df0460075a1abe91384140f75cc56ab06da53043b497aff02848e40b30"
+    },
+    {
+      "path": "src/components/themes/theme17/style.css",
+      "sha256": "f36843da1c6941d908b82a3a0bc63777c4ae7c4bb9caee7ca746874803c4095f"
+    },
+    {
+      "path": "src/components/themes/theme17/metadata.mjs",
+      "sha256": "bde1d89e3f60218eb639114756b4d20b582bc330847b9c36fcc57fb3a58e96a0"
+    },
+    {
+      "path": "src/components/themes/theme10/metadata.js",
+      "sha256": "63897d8d79c2619bc6361b4021381f0b7948ca18783e42c1df15e42c2bfdb735"
+    },
+    {
+      "path": "src/components/themes/theme07/metadata.js",
+      "sha256": "19cc061145a84aa4a490577d5668d83af7b475ba5ba7e772e286e3f71454ec80"
+    },
+    {
+      "path": "src/components/themes/theme09/metadata.js",
+      "sha256": "87736b29c8a7e7fccaac305f5214777afb2611dc2adbad320d7266449f217e8f"
+    },
+    {
+      "path": "src/components/themes/theme08/metadata.js",
+      "sha256": "f0b721ac9fa9a788e30d1e76954ef37030ddfc6a6df10bbd0d6a8343ae549c83"
+    },
+    {
+      "path": "src/components/themes/theme01/metadata.js",
+      "sha256": "dee4d45c8d3db385d276a7fb18ede066d38a4d4dc6c7744350b48f69d0a7f0ff"
+    },
+    {
+      "path": "src/components/themes/theme06/metadata.js",
+      "sha256": "d5f60cac267b8f347e5f44543d35cfb89be022e198204678fe87a079d45deee6"
+    },
+    {
+      "path": "src/components/themes/theme15/runtime.jsx",
+      "sha256": "5235c69e603fb312c79ec045ecf5ab42730c87ef31b00b9d093b1f60b95f38c2"
+    },
+    {
+      "path": "src/components/themes/theme12/metadata.js",
+      "sha256": "4c9a8563c7bb5b87e5756adbe78c9dc88b13fdf5d7f246f2d3118055599ca2bc"
+    },
+    {
+      "path": "src/components/themes/theme13/runtime.jsx",
+      "sha256": "ea35baa14ef1cc445cfbbd1b056626322a6d75263da2dbbd179e788d52c5c542"
+    },
+    {
+      "path": "src/components/themes/theme14/runtime.jsx",
+      "sha256": "a4eac80a03bffb5a4373027436e160bad8315b723fe74f18c61df0e486fa4cb0"
+    },
+    {
+      "path": "src/components/themes/open-design-bridge/definitions.mjs",
+      "sha256": "9fb1ac0e6653dad90749c33f898a699e1f0075347a46056e8f0c68eda3585d7a"
+    },
+    {
+      "path": "src/components/themes/open-design-bridge/factory.jsx",
+      "sha256": "f34dea53b8b2232aa93fc16d7b82ef501ce340ce1d79540971cd0fb5dd9406a2"
+    },
+    {
+      "path": "src/components/themes/open-design-bridge/NOTICE.md",
+      "sha256": "5bb4bc42fd56aec0b14695eb3c07dd1590c2b629251164511c9bc06caed98fed"
+    },
+    {
+      "path": "src/components/themes/open-design-bridge/licenses/html-ppt-LICENSE",
+      "sha256": "a5ed4059e25a3ec35e439abd2623753d1f42d4aa4989ffb5c6b7a97b61f6a949"
+    },
+    {
+      "path": "src/components/themes/open-design-bridge/licenses/blue-professional-LICENSE",
+      "sha256": "6d3011c008b1b4290f4f5713d86550bcc4b57ab477d9ed5eb893c6a7042add57"
+    },
+    {
+      "path": "src/components/themes/theme12/source/src/swTheme.js",
+      "sha256": "82b96b55945b2e7e03a87cdf65efc603fd9a0afc83b0b72505d9e323785b00ea"
+    },
+    {
+      "path": "src/components/themes/theme12/source/src/index.js",
+      "sha256": "41b11b974a95c159cffa08894b20609560b63d2a7619f51672793b961314dd5a"
+    },
+    {
+      "path": "src/components/themes/theme01/source/slides/theme.js",
+      "sha256": "10b68b270e74be515721a0b3d2ba1e7ba0d5b24f51ea72955a3886bb4f0ab41e"
+    },
+    {
+      "path": "src/components/themes/theme08/source/image-slot.js",
+      "sha256": "11373fe3c76bf9013ebac888005a1c09a88a2fd3cac390f65f88c52904da74a9"
+    },
+    {
+      "path": "src/components/themes/theme07/source/src/theme.js",
+      "sha256": "0a5b889c2442a72dbdeae9cacc2fab41b409c8d9752bbf546eabaa74e502e99e"
+    },
+    {
+      "path": "src/components/themes/theme02/source/src/gxnTheme.js",
+      "sha256": "7b824eff5e4833a0107f8c42632885e2a8e561bfc8c8de4397191911ebfa9fa0"
+    },
+    {
+      "path": "src/components/themes/theme05/source/styles/pulse-deck.css",
+      "sha256": "c505b11922f1e771f5d33adcb5900844c7b9bcf90979cf928e1b6a78560c6be7"
+    },
+    {
+      "path": "src/components/themes/theme05/source/styles/exc-covers.css",
+      "sha256": "ed6186907e7b637b48a5dbed0ffef667b208179a8de7842336984d65f5f99740"
+    },
+    {
+      "path": "src/components/themes/theme04/source/image-slot.js",
+      "sha256": "a4946cac784e2d5aecdcbec55d2d720b9ba8780dfbb094e2a199e6c746b1def5"
+    },
+    {
+      "path": "src/components/themes/theme03/source/src/icons.js",
+      "sha256": "eb3890da7abe0de8deb99ff5ef8dd57d81862f1372fb84888205d0737716a78a"
+    },
+    {
+      "path": "src/components/themes/theme03/source/src/registry.js",
+      "sha256": "54d0855b0cd8453f47b9583110350d00c7fd77ecb278577715bc055c0568e99f"
+    },
+    {
+      "path": "src/components/themes/theme03/source/src/theme.css",
+      "sha256": "27d637748803f43f34be4554f743330ad57e3ff6d80ba61f679da8a58a7a94b4"
+    },
+    {
+      "path": "src/components/themes/theme03/source/src/theme.js",
+      "sha256": "fd099fad64450c566fb12e7d975f388e119350e4c3da2dc8cf16ae7f9923bf5c"
+    },
+    {
+      "path": "src/components/themes/theme03/source/src/presetBase.js",
+      "sha256": "f5952d20b7b7778f49e4e3428a8effce6fd4fa01dbe6af3644326702e258b0d4"
+    },
+    {
+      "path": "src/components/themes/theme03/source/src/preset3d.js",
+      "sha256": "c9f9f690580a7904a5451da1ce1135e29c9af69e05b2adc393f4d00a252af283"
+    },
+    {
+      "path": "src/components/themes/theme03/source/src/slides/safeProps.js",
+      "sha256": "fb9d9626cd6fb029d224c96b8feed0c03c9e045cbd7f478952c89127e4c2c507"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/01.png",
+      "sha256": "8db32feb437e9fce03c61929642af2708d4091e0b5149684706de165eb86d79d"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/03.png",
+      "sha256": "d007e0d7d8b401ea52777f3c0852c205456ec04a3bb475fd186f4cbf764b31a9"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/02.png",
+      "sha256": "310715f9672bcc4e987d3b3c3ede0911c1301dc604c09877e43c2a6cf055d91f"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/06.png",
+      "sha256": "7013d209eab9ffc423f7f90e67be005b7e611785f178f3ebdc55fea10c258b75"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/12.png",
+      "sha256": "f07578513110e960f0c042bd3de70eedb3ee8ccf12aaa69468d6cdf99998cec2"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/07.png",
+      "sha256": "ed44ff10ee31437024e83458365d375b6f39402442a9438aa87cecbf26a11a76"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/11.png",
+      "sha256": "baef22fe4ecfc125b119b265bd2f88cacd0784184f031eb07eeb8241e4918f22"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/05.png",
+      "sha256": "da987c67600c60fffac6cd10e86f50186e3b4241e371f8dc1712c921333d6e6b"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/04.png",
+      "sha256": "f5380a386daf6278690845ad24d99efeb0f4cd69e1c6adb3270f1167e2c34b12"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/10.png",
+      "sha256": "4c97f2ad6492ee8a0f7adc49543e21445944fb13fa4ed096abfe6f7776284424"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/09.png",
+      "sha256": "165b430c349d587aa6d374b5fd6dca27f5d9486f3fbdeda4a60667929baccf92"
+    },
+    {
+      "path": "src/components/themes/theme03/source/assets/3d/08.png",
+      "sha256": "7b58f1b2d950247e68ba3c2bdaf13c8e7a631f8ad798791b2b2c05ad72a5a5b3"
+    },
+    {
+      "path": "assets/ui-icons/sidebar.svg",
+      "sha256": "f6789e4553a2d6ae3a0762dadcd3c19512175a57ece008b572c1ceb636dd0bee"
+    },
+    {
+      "path": "assets/skill/dashiai-ppt-favicon.png",
+      "sha256": "de1f8027482eae99807f4665ae847bb17823e631fe4f3c2ff0c7ef9df92e17d9"
+    },
+    {
+      "path": "assets/social-icons/bilibili.svg",
+      "sha256": "6dff941506d8f75e4709c1481790120ec708436421bafc424fc20b6b1910e68c"
+    },
+    {
+      "path": "assets/social-icons/github.svg",
+      "sha256": "d9b171550495b0b1b802f508a528225f4b46d8c66d764d6a119e21d610b81adb"
+    },
+    {
+      "path": "assets/social-icons/douyin.svg",
+      "sha256": "693053576de1153d2157e2085c472d101ec428c765e90f594f30ee3a857a34d6"
+    },
+    {
+      "path": "assets/social-icons/redbook.svg",
+      "sha256": "5bbbbf5d8c86f806747ef4ce2c9c6df329d8fa743b0fd86915b1a5ec74a12809"
+    },
+    {
+      "path": "assets/unicorn/automations_remix_scene.json",
+      "sha256": "24c59ebdbac6eb0fc25aeb986d9f968f7aac841b056797c44cdfdc829250039c"
+    },
+    {
+      "path": "assets/unicorn/moving_into_remix_scene.json",
+      "sha256": "434d721553699ddcd138a7a6b8b21d83a0ae8d8865c55c1bd1f9cc016bf97bf7"
+    },
+    {
+      "path": "assets/unicorn/tech_background_remix_scene.json",
+      "sha256": "6f3cbc3b9dbae8f6be824c745f1d812db5d1f301ce1afe2ee2d1fe55984735fa"
+    },
+    {
+      "path": "assets/unicorn/goey_balls_remix_scene.json",
+      "sha256": "f32b7469a6c47a0c21d4e7898e64451673048747aea1e9c3fb7afbeb615446c9"
+    },
+    {
+      "path": "assets/vendor/unicornstudio.umd.js",
+      "sha256": "2072685e173484fab6496b597c03e86f9fcf2bea1cc1711c9c9fbf743644f357"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-500-1.woff2",
+      "sha256": "8895e3d49825128bfa5238e4c96e9b432d7a3dadbe5c17c6081267398305dc71"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-600-4.woff2",
+      "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-4.woff2",
+      "sha256": "6bc0f226a5b7884a8170e3f62c63d7675609d4631bdc5931b5cdab81821f00eb"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-700-1.woff2",
+      "sha256": "4956ec7b19798cb8418f2e44349e90c0ab7310594350c4b9c2998dc092122d5a"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-300-1.woff2",
+      "sha256": "c129280f7831f0e528f327ee4496a7dd097a71a0d659d382ba4d579713eeaf0d"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-normal-800-2.woff2",
+      "sha256": "d799c75bee5ee74f5cd4f42d44542aec082896135c9dec8a2083e7ca4fbe6b8d"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-200-2.woff2",
+      "sha256": "0409ce1efcf1ca55e9393efb53c1af72314f1b72423ec38b43ba89aee2122084"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-600-2.woff2",
+      "sha256": "6276a2f5a5554c16b422f00f114773a8d4013a81df18a338f7c216d80103c9af"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-700-7.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-400-2.woff2",
+      "sha256": "952dddb45d2f96f71cbf3b7f510b24379afc3c89ea02fcf89d377b45d62c0166"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-normal-500-2.woff2",
+      "sha256": "9b553af5de5ebba87ea66530fa0cc05a3e5ed68c4a051915af0bc21188a9df9c"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-700-5.woff2",
+      "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-500-5.woff2",
+      "sha256": "01d285447409c8a588692162439a038b8cbd7871309ee20267b0d2d91c6e8e22"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-700-3.woff2",
+      "sha256": "f626b95c1efa95cf6b7c9b043d3bbe8862b6abbe5f55a082102f33f7de2fd4f9"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-600-6.woff2",
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-600-2.woff2",
+      "sha256": "e17cfd15fb96909d64095015f958207063a0c07191da3512df7d560a781aebdf"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-300-3.woff2",
+      "sha256": "7f043a9329be5da82e519825b674eb502979851b5b26e1e63408f58fdb1a79a6"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-500-3.woff2",
+      "sha256": "0640890476fc1198ab4de571fb658de443c4d85b66466ec09534a8737ab1ce9d"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-600-6.woff2",
+      "sha256": "83c005d49d8a6a50474c73a5a36ac0468076e9c4a29da7bdb14995d80560a5be"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-600-2.woff2",
+      "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-2.woff2",
+      "sha256": "7635422bd10ddbbcb0e0caa1154b928298f5c8319b8c00b30978d4395f4783ce"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-600-3.woff2",
+      "sha256": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-300-1.woff2",
+      "sha256": "1be9d147b2fe90351a57ad27575d1097b6dbabe6bfa7d11cf5682194164777f4"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-600-4.woff2",
+      "sha256": "891951df5e8b5b0f0bc760d31375405e795c666b5add70437de12d4a6482b33f"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-500-1.woff2",
+      "sha256": "3febe5c7f22e4b07b4552738673c3dbe8bced2dc5f48b866edf7ccd9552d109a"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-700-1.woff2",
+      "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-200-4.woff2",
+      "sha256": "f61deac4596e0b6353a5b1af69b0f8798ac3ffdac7b9276417e54697cbf13603"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-700-3.woff2",
+      "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-500-3.woff2",
+      "sha256": "781633d95de88040fb77141d1e65d928c87c0144691fbc74da5a64d137a7e910"
+    },
+    {
+      "path": "assets/vendor/fonts/space-mono-700-2.woff2",
+      "sha256": "52edd9a8959ec3e68d618e2a4757182c0e61bfeea61679850cad8744a68cadf3"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-300-3.woff2",
+      "sha256": "a5de30e3b00eec05d96c3db37b9a90e36c6ed68f1bed5b38eb3e6871ff04a145"
+    },
+    {
+      "path": "assets/vendor/fonts/oppo-sans-4.0.ttf",
+      "sha256": "6c7d5864c661516e1f400d9f21e4297f2e2a0719909691e29607cc4ef484a9f4"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-700-2.woff2",
+      "sha256": "ff4f17d21930e36d6d93baba663e624cb767afc3feebf7adaebd82242638de05"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-600-1.woff2",
+      "sha256": "5a621c5598a31392555104ccdc41a46c3104f1cc22666024a8afb881ca9adaab"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-600-4.woff2",
+      "sha256": "c89b9cc0bc6262bd4f8d8494b6961601f3aefa829d08c2e3635f4d501d3a47c2"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-300-5.woff2",
+      "sha256": "d2ce22595d55a52b0c63f837515729bd97706bfa1b833816509f13d93daa59b5"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-normal-500-3.woff2",
+      "sha256": "5613e2fc8377392c02e8ac9d55014689fb5320a5f2a7be55e8088a314728ac2c"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-700-4.woff2",
+      "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-600-1.woff2",
+      "sha256": "4956ec7b19798cb8418f2e44349e90c0ab7310594350c4b9c2998dc092122d5a"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-500-4.woff2",
+      "sha256": "6bb06407c97584b0867a959e05e8874693bfeb8c317de190811c51598f2d99ea"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-200-1.woff2",
+      "sha256": "24d6d838a4c6aa31a3260f08a53d468b729120ca2b5c7d8ae877fd4252ca7107"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-400-1.woff2",
+      "sha256": "8895e3d49825128bfa5238e4c96e9b432d7a3dadbe5c17c6081267398305dc71"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-500-2.woff2",
+      "sha256": "952dddb45d2f96f71cbf3b7f510b24379afc3c89ea02fcf89d377b45d62c0166"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-600-3.woff2",
+      "sha256": "0a557721b1f8b36d3f3f84442689a71ca4a744300abcb46a1953f51bfc663b66"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-normal-800-1.woff2",
+      "sha256": "5080c491d3b77df3a6f88e37dbf88b696abf3f16d4d23a9678b297f36a1b964f"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-300-2.woff2",
+      "sha256": "4cadd515f7e69b84af2247ebfba34dd40d7aa9fddce147d6e783ee6993d07c74"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-700-2.woff2",
+      "sha256": "6276a2f5a5554c16b422f00f114773a8d4013a81df18a338f7c216d80103c9af"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-600-7.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-normal-800-3.woff2",
+      "sha256": "a80d960e5f0dca38702676840bc5b80bcea51c5efd90d9b2160fd643d41f2685"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-600-1.woff2",
+      "sha256": "62213be8a78b42f1e29d1452d91e2f8b3e745572a9dd98d3941e39fa00b37d76"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-600-5.woff2",
+      "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-5.woff2",
+      "sha256": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-400-3.woff2",
+      "sha256": "0640890476fc1198ab4de571fb658de443c4d85b66466ec09534a8737ab1ce9d"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-600-3.woff2",
+      "sha256": "f626b95c1efa95cf6b7c9b043d3bbe8862b6abbe5f55a082102f33f7de2fd4f9"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-normal-500-1.woff2",
+      "sha256": "f950f15b6fab6593349cdad92849419530bd4305d9a2edd4145cfc42d0c2c5a1"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-700-6.woff2",
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-200-3.woff2",
+      "sha256": "b61f141821ef9e4aae671f6503951367a224da05f29e653e368acc9e3ca748dd"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-700-3.woff2",
+      "sha256": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-300-2.woff2",
+      "sha256": "18faaede6f5cfb5dbb352c7185169f7a9d420a49509ddf0334904226153077de"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-700-2.woff2",
+      "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-500-2.woff2",
+      "sha256": "1d89462e86cb8e87e7e9d6f6635605bd7c3081baca6caaecee84916bf7b60edc"
+    },
+    {
+      "path": "assets/vendor/fonts/space-mono-700-3.woff2",
+      "sha256": "2d46bd159b53f55c41167a4f1540a074649464194fd1e416f5b4694a6c0f282c"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-1.woff2",
+      "sha256": "f8c22ec1804bd6966b70f43ac7c327025645b4c09597117fca2a5a6c750106fe"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-700-4.woff2",
+      "sha256": "891951df5e8b5b0f0bc760d31375405e795c666b5add70437de12d4a6482b33f"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-600-1.woff2",
+      "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-600-5.woff2",
+      "sha256": "db5ff4db83e580426280e9337a58dc57d3a83784a1b03ad80914651594441d52"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-300-4.woff2",
+      "sha256": "40a4c5fb57ace858d7d9f7da764a9104a75976c88fc27f8e957d717e6189938d"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-600-2.woff2",
+      "sha256": "ff4f17d21930e36d6d93baba663e624cb767afc3feebf7adaebd82242638de05"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-600-3.woff2",
+      "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-3.woff2",
+      "sha256": "62632b6375305e70ddcafdd895218e6ae41a184fcd280a69c739460604ca00a9"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-200-5.woff2",
+      "sha256": "fc952b841b3a64865b32b421c2907791238590cfbf929d8fed143510903fd833"
+    },
+    {
+      "path": "assets/vendor/fonts/space-mono-700-1.woff2",
+      "sha256": "97f6df0559c6393b851812484ae859b7c539815d5fcdab7d17234492480fa16c"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-700-1.woff2",
+      "sha256": "5a621c5598a31392555104ccdc41a46c3104f1cc22666024a8afb881ca9adaab"
+    },
+    {
+      "path": "assets/vendor/fonts/anton-400-2.woff2",
+      "sha256": "0d17b7880f389deeb6663a52fa4eadc6d9116bdda725f0aa1f3d404fbb7d3d59"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-900-6.woff2",
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-500-3.woff2",
+      "sha256": "0a557721b1f8b36d3f3f84442689a71ca4a744300abcb46a1953f51bfc663b66"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-500-7.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-italic-2.woff2",
+      "sha256": "4aded3f2f2a7d27d9430ca6f6ef9dc7d7efa861a61891a5f67758d467da9ed14"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-400-2.woff2",
+      "sha256": "6276a2f5a5554c16b422f00f114773a8d4013a81df18a338f7c216d80103c9af"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-600-2.woff2",
+      "sha256": "952dddb45d2f96f71cbf3b7f510b24379afc3c89ea02fcf89d377b45d62c0166"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-200-2.woff2",
+      "sha256": "0e25c4571381ec5d1e6556737990aa2ae42849ae41da535956ba4961e3e986e2"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-500-2.woff2",
+      "sha256": "bb24f6648f75d909eb74535916015c97ef72a1344e532ec7bbaf3f80eb6f389f"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-400-4.woff2",
+      "sha256": "73e7f7b1c980416ae0c2461268b14c7cfcce0668e683dc43fbb11a82a227b9f2"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-700-1.woff2",
+      "sha256": "8895e3d49825128bfa5238e4c96e9b432d7a3dadbe5c17c6081267398305dc71"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-400-1.woff2",
+      "sha256": "0c22099dbcb30110e74c393b51e00018b9b5d7d224a1a5324d9701b3a8266bb3"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-300-1.woff2",
+      "sha256": "7d0037a170882a49e65a45c38ef195237bb07b1cc791d078379f0ac0d7ae1935"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-600-4.woff2",
+      "sha256": "32057cf50dd14bdb21a2c93766c4a2c43e4abe688ea3922df3203cac7751a98b"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-400-4.woff2",
+      "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-800-5.woff2",
+      "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+    },
+    {
+      "path": "assets/vendor/fonts/oppo-sans-4.0-license-notice.txt",
+      "sha256": "b013f80fa2fa6f6db4a31b793676f787af78263b568088a2d896e9d9b3e5fde7"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-400-6.woff2",
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-400-2.woff2",
+      "sha256": "e17cfd15fb96909d64095015f958207063a0c07191da3512df7d560a781aebdf"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-800-7.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-400-6.woff2",
+      "sha256": "e2291e842cf5af167122a22881a740c7f2dda7716f1e8cd76680264f4a859470"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-800-2.woff2",
+      "sha256": "9bf9c1fc630e4c07def28f2273d354929cefae3251688c0ec229ec892cc48695"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-400-3.woff2",
+      "sha256": "5dfcd10d24af8c82927ba57f7983dd997f7b200594c09c35a1b1ed9fc4597506"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-300-3.woff2",
+      "sha256": "f598dd0700f155e2facfaa8ecfacace397d4c2c153e9ce37ab7ad310e8505bc2"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-700-3.woff2",
+      "sha256": "0640890476fc1198ab4de571fb658de443c4d85b66466ec09534a8737ab1ce9d"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-500-5.woff2",
+      "sha256": "d160e20920ae4d6556518d352d3af27a74e9b0de3d8fe17b1c1044fc75aa2f81"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-500-1.woff2",
+      "sha256": "62213be8a78b42f1e29d1452d91e2f8b3e745572a9dd98d3941e39fa00b37d76"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-900-4.woff2",
+      "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-500-5.woff2",
+      "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-900-1.woff2",
+      "sha256": "5a621c5598a31392555104ccdc41a46c3104f1cc22666024a8afb881ca9adaab"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-500-1.woff2",
+      "sha256": "7d0037a170882a49e65a45c38ef195237bb07b1cc791d078379f0ac0d7ae1935"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-200-4.woff2",
+      "sha256": "0a1500396ef15b0cd26c3aa24eacd52afebd72a867c060f1eba9d9093521db1c"
+    },
+    {
+      "path": "assets/vendor/fonts/oppo-sans-4.0-source.txt",
+      "sha256": "f9db5bbb90c44154ec03ab614b24d5c004a06440cd495ab6c51dd4be9ae72658"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-500-1.woff2",
+      "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-400-4.woff2",
+      "sha256": "891951df5e8b5b0f0bc760d31375405e795c666b5add70437de12d4a6482b33f"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-italic-4.woff2",
+      "sha256": "1b07eee6df7d26b31864581c2365131d384077605e0b63ae67c4a0a64363a6de"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-500-5.woff2",
+      "sha256": "db5ff4db83e580426280e9337a58dc57d3a83784a1b03ad80914651594441d52"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-400-6.woff2",
+      "sha256": "83c005d49d8a6a50474c73a5a36ac0468076e9c4a29da7bdb14995d80560a5be"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-800-3.woff2",
+      "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+    },
+    {
+      "path": "assets/vendor/fonts/space-mono-400-3.woff2",
+      "sha256": "fb4a81a2d0a893e5c38c394a7e716a1cef0b24610a0af49c96f6d529bd66bf2b"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-600-2.woff2",
+      "sha256": "2b05a8695c7f9f4abd7178b279646a3b005a8ce57546bef6fd145f25d131e0aa"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-400-2.woff2",
+      "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-400-3.woff2",
+      "sha256": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-400-2.woff2",
+      "sha256": "9409ee21811f0f5272b7e1d828fe8838005b0573481ef906e7e55b63f6610ab0"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-300-2.woff2",
+      "sha256": "bb24f6648f75d909eb74535916015c97ef72a1344e532ec7bbaf3f80eb6f389f"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-800-2.woff2",
+      "sha256": "ff4f17d21930e36d6d93baba663e624cb767afc3feebf7adaebd82242638de05"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-300-5.woff2",
+      "sha256": "d160e20920ae4d6556518d352d3af27a74e9b0de3d8fe17b1c1044fc75aa2f81"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-400-1.woff2",
+      "sha256": "5a621c5598a31392555104ccdc41a46c3104f1cc22666024a8afb881ca9adaab"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-800-1.woff2",
+      "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-400-4.woff2",
+      "sha256": "c89b9cc0bc6262bd4f8d8494b6961601f3aefa829d08c2e3635f4d501d3a47c2"
+    },
+    {
+      "path": "assets/vendor/fonts/space-mono-400-1.woff2",
+      "sha256": "a748973d5d192a27d69862f5af5f9182d4420d3a924e7b992ae82182e9b12cd8"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-500-3.woff2",
+      "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-900-2.woff2",
+      "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-500-3.woff2",
+      "sha256": "f598dd0700f155e2facfaa8ecfacace397d4c2c153e9ce37ab7ad310e8505bc2"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-900-3.woff2",
+      "sha256": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-500-2.woff2",
+      "sha256": "ff4f17d21930e36d6d93baba663e624cb767afc3feebf7adaebd82242638de05"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-200-6.woff2",
+      "sha256": "c833796fdabe4792da42802d0f69bc37356ba7d9a9970cf8c94773c54d63eebb"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-300-2.woff2",
+      "sha256": "9409ee21811f0f5272b7e1d828fe8838005b0573481ef906e7e55b63f6610ab0"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-400-2.woff2",
+      "sha256": "bb24f6648f75d909eb74535916015c97ef72a1344e532ec7bbaf3f80eb6f389f"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-700-2.woff2",
+      "sha256": "952dddb45d2f96f71cbf3b7f510b24379afc3c89ea02fcf89d377b45d62c0166"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-800-3.woff2",
+      "sha256": "0cb88954ffb33a799a4896050dfd5d5ac15f5851d5ae9812b7fa1eb255e8140c"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-400-3.woff2",
+      "sha256": "0a557721b1f8b36d3f3f84442689a71ca4a744300abcb46a1953f51bfc663b66"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-800-6.woff2",
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-400-7.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-400-1.woff2",
+      "sha256": "4956ec7b19798cb8418f2e44349e90c0ab7310594350c4b9c2998dc092122d5a"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-italic-1.woff2",
+      "sha256": "a0b3b8cbe5a516e75f8e98305a0c7062adaddb791f6ed3bd15665e95ff8fec71"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-500-4.woff2",
+      "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-900-5.woff2",
+      "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+    },
+    {
+      "path": "assets/vendor/fonts/anton-400-1.woff2",
+      "sha256": "82cc85bd416dc825c05b4264a8a58e189e528fed8a05fbd471b5493e010d623b"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-500-4.woff2",
+      "sha256": "73e7f7b1c980416ae0c2461268b14c7cfcce0668e683dc43fbb11a82a227b9f2"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-500-1.woff2",
+      "sha256": "0c22099dbcb30110e74c393b51e00018b9b5d7d224a1a5324d9701b3a8266bb3"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-200-1.woff2",
+      "sha256": "995d3efb287522350f00f3525ffbf62bcc3f306ad83f8564c165810696353f2a"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-600-1.woff2",
+      "sha256": "8895e3d49825128bfa5238e4c96e9b432d7a3dadbe5c17c6081267398305dc71"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-500-6.woff2",
+      "sha256": "e2291e842cf5af167122a22881a740c7f2dda7716f1e8cd76680264f4a859470"
+    },
+    {
+      "path": "assets/vendor/fonts/space-grotesk-600-3.woff2",
+      "sha256": "0640890476fc1198ab4de571fb658de443c4d85b66466ec09534a8737ab1ce9d"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-500-3.woff2",
+      "sha256": "5dfcd10d24af8c82927ba57f7983dd997f7b200594c09c35a1b1ed9fc4597506"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-200-3.woff2",
+      "sha256": "4f5dace9e2b026596a1193a3436b9f1df129e928ff29c372a652505a29d4c0d9"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-500-6.woff2",
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+    },
+    {
+      "path": "assets/vendor/fonts/caveat-400-3.woff2",
+      "sha256": "f626b95c1efa95cf6b7c9b043d3bbe8862b6abbe5f55a082102f33f7de2fd4f9"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-italic-3.woff2",
+      "sha256": "a6bab38af4f9c761284fabe543b32eb4fa5760321f1e2550971e6b0f44b725a5"
+    },
+    {
+      "path": "assets/vendor/fonts/anton-400-3.woff2",
+      "sha256": "d0fa07ff63dd60cbc0e2f58e29c802dca2a5ae0276c999f59c6111ab7bbaec3b"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-900-7.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-500-2.woff2",
+      "sha256": "e17cfd15fb96909d64095015f958207063a0c07191da3512df7d560a781aebdf"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-800-4.woff2",
+      "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-400-1.woff2",
+      "sha256": "62213be8a78b42f1e29d1452d91e2f8b3e745572a9dd98d3941e39fa00b37d76"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-600-5.woff2",
+      "sha256": "0d1f0b8d0722224e32e9f28261bdc86c79115be73444ae5eceb73976a1bcdf83"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-400-5.woff2",
+      "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-400-5.woff2",
+      "sha256": "d160e20920ae4d6556518d352d3af27a74e9b0de3d8fe17b1c1044fc75aa2f81"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-800-1.woff2",
+      "sha256": "ea74b1b2d70e4111172dca431c897cf65d8749ebe0a18949bcfcf7e607291859"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-400-1.woff2",
+      "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-600-1.woff2",
+      "sha256": "83109cdd4f8665b475dfc11d61bd44da328bf7e6eab3d3953d39c49b1b9f6015"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-400-5.woff2",
+      "sha256": "db5ff4db83e580426280e9337a58dc57d3a83784a1b03ad80914651594441d52"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-800-1.woff2",
+      "sha256": "5a621c5598a31392555104ccdc41a46c3104f1cc22666024a8afb881ca9adaab"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-300-1.woff2",
+      "sha256": "0c22099dbcb30110e74c393b51e00018b9b5d7d224a1a5324d9701b3a8266bb3"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-400-1.woff2",
+      "sha256": "7d0037a170882a49e65a45c38ef195237bb07b1cc791d078379f0ac0d7ae1935"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-300-4.woff2",
+      "sha256": "73e7f7b1c980416ae0c2461268b14c7cfcce0668e683dc43fbb11a82a227b9f2"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-500-3.woff2",
+      "sha256": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-500-2.woff2",
+      "sha256": "9409ee21811f0f5272b7e1d828fe8838005b0573481ef906e7e55b63f6610ab0"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-900-2.woff2",
+      "sha256": "ff4f17d21930e36d6d93baba663e624cb767afc3feebf7adaebd82242638de05"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-900-3.woff2",
+      "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-500-6.woff2",
+      "sha256": "83c005d49d8a6a50474c73a5a36ac0468076e9c4a29da7bdb14995d80560a5be"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-500-2.woff2",
+      "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+    },
+    {
+      "path": "assets/vendor/fonts/jetbrains-mono-500-4.woff2",
+      "sha256": "c89b9cc0bc6262bd4f8d8494b6961601f3aefa829d08c2e3635f4d501d3a47c2"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-900-1.woff2",
+      "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-400-italic-5.woff2",
+      "sha256": "0840095faae86403735a8c04014b72cb29e7923646b222b360b7e8252932e4e3"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-200-5.woff2",
+      "sha256": "cee350a8c999b117d0616326eccc805f0ae3314ac45276c115b2fa3e227adbc3"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-500-1.woff2",
+      "sha256": "5a621c5598a31392555104ccdc41a46c3104f1cc22666024a8afb881ca9adaab"
+    },
+    {
+      "path": "assets/vendor/fonts/newsreader-300-3.woff2",
+      "sha256": "5dfcd10d24af8c82927ba57f7983dd997f7b200594c09c35a1b1ed9fc4597506"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-400-3.woff2",
+      "sha256": "f598dd0700f155e2facfaa8ecfacace397d4c2c153e9ce37ab7ad310e8505bc2"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-800-3.woff2",
+      "sha256": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967"
+    },
+    {
+      "path": "assets/vendor/fonts/archivo-400-2.woff2",
+      "sha256": "ff4f17d21930e36d6d93baba663e624cb767afc3feebf7adaebd82242638de05"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-sans-300-6.woff2",
+      "sha256": "e2291e842cf5af167122a22881a740c7f2dda7716f1e8cd76680264f4a859470"
+    },
+    {
+      "path": "assets/vendor/fonts/space-mono-400-2.woff2",
+      "sha256": "44ad50c760fa8f5b62da3d489edb40adebabaf97988b9b0adbbc3f0be859050a"
+    },
+    {
+      "path": "assets/vendor/fonts/ibm-plex-mono-600-3.woff2",
+      "sha256": "51b74d53e106ba8a26dd33464b231a562069be2a234b923c115beb622e6f6bc6"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-400-3.woff2",
+      "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+    },
+    {
+      "path": "assets/vendor/fonts/inter-800-2.woff2",
+      "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+    },
+    {
+      "path": "assets/unicorn/media/blue_noise_med.png",
+      "sha256": "b13e8110a3cff03dc719ad21a732652afc1f2f83127ecb4e0213b09ac34ae136"
+    },
+    {
+      "path": "assets/unicorn/media/font_atlas.png",
+      "sha256": "37e7d94a611a42d2d29e5236186c16decbe07119fa8ba99ec33c2454822e12d7"
+    },
+    {
+      "path": "scripts/tests/moon-white.test.mjs",
+      "sha256": "cc31b291a0d3690ed7630604813f643a27e4c098794771ef3b917fc5b372bb0b"
+    },
+    {
+      "path": "scripts/workflow/media-slots.mjs",
+      "sha256": "0b824e954c955fd79eecc22a684f1dad67604ac05dfd6e6249e0a3b1211bdde0"
+    },
+    {
+      "path": "scripts/workflow/theme-registry.mjs",
+      "sha256": "0eb0a816396b4c6f38bdca58319abda2c4aedd5d5184530c8696b9a256401277"
+    },
+    {
+      "path": "scripts/workflow/layout-query.mjs",
+      "sha256": "852328c1b69921c0d6f035d714454b2ef9a1e829b094363b41887eb8b3104b15"
+    },
+    {
+      "path": "scripts/workflow/copy-contract.mjs",
+      "sha256": "1f1e3d00a7a545367fa6a9495932ce4893db3263c5e5f5b9f6f612d40a75884b"
+    },
+    {
+      "path": "scripts/workflow/inspect-fillplan.mjs",
+      "sha256": "007e69c3c0bff48eaab3aef604aaca149d33d786b8a4a800b46adfb32c17d2a1"
+    },
+    {
+      "path": "scripts/preview/static-serve.mjs",
+      "sha256": "ad8b8ba58f4fcfc3e26d48135a21cfff11ce2578efd96aec6fd1e6a5af567945"
+    },
+    {
+      "path": "scripts/preview/mime.mjs",
+      "sha256": "b559ce5fbe5ef13022fcbc99e4b3f613520e54892563dcf2eb05b902a9433aab"
+    },
+    {
+      "path": "scripts/preview/network.mjs",
+      "sha256": "e81c2387e67d8c92859bdf4f2cec7e24db2f4a81a265935396acb107d6a99cb8"
+    },
+    {
+      "path": "scripts/preview/export-routes.mjs",
+      "sha256": "4367d3757a34d270b153c647acfede3d1981bb84d7733a97ad960d817cbdbf42"
+    },
+    {
+      "path": "scripts/preview/ensure-tmpdir.mjs",
+      "sha256": "66797eda132bb07efb7cf5fdfc72accd37d8e64bee529a276ceeef2f86761c25"
+    },
+    {
+      "path": "scripts/preview/launch-export-browser.mjs",
+      "sha256": "6afc2678bb1360cbf20bf7365292dd81ea799119d826957722bcc883cb3a0bb4"
+    },
+    {
+      "path": "scripts/preview/tls.mjs",
+      "sha256": "7fa7ae75c4ec2138796221cd8b5684643f56fa9ac2574f723ff81819b12d9656"
+    },
+    {
+      "path": "dist/theme-runtime/theme06.module.mjs",
+      "sha256": "a7ba56d2c93cb738811c54abb1369ff08a599c702e46717644fff13607fe426e"
+    },
+    {
+      "path": "dist/theme-runtime/theme17.module.mjs",
+      "sha256": "0000a049131717df67e1628fcf946ced0a87a5bf7d5b5d8005a4b411e92505c6"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme09.js",
+      "sha256": "d469acbd8a1d7115c06f2c7990226b49a8a7d4ba304afcb9b10538fb16e74b9c"
+    },
+    {
+      "path": "dist/theme-runtime/theme12.module.mjs",
+      "sha256": "c5514bf71b552af1110a25b404bd877cd0db521fa9fd9303a9b2160e65e573ee"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme08.js",
+      "sha256": "fd5d8abad7211d4264ad3a3867f31abb46b660319c3792d31de8e80e48303985"
+    },
+    {
+      "path": "dist/theme-runtime/theme03.module.mjs",
+      "sha256": "083d76f494918954d9bc6b02bccb040ae7a2a8e62969af518d0b6e6397d75054"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme07.js",
+      "sha256": "374c829304ec7e5c5c56ec9c5fb39d832c5f7c742ca394a285b7966ac82efff4"
+    },
+    {
+      "path": "dist/theme-runtime/theme04.module.mjs",
+      "sha256": "ea1e6ac136a6bd740a1bde5407f4e7f41f34b66533a560053d5800a50533aeb9"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme17.js",
+      "sha256": "55a986b6d7b996811cf350c31883038eec8f77ce44cd60cecf84fe840ffe6aec"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme03.js",
+      "sha256": "d576513fd72979fd6c6082fc6ca6d3a5132da775c60715075ae841f96fb62a11"
+    },
+    {
+      "path": "dist/theme-runtime/theme09.module.mjs",
+      "sha256": "99e48cddc9b5298bfaa422d198a118755e0a9bffd3ce786ed44001f6338d9dd6"
+    },
+    {
+      "path": "dist/theme-runtime/theme15.module.mjs",
+      "sha256": "a1c7e243fb4d831fcaa29ca1aa4eac5cbecc848a4255a622319fdfa485fe81c3"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme13.js",
+      "sha256": "a0ecc7ea3b8c6cf1e8f10eb60c80fdacc59a5aff37d557b763df1e4eb8958083"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme02.js",
+      "sha256": "bda4604d89af0d0e679a3df1d3e066d7ec47b29d3adb25479206b4f155c6867c"
+    },
+    {
+      "path": "dist/theme-runtime/theme10.module.mjs",
+      "sha256": "4363ec55ee26c270cabf7f09c25c4db5a53bbc636309ee96cac666ec52c5bc68"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme12.js",
+      "sha256": "11d868ad901e40082b44de2da02202931e8573efddc96fd2f40bd732b1c0b527"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme06.js",
+      "sha256": "a678d9e25e884145c217dd137c349c37dbb3d25f324f6285ba09db09cebe1d62"
+    },
+    {
+      "path": "dist/theme-runtime/theme01.module.mjs",
+      "sha256": "cf2359801ba5bea1d4fd55bf96165727eea6550be5389ecbcf744eea31c5ab05"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme16.js",
+      "sha256": "380f3930e2d3f6b09c7a0cee3ef60053a9b68ca9b7aabb2f22cfad40e5f1ba60"
+    },
+    {
+      "path": "dist/theme-runtime/theme13.module.mjs",
+      "sha256": "f7c39969e2c216ca61b7fd66356ddc17b0bf28981bfe864ebe0fd48356ec09f3"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme01.js",
+      "sha256": "d70e823cf81af5fd2214490b8d73eb960ae3781a1612260b4a6facb09688d4a1"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme11.js",
+      "sha256": "9bb957893021d1d0c6f895ec9779b0c819f5e17807267f2ee7c6e8d341b79fe5"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme05.js",
+      "sha256": "7479819fd9612489fe3173bfd027a350a44563af18c514eda736abb0a3e3019c"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme15.js",
+      "sha256": "59f245c3341fe7fc886cf90bc2f6271090d2a9177d24c037f7744b8b094c5825"
+    },
+    {
+      "path": "dist/theme-runtime/theme02.module.mjs",
+      "sha256": "6b83a2892947366516e81d50ad636d12f42eba27f176a8db00b84842dce4a9d2"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme04.js",
+      "sha256": "70d66d5a056a03b1642a63bef2f041d771aa22ac4e4b365389ae42c394a907ab"
+    },
+    {
+      "path": "dist/theme-runtime/theme07.module.mjs",
+      "sha256": "11c9b3b45c33898d8b9d11baea3478b96599582f17871ae58318d45ca5cf6a69"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme14.js",
+      "sha256": "0eca15dd0c2562752709f4db2935a9d8e65622d0239939ccaeee41a7ecec0904"
+    },
+    {
+      "path": "dist/theme-runtime/theme16.module.mjs",
+      "sha256": "dbb32bb82132c1efab38bbe195f6130bfd48eeabf554a89d4bb6e6a8de58097a"
+    },
+    {
+      "path": "dist/theme-runtime/imported-theme-runtime.theme10.js",
+      "sha256": "bad33a5ed142d3c0d6ebd726caf64ba1adefa395268e5f34da1a9f9e076eb237"
+    },
+    {
+      "path": "dist/theme-runtime/theme11.module.mjs",
+      "sha256": "fac1c674ec9c3e098709c33c44f16855c468c1e745b9abdf81a53bf2aa46f5e3"
+    },
+    {
+      "path": "dist/theme-runtime/theme05.module.mjs",
+      "sha256": "11b0c76bbdbdf00831a7e22093a48ee22849cc50ab98925dc2dc3f4cdb151584"
+    },
+    {
+      "path": "dist/theme-runtime/theme08.module.mjs",
+      "sha256": "1f1c58783f765caad6f5fb0ce3a188d6cbd05d9477c53eacb98dca91a89493df"
+    },
+    {
+      "path": "dist/theme-runtime/theme14.module.mjs",
+      "sha256": "0a797023bd1d67c578fe3f5ea81e08bd6cbb8ed17ffce98fd9cc7f0fe96db9cd"
+    }
+  ],
+  "localExtensions": [
+    {
+      "path": "SKILL.md",
+      "operation": "modify",
+      "sha256After": "932f93acfe2aa019207a0067e47e1e72e3f3d67c87725d48ac156012c2734203",
+      "currentSha256": "932f93acfe2aa019207a0067e47e1e72e3f3d67c87725d48ac156012c2734203",
+      "matchesRecorded": true,
+      "action": "source retained; requirements adapted separately"
+    },
+    {
+      "path": "references/goal-spec.schema.json",
+      "operation": "modify",
+      "sha256After": "70b4d3712b199bdf9ed543b06f4d55d307b9fda7cb94b2998de396850a6385b9",
+      "currentSha256": "70b4d3712b199bdf9ed543b06f4d55d307b9fda7cb94b2998de396850a6385b9",
+      "matchesRecorded": true,
+      "action": "source retained; requirements adapted separately"
+    },
+    {
+      "path": "references/requirements-and-acceptance.md",
+      "operation": "modify",
+      "sha256After": "987231e6f47790bea62ea29efc32c13fc3177f723e9f78dae4b04b8eb227b21e",
+      "currentSha256": "987231e6f47790bea62ea29efc32c13fc3177f723e9f78dae4b04b8eb227b21e",
+      "matchesRecorded": true,
+      "action": "source retained; requirements adapted separately"
+    },
+    {
+      "path": "project/src/components/themes/theme-catalog.js",
+      "operation": "modify",
+      "sha256After": "72ee58332a692a3f833cb58c20c47ef76d930960eedd29a28f8d02a7842e3fb1",
+      "currentSha256": "72ee58332a692a3f833cb58c20c47ef76d930960eedd29a28f8d02a7842e3fb1",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/src/components/themes/theme-registry-codegen.mjs",
+      "operation": "modify",
+      "sha256After": "5a60daeb06a8a0b2553a523bc55325dc4e4fe2188def5bdd64a1777e29cdae50",
+      "currentSha256": "5a60daeb06a8a0b2553a523bc55325dc4e4fe2188def5bdd64a1777e29cdae50",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/scripts/build-theme-style-grid.mjs",
+      "operation": "modify",
+      "sha256After": "e8e3ec56801e9ad8f83d160d77e08f7f51e8e9765b25c8a25a86df0ce356ce69",
+      "currentSha256": "e8e3ec56801e9ad8f83d160d77e08f7f51e8e9765b25c8a25a86df0ce356ce69",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/scripts/validate-goal-spec.mjs",
+      "operation": "modify",
+      "sha256After": "fa90c4443ad865c2a2c908b6ab8420acb57d72387c5d553b8921cf4160d092ce",
+      "currentSha256": "fa90c4443ad865c2a2c908b6ab8420acb57d72387c5d553b8921cf4160d092ce",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "references/design-composition.md",
+      "operation": "add",
+      "sha256After": "bd40431e5aa7a7c0ddf50b01fe06512e99a90062f136830d551d572b007806eb",
+      "currentSha256": "bd40431e5aa7a7c0ddf50b01fe06512e99a90062f136830d551d572b007806eb",
+      "matchesRecorded": true,
+      "action": "source retained; requirements adapted separately"
+    },
+    {
+      "path": "references/moon-white-fusion.md",
+      "operation": "add",
+      "sha256After": "3fdf40ba9d4dfb5eba26fdf2a2e2fa73475c95e9e7377af0119ea7498a5592b5",
+      "currentSha256": "3fdf40ba9d4dfb5eba26fdf2a2e2fa73475c95e9e7377af0119ea7498a5592b5",
+      "matchesRecorded": true,
+      "action": "source retained; requirements adapted separately"
+    },
+    {
+      "path": "project/src/components/themes/theme17/metadata.mjs",
+      "operation": "add",
+      "sha256After": "bde1d89e3f60218eb639114756b4d20b582bc330847b9c36fcc57fb3a58e96a0",
+      "currentSha256": "bde1d89e3f60218eb639114756b4d20b582bc330847b9c36fcc57fb3a58e96a0",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/src/components/themes/theme17/runtime.jsx",
+      "operation": "add",
+      "sha256After": "c48539df0460075a1abe91384140f75cc56ab06da53043b497aff02848e40b30",
+      "currentSha256": "c48539df0460075a1abe91384140f75cc56ab06da53043b497aff02848e40b30",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/src/components/themes/theme17/style.css",
+      "operation": "add",
+      "sha256After": "f36843da1c6941d908b82a3a0bc63777c4ae7c4bb9caee7ca746874803c4095f",
+      "currentSha256": "f36843da1c6941d908b82a3a0bc63777c4ae7c4bb9caee7ca746874803c4095f",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/scripts/build-moon-white.mjs",
+      "operation": "add",
+      "sha256After": "3779fdf66498604cbe2c03c32e77e4daac042582bffd19905d77104895c2082d",
+      "currentSha256": "3779fdf66498604cbe2c03c32e77e4daac042582bffd19905d77104895c2082d",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/scripts/qa-moon-white.mjs",
+      "operation": "add",
+      "sha256After": "9160626c68b34c8fb3e97746909c5fad716dbb83558c697de1cd84def25775d9",
+      "currentSha256": "9160626c68b34c8fb3e97746909c5fad716dbb83558c697de1cd84def25775d9",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/scripts/tests/moon-white.test.mjs",
+      "operation": "add",
+      "sha256After": "cc31b291a0d3690ed7630604813f643a27e4c098794771ef3b917fc5b372bb0b",
+      "currentSha256": "cc31b291a0d3690ed7630604813f643a27e4c098794771ef3b917fc5b372bb0b",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/dist/theme-runtime/theme17.module.mjs",
+      "operation": "add",
+      "sha256After": "0000a049131717df67e1628fcf946ced0a87a5bf7d5b5d8005a4b411e92505c6",
+      "currentSha256": "0000a049131717df67e1628fcf946ced0a87a5bf7d5b5d8005a4b411e92505c6",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "project/dist/theme-runtime/imported-theme-runtime.theme17.js",
+      "operation": "add",
+      "sha256After": "55a986b6d7b996811cf350c31883038eec8f77ce44cd60cecf84fe840ffe6aec",
+      "currentSha256": "55a986b6d7b996811cf350c31883038eec8f77ce44cd60cecf84fe840ffe6aec",
+      "matchesRecorded": true,
+      "action": "runtime inherited"
+    },
+    {
+      "path": "assets/skill/theme-style-tiles/theme17.png",
+      "operation": "add",
+      "sha256After": "93bbd857dbd73ca688d7b993d80fa602141e9ab344e0771bbbe3345ecf903b6a",
+      "currentSha256": "93bbd857dbd73ca688d7b993d80fa602141e9ab344e0771bbbe3345ecf903b6a",
+      "matchesRecorded": true,
+      "action": "source retained; requirements adapted separately"
+    }
+  ],
+  "excluded": [
+    "node_modules",
+    "output",
+    "packages/html-deck-to-pptx",
+    "assets/vendor/editable-pptx-browser.js"
+  ],
+  "sourceRoot": "local dashiai-ppt installation (see upstream notice)"
+}

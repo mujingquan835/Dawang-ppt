@@ -26,3 +26,5 @@ node_modules
 **/node_modules
 *.pptx
 *.pdf
+
+.superpowers/
