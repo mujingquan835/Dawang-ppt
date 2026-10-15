@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { collectExportObjects } from "./collect.mjs";
+import { collectExportObjects, prepareSlideForExport } from "./collect.mjs";
 import { exportEditablePptx } from "./pptx.mjs";
 async function captureUrl(browser, url, { snapshot, onProgress = () => {
 } } = {}) {
@@ -41,10 +41,7 @@ async function exportScreenshotPdfFromUrl(browser, url, options = {}) {
     const pdf = await PDFDocument.create();
     pdf.setTitle(options.title || project.requirements.title);
     for (const s of collection.slides) {
-      await page.evaluate((id) => {
-        const slides = window.__getVisibleSlides();
-        window.go(slides.findIndex((s2) => s2.dataset.vmSlideId === id), { animate: false, force: true });
-      }, s.slideId);
+      await prepareSlideForExport(page, s.slideId);
       const image = await pdf.embedPng(await page.locator(`#deck > [data-vm-slide-id="${s.slideId}"]`).screenshot());
       const p = pdf.addPage([960, 540]);
       p.drawImage(image, { x: 0, y: 0, width: 960, height: 540 });

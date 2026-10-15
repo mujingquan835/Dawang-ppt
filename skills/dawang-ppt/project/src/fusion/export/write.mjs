@@ -7,6 +7,17 @@ async function writeEditablePackage(pptx, collection, { type = "uint8array" } = 
   for (let i = 0; i < collection.slides.length; i++) {
     const file = `ppt/slides/slide${i + 1}.xml`;
     let xml = await zip.file(file).async("string");
+    const rels = await zip.file(`ppt/slides/_rels/slide${i + 1}.xml.rels`).async("string");
+    const decorations = new Map(collection.slides[i].objects.filter((o) => o.type === "decoration").map((o) => [xmlEscape(o.id), o]));
+    for (const pic of xml.matchAll(/<p:pic>[\s\S]*?<\/p:pic>/g)) {
+      const name = /<p:cNvPr[^>]*name="([^"]+)"/.exec(pic[0])?.[1], decoration = decorations.get(name);
+      if (!decoration) continue;
+      const rid = /<a:blip[^>]*r:embed="([^"]+)"/.exec(pic[0])?.[1];
+      const relation = [...rels.matchAll(/<Relationship\b[^>]*\/>/g)].find((r) => r[0].includes(`Id="${rid}"`))?.[0];
+      const target = /Target="([^"]+)"/.exec(relation || "")?.[1];
+      if (!target || !decoration.preview.startsWith("data:image/png;base64,")) throw new Error("Decoration preview missing: " + name);
+      zip.file("ppt/" + target.replace("../", ""), Uint8Array.from(atob(decoration.preview.split(",")[1]), (c) => c.charCodeAt(0)));
+    }
     const images = new Map(collection.slides[i].objects.filter((o) => o.type === "image").map((o) => [xmlEscape(o.id), o]));
     xml = xml.replace(/<p:pic>[\s\S]*?<\/p:pic>/g, (pic) => {
       const name = /<p:cNvPr[^>]*name="([^"]+)"/.exec(pic)?.[1];
@@ -30,9 +41,10 @@ async function writeEditablePackage(pptx, collection, { type = "uint8array" } = 
       }
       return pic;
     });
+    const invisibleText = new Set(collection.slides[i].objects.filter((o) => o.type === "text" && o.style?.textTransparency === 100 && !o.style.textGradient).map((o) => xmlEscape(o.id)));
     const vectors = new Map(collection.slides[i].objects.filter((o) => o.type === "vector").map((o) => [xmlEscape(o.id), o]));
     const gradients = new Map(collection.slides[i].objects.filter((o) => o.style?.gradient).map((o) => [xmlEscape(o.id), o]));
-    const texts = new Map(collection.slides[i].objects.filter((o) => o.type === "text" && o.style.textStroke).map((o) => [xmlEscape(o.id), o]));
+    const texts = new Map(collection.slides[i].objects.filter((o) => o.type === "text" && (o.style.textStroke || o.style.textGradient)).map((o) => [xmlEscape(o.id), o]));
     xml = xml.replace(/<p:sp>[\s\S]*?<\/p:sp>/g, (sp) => {
       const name = /<p:cNvPr[^>]*name="([^"]+)"/.exec(sp)?.[1], o = vectors.get(name), t = texts.get(name), g = gradients.get(name);
       if (g) {
@@ -49,9 +61,16 @@ async function writeEditablePackage(pptx, collection, { type = "uint8array" } = 
         const geom = `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="${Math.round(o.bounds[2] * 6350)}" h="${Math.round(o.bounds[3] * 6350)}" fill="${o.style.fill ? "norm" : "none"}">${coords}${o.closed ? "<a:close/>" : ""}</a:path></a:pathLst></a:custGeom>`;
         sp = sp.replace(/<a:prstGeom[\s\S]*?<\/a:prstGeom>/, geom);
       }
-      if (t) {
+      if (t?.style.textStroke) {
         const stroke = t.style.textStroke;
-        sp = sp.replace(/(<a:rPr[^>]*>)/g, `$1<a:ln w="${Math.round(stroke.width * 6350)}"><a:solidFill><a:srgbClr val="${stroke.color.replace("#", "")}"/></a:solidFill></a:ln>`);
+        sp = sp.replace(/(<a:rPr[^>]*>)/g, `$1<a:ln w="${Math.round(stroke.width * 6350)}"><a:solidFill><a:srgbClr val="${stroke.color.replace("#", "")}"><a:alpha val="${Math.round((stroke.opacity ?? 1) * 1e5)}"/></a:srgbClr></a:solidFill></a:ln>`);
+      }
+      if (invisibleText.has(name)) sp = sp.replace(/<a:rPr[^>]*>[\s\S]*?<\/a:rPr>/g, (r) => r.replace(/<a:solidFill>(?:(?!<a:solidFill>)[\s\S])*?<\/a:solidFill>(?=<a:latin)/, "<a:noFill/>"));
+      if (t?.style.textGradient) {
+        const g2 = t.style.textGradient;
+        const stops = g2.stops.map((s) => `<a:gs pos="${Math.round(Math.max(0, Math.min(1, s.offset)) * 1e5)}"><a:srgbClr val="${s.color.replace("#", "")}"><a:alpha val="${Math.round((s.opacity ?? 1) * 1e5)}"/></a:srgbClr></a:gs>`).join("");
+        const fill = `<a:gradFill rotWithShape="1"><a:gsLst>${stops}</a:gsLst><a:lin ang="${Math.round(g2.angle * 6e4)}" scaled="1"/></a:gradFill>`;
+        sp = sp.replace(/<a:rPr[^>]*>[\s\S]*?<\/a:rPr>/g, (r) => r.replace(/<a:solidFill>[\s\S]*?<\/a:solidFill>/, fill));
       }
       return sp;
     });

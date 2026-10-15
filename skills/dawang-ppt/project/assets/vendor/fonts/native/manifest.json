@@ -1,0 +1,68 @@
+[
+  {
+    "file": "archivo-400.ttf",
+    "family": "Archivo SemiBold",
+    "postScript": "ArchivoSemiBold-Regular",
+    "embeddingPermission": 0,
+    "source": "archivo-400-3.woff2",
+    "sourceHash": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967",
+    "copyright": "Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)",
+    "licenseUrl": "http://scripts.sil.org/OFL",
+    "characters": 230
+  },
+  {
+    "file": "archivo-700.ttf",
+    "family": "Archivo SemiBold",
+    "postScript": "ArchivoSemiBold-Bold",
+    "embeddingPermission": 0,
+    "source": "archivo-700-3.woff2",
+    "sourceHash": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967",
+    "copyright": "Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)",
+    "licenseUrl": "http://scripts.sil.org/OFL",
+    "characters": 230
+  },
+  {
+    "file": "archivo-800.ttf",
+    "family": "Archivo SemiBold ExtraBold",
+    "postScript": "ArchivoSemiBold-ExtraBold",
+    "embeddingPermission": 0,
+    "source": "archivo-800-3.woff2",
+    "sourceHash": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967",
+    "copyright": "Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)",
+    "licenseUrl": "http://scripts.sil.org/OFL",
+    "characters": 230
+  },
+  {
+    "file": "archivo-900.ttf",
+    "family": "Archivo SemiBold Black",
+    "postScript": "ArchivoSemiBold-Black",
+    "embeddingPermission": 0,
+    "source": "archivo-900-3.woff2",
+    "sourceHash": "8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967",
+    "copyright": "Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)",
+    "licenseUrl": "http://scripts.sil.org/OFL",
+    "characters": 230
+  },
+  {
+    "file": "space-mono-400.ttf",
+    "family": "Space Mono",
+    "postScript": "SpaceMono-Regular",
+    "embeddingPermission": 0,
+    "source": "space-mono-400-3.woff2",
+    "sourceHash": "fb4a81a2d0a893e5c38c394a7e716a1cef0b24610a0af49c96f6d529bd66bf2b",
+    "copyright": "Copyright 2016 The Space Mono Project Authors (https://github.com/googlefonts/spacemono)",
+    "licenseUrl": "https://openfontlicense.org",
+    "characters": 225
+  },
+  {
+    "file": "space-mono-700.ttf",
+    "family": "Space Mono",
+    "postScript": "SpaceMono-Bold",
+    "embeddingPermission": 0,
+    "source": "space-mono-700-3.woff2",
+    "sourceHash": "2d46bd159b53f55c41167a4f1540a074649464194fd1e416f5b4694a6c0f282c",
+    "copyright": "Copyright 2016 The Space Mono Project Authors (https://github.com/googlefonts/spacemono)",
+    "licenseUrl": "https://openfontlicense.org",
+    "characters": 225
+  }
+]

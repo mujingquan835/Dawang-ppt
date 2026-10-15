@@ -1,4 +1,5 @@
-function pickFont(stack, text) {
+function pickFont(stack, text, weight) {
+  if (/Archivo/.test(stack || "")) return Number(weight) >= 850 ? "Archivo SemiBold Black" : Number(weight) >= 750 ? "Archivo SemiBold ExtraBold" : "Archivo SemiBold";
   const fonts = (stack || "Arial").split(",").map((f) => f.replaceAll('"', "").trim());
   const aliases = { "Songti SC": "宋体-简", "PingFang SC": "苹方-简", "Hiragino Sans GB": "冬青黑体简体中文" };
   const chosen = /[\u3400-\u9fff]/.test(text) ? fonts.find((f) => /SC|CJK|MiSans|OPPO|SimSun|SimHei|Microsoft YaHei|DengXian|KaiTi/i.test(f)) || fonts[0] : fonts[0];
@@ -23,8 +24,13 @@ function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {
       if (w <= 0 || h <= 0) continue;
       const st = o.style || {};
       const box = { x, y, w, h };
-      if (o.type === "text") {
-        slide.addText(o.text, { ...box, margin: 0, wrap: st.wrap !== false, breakLine: false, fontFace: pickFont(st.fontFamily, o.text), fontSize: (st.fontSize || 34) / 2, bold: Number(st.fontWeight) >= 600, italic: st.fontStyle === "italic", color: color(st.color, "111111"), align: ["left", "right", "center", "justify"].includes(st.textAlign) ? st.textAlign : "left", valign: "top", paraSpaceAfter: 0, charSpacing: (st.letterSpacing || 0) / 2, transparency: st.textTransparency || 0, objectName: o.id });
+      if (o.type === "decoration") {
+        if (o.classification !== "background-decoration" || !o.svg || !o.preview) throw new Error("Unclassified or incomplete decoration: " + o.id);
+        const encoded = btoa(Array.from(new TextEncoder().encode(o.svg), (n) => String.fromCharCode(n)).join(""));
+        slide.addImage({ ...box, data: "data:image/svg+xml;base64," + encoded, rotate: o.rotate || 0, objectName: o.id });
+        report.decorations.push({ id: o.id, representation: "svg", classification: o.classification, compatibilityPreview: true });
+      } else if (o.type === "text") {
+        slide.addText(o.text, { ...box, margin: 0, wrap: st.wrap !== false, breakLine: false, fontFace: pickFont(st.fontFamily, o.text, st.fontWeight), fontSize: (st.fontSize || 34) / 2, bold: /Archivo/.test(st.fontFamily || "") && Number(st.fontWeight) >= 750 ? false : Number(st.fontWeight) >= 600, italic: st.fontStyle === "italic", color: color(st.color, "111111"), align: ["left", "right", "center", "justify"].includes(st.textAlign) ? st.textAlign : "left", valign: "top", paraSpaceAfter: 0, charSpacing: (st.letterSpacing || 0) / 2, transparency: st.textTransparency || 0, objectName: o.id });
         report.texts++;
       } else if (o.type === "image") {
         const opts = o.src.startsWith("data:") ? { data: o.src } : { path: o.src };
@@ -38,7 +44,7 @@ function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {
         }
         report.images++;
       } else if (o.type === "shape" || o.type === "vector") {
-        slide.addShape(o.shape === "ellipse" ? pptx.ShapeType.ellipse : st.radius > 0 ? pptx.ShapeType.roundRect : pptx.ShapeType.rect, { ...box, objectName: o.id, rectRadius: (st.radius || 0) / 144, rotate: st.rotate || 0, fill: { color: color(st.fill, "FFFFFF"), transparency: st.fill ? st.fillTransparency || 0 : 100 }, line: { color: color(st.stroke, "FFFFFF"), transparency: st.stroke ? st.strokeTransparency || 0 : 100, width: (st.strokeWidth || 0) / 2 } });
+        slide.addShape(o.shape === "ellipse" ? pptx.ShapeType.ellipse : st.radius > 0 ? pptx.ShapeType.roundRect : pptx.ShapeType.rect, { ...box, objectName: o.id, ...o.shape !== "ellipse" && st.radius > 0 ? { rectRadius: Math.min(st.radius, Math.min(o.bounds[2], o.bounds[3]) / 2) / 144 } : {}, rotate: st.rotate || 0, fill: { color: color(st.fill, "FFFFFF"), transparency: st.fill ? st.fillTransparency || 0 : 100 }, line: { color: color(st.stroke, "FFFFFF"), transparency: st.stroke ? st.strokeTransparency || 0 : 100, width: (st.strokeWidth || 0) / 2 } });
         report.shapes++;
         if (o.type === "vector") report.decorations.push({ id: o.id, representation: "editable-freeform", samplingTolerance: o.samplingTolerance });
       } else if (o.type === "line") {

@@ -7,7 +7,7 @@ import { chromium } from "playwright-core";
 import { loadProject, saveProject } from "../src/fusion/project/store.mjs";
 import { mergeEditorState } from "../src/fusion/project/import-goal.mjs";
 import { renderProject } from "../src/fusion/scene/render-project.jsx";
-import { collectExportObjects } from "../src/fusion/export/collect.mjs";
+import { collectExportObjects, prepareSlideForExport } from "../src/fusion/export/collect.mjs";
 import { exportEditablePptx } from "../src/fusion/export/pptx.mjs";
 import { contentType } from "./preview/mime.mjs";
 import { createFileResolver } from "./preview/static-serve.mjs";
@@ -76,10 +76,7 @@ function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chro
               const { PDFDocument } = await import("pdf-lib");
               const document = await PDFDocument.create();
               for (const s of collected.slides) {
-                await page.evaluate((id) => {
-                  const a = window.__getVisibleSlides();
-                  window.go(a.findIndex((s2) => s2.dataset.vmSlideId === id), { animate: false, force: true });
-                }, s.slideId);
+                await prepareSlideForExport(page, s.slideId);
                 const png = await page.locator(`[data-vm-slide-id="${s.slideId}"]`).screenshot();
                 const image = await document.embedPng(png);
                 const p = document.addPage([960, 540]);

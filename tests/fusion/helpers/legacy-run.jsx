@@ -6,12 +6,12 @@ import { importGoal } from "../../../skills/dawang-ppt/project/src/fusion/projec
 import { saveProject } from "../../../skills/dawang-ppt/project/src/fusion/project/store.mjs";
 import { renderProject } from "../../../skills/dawang-ppt/project/src/fusion/scene/render-project.jsx";
 import { createFusionServer } from "../../../skills/dawang-ppt/project/scripts/fusion-preview.jsx";
-import { collectExportObjects } from "../../../skills/dawang-ppt/project/src/fusion/export/collect.mjs";
+import { collectExportObjects, prepareSlideForExport } from "../../../skills/dawang-ppt/project/src/fusion/export/collect.mjs";
 import { exportEditablePptx } from "../../../skills/dawang-ppt/project/src/fusion/export/pptx.mjs";
 import { THEME_PAGES } from "../../../skills/dawang-ppt/project/src/components/themes/index.jsx";
-const dir = path.resolve("output/fusion-v1/legacy-regression");
+const dir = path.resolve(process.env.DAWANG_EXPORT_FOCUS ? "output/fusion-v1/legacy-appearance" : "output/fusion-v1/legacy-regression");
 fs.mkdirSync(dir, { recursive: true });
-const pages = THEME_PAGES.filter((page) => page.pageNumber === 1 || ["theme09", "theme13", "theme16"].includes(page.themeKey) && [6, 11].includes(page.pageNumber));
+const pages = THEME_PAGES.filter((page) => process.env.DAWANG_EXPORT_FOCUS ? ["theme09_page001", "theme13_page001", "theme16_page001"].includes(page.key) : page.pageNumber === 1 || ["theme09", "theme13", "theme16"].includes(page.themeKey) && [6, 11].includes(page.pageNumber));
 let p = importGoal({ title: "原模板回归（原始示例素材）", slides: pages.map((page) => ({ id: page.key, layout: page.key, props: {} })) });
 p.editorState.legacy.typography = { mode: "global", headingFont: "theme", bodyFont: "theme", monoFont: "theme" };
 const pf = path.join(dir, "deck-project.json");
@@ -30,10 +30,7 @@ try {
   fs.writeFileSync(path.join(dir, "collection.json"), JSON.stringify(collection, null, 2));
   const results = [];
   for (const s of collection.slides) {
-    await page.evaluate((id) => {
-      const slides = window.__getVisibleSlides();
-      window.go(slides.findIndex((s2) => s2.dataset.vmSlideId === id), { force: true, animate: false });
-    }, s.slideId);
+    await prepareSlideForExport(page, s.slideId);
     await page.locator(`#deck > [data-vm-slide-id="${s.slideId}"]`).screenshot({ path: path.join(dir, s.slideId + ".png") });
     let report, error;
     try {
@@ -46,6 +43,7 @@ try {
   fs.writeFileSync(path.join(dir, "evidence.json"), JSON.stringify({ pages: results, browserErrors: errors }, null, 2));
   console.log(results.map((s) => ({ id: s.slideId, issues: s.issues, error: s.error })));
   assert.equal(errors.length, 0);
+  assert(results.every((s) => !s.error && s.issues.length === 0), "Every sampled original template must export without dropping unsupported decoration");
 } finally {
   await browser.close();
   server.closeAllConnections();

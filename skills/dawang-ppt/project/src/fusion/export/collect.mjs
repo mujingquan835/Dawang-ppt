@@ -1,3 +1,4 @@
+import { cssDecoration, cssTextGradient } from "./css-paint.mjs";
 import { checkCoverage } from "../qa/coverage.mjs";
 function collectSlideInDom(slideId) {
   const slide = [...document.querySelectorAll("#deck > .slide")].find((s) => s.dataset.vmSlideId === slideId);
@@ -49,10 +50,67 @@ function collectSlideInDom(slideId) {
   };
   const base = getComputedStyle(root);
   objects.push({ id: slideId + "-background", type: "shape", bounds: [0, 0, 1920, 1080], style: { fill: rgba(base.backgroundColor) || "#ffffff" } });
+  const paint = (el, css, b, id) => {
+    if (css.backgroundClip === "text" || css.webkitBackgroundClip === "text") return;
+    if (css.backgroundImage && css.backgroundImage !== "none") {
+      let rotate = 0, paintBounds = b;
+      if (css.transform !== "none") {
+        const m = new DOMMatrix(css.transform);
+        rotate = Math.atan2(m.b, m.a) * 180 / Math.PI;
+        const w = el.offsetWidth, h = el.offsetHeight;
+        paintBounds = [b[0] + b[2] / 2 - w / 2, b[1] + b[3] / 2 - h / 2, w, h];
+      }
+      objects.push({ id: id + "-css", type: "css-paint", bounds: paintBounds, image: css.backgroundImage, size: css.backgroundSize, position: css.backgroundPosition, mask: css.maskImage, opacity: Number(css.opacity), radius: parseFloat(css.borderRadius) || 0, blur: parseFloat(/blur\(([^)]+)/.exec(css.filter)?.[1]) || 0, rotate });
+    }
+  };
+  const pseudoPaint = (el, id) => {
+    for (const pseudo of ["::before", "::after"]) {
+      const computed=getComputedStyle(el,pseudo),entries=[...computed].map(key=>[key,computed.getPropertyValue(key)]);
+      const css=Object.fromEntries(entries.flatMap(([key,value])=>[[key,value],[key.replace(/-([a-z])/g,(_,c)=>c.toUpperCase()),value]]));
+      css.borderRadius=computed.borderRadius;
+      if (["none", "normal"].includes(css.content) || css.display === "none") continue;
+      const ghost = document.createElement("div"), hide = document.createElement("style"), token = "pseudo-" + objects.length;
+      for (const [key,value] of entries) ghost.style.setProperty(key,value);
+      const old = el.getAttribute("data-dawang-export-pseudo");
+      el.setAttribute("data-dawang-export-pseudo", token);
+      hide.textContent = `[data-dawang-export-pseudo="${token}"]${pseudo}{content:none!important;display:none!important}`;
+      document.head.appendChild(hide);
+      ghost.style.visibility = "hidden";
+      ghost.style.content = "none";
+      ghost.style.pointerEvents = "none";
+      const text = css.content.startsWith('"') ? css.content.slice(1, -1).replace(/\\([0-9a-f]{1,6})\s?/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16))) : "";
+      ghost.textContent = text;
+      if (pseudo === "::before") el.prepend(ghost);
+      else el.append(ghost);
+      try {
+        const b = bounds(ghost.getBoundingClientRect()), fill = rgba(css.backgroundColor), border = parseFloat(css.borderTopWidth), radius = css.borderRadius?.endsWith("%")?parseFloat(css.borderRadius)*Math.min(b[2],b[3])/100:parseFloat(css.borderRadius)||0;
+        if (fill || border) objects.push({ id: id + pseudo + "-fill", type: "shape", shape: radius >= Math.min(b[2], b[3]) / 2 ? "ellipse" : void 0, bounds: b, style: { fill, radius, fillTransparency: (1 - alpha(css.backgroundColor) * Number(css.opacity)) * 100, stroke: border ? rgba(css.borderTopColor) : null, strokeWidth: border, strokeTransparency: (1 - alpha(css.borderTopColor) * Number(css.opacity)) * 100 } });
+        paint(ghost, css, b, id + pseudo);
+        if (text) {
+          const range = document.createRange();
+          range.selectNodeContents(ghost);
+          const nr = range.getBoundingClientRect(), bb = bounds(nr);
+          bb[2] += 6;
+          bb[3] = Math.max(bb[3], parseFloat(css.lineHeight) || parseFloat(css.fontSize) * 1.25);
+          objects.push({ id: id + pseudo + "-text", type: "text", text, bounds: bb, style: { color: rgba(css.color), fontSize: parseFloat(css.fontSize), fontFamily: resolveActualFont(css.fontFamily, text), fontWeight: css.fontWeight, fontStyle: css.fontStyle, textTransparency: (1 - alpha(css.color) * Number(css.opacity)) * 100, wrap: false } });
+        }
+      } finally {
+        ghost.remove();
+        hide.remove();
+        if (old === null) el.removeAttribute("data-dawang-export-pseudo");
+        else el.setAttribute("data-dawang-export-pseudo", old);
+      }
+    }
+  };
+  if (root !== slide) {
+    paint(slide, getComputedStyle(slide), [0, 0, 1920, 1080], slideId + "-slide");
+  }
+  paint(root, base, [0, 0, 1920, 1080], slideId + "-root");
+  pseudoPaint(root, slideId + "-root");
   const elements = [...root.querySelectorAll("*")];
   let count = 0;
   for (const el of elements) {
-    if (el.closest(".fusion-selection")) continue;
+    if (el.closest(".fusion-selection") || ["STYLE", "SCRIPT"].includes(el.tagName)) continue;
     const css = getComputedStyle(el);
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height || css.display === "none" || css.visibility === "hidden") continue;
@@ -61,6 +119,8 @@ function collectSlideInDom(slideId) {
       continue;
     }
     if (el.dataset.elementType === "text" && (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2)) issues.push({ kind: "text-overflow", id: el.dataset.fusionElement, text: el.textContent });
+    let elementOpacity = 1;
+    for (let parent = el; parent && slide.contains(parent); parent = parent.parentElement) elementOpacity *= Number(getComputedStyle(parent).opacity);
     const id = el.dataset.fusionElement || el.dataset.editableId || `${slideId}-dom-${++count}`;
     const b = bounds(r);
     if (el instanceof HTMLImageElement) {
@@ -132,6 +192,8 @@ function collectSlideInDom(slideId) {
       }
       objects.push({ id: id + "-shape", type: "shape", shape: el.dataset.shape, bounds: sb, style: st });
     }
+    paint(el, css, b, id);
+    pseudoPaint(el, id);
     for (const node of el.childNodes) {
       if (node.nodeType !== Node.TEXT_NODE || !node.textContent.trim()) continue;
       const range = document.createRange();
@@ -140,33 +202,115 @@ function collectSlideInDom(slideId) {
       if (!nr.width || !nr.height) continue;
       const single = el.childNodes.length === 1 && css.display !== "inline";
       const bb = single ? b : bounds(nr);
-      if (!single) bb[2] += 6;
+      if (single) bb[2] = Math.max(bb[2], bounds(nr)[2]);
+      else bb[2] += 6;
       bb[3] = Math.max(bb[3], parseFloat(css.lineHeight) || parseFloat(css.fontSize) * 1.25);
-      objects.push({ id: id + "-text-" + objects.length, type: "text", text: node.textContent, bounds: bb, style: { color: rgba(css.color), textTransparency: (1 - alpha(css.color)) * 100, textStroke: parseFloat(css.webkitTextStrokeWidth) > 0 ? { color: rgba(css.webkitTextStrokeColor), width: parseFloat(css.webkitTextStrokeWidth) } : void 0, letterSpacing: parseFloat(css.letterSpacing) || 0, fontSize: parseFloat(css.fontSize), fontFamily: resolveActualFont(css.fontFamily, node.textContent), fontWeight: css.fontWeight, fontStyle: css.fontStyle, textAlign: css.textAlign, wrap: range.getClientRects().length > 1, lineHeight: parseFloat(css.lineHeight) || parseFloat(css.fontSize) * 1.25 } });
+      let textPaint;
+      for (let ancestor = el; ancestor && slide.contains(ancestor); ancestor = ancestor.parentElement) {
+        const ac = getComputedStyle(ancestor);
+        if ((ac.backgroundClip === "text" || ac.webkitBackgroundClip === "text") && ac.backgroundImage !== "none") {
+          textPaint = { image: ac.backgroundImage, bounds: bounds(ancestor.getBoundingClientRect()) };
+          break;
+        }
+      }
+      el.dataset.dawangExportFont ||= slideId + "-font-" + count + "-" + objects.length;
+      objects.push({ fontNode: el.dataset.dawangExportFont, id: id + "-text-" + objects.length, type: "text", text: node.textContent, bounds: bb, style: { color: rgba(css.color), textBackground: textPaint?.image, textBackgroundBounds: textPaint?.bounds, textTransparency: (1 - alpha(css.color) * elementOpacity) * 100, textStroke: parseFloat(css.webkitTextStrokeWidth) > 0 ? { color: rgba(css.webkitTextStrokeColor), width: parseFloat(css.webkitTextStrokeWidth), opacity: alpha(css.webkitTextStrokeColor) * elementOpacity } : void 0, letterSpacing: parseFloat(css.letterSpacing) || 0, fontSize: parseFloat(css.fontSize), fontFamily: resolveActualFont(css.fontFamily, node.textContent), fontWeight: css.fontWeight, fontStyle: css.fontStyle, textAlign: css.textAlign, wrap: range.getClientRects().length > 1, lineHeight: parseFloat(css.lineHeight) || parseFloat(css.fontSize) * 1.25 } });
     }
   }
   return { slideId, objects, issues };
+}
+async function prepareSlideForExport(page, id) {
+  await page.evaluate(async (id2) => {
+    const slides = window.__getVisibleSlides?.() || [];
+    const slide = slides.find((s) => s.dataset.vmSlideId === id2);
+    if (!slide) throw new Error("Missing export slide: " + id2);
+    window.go(slides.indexOf(slide), { force: true, animate: false });
+    await window.__ensureRuntimeSlideRendered?.(slide);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await document.fonts.ready;
+    for (const animation of slide.getAnimations({ subtree: true })) {
+      const end = animation.effect?.getComputedTiming().endTime;
+      try {
+        if (Number.isFinite(end) && end > 0) animation.finish();
+        else animation.pause();
+      } catch {
+      }
+    }
+    for (const tween of window.gsap?.globalTimeline?.getChildren?.(true, true, true) || []) {
+      if (!tween.targets?.().some((t) => t instanceof Node && slide.contains(t))) continue;
+      if (Number.isFinite(tween.totalDuration?.())) tween.progress?.(1);
+      tween.pause?.();
+    }
+    await new Promise((r) => requestAnimationFrame(r));
+    await document.fonts.ready;
+  }, id);
+  await page.waitForFunction((id2) => {
+    const slide = [...document.querySelectorAll("#deck > .slide")].find((s) => s.dataset.vmSlideId === id2);
+    return slide && [...slide.querySelectorAll("img")].every((i) => i.complete);
+  }, id);
 }
 async function collectExportObjects(page, project) {
   const coverage = checkCoverage(project);
   if (coverage.length) throw new Error("Export coverage failed: " + JSON.stringify(coverage));
   await page.evaluate(() => document.fonts.ready);
   const results = [];
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("DOM.enable");
+  await cdp.send("CSS.enable");
   const state = project.editorState;
   const hidden = /* @__PURE__ */ new Set([...state.deletedSlides || [], ...state.skippedSlides || []]);
   for (const id of state.slideOrder || project.slides.map((s) => s.slideId)) {
     if (hidden.has(id)) continue;
-    await page.evaluate((id2) => {
-      const slides = window.__getVisibleSlides?.() || [];
-      const i = slides.findIndex((s) => s.dataset.vmSlideId === id2);
-      window.go(i, { force: true, animate: false });
-      window.__ensureRuntimeSlideRendered?.(slides[i]);
-    }, id);
-    await page.waitForFunction((id2) => {
-      const s = [...document.querySelectorAll(".slide")].find((s2) => s2.dataset.vmSlideId === id2);
-      return s && [...s.querySelectorAll("img")].every((i) => i.complete);
-    }, id);
+    await prepareSlideForExport(page, id);
     const result = await page.evaluate(collectSlideInDom, id);
+    const expanded = [];
+    const doc = await cdp.send("DOM.getDocument");
+    for (const o of result.objects) {
+      if (o.type === "css-paint") {
+        try {
+          const decoration = cssDecoration(o);
+          decoration.preview = await page.evaluate(async ({ svg, w, h }) => {
+            const img = new Image();
+            img.src = "data:image/svg+xml;base64," + btoa(Array.from(new TextEncoder().encode(svg), (n) => String.fromCharCode(n)).join(""));
+            await img.decode();
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.ceil(w);
+            canvas.height = Math.ceil(h);
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL("image/png");
+          }, { svg: decoration.svg, w: decoration.bounds[2], h: decoration.bounds[3] });
+          expanded.push(decoration);
+        } catch (error) {
+          result.issues.push({ id: o.id, kind: "unsupported-css-background", message: error.message });
+        }
+        continue;
+      }
+      if (o.style?.textBackground && o.style.textBackground !== "none") {
+        try {
+          o.style.textGradient = cssTextGradient(o.style.textBackground, o.bounds, o.style.textBackgroundBounds);
+        } catch (error) {
+          result.issues.push({ id: o.id, kind: "unsupported-text-gradient", message: error.message });
+        }
+        delete o.style.textBackground;
+        delete o.style.textBackgroundBounds;
+      }
+      if (o.fontNode) {
+        const selector = '[data-dawang-export-font="' + o.fontNode + '"]';
+        const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: doc.root.nodeId, selector });
+        const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
+        const cjk = /[\u3400-\u9fff]/.test(o.text);
+        const preferred = cjk ? fonts.filter((f) => /SC|CJK|OPPO|Sans Han|Song|Hei|Kai|Yahei|苹方|宋体|黑体/i.test(f.familyName)) : fonts;
+        const actual = [...preferred.length ? preferred : fonts].sort((a, b) => b.glyphCount - a.glyphCount)[0];
+        if (actual) {
+          o.style.declaredFontFamily = o.style.fontFamily;
+          o.style.fontFamily = actual.familyName;
+          o.style.fontPostScript = actual.postScriptName;
+        }
+        delete o.fontNode;
+      }
+      expanded.push(o);
+    }
+    result.objects = expanded;
     for (const o of result.objects) if (o.type === "image" && !o.src.startsWith("data:")) o.src = await page.evaluate(async (src) => {
       const blob = await (await fetch(src)).blob();
       return await new Promise((resolve) => {
@@ -177,9 +321,11 @@ async function collectExportObjects(page, project) {
     }, o.src);
     results.push(result);
   }
+  await cdp.detach();
   return { revision: project.revision, width: 1920, height: 1080, slides: results };
 }
 export {
   collectExportObjects,
-  collectSlideInDom
+  collectSlideInDom,
+  prepareSlideForExport
 };
