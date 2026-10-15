@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {execFileSync} from 'node:child_process';
+const tsx='skills/dawang-ppt/project/node_modules/.bin/tsx';
+test('vertical pipeline keeps original editor and both slide modes',()=>{
+ execFileSync(tsx,['tests/fusion/helpers/vertical-run.jsx'],{stdio:'pipe',timeout:120000});
+ const html=fs.readFileSync('output/fusion-v1/vertical-test/index.html','utf8');assert(html.includes('id="preview-props"'));assert(html.includes('theme13_page001'));assert(html.includes('fusion-composition'));assert(html.includes('fusion-project'));assert(!html.includes('__editablePptxBrowser'));
+ const evidence=JSON.parse(fs.readFileSync('output/fusion-v1/vertical-test/evidence.json'));assert(evidence.savedText==='纵向编辑后的标题');assert(evidence.imageChanged);assert(evidence.reopened);assert(evidence.editableTexts>2);assert(evidence.editableImages>=1);assert(evidence.sameRevision);
+});

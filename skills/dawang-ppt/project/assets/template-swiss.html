@@ -2929,14 +2929,14 @@
     try {
       const script = document.createElement('script');
       await new Promise((resolve, reject) => {
-        if(window.__editablePptxBrowser?.applyEditablePptxSnapshot) return resolve();
-        script.src = 'assets/vendor/editable-pptx-browser.js';
+        if(window.__dawangExport?.applyEditablePptxSnapshot) return resolve();
+        script.src = 'assets/fusion-editor.js';
         script.onload = resolve;
         script.onerror = () => reject(new Error('draft restore bundle failed'));
         document.head.appendChild(script);
       });
       const currentIndex = Math.max(0, (window.__getVisibleSlides?.() || []).findIndex(s => s.classList.contains('active')));
-      await window.__editablePptxBrowser.applyEditablePptxSnapshot({ state: draft, currentIndex });
+      await window.__dawangExport.applyEditablePptxSnapshot({ state: draft, currentIndex });
       writeJson(textEl, vm.state.text);
       writeVm();
     } catch (error) {
@@ -2982,11 +2982,12 @@
       const response = await fetch(SERVER_SAVE_URL, {
         method:'POST',
         headers:{'content-type':'application/json'},
-        body:JSON.stringify({state:getState()}),
+        body:JSON.stringify({state:getState(),project:window.__fusionEditor?.getProject(),expectedRevision:window.__fusionEditor?.getProject()?.revision}),
       });
       if(!response.ok) throw new Error(`save-deck-state responded ${response.status}`);
       const result = await response.json();
       serverSaveAvailable = true;
+      if(result?.revision && window.__fusionEditor) window.__fusionEditor.acceptRevision(result.revision);
       if(result && result.mediaMap) applyMediaMapReconciliation(result.mediaMap);
       succeeded = true;
     } catch (error) {
@@ -7466,7 +7467,7 @@ refreshRailCatalog();
       for(const [src, ready] of [
         ['assets/vendor/html-to-image.js', () => win.htmlToImage],
         ['assets/vendor/pptxgen.bundle.js', () => typeof win.PptxGenJS === 'function'],
-        ['assets/vendor/editable-pptx-browser.js', () => win.__editablePptxBrowser?.exportEditablePptxInBrowser],
+        ['assets/fusion-editor.js', () => win.__dawangExport?.exportEditablePptxInBrowser],
       ]){
         if(ready()) continue;
         await new Promise((resolve, reject) => {
@@ -7477,14 +7478,14 @@ refreshRailCatalog();
           doc.head.appendChild(script);
         });
       }
-      return await win.__editablePptxBrowser.exportEditablePptxInBrowser(options);
+      return await win.__dawangExport.exportEditablePptxInBrowser(options);
     } finally {
       frame.remove();
     }
   }
 
   // 浏览器内可编辑 PPTX 导出:服务器在沙箱型宿主里起不了无头浏览器时的降级——
-  // 采集/截图/组装全部在用户当前浏览器完成(assets/vendor/editable-pptx-browser.js),
+  // 采集/截图/组装全部在用户当前浏览器完成(assets/fusion-editor.js),
   // 服务器只负责把成品二进制落盘(/api/export-pptx-store)。可手动调用,也由
   // __exportDeckPptx 自动降级触发。
   window.__exportDeckPptxInBrowser = async function(existingUi){

@@ -20,7 +20,6 @@ export const RUNTIME_ASSET_PATHS = [
   'assets/vendor/unicornstudio.umd.js',
   // 浏览器端可编辑 PPTX 导出 bundle(服务端起不了无头浏览器时的降级通道,
   // 由 scripts/build/build-editable-pptx-browser.mjs 预构建)。
-  'assets/vendor/editable-pptx-browser.js',
   'assets/vendor/fonts',
 ];
 

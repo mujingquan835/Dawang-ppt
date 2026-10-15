@@ -1,3 +1,4 @@
+import {CompositionPage} from '../fusion/scene/render.jsx';
 import React from 'react';
 import { SlideViewModelProvider } from './context.jsx';
 import { getLayoutContract, normalizeSlidePropsForLayout } from '../propContracts.jsx';
@@ -40,10 +41,11 @@ export function buildDeckViewModel(deck, registries) {
     'theme pack',
   );
   const state = {
-    slideOrder: slides.map((slide) => slide.id),
-    text: normalizeTextState(model.text, slides, layoutAliases),
-    media: model.media || {},
-    props: model.props || {},
+    ...(model.state || {}),
+    slideOrder: model.state?.slideOrder || slides.map((slide) => slide.id),
+    text: normalizeTextState(model.state?.text || model.text, slides, layoutAliases),
+    media: model.state?.media || model.media || {},
+    props: model.state?.props || model.props || {},
   };
 
   return {
@@ -89,12 +91,7 @@ export function serializeDeckViewModel(viewModel) {
       props: toJson(slide.sourceProps),
       media: toJson(slide.media),
     })),
-    state: {
-      slideOrder: viewModel.slides.map((slide) => slide.id),
-      text: viewModel.state.text || {},
-      media: viewModel.state.media || {},
-      props: viewModel.state.props || {},
-    },
+    state: toJson(viewModel.state),
   };
 }
 
@@ -118,6 +115,7 @@ function createJsonSerializer() {
 function normalizeDeckModel(deck) {
   return {
     title: deck.title || 'Untitled Deck',
+    state: deck.state || {},
     themePack: deck.themePack,
     text: deck.text || {},
     media: deck.media || {},
@@ -169,6 +167,10 @@ function buildSlideViewModel(slide, index, layoutOptions, themePacks, slideKey, 
         textKeyPrefix: `text:${slideKey}:`,
       },
     };
+  }
+  if(slide.mode === 'composition') {
+    const themePack=defaultThemePack;const label=slide.label||slide.props?.fusionSlide?.compositionId;
+    return {id:slide.id,key:slideKey,index,layout:'fusion-composition',label,dataLayout:'fusion-composition',themePack,component:CompositionPage,props:slide.props,sourceProps:{},media:{},context:{id:slide.id,key:slideKey,index,themePack,label,textKeyPrefix:`text:${slideKey}:`}};
   }
   const resolvedLayout = layoutAliases[slide.layout] || slide.layout;
   const option = layoutOptions[resolvedLayout];

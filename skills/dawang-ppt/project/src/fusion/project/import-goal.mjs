@@ -10,7 +10,7 @@ export function importGoal(goal,embeddedState=null){
 export function mergeEditorState(project,state,{bump=true}={}){
  const p=clone(project);p.editorState.legacy=clone(state);
  for(const k of ['slideOrder','skippedSlides','deletedSlides'])p.editorState[k]=clone(state[k]||[]);
- for(const record of state.duplicatedSlides||[]){const id=record.id||record.slideId;if(!id)throw new Error('Duplicated slide missing id');if(!p.slides.some(s=>s.slideId===id)){const source=p.slides.find(s=>s.slideId===record.sourceId);if(!source)throw new Error('Duplicated slide source missing');p.slides.push({...clone(source),slideId:id,key:record.key||record.slideKey||id});}}
+ for(const record of state.duplicatedSlides||[]){const id=record.copyId||record.id||record.slideId;if(!id)throw new Error('Duplicated slide missing id');if(!p.slides.some(s=>s.slideId===id)){const source=p.slides.find(s=>s.slideId===record.sourceId);if(!source)throw new Error('Duplicated slide source missing');p.slides.push({...clone(source),slideId:id,key:record.copyKey||record.key||record.slideKey||id});}}
  // Keep sparse authored props and all original editor fields. Text is applied by the original stable text-key system.
  for(const s of p.slides)if(s.mode==='template'&&state.props?.[s.slideId])s.props=mergeSparse(s.props,state.props[s.slideId]);
  if(bump)p.revision=revision();return p;
