@@ -1,1 +1,78 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"StyleDefinition","type":"object","required":["id","name","status","signature","palette","typography","grid","media","diagram","density","capabilities","source"],"properties":{"status":{"enum":["source-collected","normalized","implemented","verified"]},"palette":{"type":"object","required":["bg","ink","accent"]},"typography":{"type":"object","required":["heading","body","sizes"]},"source":{"type":"object","required":["kind"]}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StyleDefinition",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "status",
+    "signature",
+    "palette",
+    "typography",
+    "grid",
+    "media",
+    "diagram",
+    "density",
+    "capabilities",
+    "source",
+    "layout"
+  ],
+  "properties": {
+    "status": {
+      "enum": [
+        "source-collected",
+        "normalized",
+        "implemented",
+        "verified"
+      ]
+    },
+    "palette": {
+      "type": "object",
+      "required": [
+        "bg",
+        "ink",
+        "accent"
+      ]
+    },
+    "typography": {
+      "type": "object",
+      "required": [
+        "heading",
+        "body",
+        "sizes"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "kind"
+      ]
+    },
+    "layout": {
+      "type": "object",
+      "required": [
+        "frame",
+        "composition",
+        "imageComposition",
+        "preferredPresets"
+      ],
+      "properties": {
+        "frame": {
+          "enum": [
+            "standard",
+            "judgment-sidebar",
+            "documentary",
+            "teaching"
+          ]
+        },
+        "preferredPresets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

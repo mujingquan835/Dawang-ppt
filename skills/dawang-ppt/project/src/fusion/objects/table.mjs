@@ -25,7 +25,7 @@ function layoutTable(o, s) {
   columns.forEach((col, c) => {
     const b = [xs[c], y, xs[c + 1] - xs[c], ys[1] - y];
     es.push(shape(o, "header/" + col.columnId, b, s, { style: { fill: header, radius: 0 } }));
-    es.push(text(o, "header/" + col.columnId + "/text", col.label, [b[0] + 14, b[1] + 9, b[2] - 28, b[3] - 18], s, { style: { fontSize: font, lineHeight: 1.08, fontWeight: 700, color: "#ffffff" } }));
+    es.push(text(o, "header/" + col.columnId + "/text", col.label, [b[0] + 14, b[1] + 9, b[2] - 28, b[3] - 18], s, { style: { fontSize: font, lineHeight: 1.08, fontWeight: 700, color: s.palette.onHeader || "#ffffff" } }));
   });
   const merged = /* @__PURE__ */ new Map(), covered = /* @__PURE__ */ new Set(), occupied = /* @__PURE__ */ new Set();
   for (const merge of o.data.merges || []) {

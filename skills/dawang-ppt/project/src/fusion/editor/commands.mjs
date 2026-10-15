@@ -2,6 +2,7 @@ import { clone, revision } from "../project/schema.mjs";
 import { layoutObject, deriveSlideElements } from "../objects/index.mjs";
 import { resolveStyle } from "../styles/registry.mjs";
 import { syncCompositionTextState } from "../scene/model.mjs";
+import { changeSlideAppearance } from "../styles/appearance.mjs";
 const boundsValid = (b) => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0;
 function applyEditCommand(project, command) {
   const p = clone(project);
@@ -13,7 +14,9 @@ function applyEditCommand(project, command) {
   const e = deriveSlideElements(s, style).find((e2) => e2.id === command.elementId);
   const beforeSlide = clone(s), beforeNodes = clone(p.contentPlan.nodes), beforeEdits = p.sources.userEdits.length;
   try {
-    if (command.type === "semantic") {
+    if (command.type === "appearance") {
+      Object.assign(s, changeSlideAppearance(s, style, resolveStyle(command.styleId)));
+    } else if (command.type === "semantic") {
       if (!o) throw new Error("Object missing");
       const candidate = { ...o, ...command.relationships !== void 0 ? { relationshipPolicy: "explicit" } : {}, data: clone(command.data), relationships: clone(command.relationships ?? o.relationships) };
       const nextElements = layoutObject(candidate, style), ids = new Set(nextElements.map((e2) => e2.id));
@@ -65,10 +68,13 @@ function applyEditCommand(project, command) {
         if (e.relationshipId) throw new Error("连接线位置由端点决定；请移动节点或整个关系组，避免连接脱离");
         if (!boundsValid(command.bounds)) throw new Error("Invalid element bounds");
         target.bounds = clone(command.bounds);
-      } else if (command.type === "style") target.style = { ...target.style || e.style, ...command.style };
+      } else if (command.type === "style") {
+        target.style = { ...target.style || e.style, ...command.style };
+        if (base) target.manualStyle = { ...target.manualStyle, ...command.style };
+      }
       else throw new Error("Unsupported command " + command.type);
     }
-    const result = deriveSlideElements(s, style);
+    const result = deriveSlideElements(s, resolveStyle(s.styleId));
     if (result.some((e2) => !e2.bounds.every(Number.isFinite))) throw new Error("Invalid derived bounds");
     p.sources.userEdits.push({ slideId: s.slideId, elementId: command.elementId, objectId: o?.objectId, type: command.type });
     const changedNodes = Object.keys({ ...beforeNodes, ...p.contentPlan.nodes }).filter((id) => JSON.stringify(beforeNodes[id]) !== JSON.stringify(p.contentPlan.nodes[id]));

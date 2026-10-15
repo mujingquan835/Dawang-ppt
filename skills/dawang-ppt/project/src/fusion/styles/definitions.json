@@ -1,0 +1,922 @@
+{
+  "legacy/theme13": {
+    "status": "implemented",
+    "typography": {
+      "heading": "OPPO Sans 4.0",
+      "body": "OPPO Sans 4.0",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 76,
+        "body": 34,
+        "note": 23
+      }
+    },
+    "grid": {
+      "margin": 112,
+      "gap": 42
+    },
+    "media": {
+      "photoFit": "cover",
+      "screenshotFit": "contain",
+      "noStretch": true
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 3,
+      "radius": 20
+    },
+    "density": {
+      "minFont": 28,
+      "maxTitleLines": 2
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "钴蓝经营",
+    "palette": {
+      "bg": "#fdfae7",
+      "ink": "#111111",
+      "muted": "#6b6b6b",
+      "accent": "#1e2bfa",
+      "surface": "#ffffff",
+      "line": "#ccd0ed"
+    },
+    "signature": "大字号结论、钴蓝强调、宽阔留白与细线",
+    "evidenceRatio": 0.67,
+    "motifs": [
+      "vertical-blue-marker",
+      "large-metric"
+    ],
+    "id": "legacy/theme13",
+    "source": {
+      "kind": "legacy",
+      "themeKey": "theme13",
+      "originalLayouts": true
+    },
+    "layout": {
+      "frame": "standard",
+      "composition": "conclusion-evidence",
+      "imageComposition": "image",
+      "preferredPresets": [
+        "standard/evidence",
+        "standard/image-text"
+      ],
+      "decorations": [
+        {
+          "id": "cobalt-marker",
+          "type": "shape",
+          "bounds": [
+            "m-28",
+            95,
+            9,
+            90
+          ],
+          "style": {
+            "fill": "$palette.accent"
+          }
+        }
+      ]
+    }
+  },
+  "legacy/theme09": {
+    "status": "implemented",
+    "typography": {
+      "heading": "Noto Sans SC, Archivo, OPPO Sans 4.0, sans-serif",
+      "body": "Noto Sans SC, Archivo, OPPO Sans 4.0, sans-serif",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 82,
+        "body": 34,
+        "note": 23
+      }
+    },
+    "grid": {
+      "margin": 100,
+      "gap": 38
+    },
+    "media": {
+      "photoFit": "cover",
+      "screenshotFit": "contain",
+      "noStretch": true
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 2,
+      "radius": 0
+    },
+    "density": {
+      "minFont": 28,
+      "maxTitleLines": 2
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "深蓝杂志",
+    "palette": {
+      "bg": "#070d22",
+      "ink": "#eef2ff",
+      "muted": "#9aa7c2",
+      "accent": "#4a86ff",
+      "secondary": "#46e3c6",
+      "surface": "#0c1430",
+      "line": "#344360"
+    },
+    "signature": "深蓝刊物、Archivo/中文无衬线主标题、影像画廊与边注",
+    "evidenceRatio": 0.72,
+    "motifs": [
+      "editorial-divider",
+      "mint-caption"
+    ],
+    "id": "legacy/theme09",
+    "source": {
+      "kind": "legacy",
+      "themeKey": "theme09",
+      "originalLayouts": true
+    },
+    "layout": {
+      "frame": "standard",
+      "composition": "conclusion-evidence",
+      "imageComposition": "image",
+      "preferredPresets": [
+        "editorial/evidence",
+        "editorial/gallery"
+      ]
+    }
+  },
+  "legacy/theme16": {
+    "status": "implemented",
+    "typography": {
+      "heading": "OPPO Sans 4.0",
+      "body": "OPPO Sans 4.0",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 76,
+        "body": 34,
+        "note": 23
+      }
+    },
+    "grid": {
+      "margin": 104,
+      "gap": 32
+    },
+    "media": {
+      "photoFit": "cover",
+      "screenshotFit": "contain",
+      "noStretch": true
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 2,
+      "radius": 0
+    },
+    "density": {
+      "minFont": 28,
+      "maxTitleLines": 2
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "奶油蓝图",
+    "palette": {
+      "bg": "#f0eae0",
+      "ink": "#26231f",
+      "muted": "#746b60",
+      "accent": "#b5392a",
+      "surface": "#f9f5ee",
+      "line": "#c8c0b4"
+    },
+    "signature": "奶油纸底、砖红编号、线性蓝图及模块标注",
+    "evidenceRatio": 0.7,
+    "motifs": [
+      "numbered-margin",
+      "blueprint-line"
+    ],
+    "id": "legacy/theme16",
+    "source": {
+      "kind": "legacy",
+      "themeKey": "theme16",
+      "originalLayouts": true
+    },
+    "layout": {
+      "frame": "standard",
+      "composition": "conclusion-evidence",
+      "imageComposition": "image",
+      "preferredPresets": [
+        "blueprint/process",
+        "blueprint/evidence"
+      ],
+      "titleWidth": 1500,
+      "decorations": [
+        {
+          "id": "blueprint-index",
+          "type": "text",
+          "text": {
+            "field": "sequence",
+            "fallback": "01"
+          },
+          "bounds": [
+            1730,
+            82,
+            100,
+            78
+          ],
+          "style": {
+            "fontSize": 50,
+            "color": "$palette.accent",
+            "textAlign": "right"
+          }
+        }
+      ]
+    }
+  },
+  "kimi/consulting/indigo-due-diligence": {
+    "status": "implemented",
+    "typography": {
+      "heading": "Georgia, Songti SC",
+      "body": "OPPO Sans 4.0",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 74,
+        "body": 34,
+        "note": 22
+      }
+    },
+    "grid": {
+      "margin": 90,
+      "gap": 28
+    },
+    "media": {
+      "photoFit": "contain",
+      "screenshotFit": "contain",
+      "photoPolicy": "evidence-extension"
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 2,
+      "radius": 0
+    },
+    "density": {
+      "minFont": 28,
+      "maxTitleLines": 2,
+      "blocks": [
+        4,
+        8
+      ],
+      "judgments": [
+        2,
+        4
+      ]
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "靛蓝尽调",
+    "signature": "衬线结论标题、左侧密集证据、右侧灰色判断栏",
+    "palette": {
+      "bg": "#ffffff",
+      "ink": "#000000",
+      "muted": "#64686c",
+      "accent": "#2151ff",
+      "secondary": "#00a9f4",
+      "surface": "#e5e6e5",
+      "line": "#b2b3b2",
+      "header": "#041c2c",
+      "negative": "#e4536c"
+    },
+    "evidenceRatio": 0.69,
+    "pageTypes": [
+      "conclusion-judgment",
+      "profile",
+      "heat-table",
+      "framework",
+      "contents",
+      "chapter",
+      "photo-evidence-extension"
+    ],
+    "source": {
+      "kind": "kimi",
+      "variant": "named",
+      "path": "consulting/indigo-due-diligence/design.md",
+      "canvas": [
+        1467,
+        825
+      ],
+      "adaptation": "Chinese logical canvas; user approved documentary photo evidence extension"
+    },
+    "id": "kimi/consulting/indigo-due-diligence",
+    "layout": {
+      "frame": "judgment-sidebar",
+      "composition": "conclusion-judgment",
+      "imageComposition": "photo-evidence-extension",
+      "preferredPresets": [
+        "analysis/evidence-judgment",
+        "analysis/framework"
+      ],
+      "variantFamily": "analysis"
+    }
+  },
+  "kimi/work/moon-white-imagery": {
+    "status": "implemented",
+    "typography": {
+      "heading": "OPPO Sans 4.0",
+      "body": "OPPO Sans 4.0",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 86,
+        "body": 34,
+        "note": 24
+      }
+    },
+    "grid": {
+      "margin": 40,
+      "gap": 38
+    },
+    "media": {
+      "photoFit": "cover",
+      "screenshotFit": "contain",
+      "radius": 26,
+      "onlyPrimary": true,
+      "multiImagePolicy": "split"
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 2,
+      "radius": 0
+    },
+    "density": {
+      "minFont": 28,
+      "maxTitleLines": 3,
+      "blocks": [
+        2,
+        4
+      ]
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "月白影像",
+    "signature": "月白底、深森林绿结论、38:62 单张纪实主图、上方判断下方证据",
+    "palette": {
+      "bg": "#ffffff",
+      "ink": "#002a12",
+      "muted": "#99aaa0",
+      "accent": "#1ecf77",
+      "surface": "#f2f4ef",
+      "line": "#d6ddd9",
+      "header": "#002a12",
+      "negative": "#f3001c"
+    },
+    "evidenceRatio": 0.62,
+    "table": {
+      "noVerticalRules": true
+    },
+    "pageTypes": [
+      "photo-verdict",
+      "text-photo",
+      "conclusion-evidence",
+      "image-statement",
+      "comparison",
+      "sparse-table",
+      "section"
+    ],
+    "source": {
+      "kind": "kimi",
+      "variant": "named",
+      "path": "work/moon-white-imagery/design.md",
+      "canvas": [
+        21.986,
+        12.368
+      ],
+      "units": "inch",
+      "adaptation": "Preserve photograph ratio, breathing zone, and single-primary-photo rule; split required photos on user authorization"
+    },
+    "id": "kimi/work/moon-white-imagery",
+    "layout": {
+      "frame": "documentary",
+      "composition": "conclusion-evidence",
+      "imageComposition": "text-photo",
+      "preferredPresets": [
+        "documentary/text-photo",
+        "documentary/conclusion-evidence"
+      ],
+      "variantFamily": "documentary"
+    }
+  },
+  "kimi/academic/blue-line-courseware": {
+    "status": "implemented",
+    "typography": {
+      "heading": "OPPO Sans 4.0",
+      "body": "OPPO Sans 4.0",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 92,
+        "body": 38,
+        "note": 28
+      }
+    },
+    "grid": {
+      "margin": 110,
+      "gap": 44
+    },
+    "media": {
+      "photoFit": "cover",
+      "screenshotFit": "contain",
+      "photoShape": "ellipse",
+      "onlyPrimary": true,
+      "multiImagePolicy": "conflict"
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 2,
+      "radius": 0,
+      "nodeColors": [
+        "#d3e4fd",
+        "#28c3e1",
+        "#1a73e8",
+        "#e8eaed"
+      ]
+    },
+    "density": {
+      "minFont": 30,
+      "maxTitleLines": 2,
+      "blocks": [
+        4,
+        8
+      ]
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "蓝线课件",
+    "signature": "顶端蓝线、灰色导航、3:2 教学构图、分层节点、边角几何与圆形主照片",
+    "palette": {
+      "bg": "#ffffff",
+      "ink": "#202124",
+      "muted": "#9aa0a6",
+      "accent": "#1a73e8",
+      "secondary": "#28c3e1",
+      "surface": "#e8f0fe",
+      "line": "#cdd1d7",
+      "header": "#1a73e8",
+      "negative": "#d64545"
+    },
+    "evidenceRatio": 0.56,
+    "pageTypes": [
+      "cover-section",
+      "argument-image",
+      "method-diagram",
+      "comparison-case",
+      "checklist"
+    ],
+    "source": {
+      "kind": "kimi",
+      "variant": "named",
+      "path": "academic/blue-line-courseware/design.md",
+      "canvas": [
+        1190.55,
+        1683.78
+      ],
+      "units": "pt",
+      "adaptation": "A4 portrait source intentionally adapted to horizontal 16:9; not a native horizontal source"
+    },
+    "id": "kimi/academic/blue-line-courseware",
+    "layout": {
+      "frame": "teaching",
+      "composition": "method-diagram",
+      "imageComposition": "argument-image",
+      "preferredPresets": [
+        "teaching/diagram-explanation",
+        "teaching/argument-image"
+      ],
+      "variantFamily": "teaching"
+    }
+  },
+  "legacy/theme14": {
+    "status": "implemented",
+    "typography": {
+      "heading": "OPPO Sans 4.0",
+      "body": "OPPO Sans 4.0",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 72,
+        "body": 32,
+        "note": 22
+      }
+    },
+    "grid": {
+      "margin": 104,
+      "gap": 38
+    },
+    "media": {
+      "photoFit": "cover",
+      "screenshotFit": "contain",
+      "noStretch": true
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 2,
+      "radius": 0
+    },
+    "density": {
+      "minFont": 28,
+      "maxTitleLines": 2
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "清晰周报",
+    "palette": {
+      "bg": "#fafbfc",
+      "ink": "#161e37",
+      "muted": "#697188",
+      "accent": "#2e63eb",
+      "secondary": "#0ea5b5",
+      "surface": "#ffffff",
+      "line": "rgba(22,30,55,.12)",
+      "negative": "#dc3f4f"
+    },
+    "signature": "清晰周报、蓝色主张与青色证据、细线指标分区、宽阔内容区",
+    "evidenceRatio": 0.67,
+    "motifs": [
+      "vertical-blue-marker",
+      "large-metric"
+    ],
+    "id": "legacy/theme14",
+    "source": {
+      "kind": "legacy",
+      "themeKey": "theme14",
+      "originalLayouts": true,
+      "definitionSource": "src/components/themes/open-design-bridge/definitions.mjs"
+    },
+    "layout": {
+      "frame": "standard",
+      "composition": "conclusion-evidence",
+      "imageComposition": "image",
+      "preferredPresets": [
+        "weekly/lead-evidence",
+        "weekly/metrics",
+        "standard/image-text"
+      ],
+      "decorations": [
+        {
+          "id": "weekly-top-rule",
+          "type": "line",
+          "bounds": [
+            104,
+            74,
+            1712,
+            2
+          ],
+          "x1": 0,
+          "y1": 0,
+          "x2": 1712,
+          "y2": 0,
+          "style": {
+            "stroke": "$palette.accent",
+            "strokeWidth": 3
+          }
+        }
+      ]
+    }
+  },
+  "legacy/theme06": {
+    "status": "implemented",
+    "typography": {
+      "heading": "OPPO Sans 4.0",
+      "body": "OPPO Sans 4.0",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 86,
+        "body": 32,
+        "note": 22
+      }
+    },
+    "grid": {
+      "margin": 100,
+      "gap": 36
+    },
+    "media": {
+      "photoFit": "cover",
+      "screenshotFit": "contain",
+      "noStretch": true
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 2,
+      "radius": 0
+    },
+    "density": {
+      "minFont": 28,
+      "maxTitleLines": 2
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "深色图谱",
+    "palette": {
+      "bg": "#0a0a0a",
+      "ink": "#f6f6f3",
+      "muted": "#8d8d86",
+      "accent": "#d2fb30",
+      "surface": "#141414",
+      "line": "rgba(255,255,255,.10)",
+      "header": "#d2fb30",
+      "onHeader": "#0a0a0a",
+      "negative": "#ff5a3c"
+    },
+    "signature": "近黑背景、荧光绿重点、数据大字与高密度图谱",
+    "evidenceRatio": 0.67,
+    "motifs": [
+      "vertical-blue-marker",
+      "large-metric"
+    ],
+    "id": "legacy/theme06",
+    "source": {
+      "kind": "legacy",
+      "themeKey": "theme06",
+      "originalLayouts": true,
+      "definitionSource": "dist/theme-runtime/imported-theme-runtime.theme06.js"
+    },
+    "layout": {
+      "frame": "standard",
+      "composition": "conclusion-evidence",
+      "imageComposition": "image",
+      "preferredPresets": [
+        "atlas/data-evidence",
+        "atlas/chart",
+        "standard/image-text"
+      ],
+      "decorations": [
+        {
+          "id": "atlas-accent-rule",
+          "type": "line",
+          "bounds": [
+            100,
+            72,
+            140,
+            2
+          ],
+          "x1": 0,
+          "y1": 0,
+          "x2": 140,
+          "y2": 0,
+          "style": {
+            "stroke": "$palette.accent",
+            "strokeWidth": 5
+          }
+        }
+      ],
+      "regions": {
+        "titleHeight": 124,
+        "scopeY": 228,
+        "ruleY": 282,
+        "objectY": 309,
+        "objectHeight": 676
+      }
+    }
+  },
+  "legacy/theme17": {
+    "status": "implemented",
+    "typography": {
+      "heading": "OPPO Sans 4.0",
+      "body": "OPPO Sans 4.0",
+      "mono": "IBM Plex Mono",
+      "sizes": {
+        "title": 64,
+        "body": 30,
+        "note": 22
+      }
+    },
+    "grid": {
+      "margin": 88,
+      "gap": 38
+    },
+    "media": {
+      "photoFit": "cover",
+      "screenshotFit": "contain",
+      "radius": 26,
+      "onlyPrimary": true,
+      "multiImagePolicy": "split"
+    },
+    "compositions": [
+      "cover",
+      "evidence",
+      "image",
+      "relation",
+      "table",
+      "timeline",
+      "chart"
+    ],
+    "diagram": {
+      "lineWidth": 2,
+      "radius": 0
+    },
+    "density": {
+      "minFont": 28,
+      "maxTitleLines": 3,
+      "blocks": [
+        2,
+        4
+      ]
+    },
+    "capabilities": [
+      "text",
+      "image",
+      "timeline",
+      "table",
+      "process",
+      "hierarchy",
+      "cycle",
+      "matrix",
+      "comparison",
+      "bar",
+      "line"
+    ],
+    "name": "月白影像（原主题）",
+    "signature": "月白底、森林绿文字、纪实图片与结论证据阅读顺序",
+    "palette": {
+      "bg": "#ffffff",
+      "ink": "#002a12",
+      "muted": "#53665a",
+      "accent": "#1ecf77",
+      "surface": "#f2f4ef",
+      "line": "#d6ddd9",
+      "header": "#002a12",
+      "negative": "#f3001c"
+    },
+    "evidenceRatio": 0.62,
+    "table": {
+      "noVerticalRules": true
+    },
+    "pageTypes": [
+      "photo-verdict",
+      "text-photo",
+      "conclusion-evidence",
+      "image-statement",
+      "comparison",
+      "sparse-table",
+      "section"
+    ],
+    "source": {
+      "kind": "legacy",
+      "themeKey": "theme17",
+      "originalLayouts": true,
+      "definitionSource": "src/components/themes/theme17/style.css"
+    },
+    "id": "legacy/theme17",
+    "layout": {
+      "frame": "documentary",
+      "composition": "conclusion-evidence",
+      "imageComposition": "text-photo",
+      "preferredPresets": [
+        "documentary/text-photo",
+        "documentary/conclusion-evidence"
+      ],
+      "variantFamily": "documentary"
+    }
+  }
+}

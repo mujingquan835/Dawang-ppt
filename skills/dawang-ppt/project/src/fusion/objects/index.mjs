@@ -5,6 +5,8 @@ import { layoutChart } from "./chart.mjs";
 import { layoutImages } from "../scene/image-layout.mjs";
 import { applyOverrides } from "./primitives.mjs";
 function layoutObject(o, s) {
+  // Initial geometry survives an appearance change; palette/type still come from the new skin.
+  if (o.geometryTokens) s = { ...s, grid: o.geometryTokens.grid, table: o.geometryTokens.table };
   const fn = o.kind === "timeline" ? layoutTimeline : o.kind === "table" ? layoutTable : ["bar", "line"].includes(o.kind) ? layoutChart : o.kind === "images" ? layoutImages : ["process", "hierarchy", "cycle", "matrix", "comparison", "causal"].includes(o.kind) ? layoutDiagram : null;
   if (!fn) throw new Error("Unsupported semantic kind " + o.kind);
   return applyOverrides(fn(o, s), o);

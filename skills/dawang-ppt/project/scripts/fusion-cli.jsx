@@ -61,7 +61,7 @@ function createProjectFromBrief(brief) {
   const contents = resolvedContents.flatMap((c) => {
     const images = c.data?.images || c.images || [];
     if (!style.media.onlyPrimary || images.length <= 1) return [c];
-    if (!style.id.startsWith("kimi/work/moon-white")) throw new Error("该家族的多照片处理尚需明确取舍；保留全部图片并询问，不自动拆页或删除。");
+    if (style.media.multiImagePolicy !== "split") throw new Error("该家族的多照片处理尚需明确取舍；保留全部图片并询问，不自动拆页或删除。");
     if (brief.fixedPageCount || brief.pageCount) throw new Error("Moon-white requires photo page splitting, conflicting with fixed page count. Ask the user before changing page count.");
     return images.map((image, i) => ({ ...c, slideId: c.slideId + "/photo-" + (i + 1), title: c.title, data: { ...c.data, arrangement: "single", images: [image] }, imageSequence: { index: i + 1, total: images.length, sourceSlideId: c.slideId } }));
   });
