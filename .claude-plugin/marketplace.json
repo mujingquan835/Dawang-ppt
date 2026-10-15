@@ -4,13 +4,13 @@
     "name": "大师的AI小灶"
   },
   "metadata": {
-    "description": "Dawang-PPT content-driven presentation skill",
-    "version": "0.1.0"
+    "description": "Dawang-PPT original editor with relationship-driven composition and editable export",
+    "version": "0.2.0-dev"
   },
   "plugins": [
     {
       "name": "dawang-ppt",
-      "description": "内容驱动中文演示制作与本地可编辑 PPTX 导出",
+      "description": "原dashi操作台中的中文演示制作、组合对象编辑与本地PPTX导出",
       "source": "./",
       "strict": false,
       "skills": [

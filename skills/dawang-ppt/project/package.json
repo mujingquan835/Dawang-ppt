@@ -12,13 +12,16 @@
     "goal:scaffold": "node scripts/goal-scaffold.mjs",
     "goal:revise": "node scripts/revise-goal.mjs",
     "validate:goal-spec": "node scripts/validate-goal-spec.mjs",
-    "render:goal": "tsx scripts/render-goal-deck.jsx",
+    "render:goal": "tsx scripts/fusion-cli.jsx render:goal",
     "preview:https": "node scripts/serve-preview-https.mjs",
-    "preview:start": "node scripts/start-preview-server.mjs",
+    "preview:start": "tsx scripts/fusion-cli.jsx preview:start",
     "validate:swiss": "node scripts/validate-swiss-deck.mjs",
     "validate:goal-copy": "node scripts/validate-goal-copy.mjs",
-    "export:pptx": "node scripts/export-pptx.mjs",
-    "export:pdf": "node scripts/export-pptx.mjs --pdf"
+    "export:pptx": "tsx scripts/fusion-cli.jsx export:pptx",
+    "export:pdf": "tsx scripts/fusion-cli.jsx export:pdf",
+    "render:brief": "tsx scripts/fusion-cli.jsx render:brief",
+    "render:project": "tsx scripts/fusion-cli.jsx render:project",
+    "qa:project": "tsx scripts/fusion-cli.jsx qa:project"
   },
   "dependencies": {
     "gsap": "3.15.0",
