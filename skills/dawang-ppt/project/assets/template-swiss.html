@@ -2979,7 +2979,7 @@
     serverSaveInFlight = true;
     let succeeded = false;
     try {
-      const response = await fetch(SERVER_SAVE_URL, {
+      const response = window.__fusionEditor ? {ok:true,json:()=>window.__fusionEditor.save()} : await fetch(SERVER_SAVE_URL, {
         method:'POST',
         headers:{'content-type':'application/json'},
         body:JSON.stringify({state:getState(),project:window.__fusionEditor?.getProject(),expectedRevision:window.__fusionEditor?.getProject()?.revision}),
@@ -4368,6 +4368,7 @@ function moveSlide(fromIndex, insertIndex){
   return true;
 }
 
+window.__refreshFusionCatalog = () => updateAfterCatalogMutation(slides[idx],idx);
 function updateAfterCatalogMutation(previousActiveSlide, preferredIndex, detail={}){
   refreshSlideList();
   const activeIndex = slides.indexOf(previousActiveSlide);
@@ -8708,6 +8709,7 @@ refreshRailCatalog();
   if(!deck) return;
   const stateEl = document.getElementById('embedded-text-state');
   const textState = readTextState();
+  window.__replaceEditableTextState = next => { for(const key of Object.keys(textState)) delete textState[key]; Object.assign(textState,next||{}); writeTextState(); applyTextState(deck); };
   const defaultTextState = window.__deckDefaultTextState || {};
   const textCounters = new Map();
 

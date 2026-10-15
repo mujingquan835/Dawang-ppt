@@ -1,0 +1,9 @@
+import JSZip from 'jszip';
+const xmlEscape=v=>String(v).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
+export async function writeEditablePackage(pptx,collection,{type='uint8array'}={}){
+ const bytes=await pptx.write({outputType:'arraybuffer'});const Zip=JSZip.default||JSZip;const zip=await Zip.loadAsync(bytes);
+ for(let i=0;i<collection.slides.length;i++){const file=`ppt/slides/slide${i+1}.xml`;let xml=await zip.file(file).async('string');const images=new Map(collection.slides[i].objects.filter(o=>o.type==='image').map(o=>[xmlEscape(o.id),o]));xml=xml.replace(/<p:pic>[\s\S]*?<\/p:pic>/g,pic=>{const name=/<p:cNvPr[^>]*name="([^"]+)"/.exec(pic)?.[1];const o=images.get(name);if(!o)return pic;
+ if(o.fit==='cover'){const [,,w,h]=o.bounds;const nw=o.naturalWidth,nh=o.naturalHeight;const scale=Math.max(w/nw,h/nh),dw=nw*scale,dh=nh*scale;const raw=(o.focal||'50% 50%').trim().split(/\s+/);const pct=v=>v==='left'||v==='top'?0:v==='right'||v==='bottom'?1:v==='center'?.5:Math.max(0,Math.min(1,parseFloat(v)/100||0));const fx=pct(raw[0]),fy=pct(raw[1]||raw[0]);const l=Math.round((dw-w)*fx/dw*100000),r=Math.round((dw-w)*(1-fx)/dw*100000),t=Math.round((dh-h)*fy/dh*100000),b=Math.round((dh-h)*(1-fy)/dh*100000);pic=pic.replace(/<a:srcRect[^>]*\/>/g,'').replace(/<a:stretch>/,`<a:srcRect l="${l}" r="${r}" t="${t}" b="${b}"/><a:stretch>`);}
+ const radius=o.style?.radius||0;if(o.clipShape==='ellipse')pic=pic.replace(/<a:prstGeom[\s\S]*?<\/a:prstGeom>/,'<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>');else if(radius>0){const adj=Math.round(Math.min(.5,radius/Math.min(o.bounds[2],o.bounds[3]))*100000);pic=pic.replace(/<a:prstGeom[\s\S]*?<\/a:prstGeom>/,`<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val ${adj}"/></a:avLst></a:prstGeom>`);}return pic;});zip.file(file,xml);}
+ return zip.generateAsync({type,compression:'DEFLATE'});
+}
