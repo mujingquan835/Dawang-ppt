@@ -1,3 +1,4 @@
+import { assignElementRoles } from "../project/roles.mjs";
 import { planSlide } from "../planning/plan-slide.mjs";
 const T = (id, text, bounds, style = {}, role) => ({ id, type: "text", text, bounds, style, role });
 const S = (id, bounds, style) => ({ id, type: "shape", bounds, style });
@@ -58,7 +59,7 @@ function composeContentSlide(content, style) {
     const ref = e.role === "title" ? content.titleRef : e.id === "explanation" ? content.explanationRef : e.id === "scope" ? content.scopeRef : void 0;
     if (ref) e.contentRef = ref;
   }
-  return composed;
+  return assignElementRoles(composed);
 }
 function applyPageType(slide, content, style) {
   const type = content.pageType;
