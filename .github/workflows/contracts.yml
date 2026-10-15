@@ -10,5 +10,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: node --test tests/contracts.test.mjs
+      - run: npm ci --prefix skills/dawang-ppt/project --ignore-scripts
+      - run: node --test tests/contracts.test.mjs tests/fusion/*.test.mjs
       - run: node examples/matrix.mjs

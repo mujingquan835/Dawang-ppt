@@ -1,50 +1,46 @@
 # Dawang-PPT
 
-内容驱动的中文演示技能：先保存事实、材料与必须内容，再选择关系表达、风格和构图，生成浏览器可编辑的 HTML 与本地 PPTX。
+以原 dashi-PPT 操作台为制作、编辑基座，融入 Kimi 的材料理解、叙事、图片组织与关系排版规则。旧模板页与新组合页共用目录、画布、侧栏、保存和可编辑PPTX导出。
 
-**当前为 0.1.0 实验版。** 三类场景、六类正文构图、三种风格适配、自主参数风格、文字/图片编辑保存和原生对象导出已实现。工程验证与用户视觉评审分别记录，尚不宣称首期全项验收通过。
+**当前分支为 0.2.0-dev。用户效果验收尚未通过，未合入主分支。** 0.1.0 的简化渲染器保留恢复历史，不再作为融合主链路。
 
-## 安装
+## 运行
 
-要求 Node.js 22+。当前完整浏览器验收环境是 macOS + Chrome；独立导出复核使用 LibreOffice 与 pdftoppm。
+要求Node.js 22+、Chrome；完整实测环境为macOS。LibreOffice与pdftoppm用于独立渲染验证。
 
-```bash
+```sh
 git clone https://github.com/mujingquan835/Dawang-ppt.git
 cd Dawang-ppt
-npm ci
-node skills/dawang-ppt/scripts/install.mjs
+git switch codex/fusion-v1
+npm ci --prefix skills/dawang-ppt/project
+node skills/dawang-ppt/scripts/dawang.mjs doctor
+node skills/dawang-ppt/scripts/dawang.mjs styles
 ```
 
-新会话使用 `$dawang-ppt`。安装的是指向完整项目的独立技能入口，保留原 dashiai-ppt 与 open-kimi-ppt。撤销：`node skills/dawang-ppt/scripts/install.mjs --uninstall`，源码保留。
+[技能入口](skills/dawang-ppt/SKILL.md) · [命令与工程契约](skills/dawang-ppt/references/contracts.md)。开发版可在当前仓库直接调用；不需要覆盖原技能。安装入口仍由`node skills/dawang-ppt/scripts/install.mjs`创建独立符号链接，已有不同安装时拒绝覆盖。测试安装使用`--target <临时目录>/dawang-ppt`，不修改日常安装。
 
-## 复现
+## 第一版范围
 
-```bash
-npm test
-npm run examples
-npm run build -- output/matrix/blue-line-courseware
-npm run preview -- output/matrix/blue-line-courseware
-npm run qa -- output/matrix/blue-line-courseware
-npm run export:pptx -- output/matrix/blue-line-courseware
-node runtime/verify-pptx.mjs output/matrix/blue-line-courseware/Dawang-PPT.pptx
-```
-
-浏览器点击文字或图片，应用草稿后“保存修改”；源台账与布局覆盖回流，刷新与导出保持一致。内容修改导致已有QA失效，导出会重新检测几何。用户视觉复核仍需逐页检查。
-
-## 能力和限制
-
-| 已实现并有工程样例 | 边界 |
+| 能力 | 当前实现与边界 |
 |---|---|
-| management / analysis / training 场景规则 | 扩展场景后续分批实现 |
-| 结论证据、图文案例、比较、前后流程、明细表、行动计划 | 固定区域与受控比例，过量内容需要修正 |
-| 靛蓝尽调、月白影像、蓝线课件，自主参数 | 实验适配，用户视觉评审待完成 |
-| PPTX原生文本、图片、形状、连接线、表格 | 比较条形为形状，不是原生数据图表 |
-| 旧主题显式绑定适配 | 旧媒体及全部编辑反向回流未统一 |
+| 原编辑器与模板 | 保留17主题、18项本地扩展及原编辑操作；新组合控件挂在原侧栏 |
+| 原风格使用新对象 | theme13钴蓝经营、theme09深蓝杂志、theme16奶油蓝图；其他主题仅保留原模板能力 |
+| 首批Kimi家族 | 靛蓝尽调、月白影像、蓝线课件；各自构图/字体/照片/关系图规则，待用户视觉验收 |
+| 新对象 | 图片组合、时间轴、表格、流程/层级/循环/矩阵/比较/因果关系、条形/折线 |
+| 编辑与保存 | 节点、行列、连接、组与子对象、撤销重做、媒体引用、浏览器草稿、修订冲突保护 |
+| 导出 | 独立PptxGenJS适配器；文字/图片/形状/线条可编辑，PDF按截图生成 |
+| 全库迁移 | 60份源资料有哈希与批次，3份适配中，57份待后续批次；索引不是完成迁移 |
 
-完整60份风格资料仅索引；原生数据图表、SmartArt、自动参考图迁移、任意PPTX模板导入尚未支持。Office/WPS的字体与换行一致性需要独立客户端验收。当前观察到LibreOffice的宋体标题回退差异，不保证像素一致。
+表格/图表/关系图不要求原生数据表、图表或SmartArt。不支持任意PPTX模板导入。字体与复杂旧模板装饰的跨客户端效果需逐项复核，不能把文件生成成功当作通过。
 
-[架构](docs/architecture.md) · [验收](docs/acceptance.md) · [来源与许可](docs/upstream-sources.md) · [融合方案基线](docs/fusion-plan.md)
+## 验证与维护
 
-## Git维护
+```sh
+npm ci
+npm test
+npm run test:fusion
+```
 
-保留上游历史；新能力采用独立版本。排除业务材料、生成稿、依赖与凭据。上游升级经差异审核和旧主题回归再合并。原代码采用仓库AGPL-3.0许可；原技能专有导出组件服从自身LICENSE，新运行时使用独立MIT依赖。
+浏览器回归使用公开合成夹具；真实图片、原稿对照、生成稿留在本地output，不进入公开Git。新增改动先在开发分支提交，真实效果验收通过后才合入main并发布0.2.0。恢复点为`v0.1.0-recovery`。
+
+[当前验收](docs/acceptance-v0.2.md) · [架构](docs/architecture.md) · [迁移台账](docs/style-migration-v2.json) · [来源与许可](NOTICE.md)。

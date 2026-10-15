@@ -20,4 +20,6 @@ Third-party dependencies, fonts, visual assets, and demo media retain their resp
 
 ## Dawang-PPT
 
-Dawang-PPT 0.1.0 additions are maintained by mujingquan835. The new runtime does not use the proprietary DashiAI export engine. Kimi design document text is not redistributed; the repository contains an index and independently authored adaptations.
+Dawang-PPT 0.2.0 development additions are maintained by mujingquan835. The new runtime does not use the proprietary DashiAI export engine. Kimi design document text is not redistributed; the repository contains an index and independently authored adaptations.
+
+The maintained fusion runtime is `skills/dawang-ppt/project`. It retains the original editing shell and licensed open source template runtime, but excludes the proprietary export package and browser bundle. Its export adapter is independently authored with PptxGenJS and JSZip. The root `runtime` remains a historical prototype. OPPO Sans copyright and license are retained alongside the bundled font.

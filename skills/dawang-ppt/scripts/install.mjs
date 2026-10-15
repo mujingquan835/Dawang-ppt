@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+const targetIndex=process.argv.indexOf("--target");
+if(targetIndex>=0&&!process.argv[targetIndex+1])throw Error("--target needs an explicit path");
 const skill = path.resolve(import.meta.dirname, ".."),
-  target = path.join(
+  target = targetIndex>=0?path.resolve(process.argv[targetIndex+1]):path.join(
     process.env.CODEX_HOME || path.join(os.homedir(), ".codex"),
     "skills",
     "dawang-ppt",

@@ -1,25 +1,32 @@
-# 数据与命令
+# 工程与命令（0.2 开发版）
 
-技能脚本命令：`node <skill>/scripts/dawang.mjs build|serve|qa|export <项目绝对路径> [输出PPTX或端口]`。
+在仓库根目录执行；其他目录用技能入口的绝对路径。输入和输出均可使用绝对路径。
 
-最小可复现项目见仓库 `examples/matrix.mjs`；`npm run examples` 生成六组公开合成输入。
+```sh
+node skills/dawang-ppt/scripts/dawang.mjs styles
+node skills/dawang-ppt/scripts/dawang.mjs render:goal goal.json output/demo/index.html
+node skills/dawang-ppt/scripts/dawang.mjs render:brief brief.json output/demo/index.html
+node skills/dawang-ppt/scripts/dawang.mjs render:project output/demo/deck-project.json output/demo/index.html
+node skills/dawang-ppt/scripts/dawang.mjs preview:start output/demo 8766
+node skills/dawang-ppt/scripts/dawang.mjs qa:project output/demo
+node skills/dawang-ppt/scripts/dawang.mjs export:pptx output/demo output/demo/review.pptx
+node skills/dawang-ppt/scripts/dawang.mjs export:pdf output/demo output/demo/review.pdf
+```
 
-| 文件 | 内容 |
+`render:goal`沿用原goal校验、composeDeck和模板契约；`--from-html <原index.html>`合并已有文字/字体/槽样式/顺序等状态。输出已有工程时拒绝导入覆盖。局部返工加载ProjectV2，保存后重渲染；不回读初始goal覆盖新状态。
+
+`brief`由制作智能体生成，包含title/audience/purpose/scenario/styleId/contentNodes/contentSlides/requiredMedia/fixedPageCount。contentSlides每页有slideId/title或titleRef/readerTask/relation或kind/data/source/requiredContentRefs；首批模板另有judgments/explanations/pageType等材料。靛蓝判断栏需要2–4项真实判断。缺材料返回冲突，不自动编造。
+
+| kind | data 主要字段 |
 |---|---|
-| requirements.md | 明确要求、缺失事实、假设与最终验收 |
-| sources.json | entries 来源；nodes 以稳定 id/sourceId 关联，text/table/series 类型 |
-| media.json | items 的 id/src/source/intent/alt/allowCrop/fit；src 是项目内相对路径 |
-| content-plan.json | scenario/audience/purpose/use/pageCount/cover/slides |
-| design-brief.json | styleId 与 tokens；不改变事实 |
-| edit-state.json | overrides 按元素稳定 ID 保存 x/y/w/h/fontSize |
-| render-plan.json | 自动编译的元素与内容引用，禁止作为第二份内容真相手改 |
-| build-manifest.json | 输入 revision、构建版本与时间 |
-| qa/report.json | 检测及待复核状态；重新构建使其失效 |
+| images | images[{mediaId,src,kind,caption,focal}]，arrangement=single/text-photo/primary-secondary/grid/full-bleed |
+| timeline | nodes[{nodeId,label,date,detail}]，direction=horizontal/vertical/alternating，distribution=sequence/date，stages[{stageId,from,to,label}] |
+| table | columns[{columnId,label,width}]，rows[{rowId,height,cells:{columnId:value}}]，merges[{rowIds,columnIds,text}]；比例须为正 |
+| process/hierarchy/cycle/matrix/comparison/causal | nodes[{nodeId,label,detail}]，显式relationships[{relationshipId,from,to}]；矩阵columns/rows/columnLabels/rowLabels |
+| bar/line | series[{nodeId,label,value}]，unit、period必须给出；null缺测与0区分 |
 
-逐页字段：slideId、readerTask、relation、composition、titleRef、bodyRefs、requiredContentRefs、mediaRefs、requiredMediaRefs、constraints。构图为 evidence/case/comparison/process/table/action。
+各对象均有objectId/bounds/overrides。显式空relationships表示无连接，不自动补线。日期比例模式要求实际日期，顺序时间轴可用阶段名。图片ID、节点、行列和关系ID必须稳定，不能用重排后的下标代替。
 
-process 使用 beforeRefs/afterRefs；table 使用 dataRef，节点包含 headers/rows；comparison 使用 dataRef，节点包含 values[{label,value}]、unit、period、basis。null 单独标记。nativeChart 与 smartArt 约束会明确拒绝。
+唯一源文件为`deck-project.json`：version=2、requirements、sources、media、contentPlan、designChoice、slides、editorState、revision。原模板mode=template；新组合mode=composition。图片复制到assets/user-media；用户上传去重落盘，撤销记录引用媒体。完整交付保留整个输出目录，不只复制HTML。
 
-默认 960×540 对应 PPTX 13⅓×7½ 英寸；坐标 /72 为英寸，文字 px 数值对应点值。中文字体默认 PingFang SC；靛蓝标题用 Songti SC。没有分发字体；其他平台需指定可用字体并重新测量。
-
-三种风格：indigo-due-diligence（月白之外的密集证据与判断区）、moon-white-imagery（大标题及图像主次）、blue-line-courseware（蓝线与教学流程）。custom 直接指定颜色角色、字体、字号、evidenceRatio 等受控参数。蓝线为 A4 源视觉的横版适配。
+逻辑画布1920×1080；导出13⅓×7½英寸。逻辑坐标/144为英寸，CSS字号/2为点值。原组件按浏览器实际布局采集；新对象保持文字、形状、图片和线条可编辑。
