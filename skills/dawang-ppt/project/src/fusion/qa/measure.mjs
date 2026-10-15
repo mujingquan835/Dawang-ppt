@@ -1,3 +1,50 @@
-import {chromium} from 'playwright-core';
-export async function measureProject(url,project,{chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',screenshotDir}={}){const browser=await chromium.launch({executablePath:chrome,headless:true});try{const page=await browser.newPage({viewport:{width:1920,height:1080}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.waitForFunction(()=>window.__fusionEditor&&window.__renderRuntimeSlide);const report={revision:project.revision,pages:[],browserErrors:errors,aestheticAcceptance:'requires-human-review'};const visible=project.editorState.slideOrder.filter(id=>!project.editorState.deletedSlides.includes(id)&&!project.editorState.skippedSlides.includes(id));for(const id of visible){await page.evaluate(id=>{const slides=window.__getVisibleSlides();window.go(slides.findIndex(s=>s.dataset.vmSlideId===id),{animate:false,force:true});},id);await page.evaluate(()=>document.fonts.ready);const result=await page.evaluate(id=>{const slide=[...document.querySelectorAll('#deck > .slide')].find(s=>s.dataset.vmSlideId===id);const root=slide.querySelector('.fusion-root,.imported-theme-root');const b=root.getBoundingClientRect(),scale=b.width/1920;const issues=[],elements=[];for(const e of root.querySelectorAll('[data-fusion-element]')){const r=e.getBoundingClientRect(),bounds=[(r.x-b.x)/scale,(r.y-b.y)/scale,r.width/scale,r.height/scale];const type=e.dataset.elementType;elements.push({id:e.dataset.fusionElement,type,bounds,text:type==='text'?e.textContent:undefined});if(bounds[0]<-2||bounds[1]<-2||bounds[0]+bounds[2]>1922||bounds[1]+bounds[3]>1082)issues.push({kind:'outside-canvas',id:e.dataset.fusionElement,bounds});if(type==='text'&&(e.scrollWidth>e.clientWidth+2||e.scrollHeight>e.clientHeight+2))issues.push({kind:'text-overflow',id:e.dataset.fusionElement,text:e.textContent,bounds,scroll:[e.scrollWidth,e.scrollHeight]});if(type==='image'&&(!e.complete||!e.naturalWidth))issues.push({kind:'missing-image',id:e.dataset.fusionElement});}
- const texts=elements.filter(e=>e.type==='text');for(let i=0;i<texts.length;i++)for(let j=i+1;j<texts.length;j++){const a=texts[i],c=texts[j],dx=Math.min(a.bounds[0]+a.bounds[2],c.bounds[0]+c.bounds[2])-Math.max(a.bounds[0],c.bounds[0]),dy=Math.min(a.bounds[1]+a.bounds[3],c.bounds[1]+c.bounds[3])-Math.max(a.bounds[1],c.bounds[1]);if(dx>4&&dy>4)issues.push({kind:'text-overlap',ids:[a.id,c.id],intersection:[dx,dy]});}return{slideId:id,elements,issues};},id);report.pages.push(result);if(screenshotDir)await page.locator(`#deck [data-vm-slide-id="${id}"]`).screenshot({path:screenshotDir+'/'+String(report.pages.length).padStart(2,'0')+'.png'});}report.ok=!errors.length&&report.pages.every(p=>!p.issues.length);return report;}finally{await browser.close();}}
+import { checkCoverage } from "./coverage.mjs";
+import { chromium } from "playwright-core";
+async function measureProject(url, project, { chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", screenshotDir } = {}) {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(url);
+    await page.waitForFunction(() => window.__fusionEditor && window.__renderRuntimeSlide);
+    const report = { revision: project.revision, pages: [], browserErrors: errors, coverageIssues: checkCoverage(project), aestheticAcceptance: "requires-human-review" };
+    const visible = project.editorState.slideOrder.filter((id) => !project.editorState.deletedSlides.includes(id) && !project.editorState.skippedSlides.includes(id));
+    for (const id of visible) {
+      await page.evaluate((id2) => {
+        const slides = window.__getVisibleSlides();
+        window.go(slides.findIndex((s) => s.dataset.vmSlideId === id2), { animate: false, force: true });
+      }, id);
+      await page.evaluate(() => document.fonts.ready);
+      const result = await page.evaluate((id2) => {
+        const slide = [...document.querySelectorAll("#deck > .slide")].find((s) => s.dataset.vmSlideId === id2);
+        const root = slide.querySelector(".fusion-root,.imported-theme-root");
+        const b = root.getBoundingClientRect(), scale = b.width / 1920;
+        const issues = [], elements = [];
+        for (const e of root.querySelectorAll("[data-fusion-element]")) {
+          const r = e.getBoundingClientRect(), bounds = [(r.x - b.x) / scale, (r.y - b.y) / scale, r.width / scale, r.height / scale];
+          const type = e.dataset.elementType;
+          elements.push({ id: e.dataset.fusionElement, type, bounds, text: type === "text" ? e.textContent : void 0 });
+          if (bounds[0] < -2 || bounds[1] < -2 || bounds[0] + bounds[2] > 1922 || bounds[1] + bounds[3] > 1082) issues.push({ kind: "outside-canvas", id: e.dataset.fusionElement, bounds });
+          if (type === "text" && (e.scrollWidth > e.clientWidth + 2 || e.scrollHeight > e.clientHeight + 2)) issues.push({ kind: "text-overflow", id: e.dataset.fusionElement, text: e.textContent, bounds, scroll: [e.scrollWidth, e.scrollHeight] });
+          if (type === "image" && (!e.complete || !e.naturalWidth)) issues.push({ kind: "missing-image", id: e.dataset.fusionElement });
+        }
+        const texts = elements.filter((e) => e.type === "text");
+        for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) {
+          const a = texts[i], c = texts[j], dx = Math.min(a.bounds[0] + a.bounds[2], c.bounds[0] + c.bounds[2]) - Math.max(a.bounds[0], c.bounds[0]), dy = Math.min(a.bounds[1] + a.bounds[3], c.bounds[1] + c.bounds[3]) - Math.max(a.bounds[1], c.bounds[1]);
+          if (dx > 4 && dy > 4) issues.push({ kind: "text-overlap", ids: [a.id, c.id], intersection: [dx, dy] });
+        }
+        return { slideId: id2, elements, issues };
+      }, id);
+      report.pages.push(result);
+      if (screenshotDir) await page.locator(`#deck [data-vm-slide-id="${id}"]`).screenshot({ path: screenshotDir + "/" + String(report.pages.length).padStart(2, "0") + ".png" });
+    }
+    report.ok = !report.coverageIssues.length && !errors.length && report.pages.every((p) => !p.issues.length);
+    return report;
+  } finally {
+    await browser.close();
+  }
+}
+export {
+  measureProject
+};

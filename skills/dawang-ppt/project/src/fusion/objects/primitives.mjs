@@ -1,5 +1,23 @@
-export const text=(o,id,value,bounds,s,extra={})=>({id:`${o.objectId}/${id}`,parentId:o.objectId,type:'text',text:String(value??''),bounds,style:{fontSize:s.typography.sizes.body,color:s.palette.ink,lineHeight:1.12},...extra});
-export const shape=(o,id,bounds,s,extra={})=>({id:`${o.objectId}/${id}`,parentId:o.objectId,type:'shape',bounds,style:{fill:s.palette.surface,stroke:s.palette.line,strokeWidth:s.diagram.lineWidth,radius:s.diagram.radius},...extra});
-export function line(o,id,from,to,s,extra={}){const x=Math.min(from[0],to[0]),y=Math.min(from[1],to[1]),w=Math.max(2,Math.abs(to[0]-from[0])),h=Math.max(2,Math.abs(to[1]-from[1]));return{id:`${o.objectId}/${id}`,parentId:o.objectId,type:'line',bounds:[x,y,w,h],x1:from[0]-x,y1:from[1]-y,x2:to[0]-x,y2:to[1]-y,style:{stroke:s.palette.accent,strokeWidth:s.diagram.lineWidth},...extra};}
-export function uniqueNodes(nodes){const ids=nodes.map(n=>n.nodeId);if(ids.some(id=>!id)||new Set(ids).size!==ids.length)throw new Error('Stable unique node IDs required');}
-export function applyOverrides(elements,o){return elements.map(e=>{const over=o.overrides?.[e.id];return over?{...e,...over,style:{...e.style,...over.style}}:e;});}
+const text = (o, id, value, bounds, s, extra = {}) => ({ id: `${o.objectId}/${id}`, parentId: o.objectId, type: "text", text: String(value ?? ""), bounds, style: { fontSize: s.typography.sizes.body, color: s.palette.ink, lineHeight: 1.12 }, ...extra });
+const shape = (o, id, bounds, s, extra = {}) => ({ id: `${o.objectId}/${id}`, parentId: o.objectId, type: "shape", bounds, style: { fill: s.palette.surface, stroke: s.palette.line, strokeWidth: s.diagram.lineWidth, radius: s.diagram.radius }, ...extra });
+function line(o, id, from, to, s, extra = {}) {
+  const x = Math.min(from[0], to[0]), y = Math.min(from[1], to[1]), w = Math.max(2, Math.abs(to[0] - from[0])), h = Math.max(2, Math.abs(to[1] - from[1]));
+  return { id: `${o.objectId}/${id}`, parentId: o.objectId, type: "line", bounds: [x, y, w, h], x1: from[0] - x, y1: from[1] - y, x2: to[0] - x, y2: to[1] - y, style: { stroke: s.palette.accent, strokeWidth: s.diagram.lineWidth }, ...extra };
+}
+function uniqueNodes(nodes) {
+  const ids = nodes.map((n) => n.nodeId);
+  if (ids.some((id) => !id) || new Set(ids).size !== ids.length) throw new Error("Stable unique node IDs required");
+}
+function applyOverrides(elements, o) {
+  return elements.map((e) => {
+    const over = o.overrides?.[e.id];
+    return over ? { ...e, ...over, style: { ...e.style, ...over.style } } : e;
+  });
+}
+export {
+  applyOverrides,
+  line,
+  shape,
+  text,
+  uniqueNodes
+};

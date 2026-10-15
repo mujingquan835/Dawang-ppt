@@ -1,3 +1,65 @@
-import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {chromium} from '../../../skills/dawang-ppt/project/node_modules/playwright-core/index.mjs';import {importGoal} from '../../../skills/dawang-ppt/project/src/fusion/project/import-goal.mjs';import {saveProject,loadProject} from '../../../skills/dawang-ppt/project/src/fusion/project/store.mjs';import {renderProject} from '../../../skills/dawang-ppt/project/src/fusion/scene/render-project.jsx';import {createFusionServer} from '../../../skills/dawang-ppt/project/scripts/fusion-preview.jsx';import {measureProject} from '../../../skills/dawang-ppt/project/src/fusion/qa/measure.mjs';
-const dir=path.resolve('output/fusion-v1/objects-test');fs.mkdirSync(dir,{recursive:true});const pf=path.join(dir,'deck-project.json');if(fs.existsSync(pf))fs.unlinkSync(pf);const nodes=Array.from({length:5},(_,i)=>({nodeId:'n'+i,label:'步骤 '+(i+1),date:'2026-10-'+String(i+1).padStart(2,'0'),detail:'合成说明'}));const columns=[{columnId:'item',label:'事项',width:1},{columnId:'evidence',label:'证据',width:2},{columnId:'state',label:'状态',width:1}];const rows=Array.from({length:12},(_,i)=>({rowId:'r'+i,cells:{item:'测试事项 '+(i+1),evidence:'该行完整保留文字，数据只作结构验证。',state:'待核对'}}));const variants=[['timeline',{nodes,direction:'alternating'}],['table',{columns,rows}],...['process','hierarchy','cycle','matrix','comparison'].map(kind=>[kind,{nodes:nodes.slice(0,3),rows:2,columns:2}]),...['bar','line'].map(kind=>[kind,{unit:'合成单位',period:'合成时期',series:[{nodeId:'p',label:'正',value:10},{nodeId:'n',label:'负',value:-5},{nodeId:'z',label:'零',value:0},{nodeId:'empty',label:'空',value:null}]}])];
-const slides=['theme13','theme09','theme16'].flatMap(theme=>variants.map(([kind,data])=>({slideId:theme+'-'+kind,mode:'composition',styleId:'legacy/'+theme,compositionId:'object-regression',label:theme+' '+kind,elements:[{id:'title',type:'text',text:'合成结构验证 · '+kind,bounds:[112,90,1696,110],role:'title',style:{fontSize:70,fontWeight:600}}],objects:[{objectId:kind,kind,bounds:[112,240,1696,760],data:structuredClone(data),relationships:['process','hierarchy'].includes(kind)?[{relationshipId:'r1',from:'n0',to:'n1'},{relationshipId:'r2',from:'n0',to:'n2'}]:[],overrides:{}}]})));let p=importGoal({title:'三原风格 × 新语义对象 · 合成结构验证',slides});p.editorState.legacy.typography={mode:'global',headingFont:'theme',bodyFont:'theme',monoFont:'theme'};p=saveProject(pf,p,null).project;renderProject(p,path.join(dir,'index.html'));const server=await createFusionServer({dir});const url=`http://127.0.0.1:${server.address().port}/index.html`;const b=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});try{const page=await b.newPage({viewport:{width:1600,height:1000}});await page.goto(url);await page.waitForFunction(()=>window.__fusionEditor);await page.evaluate(()=>{window.__exitPresentMode();window.go(2,{animate:false,force:true});});const untouched=await page.evaluate(()=>JSON.stringify(window.__fusionEditor.getProject().slides[0]));await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').fill('浏览器节点修改');await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/shape"]').click({position:{x:5,y:5}});await page.getByRole('button',{name:'添加节点',exact:true}).click();assert.equal(await page.evaluate(()=>window.__fusionEditor.getProject().slides[2].objects[0].data.nodes.length),4);await page.evaluate(()=>window.__fusionEditor.apply({slideId:'theme13-process',objectId:'process',type:'object-geometry',bounds:[180,310,1500,600]}));await page.evaluate(()=>window.__fusionEditor.undo());assert.deepEqual(await page.evaluate(()=>window.__fusionEditor.getProject().slides[2].objects[0].bounds),[112,240,1696,760]);await page.evaluate(()=>window.__fusionEditor.redo());await page.evaluate(()=>window.__fusionEditor.save());assert.equal(await page.evaluate(()=>JSON.stringify(window.__fusionEditor.getProject().slides[0])),untouched);await page.reload();await page.waitForFunction(()=>window.__fusionEditor);await page.evaluate(()=>window.go(2,{animate:false,force:true}));assert.equal(await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').textContent(),'浏览器节点修改');const saved=loadProject(pf);assert.equal(saved.slides[2].objects[0].data.nodes.length,4);assert.deepEqual(saved.slides[2].objects[0].bounds,[180,310,1500,600]);const exports=await page.evaluate(()=>window.__exportDeckPptx());assert(exports.ok);await b.close();fs.mkdirSync(path.join(dir,'qa'),{recursive:true});const qa=await measureProject(url,loadProject(pf),{screenshotDir:path.join(dir,'qa')});fs.writeFileSync(path.join(dir,'qa.json'),JSON.stringify(qa,null,2));console.log({pages:qa.pages.length,issues:qa.pages.flatMap(s=>s.issues),export:exports.report});}finally{await b.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+import fs from "node:fs";
+import path from "node:path";
+import assert from "node:assert/strict";
+import { chromium } from "../../../skills/dawang-ppt/project/node_modules/playwright-core/index.mjs";
+import { importGoal } from "../../../skills/dawang-ppt/project/src/fusion/project/import-goal.mjs";
+import { saveProject, loadProject } from "../../../skills/dawang-ppt/project/src/fusion/project/store.mjs";
+import { renderProject } from "../../../skills/dawang-ppt/project/src/fusion/scene/render-project.jsx";
+import { createFusionServer } from "../../../skills/dawang-ppt/project/scripts/fusion-preview.jsx";
+import { measureProject } from "../../../skills/dawang-ppt/project/src/fusion/qa/measure.mjs";
+const dir = path.resolve("output/fusion-v1/objects-test");
+fs.mkdirSync(dir, { recursive: true });
+const pf = path.join(dir, "deck-project.json");
+if (fs.existsSync(pf)) fs.unlinkSync(pf);
+const nodes = Array.from({ length: 5 }, (_, i) => ({ nodeId: "n" + i, label: "步骤 " + (i + 1), date: "2026-10-" + String(i + 1).padStart(2, "0"), detail: "合成说明" }));
+const columns = [{ columnId: "item", label: "事项", width: 1 }, { columnId: "evidence", label: "证据", width: 2 }, { columnId: "state", label: "状态", width: 1 }];
+const rows = Array.from({ length: 12 }, (_, i) => ({ rowId: "r" + i, cells: { item: "测试事项 " + (i + 1), evidence: "该行完整保留文字，数据只作结构验证。", state: "待核对" } }));
+const variants = [["timeline", { nodes, direction: "alternating" }], ["table", { columns, rows }], ...["process", "hierarchy", "cycle", "matrix", "comparison"].map((kind) => [kind, { nodes: nodes.slice(0, 3), rows: 2, columns: 2 }]), ...["bar", "line"].map((kind) => [kind, { unit: "合成单位", period: "合成时期", series: [{ nodeId: "p", label: "正", value: 10 }, { nodeId: "n", label: "负", value: -5 }, { nodeId: "z", label: "零", value: 0 }, { nodeId: "empty", label: "空", value: null }] }])];
+const slides = ["theme13", "theme09", "theme16"].flatMap((theme) => variants.map(([kind, data]) => ({ slideId: theme + "-" + kind, mode: "composition", styleId: "legacy/" + theme, compositionId: "object-regression", label: theme + " " + kind, elements: [{ id: "title", type: "text", text: "合成结构验证 · " + kind, bounds: [112, 90, 1696, 110], role: "title", style: { fontSize: 70, fontWeight: 600 } }], objects: [{ objectId: kind, kind, bounds: [112, 240, 1696, 760], data: structuredClone(data), relationships: ["process", "hierarchy"].includes(kind) ? [{ relationshipId: "r1", from: "n0", to: "n1" }, { relationshipId: "r2", from: "n0", to: "n2" }] : [], overrides: {} }] })));
+let p = importGoal({ title: "三原风格 × 新语义对象 · 合成结构验证", slides });
+p.editorState.legacy.typography = { mode: "global", headingFont: "theme", bodyFont: "theme", monoFont: "theme" };
+p = saveProject(pf, p, null).project;
+renderProject(p, path.join(dir, "index.html"));
+const server = await createFusionServer({ dir });
+const url = `http://127.0.0.1:${server.address().port}/index.html`;
+const b = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
+try {
+  const page = await b.newPage({ viewport: { width: 1600, height: 1e3 } });
+  await page.goto(url);
+  await page.waitForFunction(() => window.__fusionEditor);
+  await page.evaluate(() => {
+    window.__exitPresentMode();
+    window.go(2, { animate: false, force: true });
+  });
+  assert.equal(await page.evaluate(() => window.__fusionEditor.getProject().slides[0].objects[0].data.nodes[0].label), "步骤 1");
+  const untouched = await page.evaluate(() => JSON.stringify(window.__fusionEditor.getProject().slides[0]));
+  await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').fill("浏览器节点修改");
+  await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/shape"]').click({ position: { x: 5, y: 5 } });
+  await page.getByRole("button", { name: "添加节点", exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__fusionEditor.getProject().slides[2].objects[0].data.nodes.length), 4);
+  await page.evaluate(() => window.__fusionEditor.apply({ slideId: "theme13-process", objectId: "process", type: "object-geometry", bounds: [180, 310, 1500, 600] }));
+  await page.evaluate(() => window.__fusionEditor.undo());
+  assert.deepEqual(await page.evaluate(() => window.__fusionEditor.getProject().slides[2].objects[0].bounds), [112, 240, 1696, 760]);
+  await page.evaluate(() => window.__fusionEditor.redo());
+  await page.evaluate(() => window.__fusionEditor.save());
+  assert.equal(await page.evaluate(() => JSON.stringify(window.__fusionEditor.getProject().slides[0])), untouched);
+  await page.reload();
+  await page.waitForFunction(() => window.__fusionEditor);
+  await page.evaluate(() => window.go(2, { animate: false, force: true }));
+  assert.equal(await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').textContent(), "浏览器节点修改");
+  const saved = loadProject(pf);
+  assert.equal(saved.slides[2].objects[0].data.nodes.length, 4);
+  assert.deepEqual(saved.slides[2].objects[0].bounds, [180, 310, 1500, 600]);
+  const exports = await page.evaluate(() => window.__exportDeckPptx());
+  assert(exports.ok);
+  assert(exports.report.texts > 300, "Inactive pages must retain all authored text in editable export");
+  await b.close();
+  fs.mkdirSync(path.join(dir, "qa"), { recursive: true });
+  const qa = await measureProject(url, loadProject(pf), { screenshotDir: path.join(dir, "qa") });
+  fs.writeFileSync(path.join(dir, "qa.json"), JSON.stringify(qa, null, 2));
+  console.log({ pages: qa.pages.length, issues: qa.pages.flatMap((s) => s.issues), export: exports.report });
+} finally {
+  await b.close();
+  server.closeAllConnections();
+  await new Promise((resolve) => server.close(resolve));
+}

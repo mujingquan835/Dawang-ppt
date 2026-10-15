@@ -19,12 +19,13 @@ export const RUNTIME_ASSET_PATHS = [
   'assets/unicorn/media',
   'assets/vendor/unicornstudio.umd.js',
   // 浏览器端可编辑 PPTX 导出 bundle(服务端起不了无头浏览器时的降级通道,
-  // 由 scripts/build/build-editable-pptx-browser.mjs 预构建)。
+  // 由独立融合编辑与导出模块构建)。
   'assets/vendor/fonts',
 ];
 
 export const GENERATED_RUNTIME_OUTPUT_ASSETS = [
   'assets/imported-theme-runtime.js',
+  'assets/fusion-editor.js',
 ];
 
 export const VENDOR_RUNTIME_OUTPUT_ASSETS = [

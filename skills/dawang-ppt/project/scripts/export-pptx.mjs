@@ -5,7 +5,7 @@
 // The browser-facing export flow (preview UI -> POST /api/export-editable-pptx)
 // requires a same-origin Origin/Referer header (see preview-export-auth.mjs),
 // which a bare `curl`/script call can't produce. This CLI sidesteps that by
-// driving the same export engine (packages/html-deck-to-pptx) directly:
+// driving the independent Dawang export adapter directly:
 // it spins up scripts/serve-preview-https.mjs on a random loopback port purely
 // to serve the deck's static files, exports, then tears the server down.
 //
@@ -24,8 +24,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { launchExportBrowser } from './preview/launch-export-browser.mjs';
 import { brandPptxFile } from './pptx-metadata.mjs';
-import { exportEditablePptxFromUrl } from '../packages/html-deck-to-pptx/src/editable.mjs';
-import { exportScreenshotPdfFromUrl } from '../packages/html-deck-to-pptx/src/screenshot.mjs';
+import { exportEditablePptxFromUrl } from '../src/fusion/export/from-url.mjs';
+import { exportScreenshotPdfFromUrl } from '../src/fusion/export/from-url.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');

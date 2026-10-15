@@ -1,3 +1,7 @@
+import {existsSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {loadProject,saveProject} from '../../src/fusion/project/store.mjs';
+import {mergeEditorState} from '../../src/fusion/project/import-goal.mjs';
 // 导出/保存相关 API 路由(editable-pptx / pdf / save-deck-state)。从 scripts/serve-preview-https.mjs
 // 拆出,逻辑逐字节保留:仅把闭包捕获的顶层常量(ROOT/SERVE_ROOT/EXPORT_DIR/PORT/HOST/…)
 // 改为 initExportRoutes() 注入的模块内状态,行为不变。
@@ -54,7 +58,7 @@ export async function handleEditablePptxExport(req, res) {
     updateExportProgress(progressId, { stage: 'queued', detail: '服务端接收导出请求', percent: 4 });
     const [{ chromium }, { exportEditablePptxFromUrl }] = await Promise.all([
       import('playwright-core'),
-      import('../../packages/html-deck-to-pptx/src/editable.mjs'),
+      import('../../src/fusion/export/from-url.mjs'),
     ]);
     updateExportProgress(progressId, { stage: 'launching', detail: '启动导出浏览器', percent: 6 });
     const browser = await launchExportBrowser(chromium, {
@@ -124,6 +128,8 @@ export async function handleSaveDeckState(req, res) {
     return;
   }
   try {
+    const pf=path.join(SERVE_ROOT,'deck-project.json');
+    if(existsSync(pf)){const old=loadProject(pf),project=mergeEditorState(payload.project||old,payload.state);const staged=extractDataUrlMedia(project,SERVE_ROOT);const result=saveProject(pf,staged.state,payload.expectedRevision||old.revision);if(!result.ok){res.writeHead(409,{'content-type':'application/json'});res.end(JSON.stringify(result));return;}let previewError;try{execFileSync(process.execPath,[path.join(ROOT,'node_modules/tsx/dist/cli.mjs'),path.join(ROOT,'scripts/fusion-cli.jsx'),'render:project',pf,path.join(SERVE_ROOT,'index.html')],{cwd:ROOT,timeout:30000});}catch(error){previewError=publicErrorMessage(error,'Preview update failed');}res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({ok:true,revision:result.revision,mediaMap:staged.mediaMap,previewError}));return;}
     const indexFile = path.join(SERVE_ROOT, 'index.html');
     const html = readFileSync(indexFile, 'utf8');
     const { state: resolvedState, written, mediaMap } = extractDataUrlMedia(payload.state, SERVE_ROOT);
@@ -155,7 +161,7 @@ export async function handlePdfExport(req, res) {
     updateExportProgress(progressId, { stage: 'queued', detail: '服务端接收 PDF 导出请求', percent: 4 });
     const [{ chromium }, { exportScreenshotPdfFromUrl }] = await Promise.all([
       import('playwright-core'),
-      import('../../packages/html-deck-to-pptx/src/screenshot.mjs'),
+      import('../../src/fusion/export/from-url.mjs'),
     ]);
     updateExportProgress(progressId, { stage: 'launching', detail: '启动截图浏览器', percent: 6 });
     const browser = await launchExportBrowser(chromium, {

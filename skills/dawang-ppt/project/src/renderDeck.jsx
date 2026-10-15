@@ -1,3 +1,5 @@
+import {importGoal} from './fusion/project/import-goal.mjs';
+import {saveProject} from './fusion/project/store.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -39,6 +41,7 @@ const FULL_THEME_REGISTRY = path.join(ROOT, 'src/components/themes/theme-registr
 const MIGRATION_ONLY_DIRS = new Set(['uploads', 'screens', 'screenshots', 'shots', 'scratch']);
 
 export function renderDeck(deck, { outFile, includeThemeSwitcher = deck.preview?.themeSwitcher === true }) {
+  if(!deck.fusionProject&&fs.existsSync(path.join(path.dirname(outFile),'deck-project.json')))throw new Error('Saved ProjectV2 exists. Use render:project to preserve edits; choose a new output directory to import another goal.');
   const viewModel = buildDeckViewModel(deck, {
     layouts: LAYOUT_OPTIONS,
     layoutAliases: LAYOUT_ALIASES,
@@ -58,8 +61,12 @@ export function renderDeck(deck, { outFile, includeThemeSwitcher = deck.preview?
   html = injectDeckViewModel(html, serializeDeckViewModel(viewModel));
 
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
+  let project=deck.fusionProject||importGoal(deck);if(!deck.fusionProject)project=saveProject(path.join(path.dirname(outFile),'deck-project.json'),project,null).project;
+  html=html.replace('</body>',`<script id="fusion-project" type="application/json">${JSON.stringify(project).replaceAll('<','\\u003c')}</script><script src="assets/fusion-editor.js"></script></body>`);
   fs.writeFileSync(outFile, html);
   copyRuntimeAssets(path.dirname(outFile), { usedThemeKeys: collectUsedThemeKeys(viewModel) });
+  buildSync({entryPoints:[path.join(ROOT,'src/fusion/editor/browser.jsx')],outfile:path.join(path.dirname(outFile),'assets/fusion-editor.js'),bundle:true,format:'iife',platform:'browser',jsx:'automatic'});
+
 }
 
 // JAD-201:从 deck 实际用到的主题(每页 themePack)推导待打包的主题集合。
