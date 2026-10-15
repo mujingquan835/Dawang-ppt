@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {planSlide} from '../../skills/dawang-ppt/project/src/fusion/planning/plan-slide.mjs';
+import {layoutImages} from '../../skills/dawang-ppt/project/src/fusion/scene/image-layout.mjs';
+import {resolveStyle} from '../../skills/dawang-ppt/project/src/fusion/styles/registry.mjs';
+test('reader relationship chooses real structural objects',()=>{const style=resolveStyle('legacy/theme13');const plans=['parallel','sequence','hierarchy'].map(relation=>planSlide({title:'同一材料',relation,readerTask:'判断关系',nodes:[{nodeId:'a',label:'A'},{nodeId:'b',label:'B'}]},style));assert.deepEqual(plans.map(p=>p.objectKind),['comparison','process','hierarchy']);assert(plans.every(p=>p.reason));assert.equal(planSlide({relation:'unknown'},style).ok,false);});
+test('mixed photos and complete screenshot retain aspect and meaning',()=>{const es=layoutImages({objectId:'images',bounds:[100,200,1700,700],data:{arrangement:'primary-secondary',images:[{mediaId:'landscape',src:'wide',kind:'photo'},{mediaId:'portrait',src:'tall',kind:'photo'},{mediaId:'screen',src:'screen',kind:'screenshot'}]}},resolveStyle('legacy/theme13'));assert.equal(es.length,3);assert.equal(es.find(e=>e.id.endsWith('screen')).fit,'contain');assert.equal(es[0].bounds[2],1020);assert(es.every(e=>e.bounds[2]>0&&e.bounds[3]>0));});
