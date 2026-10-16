@@ -8,7 +8,7 @@ import { composeDeck } from "../src/deckComposer.jsx";
 import { validateGoalSpec } from "./validate-goal-spec.mjs";
 import { importGoal } from "../src/fusion/project/import-goal.mjs";
 import { loadProject, saveProject, hashFile } from "../src/fusion/project/store.mjs";
-import { resolveStyle, STYLE_DEFINITIONS } from "../src/fusion/styles/registry.mjs";
+import { resolveStyle, resolveSlideStyle, STYLE_DEFINITIONS } from "../src/fusion/styles/registry.mjs";
 import { planContentSlide } from "../src/fusion/planning/plan-slide.mjs";
 import { createLayoutMeasurer } from "../src/fusion/planning/measure-layout.mjs";
 import { composeContentSlide } from "../src/fusion/styles/compose.mjs";
@@ -82,13 +82,14 @@ function createProjectFromBrief(brief) {
   return projectFromContents(brief,style,contents,contents.map(c=>composeContentSlide(c,style)));
 }
 async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
-  const style=resolveStyle(brief.styleId), contents=resolveBriefContents(brief,style);
+  const style=resolveSlideStyle({styleId:brief.styleId,appearance:brief.appearance}), contents=resolveBriefContents(brief,style);
   const measurer=await createLayoutMeasurer();
   const slides=[], reports=[];
   try {
     for(const content of contents) {
       if(content.pageType) throw new Error('该显式家族页型尚未迁入共享规划器；保留原工程并先确认迁移，不静默替换。');
-      for(const image of content.data?.images || []) {
+      content.appearance=brief.appearance;
+      for(const image of [...(content.data?.images || []),...(content.regions||[]).flatMap(r=>r.data?.images||[])]) {
         if(!image.src) throw new Error('图片缺失：'+image.mediaId+'；请补充素材或明确占位。');
         let source=image.src;
         if(!source.startsWith('data:')) {

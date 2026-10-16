@@ -8,3 +8,11 @@ function resolveStyle(id, variant) {
   return structuredClone(style);
 }
 export { STYLE_DEFINITIONS, resolveStyle };
+
+// Project-specific brand tokens do not register a new style or change original templates.
+function resolveSlideStyle(slide) {
+ const style=resolveStyle(slide.styleId);
+ if(slide.appearance?.palette)style.palette={...style.palette,...slide.appearance.palette};
+ return style;
+}
+export {resolveSlideStyle};

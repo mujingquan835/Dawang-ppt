@@ -9,7 +9,7 @@ function checkCoverage(project) {
     for (const ref of slide.requiredContentRefs || []) {
       const node = project.contentPlan.nodes[ref];
       if (!node) issues.push({ kind: "missing-content-ref", slideId: slide.slideId, ref });
-      else if (node.text !== void 0 && !texts.includes(String(node.text))) issues.push({ kind: "unrendered-required-content", slideId: slide.slideId, ref });
+      else if (node.text !== void 0 && !texts.includes(String(node.text)) && !elements.some(e => e.type === "text" && e.sourceContentRef === ref)) issues.push({ kind: "unrendered-required-content", slideId: slide.slideId, ref });
     }
     for (const e of elements) if (e.type === "image") {
       allImages.push(e);
@@ -18,7 +18,7 @@ function checkCoverage(project) {
   }
   for (const required of project.requirements.requiredMedia || []) {
     const id = typeof required === "string" ? required : required.mediaId;
-    if (!allImages.some((e) => e.mediaRef === id || e.mediaId === id || e.id.endsWith("/" + id) || e.src === id) && !visible.some((s) => JSON.stringify(s.mediaBindings || {}).includes(id))) issues.push({ kind: "required-media-not-rendered", mediaId: id });
+    if (!allImages.some((e) => e.mediaRef === id || e.sourceMediaRef === id || e.mediaId === id || e.id.endsWith("/" + id) || e.src === id) && !visible.some((s) => JSON.stringify(s.mediaBindings || {}).includes(id))) issues.push({ kind: "required-media-not-rendered", mediaId: id });
   }
   return issues;
 }

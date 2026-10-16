@@ -37,6 +37,7 @@ function changeSlideAppearance(slide, before, after) {
     }
   }
   for (const object of result.objects || []) object.geometryTokens ??= geometryTokens(before);
+  delete result.appearance;
   result.styleId = after.id;
   return result;
 }

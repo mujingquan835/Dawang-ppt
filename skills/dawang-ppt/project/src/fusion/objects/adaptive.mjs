@@ -45,3 +45,31 @@ function layoutAdaptiveTimeline(o,s) {
   return es;
 }
 export {layoutAdaptiveRelation,layoutAdaptiveTimeline};
+
+function layoutMeasuredRelation(o,s){
+ const nodes=o.data.nodes||[];uniqueNodes(nodes);
+ const fitted=o.data.measuredNodes||[];
+ if(nodes.some(n=>!fitted.some(m=>m.nodeId===n.nodeId)))throw new Error('Measured node missing; replan before structural edits');
+ const [x,y,w]=o.bounds;
+ const extent=Math.max(...fitted.map(m=>m.bounds[0]+m.bounds[2]));
+ const sx=w/extent;
+ const boxes=fitted.map(m=>[x+m.bounds[0]*sx,y+m.bounds[1],m.bounds[2]*sx,m.bounds[3]]);
+ const elements=nodes.flatMap((n,i)=>{
+  const m=fitted.find(m=>m.nodeId===n.nodeId),b=boxes[fitted.indexOf(m)];
+  return [shape(o,`node/${n.nodeId}/shape`,b,s,{nodeId:n.nodeId,style:{fill:'transparent',stroke:s.palette.line,strokeWidth:1,radius:0}}),
+   text(o,`node/${n.nodeId}/label`,n.label,[b[0],b[1],b[2],m.labelHeight],s,{nodeId:n.nodeId,contentRef:n.contentRef,dataPath:['nodes',i,'label'],style:{fontSize:32,lineHeight:1.16,fontWeight:600,color:s.palette.ink}}),
+   ...n.detail?[text(o,`node/${n.nodeId}/detail`,n.detail,[b[0],b[1]+m.labelHeight+12,b[2],m.detailHeight],s,{nodeId:n.nodeId,dataPath:['nodes',i,'detail'],style:{fontSize:o.data.fontSize,lineHeight:1.16,color:s.palette.muted}})]:[]];
+ });
+ for(const [i,n] of nodes.entries()){
+  const moved=o.overrides?.[`${o.objectId}/node/${n.nodeId}/shape`]?.bounds;
+  if(moved)for(const e of elements.filter(e=>e.nodeId===n.nodeId&&e.type==='text'))if(!o.overrides?.[e.id]?.bounds)e.bounds=[moved[0]+e.bounds[0]-boxes[i][0],moved[1]+e.bounds[1]-boxes[i][1],moved[2],e.bounds[3]];
+ }
+ const edges=o.relationshipPolicy==='explicit'?o.relationships:o.kind==='comparison'?[]:nodes.slice(1).map((n,i)=>({relationshipId:nodes[i].nodeId+'-'+n.nodeId,from:nodes[i].nodeId,to:n.nodeId}));
+ for(const edge of edges){
+  const a=nodes.findIndex(n=>n.nodeId===edge.from),b=nodes.findIndex(n=>n.nodeId===edge.to);if(a<0||b<0)throw new Error('dangling relationship');
+  const aa=o.overrides?.[`${o.objectId}/node/${edge.from}/shape`]?.bounds||boxes[a],bb=o.overrides?.[`${o.objectId}/node/${edge.to}/shape`]?.bounds||boxes[b];
+  elements.push(line(o,'link/'+edge.relationshipId,[aa[0]+aa[2]+4,aa[1]+aa[3]/2],[bb[0]-8,bb[1]+bb[3]/2],s,{relationshipId:edge.relationshipId,fromNodeId:edge.from,toNodeId:edge.to,endArrow:'triangle',style:{stroke:s.palette.accent,strokeWidth:2}}));
+ }
+ return elements;
+}
+export {layoutMeasuredRelation};

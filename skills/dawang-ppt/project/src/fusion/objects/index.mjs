@@ -1,4 +1,4 @@
-import { layoutAdaptiveRelation, layoutAdaptiveTimeline } from "./adaptive.mjs";
+import { layoutAdaptiveRelation, layoutAdaptiveTimeline, layoutMeasuredRelation } from "./adaptive.mjs";
 import { layoutTimeline } from "./timeline.mjs";
 import { layoutTable } from "./table.mjs";
 import { layoutDiagram } from "./diagram.mjs";
@@ -11,7 +11,7 @@ function layoutObject(o, s) {
   const fn = o.kind === "timeline" ? layoutTimeline : o.kind === "table" ? layoutTable : ["bar", "line"].includes(o.kind) ? layoutChart : o.kind === "images" ? layoutImages : ["process", "hierarchy", "cycle", "matrix", "comparison", "causal"].includes(o.kind) ? layoutDiagram : null;
   if (!fn) throw new Error("Unsupported semantic kind " + o.kind);
   const adaptive = o.layoutVersion === 2 ? o.kind === "timeline" ? layoutAdaptiveTimeline(o,s) : ["process","causal","comparison"].includes(o.kind) ? layoutAdaptiveRelation(o,s) : null : null;
-  let elements = adaptive || fn(o,s);
+  let elements = o.layoutVersion === 3 ? layoutMeasuredRelation(o,s) : adaptive || fn(o,s);
   if (o.layoutVersion === 2) elements = elements.map(e => e.type === "text" && !e.id.endsWith("/caption") ? {...e, style:{...e.style,fontSize:Math.max(28,e.style?.fontSize || s.typography.sizes.body)}} : e);
   return applyOverrides(elements, o);
 }

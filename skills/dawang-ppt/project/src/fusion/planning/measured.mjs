@@ -1,3 +1,4 @@
+import {planMultiRegion} from './multi-region.mjs';
 import {generateLayoutCandidates} from './candidates.mjs';
 import {deriveSlideElements} from '../objects/index.mjs';
 import {assignElementRoles} from '../project/roles.mjs';
@@ -55,11 +56,12 @@ async function measureCandidate(candidate,style,measurer) {
   const onlyText=!slide.objects.length;
   const photo=slide.objects.some(o=>o.kind==='images');
   const fillPolicy=onlyText?'short-text-whitespace':photo?'photo-aspect-and-caption-whitespace':'evidence-min-70';
-  if(fillPolicy==='evidence-min-70' && fill<.7) issues.push({kind:'content-underfilled',fill,minimum:.7});
+  if(!candidate.regions && fillPolicy==='evidence-min-70' && fill<.7) issues.push({kind:'content-underfilled',fill,minimum:.7});
   return {engine:'chromium-dom',issues,texts:measured,contentEnvelopeFill:fill,fillPolicy,...fillPolicy!=='evidence-min-70'?{whitespaceReason:onlyText?'按实测文字高度连续阅读；用户允许短文字留白，不扩充空框。':'保持图片比例，说明按实测高度连续排布；不拉伸或用空文本框撑满。'}:{}};
 }
 async function planContentSlide(content,style,{measurer}={}) {
   if(!measurer) throw new Error('A real browser measurer is required; estimated-only selection is forbidden');
+  if(content.regions) return planMultiRegion(content,style,{measurer});
   const provisional=generateLayoutCandidates(content,style);
   if(!provisional.length) return {ok:false,conflicts:[{kind:'planning-conflict',message:'当前材料与风格规则不能组合；保留内容等待选择。'}],candidates:[]};
   const title=provisional[0].slide.elements.find(e=>e.role==='title');

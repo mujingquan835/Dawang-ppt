@@ -1,6 +1,6 @@
 import { clone, revision } from "../project/schema.mjs";
 import { layoutObject, deriveSlideElements } from "../objects/index.mjs";
-import { resolveStyle } from "../styles/registry.mjs";
+import { resolveStyle, resolveSlideStyle } from "../styles/registry.mjs";
 import { syncCompositionTextState } from "../scene/model.mjs";
 import { changeSlideAppearance } from "../styles/appearance.mjs";
 const boundsValid = (b) => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0;
@@ -9,7 +9,7 @@ function applyEditCommand(project, command) {
   const s = p.slides.find((s2) => s2.slideId === command.slideId);
   if (!s) return { ok: false, conflicts: [{ kind: "missing-slide" }] };
   if (s.mode !== "composition") return { ok: false, conflicts: [{ kind: "use-original-template-controls" }] };
-  const style = resolveStyle(s.styleId);
+  const style = resolveSlideStyle(s);
   const o = s.objects?.find((o2) => o2.objectId === command.objectId) || s.objects?.find((o2) => command.elementId?.startsWith(o2.objectId + "/"));
   const e = deriveSlideElements(s, style).find((e2) => e2.id === command.elementId);
   const beforeSlide = clone(s), beforeNodes = clone(p.contentPlan.nodes), beforeEdits = p.sources.userEdits.length;
@@ -47,6 +47,7 @@ function applyEditCommand(project, command) {
           const old = p.contentPlan.nodes[e.contentRef];
           const id = command.global ? e.contentRef : `edit:${s.slideId}:${e.id}`;
           p.contentPlan.nodes[id] = { ...clone(old || {}), text: String(command.text), kind: "user-edit", sourceRef: old?.sourceRef || e.contentRef };
+          target.sourceContentRef = e.sourceContentRef || e.contentRef;
           target.contentRef = id;
         } else if (e.dataPath && o) {
           let node = o.data;
@@ -60,6 +61,7 @@ function applyEditCommand(project, command) {
           media = { mediaId: "upload/" + revision(), src: command.src, kind: "user-image" };
           p.media.entries.push(media);
         }
+        target.sourceMediaRef = e.sourceMediaRef || e.mediaRef;
         target.src = void 0;
         target.mediaRef = media.mediaId;
         if (command.fit) target.fit = command.fit;
@@ -74,7 +76,7 @@ function applyEditCommand(project, command) {
       }
       else throw new Error("Unsupported command " + command.type);
     }
-    const result = deriveSlideElements(s, resolveStyle(s.styleId));
+    const result = deriveSlideElements(s, resolveSlideStyle(s));
     if (result.some((e2) => !e2.bounds.every(Number.isFinite))) throw new Error("Invalid derived bounds");
     p.sources.userEdits.push({ slideId: s.slideId, elementId: command.elementId, objectId: o?.objectId, type: command.type });
     const changedNodes = Object.keys({ ...beforeNodes, ...p.contentPlan.nodes }).filter((id) => JSON.stringify(beforeNodes[id]) !== JSON.stringify(p.contentPlan.nodes[id]));

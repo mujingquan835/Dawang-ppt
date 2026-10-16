@@ -1,0 +1,114 @@
+import {deriveSlideElements} from '../objects/index.mjs';
+import {assignElementRoles} from '../project/roles.mjs';
+import {bindElementAppearance,geometryTokens} from '../styles/appearance.mjs';
+import {measureCandidate} from './measured.mjs';
+
+// Adapted from the retained MIT open-design bridge: cover-hero (001), metrics (007),
+// process (010). These are structural preferences, never copies of fixed template slots.
+const REGION_PRESETS=[
+ {id:'theme14/page001-open-hierarchy',source:'theme14_page001',titleSize:58,gap:30,bodySize:30,reason:'封面的页眉与主次层级，改为按内容实测的开放正文区域'},
+ {id:'theme14/page007-evidence-band',source:'theme14_page007',titleSize:54,gap:24,bodySize:28,reason:'指标页的数字与证据分层，取消等分槽位并保留内容区域'},
+ {id:'theme14/page010-ordered-flow',source:'theme14_page010',titleSize:56,gap:26,bodySize:29,reason:'流程页的编号和有序连接，节点按文字需求分配宽度'}
+];
+const T=(id,text,bounds,size,color,role='body',extra={})=>({id,type:'text',role,text:String(text??''),bounds,style:{fontSize:size,lineHeight:1.16,color,...extra}});
+const count=v=>JSON.stringify(v).length;
+function demand(node,regions){if(node.regionId)return Math.sqrt(count(regions.get(node.regionId)))+12;return node.children.reduce((s,c)=>s+demand(c,regions),0);}
+function scaled(values,total){const sum=values.reduce((a,b)=>a+b,0);return values.map(v=>v/sum*total);}
+async function composeRegionCandidate(content,style,preset,measurer){
+ const m=88,gap=preset.gap,bodySize=preset.bodySize,regions=new Map();
+ for(const r of content.regions){if(!r.regionId||regions.has(r.regionId))throw new Error('Stable unique regionId required');regions.set(r.regionId,r);}
+ const elements=[T('navigation',`${content.sequence||'01'}  ${content.section||''}`,[m,42,1744,38],28,style.palette.accent,'kicker'),T('title',content.title,[m,104,1744,140],preset.titleSize,style.palette.ink,'title',{fontWeight:600}),T('source',content.source||'来源待补充',[m,1026,1744,34],22,style.palette.muted,'source')];
+ if(content.titleRef)elements[1].contentRef=content.titleRef;
+ const titleMeasure=await measurer.texts([elements[1]],style);elements[1].bounds[3]=titleMeasure[0].height+2;
+ const start=104+elements[1].bounds[3]+32,contentBounds=[m,start,1744,998-start],objects=[],placed=[];
+ const seen=new Set();
+ async function measureLeaf(r,w){
+  const prefix=content.slideId+'-'+r.regionId;let y=0,es=[],object=null;
+  async function add(id,text,size=bodySize,color=style.palette.ink,role='body',ref,extra={}){
+   const e=T(prefix+'/'+id,text,[0,y,w,0],size,color,role,extra);if(ref)e.contentRef=ref;
+   const [v]=await measurer.texts([e],style);e.bounds[3]=v.height+2;es.push(e);y+=e.bounds[3]+12;return e;
+  }
+  if(r.heading)await add('heading',r.heading,32,style.palette.accent,'heading',r.headingRef,{fontWeight:600});
+  if(r.kind==='text'){
+   for(const [i,p] of (r.paragraphs||[]).entries()){
+    if(p.heading)await add('paragraph/'+i+'/heading',p.heading,30,style.palette.accent,'heading',p.headingRef,{fontWeight:600});
+    await add('paragraph/'+i+'/body',p.text,Math.max(28,p.size||bodySize),style.palette.ink,p.role||'body',p.contentRef,{fontWeight:p.bold?600:400});
+    y+=p.gap??8;
+   }
+  }else{
+   object={objectId:prefix,kind:r.kind,layoutVersion:2,bounds:[0,y,w,0],data:structuredClone(r.data),geometryTokens:geometryTokens(style),overrides:{},relationshipPolicy:r.relationships===undefined?'sequence':'explicit',...r.relationships===undefined?{}:{relationships:structuredClone(r.relationships)}};
+   object.data.fontSize=bodySize;
+   if(r.kind==='table'){
+    const cols=object.data.columns,rows=object.data.rows;
+    const wants=cols.map(c=>c.width||Math.min(30,Math.max(String(c.label).length,...rows.map(r=>String(r.cells[c.columnId]??'').length)))**.66);
+    cols.forEach((c,i)=>c.width=wants[i]);const widths=scaled(wants,w);
+    const specs=[cols.map(c=>c.label),...rows.map(r=>cols.map(c=>r.cells[c.columnId]))].flatMap((row,i)=>row.map((text,j)=>T(i+'/'+j,text,[0,0,widths[j]-28,0],bodySize,style.palette.ink,'body',{lineHeight:1.08,fontWeight:i?400:700})));
+    const ms=await measurer.texts(specs,style);
+    const hs=Array.from({length:rows.length+1},(_,i)=>Math.max(...ms.slice(i*cols.length,(i+1)*cols.length).map(v=>v.height))+22);
+    object.data.headerWeight=hs[0];rows.forEach((r,i)=>r.height=hs[i+1]);object.bounds[3]=hs.reduce((s,v)=>s+v,0);
+   }else if(r.kind==='process'||r.kind==='comparison'){
+    const ns=object.data.nodes,ws=scaled(ns.map(n=>Math.max(5,String(n.label).length+String(n.detail||'').length*.7)),w-(ns.length-1)*32);
+    const specs=ns.flatMap((n,i)=>[T('l'+i,n.label,[0,0,ws[i],0],32,style.palette.ink,'body',{fontWeight:600}),T('d'+i,n.detail||'',[0,0,ws[i],0],bodySize,style.palette.muted)]);
+    const ms=await measurer.texts(specs,style);let x=0;
+    object.layoutVersion=3;
+    object.data.measuredNodes=ns.map((n,i)=>{const l=ms[i*2].height+2,d=n.detail?ms[i*2+1].height+2:0;const item={nodeId:n.nodeId,bounds:[x,0,ws[i],l+(d?d+12:0)+14],labelHeight:l,detailHeight:d};x+=ws[i]+32;return item;});
+    object.bounds[3]=Math.max(...object.data.measuredNodes.map(n=>n.bounds[3]));
+   }else if(r.kind==='images'){
+    object.data.arrangement='justified';object.data.maxRows=object.data.maxRows||1;object.data.showCaptions=false;
+    object.data.images.forEach(i=>i.fit='contain');object.bounds[3]=r.preferredHeight||420;
+   }else throw new Error('Unsupported region kind '+r.kind);
+   y+=object.bounds[3];
+   if(r.kind==='images'){
+    const captions=object.data.images.map(i=>i.caption).filter(Boolean);
+    if(captions.length){y+=12;await add('image-legend',captions.join(' ／ '),28,style.palette.muted,'caption');}
+   }
+  }
+  return {region:r,w,h:Math.max(1,y),es,object};
+ }
+ async function measureTree(node,w){
+  if(node.regionId){const r=regions.get(node.regionId);if(!r)throw new Error('Missing region '+node.regionId);return measureLeaf(r,w);}
+  if(!['row','column'].includes(node.direction)||!node.children?.length)throw new Error('Invalid region layout tree');
+  const widths=node.direction==='row'?scaled(node.children.map(c=>demand(c,regions)),w-gap*(node.children.length-1)):node.children.map(()=>w);
+  const children=[];for(let i=0;i<node.children.length;i++)children.push(await measureTree(node.children[i],widths[i]));
+  return {direction:node.direction,w,h:node.direction==='row'?Math.max(...children.map(c=>c.h)):children.reduce((s,c)=>s+c.h,0)+gap*(children.length-1),children};
+ }
+ function place(tree,x,y){
+  if(tree.region){
+   const r=tree.region;if(seen.has(r.regionId))throw new Error('Duplicate layout region '+r.regionId);seen.add(r.regionId);
+   for(const e of tree.es){e.bounds[0]+=x;e.bounds[1]+=y;elements.push(e);}
+   if(tree.object){tree.object.bounds[0]+=x;tree.object.bounds[1]+=y;objects.push(tree.object);}
+   placed.push({regionId:r.regionId,kind:r.kind,bounds:[x,y,tree.w,tree.h],measurement:'chromium-dom'});return;
+  }
+  let xx=x,yy=y;for(const c of tree.children){place(c,xx,yy);if(tree.direction==='row')xx+=c.w+gap;else yy+=c.h+gap;}
+ }
+ const tree=await measureTree(content.layout||{direction:'column',children:content.regions.map(r=>({regionId:r.regionId}))},contentBounds[2]);
+ place(tree,m,start);if(seen.size!==regions.size)throw new Error('Layout must preserve every region');
+ const slide={slideId:content.slideId,mode:'composition',styleId:style.id,appearance:content.appearance,styleBindingVersion:1,compositionId:preset.id,label:content.title,readerTask:content.readerTask,elements,objects,requiredContentRefs:content.requiredContentRefs||[]};
+ assignElementRoles(slide);slide.elements=elements.map(e=>bindElementAppearance(e,style));
+ return {presetId:preset.id,sourcePreset:preset.source,reason:preset.reason,slide,contentBounds,regions:placed,requiredHeight:tree.h};
+}
+async function planMultiRegion(content,style,{measurer}){
+ const candidates=[];
+ for(const preset of REGION_PRESETS){
+  const c=await composeRegionCandidate(content,style,preset,measurer);
+  c.measurement=await measureCandidate(c,style,measurer);
+  if(c.requiredHeight>c.contentBounds[3]+2)c.measurement.issues.push({kind:'region-overflow',needed:c.requiredHeight,available:c.contentBounds[3]});
+  // Fill is judged per semantic region, not against unrelated short prose or photo whitespace.
+  c.measurement.regionMeasurements=c.regions.map(r=>{
+   const o=c.slide.objects.find(o=>o.objectId===content.slideId+'-'+r.regionId);
+   const es=o?deriveSlideElements({elements:[],objects:[o]},style):[];
+   const used=es.length?(Math.max(...es.map(e=>e.bounds[0]+e.bounds[2]))-Math.min(...es.map(e=>e.bounds[0])))*(Math.max(...es.map(e=>e.bounds[1]+e.bounds[3]))-Math.min(...es.map(e=>e.bounds[1]))):0;
+   const fill=o?Math.min(1,used/(o.bounds[2]*o.bounds[3])):null;
+   const policy=['table','process','comparison'].includes(r.kind)?'evidence-min-70':'content-whitespace';
+   if(policy==='evidence-min-70'&&fill<.7)c.measurement.issues.push({kind:'region-underfilled',regionId:r.regionId,fill});
+   return {...r,fillPolicy:policy,contentEnvelopeFill:fill};
+  });
+  c.score=100-c.measurement.issues.length*1000+(content.preferredPreset===c.sourcePreset?20:0)+preset.bodySize;
+  candidates.push(c);
+ }
+ const selected=candidates.filter(c=>!c.measurement.issues.length).sort((a,b)=>b.score-a.score)[0];
+ if(!selected)return {ok:false,conflicts:[{kind:'no-fitting-layout',message:'多区域内容未通过实测，保留全部内容与正文下限。'}],candidates};
+ selected.selected=true;selected.slide.planning={engine:'content-first-v3',presetId:selected.presetId,sourcePreset:selected.sourcePreset,reason:selected.reason,measurement:selected.measurement,regions:selected.regions};
+ return {ok:true,slide:selected.slide,candidates};
+}
+export {planMultiRegion,REGION_PRESETS};
