@@ -1,4 +1,4 @@
-const relationKinds = { parallel: "comparison", comparison: "comparison", sequence: "process", process: "process", hierarchy: "hierarchy", cycle: "cycle", matrix: "matrix", causal: "causal", chronology: "timeline", timeline: "timeline", tabular: "table", trend: "line", ranking: "bar", photographic: "images" };
+const relationKinds = { parallel: "comparison", comparison: "comparison", sequence: "process", process: "process", hierarchy: "hierarchy", cycle: "cycle", matrix: "matrix", causal: "causal", chronology: "timeline", timeline: "timeline", tabular: "table", trend: "line", ranking: "bar", photographic: "images", text: "text" };
 function planSlide(content, style, capabilities = style.capabilities) {
   if (content.originalLayout) return { ok: true, mode: "template", layout: content.originalLayout, props: content.props, reason: "用户要求原样模板，保留原组件与结构。" };
   const kind = relationKinds[content.relation];
@@ -11,3 +11,7 @@ function planSlide(content, style, capabilities = style.capabilities) {
 export {
   planSlide
 };
+
+export { generateLayoutCandidates } from "./candidates.mjs";
+
+export { planContentSlide } from "./measured.mjs";

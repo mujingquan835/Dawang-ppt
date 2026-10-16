@@ -1,3 +1,4 @@
+import { justifyImages } from "./justify.mjs";
 import { text } from "../objects/primitives.mjs";
 function layoutImages(o, style) {
   const images = o.data.images || [];
@@ -7,7 +8,15 @@ function layoutImages(o, style) {
   const gap = style.grid.gap || 32;
   const mode = o.data.arrangement || "text-photo";
   const boxes = [];
-  if (["text-photo", "full-bleed", "single"].includes(mode)) {
+  let reservedCaptionH = 0;
+  if (mode === "justified") {
+    const ratios = images.map(image => Number(image.width || image.naturalWidth) / Number(image.height || image.naturalHeight));
+    if (ratios.some(r => !Number.isFinite(r) || r <= 0)) throw new Error("Image size/ratio required for justified layout");
+    const captionH = o.data.showCaptions === false ? 0 : images.some(i => i.caption) ? 52 : 0;
+    reservedCaptionH = captionH;
+    const packed = justifyImages(ratios, o.bounds, gap, {captionH, maxRows: o.data.maxRows || 3});
+    boxes.push(...packed.boxes.map(b => [b[0], b[1], b[2], b[3] + captionH]));
+  } else if (["text-photo", "full-bleed", "single"].includes(mode)) {
     if (images.length !== 1) throw new Error("Single image structure requires exactly one image");
     boxes.push([x, y, w, h]);
   } else if (mode === "primary-secondary") {
@@ -23,7 +32,8 @@ function layoutImages(o, style) {
   } else throw new Error("Unsupported image arrangement " + mode);
   return images.flatMap((image, i) => {
     const b = [...boxes[i]], caption = image.caption && o.data.showCaptions !== false;
-    if (caption) b[3] -= 52;
+    if (reservedCaptionH) b[3] -= reservedCaptionH;
+    else if (caption) b[3] -= 52;
     return [{ id: `${o.objectId}/image/${image.mediaId}`, parentId: o.objectId, type: "image", bounds: b, src: image.src, mediaRef: image.mediaRef || image.mediaId, fit: image.kind === "screenshot" ? "contain" : image.fit || style.media.photoFit, clipShape: image.clipShape, focal: image.focal || "50% 50%", style: { radius: image.kind === "screenshot" ? 0 : style.media.radius || 0 }, sourceRef: image.sourceRef, alt: image.caption || "" }, ...caption ? [text(o, "image/" + image.mediaId + "/caption", image.caption, [b[0], b[1] + b[3] + 10, b[2], 42], style, { dataPath: ["images", i, "caption"], style: { fontSize: 26, color: style.palette.muted } })] : []];
   });
 }

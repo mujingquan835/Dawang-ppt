@@ -21,7 +21,7 @@ function layoutTable(o, s) {
   };
   const es = [];
   const header = s.palette.header || s.palette.accent;
-  const font = rows.length >= 12 ? 28 : 32;
+  const font = o.layoutVersion === 2 ? Math.max(28, o.data.fontSize || 32) : rows.length >= 12 ? 28 : 32;
   columns.forEach((col, c) => {
     const b = [xs[c], y, xs[c + 1] - xs[c], ys[1] - y];
     es.push(shape(o, "header/" + col.columnId, b, s, { style: { fill: header, radius: 0 } }));

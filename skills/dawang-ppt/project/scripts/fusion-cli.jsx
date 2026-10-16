@@ -9,6 +9,8 @@ import { validateGoalSpec } from "./validate-goal-spec.mjs";
 import { importGoal } from "../src/fusion/project/import-goal.mjs";
 import { loadProject, saveProject, hashFile } from "../src/fusion/project/store.mjs";
 import { resolveStyle, STYLE_DEFINITIONS } from "../src/fusion/styles/registry.mjs";
+import { planContentSlide } from "../src/fusion/planning/plan-slide.mjs";
+import { createLayoutMeasurer } from "../src/fusion/planning/measure-layout.mjs";
 import { composeContentSlide } from "../src/fusion/styles/compose.mjs";
 import { renderProject } from "../src/fusion/scene/render-project.jsx";
 import { createFusionServer } from "./fusion-preview.jsx";
@@ -42,8 +44,7 @@ function stageMedia(project, sourceDir, targetDir) {
   p.media.entries = [...p.media.entries, ...media.filter((m) => !p.media.entries.some((e) => e.mediaId === m.mediaId))];
   return p;
 }
-function createProjectFromBrief(brief) {
-  const style = resolveStyle(brief.styleId);
+function resolveBriefContents(brief, style) {
   const resolvedContents = brief.contentSlides.map((c) => {
     const v = structuredClone(c);
     for (const k of ["title", "explanation", "scope"]) if (v[k + "Ref"]) {
@@ -65,7 +66,9 @@ function createProjectFromBrief(brief) {
     if (brief.fixedPageCount || brief.pageCount) throw new Error("Moon-white requires photo page splitting, conflicting with fixed page count. Ask the user before changing page count.");
     return images.map((image, i) => ({ ...c, slideId: c.slideId + "/photo-" + (i + 1), title: c.title, data: { ...c.data, arrangement: "single", images: [image] }, imageSequence: { index: i + 1, total: images.length, sourceSlideId: c.slideId } }));
   });
-  const slides = contents.map((c) => composeContentSlide(c, style));
+  return contents;
+}
+function projectFromContents(brief, style, contents, slides) {
   const p = importGoal({ title: brief.title, audience: brief.audience, goal: brief.purpose, styleId: brief.styleId, slides });
   p.designChoice = { styleId: brief.styleId, sourceVariant: style.source.variant, originalTemplate: false };
   p.editorState.legacy.typography = { mode: "global", headingFont: "theme", bodyFont: "theme", monoFont: "theme" };
@@ -73,6 +76,43 @@ function createProjectFromBrief(brief) {
   p.requirements.requiredMedia = brief.requiredMedia || [];
   p.requirements.fixedPageCount = brief.fixedPageCount || brief.pageCount || null;
   return p;
+}
+function createProjectFromBrief(brief) {
+  const style=resolveStyle(brief.styleId), contents=resolveBriefContents(brief,style);
+  return projectFromContents(brief,style,contents,contents.map(c=>composeContentSlide(c,style)));
+}
+async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
+  const style=resolveStyle(brief.styleId), contents=resolveBriefContents(brief,style);
+  const measurer=await createLayoutMeasurer();
+  const slides=[], reports=[];
+  try {
+    for(const content of contents) {
+      if(content.pageType) throw new Error('该显式家族页型尚未迁入共享规划器；保留原工程并先确认迁移，不静默替换。');
+      for(const image of content.data?.images || []) {
+        if(!image.src) throw new Error('图片缺失：'+image.mediaId+'；请补充素材或明确占位。');
+        let source=image.src;
+        if(!source.startsWith('data:')) {
+          if(/^https?:/.test(source)) throw new Error('请先把图片归档到本地，再进行可离线验证的排版：'+image.mediaId);
+          const file=source.startsWith('file:')?fileURLToPath(source):path.resolve(sourceDir,source);
+          const mime=/\.png$/i.test(file)?'image/png':/\.webp$/i.test(file)?'image/webp':/\.gif$/i.test(file)?'image/gif':/\.svg$/i.test(file)?'image/svg+xml':'image/jpeg';
+          source='data:'+mime+';base64,'+fs.readFileSync(file).toString('base64');
+          image.src=file;
+        }
+        // Browser decoding applies EXIF orientation and ignores unverified supplied dimensions.
+        Object.assign(image,await measurer.imageSize(source));
+      }
+      const result=await planContentSlide(content,style,{measurer});
+      reports.push({slideId:content.slideId,ok:result.ok,candidates:result.candidates.map(({slide,...report})=>report),conflicts:result.conflicts});
+      if(!result.ok) {
+        const error=new Error(JSON.stringify({slideId:content.slideId,conflicts:result.conflicts}));
+        error.planningReport=reports;throw error;
+      }
+      slides.push(result.slide);
+    }
+  } finally {await measurer.close();}
+  const project=projectFromContents(brief,style,contents,slides);
+  project.planningReport=reports;
+  return project;
 }
 async function main(args = process.argv.slice(2)) {
   const [mode, input, output] = args;
@@ -98,7 +138,7 @@ async function main(args = process.argv.slice(2)) {
     if (fs.existsSync(pf2)) throw new Error("Project already exists. Re-render saved ProjectV2 instead of importing the initial goal over edits.");
     const source = JSON.parse(fs.readFileSync(file, "utf8"));
     let project;
-    if (mode === "render:brief") project = createProjectFromBrief(source);
+    if (mode === "render:brief") project = await createPlannedProjectFromBrief(source, {sourceDir:path.dirname(file)});
     else {
       const issues = validateGoalSpec(source);
       if (issues.length) throw new Error(issues.join("\n"));
@@ -157,5 +197,6 @@ if (process.argv[1] === import.meta.filename) main().catch((e) => {
 });
 export {
   createProjectFromBrief,
+  createPlannedProjectFromBrief,
   main
 };

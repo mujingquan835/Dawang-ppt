@@ -15,11 +15,14 @@ function lintSlide(slide, { minBodyPx = 28 } = {}) {
   const els = slide.elements || [], texts = els.filter((e) => e.type === "text"), issues = [];
   const id = slide.slideId;
   // 1. Cards: filled or stroked rounded/rect panels that wrap text blocks, repeated >= 2 times.
-  const panels = els.filter((e) => e.type === "shape" && (e.style?.fill || e.style?.stroke) && e.bounds[2] < 1700 && e.bounds[3] > 80 && e.bounds[3] < 900);
+  // Semantic nodes/cells express an explicit relationship. They are not decorative card hierarchy.
+  const semanticParents = new Set((slide.objects || []).filter(o => ["process", "hierarchy", "cycle", "matrix", "comparison", "causal", "table", "timeline", "bar", "line"].includes(o.kind)).map(o => o.objectId));
+  const decorative = e => !semanticParents.has(e.parentId);
+  const panels = els.filter((e) => decorative(e) && e.type === "shape" && (e.style?.fill || e.style?.stroke) && e.bounds[2] < 1700 && e.bounds[3] > 80 && e.bounds[3] < 900);
   const cards = panels.filter((p) => texts.some((t) => contains(p.bounds, t.bounds)));
   if (cards.length >= 2) issues.push({ slideId: id, rule: "no-cards", severity: "error", ids: cards.map((c) => c.id), message: "用卡片（底色/描边面板包文字）建层级；Kimi 要求用线、留白和字号对比" });
   // 2. Default equal splits: >=3 same-width blocks on one row, or a 2x2 of same-size blocks.
-  const blocks = [...cards, ...texts.filter((t) => t.role === "body" || t.role === "heading")];
+  const blocks = [...cards, ...texts.filter((t) => decorative(t) && (t.role === "body" || t.role === "heading"))];
   const rows = new Map();
   for (const b of blocks) { const k = Math.round(b.bounds[1] / 20); if (!rows.has(k)) rows.set(k, []); rows.get(k).push(b); }
   for (const row of rows.values()) {

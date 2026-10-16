@@ -34,10 +34,10 @@ try {
   await page.goto(url);
   await page.waitForFunction(() => window.__fusionEditor && window.__renderRuntimeSlide);
   await page.evaluate(() => window.__fusionEditor.ready());
-  await page.evaluate(() => {
-    window.__exitPresentMode();
-    window.go(1, { animate: false, force: true });
-  });
+  await page.evaluate(() => window.__exitPresentMode());
+  await page.waitForFunction(() => !window.__getDeckNavigationState?.().locked);
+  await page.evaluate(() => window.go(1, { animate: false, force: true }));
+  await page.waitForFunction(() => window.__getVisibleSlides()[1].classList.contains('active'));
   await page.locator('#deck [data-fusion-element="title"]').fill("纵向编辑后的标题");
   await page.locator('#deck [data-fusion-element="photo"]').click();
   await page.locator("#fusion-image-input").setInputFiles(imagePath);
@@ -49,7 +49,9 @@ try {
   await page.reload();
   await page.waitForFunction(() => window.__fusionEditor);
   await page.evaluate(() => window.__fusionEditor.ready());
+  await page.waitForFunction(() => !window.__getDeckNavigationState?.().locked);
   await page.evaluate(() => window.go(1, { animate: false, force: true }));
+  await page.waitForFunction(() => window.__getVisibleSlides()[1].classList.contains('active'));
   assert.equal(await page.locator('#deck [data-fusion-element="title"]').textContent(), "纵向编辑后的标题");
   await page.route("**/api/save-deck-state", (route) => route.abort());
   await page.evaluate(async () => {

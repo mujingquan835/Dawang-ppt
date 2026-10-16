@@ -142,7 +142,7 @@ function collectSlideInDom(slideId) {
           const n = node.getBoundingClientRect();
           const nb = bounds(n);
           const sid = id + "-svg-" + objects.length;
-          if (tag === "line") objects.push({ id: sid, type: "line", endArrow: el.dataset.endArrow, bounds: [b[0], b[1], b[2], b[3]], points: [Number(node.getAttribute("x1")) * sx, Number(node.getAttribute("y1")) * sy, Number(node.getAttribute("x2")) * sx, Number(node.getAttribute("y2")) * sy], style: { stroke: rgba(nc.stroke) || "#111111", strokeWidth: parseFloat(nc.strokeWidth) * sx } });
+          if (tag === "line") objects.push({ id: sid, type: "line", endArrow: el.dataset.endArrow, bounds: [b[0], b[1], b[2], b[3]], points: [Number(node.getAttribute("x1")) * sx, Number(node.getAttribute("y1")) * sy, Number(node.getAttribute("x2")) * sx, Number(node.getAttribute("y2")) * sy], style: { stroke: rgba(nc.stroke) || "#111111", strokeWidth: parseFloat(nc.strokeWidth) * sx, strokeTransparency: (1 - alpha(nc.stroke) * Number(nc.strokeOpacity) * Number(nc.opacity) * elementOpacity) * 100 } });
           else if (["rect", "circle", "ellipse"].includes(tag)) objects.push({ id: sid, type: "shape", shape: tag === "rect" ? "rect" : "ellipse", bounds: nb, style: { fill: rgba(nc.fill), stroke: rgba(nc.stroke), strokeWidth: parseFloat(nc.strokeWidth), gradient: svgGradient(nc.fill) } });
           else if (tag === "text") objects.push({ id: sid, type: "text", bounds: nb, text: node.textContent, style: { color: rgba(nc.fill), fontSize: parseFloat(nc.fontSize), fontFamily: resolveActualFont(nc.fontFamily, node.textContent) } });
           else if (["path", "polygon", "polyline"].includes(tag)) {
@@ -261,7 +261,10 @@ async function collectExportObjects(page, project) {
   const hidden = /* @__PURE__ */ new Set([...state.deletedSlides || [], ...state.skippedSlides || []]);
   for (const id of state.slideOrder || project.slides.map((s) => s.slideId)) {
     if (hidden.has(id)) continue;
+    let collected;
+    for (let attempt = 0; attempt < 3; attempt++) {
     await prepareSlideForExport(page, id);
+    try {
     const result = await page.evaluate(collectSlideInDom, id);
     const expanded = [];
     const doc = await cdp.send("DOM.getDocument");
@@ -297,7 +300,13 @@ async function collectExportObjects(page, project) {
       if (o.fontNode) {
         const selector = '[data-dawang-export-font="' + o.fontNode + '"]';
         const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: doc.root.nodeId, selector });
-        const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
+        if (!nodeId) throw new Error("FontSnapshotChanged: marked text node was replaced");
+        let fonts;
+        try { ({fonts} = await cdp.send("CSS.getPlatformFontsForNode", {nodeId})); }
+        catch (error) {
+          if (/Could not find node|No node with given id/.test(error.message)) throw new Error("FontSnapshotChanged: " + error.message);
+          throw error;
+        }
         const cjk = /[\u3400-\u9fff]/.test(o.text);
         const preferred = cjk ? fonts.filter((f) => /SC|CJK|OPPO|Sans Han|Song|Hei|Kai|Yahei|苹方|宋体|黑体/i.test(f.familyName)) : fonts;
         const actual = [...preferred.length ? preferred : fonts].sort((a, b) => b.glyphCount - a.glyphCount)[0];
@@ -319,7 +328,14 @@ async function collectExportObjects(page, project) {
         f.readAsDataURL(blob);
       });
     }, o.src);
-    results.push(result);
+    collected = result;
+    break;
+    } catch (error) {
+      // Recollect geometry and font evidence together; never keep an old snapshot with guessed fonts.
+      if (!error.message.startsWith("FontSnapshotChanged:") || attempt === 2) throw error;
+    }
+    }
+    results.push(collected);
   }
   await cdp.detach();
   return { revision: project.revision, width: 1920, height: 1080, slides: results };
