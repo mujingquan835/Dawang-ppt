@@ -1,3 +1,4 @@
+import {semanticTextStyle,cellSemanticRole} from '../styles/text-semantics.mjs';
 import { text, shape, line } from "./primitives.mjs";
 function layoutTable(o, s) {
   const columns = o.data.columns || [], rows = o.data.rows || [];
@@ -58,6 +59,12 @@ function layoutTable(o, s) {
     const heat = o.data.heat ? heatColor(cellValue) : null;
     if (heat || row.emphasis || r % 2 === 0) es.push(shape(o, "cell/" + id, b, s, { style: { fill: heat || (row.emphasis ? s.palette.surface : s.palette.bg), radius: 0 } }));
     es.push(text(o, "cell/" + id + "/text", cellValue, [b[0] + 14, b[1] + 10, b[2] - 28, b[3] - 18], s, { rowId: row.rowId, columnId: col.columnId, contentRef: !merge ? row.contentRefs?.[col.columnId] : undefined, dataPath, style: { fontSize: font, lineHeight: 1.08, color: s.palette.ink, textAlign: col.numeric ? "right" : "left" } }));
+    if(o.data.typographyPolicy==='semantic'){
+      const primary=es.at(-1),sr=cellSemanticRole(o,row,col,cellValue),secondary=row.secondaryCells?.[col.columnId];primary.semanticRole=sr;primary.bounds[1]=b[1]+6;primary.bounds[3]=b[3]-12;primary.style={...primary.style,...semanticTextStyle(sr,s,font)};
+      if(secondary){const cm=o.data.cellMetrics?.[id]||{primaryHeight:44,secondaryHeight:36};primary.bounds[3]=cm.primaryHeight;
+        es.push(text(o,'cell/'+id+'/secondary',secondary.text,[b[0]+14,b[1]+6+cm.primaryHeight+4,b[2]-28,cm.secondaryHeight],s,{rowId:row.rowId,columnId:col.columnId,semanticRole:secondary.semanticRole||'support',contentRef:secondary.contentRef,dataPath:['rows',r,'secondaryCells',col.columnId,'text'],style:semanticTextStyle(secondary.semanticRole||'support',s,28)}));
+      }
+    }
     es.push(line(o, "cell/" + id + "/bottom", [b[0], b[1] + b[3]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
     if (!open && !s.table?.noVerticalRules) es.push(line(o, "cell/" + id + "/right", [b[0] + b[2], b[1]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
   }));
@@ -66,10 +73,11 @@ function layoutTable(o, s) {
     for(let c=1;c<columns.length;c++)es.push(shape(o,"time-node/"+cols[c],[xs[c]+14,ys[1]-8,10,10],s,{shape:"ellipse",style:{fill:s.palette.accent,radius:999}}));
   }
   if(open) for(const e of es) {
-    if(e.type==='text'&&e.columnId===cols[0])e.style.fontWeight=700;
-    if(e.type==='line')e.style.stroke=presentation==='swimlanes'?s.palette.line:s.palette.accent;
+    if(e.type==='text'&&e.columnId===cols[0]&&o.data.typographyPolicy!=='semantic')e.style.fontWeight=700;
+    if(e.type==='line')e.style.stroke=o.data.typographyPolicy==='semantic'?s.palette.line:presentation==='swimlanes'?s.palette.line:s.palette.accent;
     if(e.type==='shape'&&e.id.includes('/cell/'))e.style.stroke=undefined;
   }
+  if(o.data.typographyPolicy==='semantic')for(const e of es){if(e.id.includes('/header/')&&e.type==='text'){const col=columns.find(c=>e.id.endsWith('/'+c.columnId+'/text'));e.style={...e.style,...semanticTextStyle(col?.headerRole||'context',s,28),fontWeight:600};e.bounds[1]=y+6;e.bounds[3]=ys[1]-y-12;}}
   return es;
 }
 export {

@@ -1,7 +1,7 @@
 // Token bindings repaint a saved scene without choosing another layout.
 const at = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
 function tokenValue(style, path) {
-  const fallback = { 'palette.onHeader': '#ffffff', 'palette.header': style.palette.accent, 'palette.secondary': style.palette.accent, 'palette.negative': '#b42318' };
+  const fallback = { 'palette.body': style.palette.ink, 'palette.quiet': style.palette.line, 'palette.onHeader': '#ffffff', 'palette.header': style.palette.accent, 'palette.secondary': style.palette.accent, 'palette.negative': '#b42318' };
   return at(style, path) ?? fallback[path];
 }
 function bindElementAppearance(element, style) {
@@ -9,7 +9,7 @@ function bindElementAppearance(element, style) {
   for (const [property, value] of Object.entries(e.style || {})) {
     if (['color', 'fill', 'stroke'].includes(property)) {
       const foreground = property === 'color' && String(value).toLowerCase() === '#ffffff';
-      const key = foreground ? 'onHeader' : ['accent', 'secondary', 'muted', 'header', 'surface', 'line', 'ink', 'bg', 'negative']
+      const key = foreground ? 'onHeader' : ['accent', 'secondary', 'body', 'quiet', 'muted', 'header', 'surface', 'line', 'ink', 'bg', 'negative']
         .find(key => style.palette[key] === value);
       if (key) bindings[property] = 'palette.' + key;
     }

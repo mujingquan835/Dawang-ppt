@@ -1,3 +1,4 @@
+import {semanticTextStyle,fitSemanticTable} from '../styles/text-semantics.mjs';
 import {deriveSlideElements} from '../objects/index.mjs';
 import {assignElementRoles} from '../project/roles.mjs';
 import {bindElementAppearance,geometryTokens} from '../styles/appearance.mjs';
@@ -11,11 +12,18 @@ const REGION_PRESETS=[
  {id:'theme14/page010-ordered-flow',source:'theme14_page010',titleSize:56,gap:26,bodySize:29,reason:'流程页的编号和有序连接，节点按文字需求分配宽度'}
 ];
 const T=(id,text,bounds,size,color,role='body',extra={})=>({id,type:'text',role,text:String(text??''),bounds,style:{fontSize:size,lineHeight:1.16,color,...extra}});
-const count=v=>JSON.stringify(v).length;
-function demand(node,regions){if(node.regionId)return Math.sqrt(count(regions.get(node.regionId)))+12;return node.children.reduce((s,c)=>s+demand(c,regions),0);}
+function readingCopy(r){return [r.heading,...(r.paragraphs||[]).flatMap(p=>[p.heading,p.prefix?.text,p.text]),...(r.data?.nodes||[]).flatMap(n=>[n.label,n.detail]),...(r.data?.columns||[]).map(c=>c.label),...(r.data?.rows||[]).flatMap(r=>[...Object.values(r.cells),...Object.values(r.secondaryCells||{}).map(s=>s.text)]),...(r.data?.images||[]).map(i=>i.caption),...(r.data?.items||[]).flatMap(i=>[i.value,i.label])].filter(Boolean);}
+async function visibleDemand(node,regions,measurer,style){
+ if(!node.regionId){const values=[];for(const c of node.children)values.push(await visibleDemand(c,regions,measurer,style));return Math.sqrt(values.reduce((sum,v)=>sum+v*v,0));}
+ const r=regions.get(node.regionId);if(!r)throw new Error('Missing region '+node.regionId);
+ const specs=readingCopy(r).map((text,i)=>({id:String(i),type:'text',text,bounds:[0,0,10000,0],style:{fontSize:28,lineHeight:1.18}}));
+ const ms=await measurer.texts(specs,style);let area=ms.reduce((sum,m)=>sum+m.naturalWidth*m.height,0);
+ if(r.kind==='images')area+=(r.preferredHeight||420)**2*(r.data.images||[]).reduce((sum,i)=>sum+Number(i.width)/Number(i.height),0);
+ return Math.max(160,Math.sqrt(area),r.kind==='images'?0:Math.max(0,...ms.map(m=>m.naturalWidth))*.7);
+}
 function scaled(values,total){const sum=values.reduce((a,b)=>a+b,0);return values.map(v=>v/sum*total);}
 async function composeRegionCandidate(content,style,preset,measurer){
- const m=88,gap=preset.gap,bodySize=preset.bodySize,regions=new Map();
+ const m=88,gap=preset.gap,bodySize=preset.bodySize,semantic=content.typographyPolicy==='semantic',regions=new Map();
  for(const r of content.regions){if(!r.regionId||regions.has(r.regionId))throw new Error('Stable unique regionId required');regions.set(r.regionId,r);}
  const elements=[T('navigation',`${content.sequence||'01'}  ${content.section||''}`,[m,42,1744,38],28,style.palette.accent,'kicker'),T('title',content.title,[m,104,1744,140],preset.titleSize,style.palette.ink,'title',{fontWeight:600}),T('source',content.source||'来源待补充',[m,1026,1744,34],22,style.palette.muted,'source')];
  if(content.titleRef)elements[1].contentRef=content.titleRef;
@@ -28,11 +36,18 @@ async function composeRegionCandidate(content,style,preset,measurer){
    const e=T(prefix+'/'+id,text,[0,y,w,0],size,color,role,extra);if(ref)e.contentRef=ref;
    const [v]=await measurer.texts([e],style);e.bounds[3]=v.height+2;es.push(e);y+=e.bounds[3]+12;return e;
   }
-  if(r.heading)await add('heading',r.heading,32,style.palette.accent,'heading',r.headingRef,{fontWeight:600});
+  if(r.heading)await add('heading',r.heading,32,semantic?style.palette.ink:style.palette.accent,'heading',r.headingRef,{fontWeight:600});
   if(r.kind==='text'){
    for(const [i,p] of (r.paragraphs||[]).entries()){
     if(p.heading)await add('paragraph/'+i+'/heading',p.heading,30,style.palette.accent,'heading',p.headingRef,{fontWeight:600});
-    await add('paragraph/'+i+'/body',p.text,Math.max(28,p.size||bodySize),style.palette.ink,p.role||'body',p.contentRef,{fontWeight:p.bold?600:400});
+    const ts=semantic?semanticTextStyle(p.semanticRole||'body',style,p.size||bodySize):{fontSize:Math.max(28,p.size||bodySize),color:style.palette.ink,fontWeight:p.bold?600:400};
+    let offset=0,prefix;
+    if(p.prefix){prefix=T(content.slideId+'-'+r.regionId+'/paragraph/'+i+'/prefix',p.prefix.text,[0,y,w,0],28,style.palette.accent,'body');
+     Object.assign(prefix,{semanticRole:p.prefix.semanticRole||'emphasis',contentRef:p.prefix.contentRef});prefix.style=semanticTextStyle(prefix.semanticRole,style,28);
+     const [pm]=await measurer.texts([prefix],style);offset=pm.naturalWidth+8;prefix.bounds[2]=offset-8;prefix.bounds[3]=pm.height+2;es.push(prefix);
+    }
+    const e=T(content.slideId+'-'+r.regionId+'/paragraph/'+i+'/body',p.text,[offset,y,w-offset,0],ts.fontSize,ts.color,p.role||'body',ts);e.semanticRole=p.semanticRole||'body';e.contentRef=p.contentRef;
+    const [bm]=await measurer.texts([e],style);e.bounds[3]=bm.height+2;es.push(e);y+=Math.max(e.bounds[3],prefix?.bounds[3]||0)+12;
     y+=p.gap??8;
    }
   }else if(r.kind==='metrics'){
@@ -47,7 +62,7 @@ async function composeRegionCandidate(content,style,preset,measurer){
    });y+=valueH+12+Math.max(...ms.filter((_,i)=>i%2).map(m=>m.height))+2;
   }else{
    object={objectId:prefix,kind:r.kind,layoutVersion:2,bounds:[0,y,w,0],data:structuredClone(r.data),geometryTokens:geometryTokens(style),overrides:{},relationshipPolicy:r.relationships===undefined?'sequence':'explicit',...r.relationships===undefined?{}:{relationships:structuredClone(r.relationships)}};
-   object.data.fontSize=bodySize;
+   object.data.fontSize=bodySize;if(semantic)object.data.typographyPolicy='semantic';
    if(r.kind==='table'){
     const cols=object.data.columns,rows=object.data.rows;
     const wants=cols.map(c=>c.width||Math.min(30,Math.max(String(c.label).length,...rows.map(r=>String(r.cells[c.columnId]??'').length)))**.66);
@@ -55,7 +70,14 @@ async function composeRegionCandidate(content,style,preset,measurer){
     const specs=[cols.map(c=>c.label),...rows.map(r=>cols.map(c=>r.cells[c.columnId]))].flatMap((row,i)=>row.map((text,j)=>T(i+'/'+j,text,[0,0,widths[j]-28,0],bodySize,style.palette.ink,'body',{lineHeight:1.08,fontWeight:i?400:700})));
     const ms=await measurer.texts(specs,style);
     const hs=Array.from({length:rows.length+1},(_,i)=>Math.max(...ms.slice(i*cols.length,(i+1)*cols.length).map(v=>v.height))+22);
-    object.data.headerWeight=hs[0];rows.forEach((r,i)=>r.height=hs[i+1]);object.bounds[3]=hs.reduce((s,v)=>s+v,0);
+    object.data.headerWeight=hs[0];rows.forEach((r,i)=>r.height=hs[i+1]);object.bounds[3]=semantic?await fitSemanticTable(object,style,measurer):hs.reduce((s,v)=>s+v,0);
+   }else if((r.kind==='process'||r.kind==='comparison')&&object.data.presentation==='inline-sequence'){
+    const ts=semanticTextStyle(object.data.semanticRole||'action',style,28);
+    const specs=object.data.nodes.map((n,i)=>T(String(i),n.label,[0,0,w,0],28,ts.color,'body',ts));
+    const ms=await measurer.texts(specs,style),total=ms.reduce((s,m)=>s+m.naturalWidth+4,0)+(specs.length-1)*42-(object.data.leadingLabelNode?30:0);
+    const scale=Math.min(1,w/total);let xx=0;
+    object.layoutVersion=3;object.data.measuredNodes=object.data.nodes.map((n,i)=>{const ww=(ms[i].naturalWidth+4)*scale,h=ms[i].height+2;const v={nodeId:n.nodeId,bounds:[xx,0,ww,h],labelHeight:h,detailHeight:0};xx+=ww+(object.data.leadingLabelNode&&i===0?12:42)*scale;return v;});
+    object.bounds[2]=Math.min(w,total);object.bounds[3]=Math.max(...ms.map(m=>m.height))+2;
    }else if(r.kind==='process'||r.kind==='comparison'){
     const ns=object.data.nodes,ws=scaled(ns.map(n=>Math.max(5,String(n.label).length+String(n.detail||'').length*.7)),w-(ns.length-1)*32);
     const specs=ns.flatMap((n,i)=>[T('l'+i,n.label,[0,0,ws[i],0],32,style.palette.ink,'body',{fontWeight:600}),T('d'+i,n.detail||'',[0,0,ws[i],0],bodySize,style.palette.muted)]);
@@ -86,7 +108,8 @@ async function composeRegionCandidate(content,style,preset,measurer){
   if(node.regionId){const r=regions.get(node.regionId);if(!r)throw new Error('Missing region '+node.regionId);return measureLeaf(r,w);}
   if(!['row','column'].includes(node.direction)||!node.children?.length)throw new Error('Invalid region layout tree');
   const localGap=node.gap??gap;
-  const widths=node.direction==='row'?scaled(node.children.map(c=>demand(c,regions)),w-localGap*(node.children.length-1)):node.children.map(()=>w);
+  const demands=[];if(node.direction==='row')for(const c of node.children)demands.push(await visibleDemand(c,regions,measurer,style));
+  const widths=node.direction==='row'?scaled(demands,w-localGap*(node.children.length-1)):node.children.map(()=>w);
   const children=[];for(let i=0;i<node.children.length;i++)children.push(await measureTree(node.children[i],widths[i]));
   return {direction:node.direction,gap:localGap,w,h:node.direction==='row'?Math.max(...children.map(c=>c.h)):children.reduce((s,c)=>s+c.h,0)+localGap*(children.length-1),children};
  }
@@ -101,7 +124,7 @@ async function composeRegionCandidate(content,style,preset,measurer){
  }
  const tree=await measureTree(content.layout||{direction:'column',children:content.regions.map(r=>({regionId:r.regionId}))},contentBounds[2]);
  place(tree,m,start);if(seen.size!==regions.size)throw new Error('Layout must preserve every region');
- const slide={slideId:content.slideId,mode:'composition',styleId:style.id,appearance:content.appearance,styleBindingVersion:1,compositionId:preset.id,label:content.title,readerTask:content.readerTask,elements,objects,requiredContentRefs:content.requiredContentRefs||[]};
+ const slide={slideId:content.slideId,mode:'composition',styleId:style.id,appearance:content.appearance,typographyPolicy:content.typographyPolicy,styleBindingVersion:1,compositionId:preset.id,label:content.title,readerTask:content.readerTask,elements,objects,requiredContentRefs:content.requiredContentRefs||[]};
  assignElementRoles(slide);slide.elements=elements.map(e=>bindElementAppearance(e,style));
  return {presetId:preset.id,sourcePreset:preset.source,reason:preset.reason,slide,contentBounds,regions:placed,requiredHeight:tree.h};
 }

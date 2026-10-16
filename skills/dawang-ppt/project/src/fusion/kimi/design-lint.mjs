@@ -14,6 +14,12 @@ const contains = (o, i) => i[0] >= o[0] - 2 && i[1] >= o[1] - 2 && i[0] + i[2] <
 function lintSlide(slide, { minBodyPx = 28 } = {}) {
   const els = slide.elements || [], texts = els.filter((e) => e.type === "text"), issues = [];
   const id = slide.slideId;
+  if(slide.typographyPolicy==='semantic'){
+    for(const o of slide.objects||[])if(o.data?.presentation==='inline-sequence'){
+      const frames=els.filter(e=>e.parentId===o.objectId&&e.type==='shape'&&e.style?.stroke);
+      if(frames.length)issues.push({slideId:id,rule:'unboxed-sequence',severity:'error',ids:frames.map(e=>e.id)});
+    }
+  }
   // 1. Cards: filled or stroked rounded/rect panels that wrap text blocks, repeated >= 2 times.
   // Semantic nodes/cells express an explicit relationship. They are not decorative card hierarchy.
   const semanticParents = new Set((slide.objects || []).filter(o => ["process", "hierarchy", "cycle", "matrix", "comparison", "causal", "table", "timeline", "bar", "line"].includes(o.kind)).map(o => o.objectId));

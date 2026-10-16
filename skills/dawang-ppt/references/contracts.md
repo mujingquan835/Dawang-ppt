@@ -30,3 +30,13 @@ node skills/dawang-ppt/scripts/dawang.mjs export:pdf output/demo output/demo/rev
 唯一源文件为`deck-project.json`：version=2、requirements、sources、media、contentPlan、designChoice、slides、editorState、revision。原模板mode=template；新组合mode=composition。图片复制到assets/user-media；用户上传去重落盘，撤销记录引用媒体。完整交付保留整个输出目录，不只复制HTML。
 
 逻辑画布1920×1080；导出13⅓×7½英寸。逻辑坐标/144为英寸，CSS字号/2为点值。原组件按浏览器实际布局采集；新对象保持文字、形状、图片和线条可编辑。
+
+## S1 语义文字（实验，待两页效果评审）
+
+新多区域页可设 `typographyPolicy=semantic`。文本语义与对象种类分离：identity（主体）、support（辅助标签）、context（现状/背景）、action（行动）、emphasis（局部重点）、empty（空项）。正文最低28px；支持标签也不以缩小到14pt以下换空间。颜色从palette.body/muted/ink/accent/quiet/line读取，缺少body/quiet时回退ink/line。
+
+表格 columns 可有 semanticRole/headerRole；rows.secondaryCells[columnId] 为 {text,semanticRole,contentRef}，独立文字元素与dataPath进入既有编辑、撤销、保存与导出。段落 prefix={text,semanticRole,contentRef} 用独立可编辑文字与正文共同行内排列，保留局部强调。这里不声称支持任意富文本导入。
+
+process 的 data.presentation=inline-sequence 表示开放文字序列，不生成步骤框；data.semanticRole 指定旧/新流程的语义，leadingLabelNode 可保留首标签而不画标签后的额外箭头。语义lint会阻断该表达上意外出现的描边框。
+
+分栏需求由实际可见文字的DOM自然宽/高与图片比例估算，再实测候选；路径、ID、来源元数据不参与宽度权重。候选仍受内容layout约束，不能据此宣称完整自动构图或所有风格已完成迁移。

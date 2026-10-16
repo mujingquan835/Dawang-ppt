@@ -1,3 +1,4 @@
+import {fitSemanticTable} from '../styles/text-semantics.mjs';
 import {planMultiRegion} from './multi-region.mjs';
 import {generateLayoutCandidates} from './candidates.mjs';
 import {deriveSlideElements} from '../objects/index.mjs';
@@ -5,6 +6,7 @@ import {assignElementRoles} from '../project/roles.mjs';
 import {lintSlide} from '../kimi/design-lint.mjs';
 
 async function fitTable(object,style,measurer) {
+  if(object.data.typographyPolicy==='semantic'){await fitSemanticTable(object,style,measurer);return;}
   const columns=object.data.columns, rows=object.data.rows;
   const total=columns.reduce((sum,c)=>sum+(c.width||1),0);
   const specs=[columns.map(c=>c.label),...rows.map(r=>columns.map(c=>r.cells[c.columnId]))].flatMap((row,r)=>row.map((text,c)=>({id:r+'/'+c,type:'text',text,bounds:[0,0,object.bounds[2]*(columns[c].width||1)/total-28,0],style:{fontSize:object.data.fontSize,lineHeight:1.08,fontWeight:r===0?700:400}})));

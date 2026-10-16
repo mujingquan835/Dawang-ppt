@@ -30,7 +30,12 @@ async function createLayoutMeasurer({chrome='/Applications/Google Chrome.app/Con
             root.append(node);return node;
           });
           await document.fonts.ready;
-          return nodes.map((node,i)=>({id:specs[i].id,height:node.getBoundingClientRect().height,width:node.scrollWidth,fontFamily:getComputedStyle(node).fontFamily,fontSize:parseFloat(getComputedStyle(node).fontSize)}));
+          return nodes.map((node,i)=>{
+ const height=node.getBoundingClientRect().height,width=node.scrollWidth;
+ const clone=node.cloneNode(true);Object.assign(clone.style,{width:'max-content',whiteSpace:'pre'});root.append(clone);
+ const naturalWidth=clone.getBoundingClientRect().width;clone.remove();
+ return {id:specs[i].id,height,width,naturalWidth,fontFamily:getComputedStyle(node).fontFamily,fontSize:parseFloat(getComputedStyle(node).fontSize)};
+});
         },normalized);
       },
       async imageSize(src) {
