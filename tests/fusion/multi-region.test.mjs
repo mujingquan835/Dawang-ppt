@@ -39,3 +39,10 @@ test('multi-region content overflow is rejected without silently omitting any re
   assert.equal(result.ok,false);assert.equal(result.candidates.length,3);assert(result.candidates.every(c=>c.measurement.issues.length));
  }finally{await measurer.close();}
 });
+test('six real-sized synthetic metrics produce editable values and labels with measured non-equal widths',async()=>{
+ const measurer=await createLayoutMeasurer();try{
+  const result=await planContentSlide({slideId:'metrics',title:'六项指标的合成验证',regions:[{regionId:'numbers',kind:'metrics',data:{items:[{value:'150份',label:'收集合成材料'},{value:'20单',label:'辅助新签'},{value:'30单',label:'辅助续费'},{value:'10单',label:'合成新签'},{value:'10万元',label:'新签金额（含合成）'},{value:'12万元',label:'续费金额'}]}}]},resolveStyle('legacy/theme14'),{measurer});
+  assert(result.ok,JSON.stringify(result.conflicts));const values=result.slide.elements.filter(e=>e.role==='value');assert.equal(values.length,6);assert(values.every(e=>e.style.fontSize>=54));
+  assert.equal(result.slide.elements.filter(e=>e.role==='label'&&e.id.includes('/metric/')).length,6);
+ }finally{await measurer.close();}
+});

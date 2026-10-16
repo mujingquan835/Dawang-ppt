@@ -50,10 +50,10 @@ function layoutMeasuredRelation(o,s){
  const nodes=o.data.nodes||[];uniqueNodes(nodes);
  const fitted=o.data.measuredNodes||[];
  if(nodes.some(n=>!fitted.some(m=>m.nodeId===n.nodeId)))throw new Error('Measured node missing; replan before structural edits');
- const [x,y,w]=o.bounds;
+ const [x,y,w,h]=o.bounds;
  const extent=Math.max(...fitted.map(m=>m.bounds[0]+m.bounds[2]));
- const sx=w/extent;
- const boxes=fitted.map(m=>[x+m.bounds[0]*sx,y+m.bounds[1],m.bounds[2]*sx,m.bounds[3]]);
+ const sx=w/extent,sy=h/Math.max(...fitted.map(m=>m.bounds[1]+m.bounds[3]));
+ const boxes=fitted.map(m=>[x+m.bounds[0]*sx,y+m.bounds[1]*sy,m.bounds[2]*sx,m.bounds[3]*sy]);
  const elements=nodes.flatMap((n,i)=>{
   const m=fitted.find(m=>m.nodeId===n.nodeId),b=boxes[fitted.indexOf(m)];
   return [shape(o,`node/${n.nodeId}/shape`,b,s,{nodeId:n.nodeId,style:{fill:'transparent',stroke:s.palette.line,strokeWidth:1,radius:0}}),

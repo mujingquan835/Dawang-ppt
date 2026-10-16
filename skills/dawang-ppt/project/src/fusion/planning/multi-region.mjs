@@ -35,6 +35,16 @@ async function composeRegionCandidate(content,style,preset,measurer){
     await add('paragraph/'+i+'/body',p.text,Math.max(28,p.size||bodySize),style.palette.ink,p.role||'body',p.contentRef,{fontWeight:p.bold?600:400});
     y+=p.gap??8;
    }
+  }else if(r.kind==='metrics'){
+   const items=r.data.items;
+   const widths=scaled(items.map(i=>Math.max(String(i.value).length*1.6,String(i.label).length)),w-(items.length-1)*22);
+   const specs=items.flatMap((item,i)=>[T('v'+i,item.value,[0,0,widths[i],0],56,style.palette.accent,'value',{fontWeight:600}),T('l'+i,item.label,[0,0,widths[i],0],28,style.palette.ink,'label')]);
+   const ms=await measurer.texts(specs,style);let x=0;const valueH=Math.max(...ms.filter((_,i)=>i%2===0).map(m=>m.height))+2;
+   items.forEach((item,i)=>{
+    const v=T(prefix+'/metric/'+i+'/value',item.value,[x,y,widths[i],valueH],56,style.palette.accent,'value',{fontWeight:600});v.contentRef=item.valueRef;
+    const l=T(prefix+'/metric/'+i+'/label',item.label,[x,y+valueH+10,widths[i],ms[i*2+1].height+2],28,style.palette.ink,'label');l.contentRef=item.labelRef;
+    es.push(v,l);x+=widths[i]+22;
+   });y+=valueH+12+Math.max(...ms.filter((_,i)=>i%2).map(m=>m.height))+2;
   }else{
    object={objectId:prefix,kind:r.kind,layoutVersion:2,bounds:[0,y,w,0],data:structuredClone(r.data),geometryTokens:geometryTokens(style),overrides:{},relationshipPolicy:r.relationships===undefined?'sequence':'explicit',...r.relationships===undefined?{}:{relationships:structuredClone(r.relationships)}};
    object.data.fontSize=bodySize;
@@ -60,7 +70,14 @@ async function composeRegionCandidate(content,style,preset,measurer){
    y+=object.bounds[3];
    if(r.kind==='images'){
     const captions=object.data.images.map(i=>i.caption).filter(Boolean);
-    if(captions.length){y+=12;await add('image-legend',captions.join(' ／ '),28,style.palette.muted,'caption');}
+    if(captions.length){
+     const lines=[];let line='';
+     for(const caption of captions){
+      const next=line?line+' ／ '+caption:caption;
+      const [m]=await measurer.texts([T('caption',next,[0,0,w,0],28,style.palette.muted,'caption')],style);
+      if(line&&m.height>34){lines.push(line);line=caption;}else line=next;
+     }if(line)lines.push(line);y+=12;await add('image-legend',lines.join('\n'),28,style.palette.muted,'caption');
+    }
    }
   }
   return {region:r,w,h:Math.max(1,y),es,object};
@@ -68,9 +85,10 @@ async function composeRegionCandidate(content,style,preset,measurer){
  async function measureTree(node,w){
   if(node.regionId){const r=regions.get(node.regionId);if(!r)throw new Error('Missing region '+node.regionId);return measureLeaf(r,w);}
   if(!['row','column'].includes(node.direction)||!node.children?.length)throw new Error('Invalid region layout tree');
-  const widths=node.direction==='row'?scaled(node.children.map(c=>demand(c,regions)),w-gap*(node.children.length-1)):node.children.map(()=>w);
+  const localGap=node.gap??gap;
+  const widths=node.direction==='row'?scaled(node.children.map(c=>demand(c,regions)),w-localGap*(node.children.length-1)):node.children.map(()=>w);
   const children=[];for(let i=0;i<node.children.length;i++)children.push(await measureTree(node.children[i],widths[i]));
-  return {direction:node.direction,w,h:node.direction==='row'?Math.max(...children.map(c=>c.h)):children.reduce((s,c)=>s+c.h,0)+gap*(children.length-1),children};
+  return {direction:node.direction,gap:localGap,w,h:node.direction==='row'?Math.max(...children.map(c=>c.h)):children.reduce((s,c)=>s+c.h,0)+localGap*(children.length-1),children};
  }
  function place(tree,x,y){
   if(tree.region){
@@ -79,7 +97,7 @@ async function composeRegionCandidate(content,style,preset,measurer){
    if(tree.object){tree.object.bounds[0]+=x;tree.object.bounds[1]+=y;objects.push(tree.object);}
    placed.push({regionId:r.regionId,kind:r.kind,bounds:[x,y,tree.w,tree.h],measurement:'chromium-dom'});return;
   }
-  let xx=x,yy=y;for(const c of tree.children){place(c,xx,yy);if(tree.direction==='row')xx+=c.w+gap;else yy+=c.h+gap;}
+  let xx=x,yy=y;for(const c of tree.children){place(c,xx,yy);if(tree.direction==='row')xx+=c.w+tree.gap;else yy+=c.h+tree.gap;}
  }
  const tree=await measureTree(content.layout||{direction:'column',children:content.regions.map(r=>({regionId:r.regionId}))},contentBounds[2]);
  place(tree,m,start);if(seen.size!==regions.size)throw new Error('Layout must preserve every region');

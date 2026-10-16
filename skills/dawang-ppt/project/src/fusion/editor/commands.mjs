@@ -15,6 +15,7 @@ function applyEditCommand(project, command) {
   const beforeSlide = clone(s), beforeNodes = clone(p.contentPlan.nodes), beforeEdits = p.sources.userEdits.length;
   try {
     if (command.type === "appearance") {
+      delete s.appearance;
       Object.assign(s, changeSlideAppearance(s, style, resolveStyle(command.styleId)));
     } else if (command.type === "semantic") {
       if (!o) throw new Error("Object missing");
@@ -27,6 +28,7 @@ function applyEditCommand(project, command) {
       o.nodeIds = (o.data.nodes || []).map((n) => n.nodeId);
     } else if (command.type === "object-geometry") {
       if (!o || !boundsValid(command.bounds)) throw new Error("Invalid object bounds");
+      if (o.layoutVersion === 3 && command.bounds[3] < Math.max(...o.data.measuredNodes.map(n => n.bounds[1]+n.bounds[3]))) throw new Error('流程组高度低于文字实测下限，请保留可读高度或重新排版');
       const old = o.bounds, next = command.bounds;
       for (const over of Object.values(o.overrides || {})) if (over.bounds) {
         const b = over.bounds;

@@ -20,12 +20,13 @@ function layoutTable(o, s) {
     return "#" + [0, 1, 2].map((i) => Math.round([240, 245, 255][i] * (1 - t) + [75, 130, 230][i] * t).toString(16).padStart(2, "0")).join("");
   };
   const es = [];
+  const presentation = o.data.presentation, open = ["bands", "swimlanes"].includes(presentation);
   const header = s.palette.header || s.palette.accent;
   const font = o.layoutVersion === 2 ? Math.max(28, o.data.fontSize || 32) : rows.length >= 12 ? 28 : 32;
   columns.forEach((col, c) => {
     const b = [xs[c], y, xs[c + 1] - xs[c], ys[1] - y];
-    es.push(shape(o, "header/" + col.columnId, b, s, { style: { fill: header, radius: 0 } }));
-    es.push(text(o, "header/" + col.columnId + "/text", col.label, [b[0] + 14, b[1] + 9, b[2] - 28, b[3] - 18], s, { contentRef: col.contentRef, style: { fontSize: font, lineHeight: 1.08, fontWeight: 700, color: s.palette.onHeader || "#ffffff" } }));
+    es.push(shape(o, "header/" + col.columnId, b, s, { style: { fill: open ? "transparent" : header, radius: 0 } }));
+    es.push(text(o, "header/" + col.columnId + "/text", col.label, [b[0] + 14, b[1] + 9, b[2] - 28, b[3] - 18], s, { contentRef: col.contentRef, style: { fontSize: font, lineHeight: 1.08, fontWeight: 700, color: open ? s.palette.accent : s.palette.onHeader || "#ffffff" } }));
   });
   const merged = /* @__PURE__ */ new Map(), covered = /* @__PURE__ */ new Set(), occupied = /* @__PURE__ */ new Set();
   for (const merge of o.data.merges || []) {
@@ -58,8 +59,17 @@ function layoutTable(o, s) {
     if (heat || row.emphasis || r % 2 === 0) es.push(shape(o, "cell/" + id, b, s, { style: { fill: heat || (row.emphasis ? s.palette.surface : s.palette.bg), radius: 0 } }));
     es.push(text(o, "cell/" + id + "/text", cellValue, [b[0] + 14, b[1] + 10, b[2] - 28, b[3] - 18], s, { rowId: row.rowId, columnId: col.columnId, contentRef: !merge ? row.contentRefs?.[col.columnId] : undefined, dataPath, style: { fontSize: font, lineHeight: 1.08, color: s.palette.ink, textAlign: col.numeric ? "right" : "left" } }));
     es.push(line(o, "cell/" + id + "/bottom", [b[0], b[1] + b[3]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
-    if (!s.table?.noVerticalRules) es.push(line(o, "cell/" + id + "/right", [b[0] + b[2], b[1]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
+    if (!open && !s.table?.noVerticalRules) es.push(line(o, "cell/" + id + "/right", [b[0] + b[2], b[1]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
   }));
+  if (presentation === "swimlanes") {
+    es.push(line(o, "time-axis", [xs[1], ys[1]-3], [x+w, ys[1]-3], s, {endArrow:"triangle",style:{stroke:s.palette.accent,strokeWidth:2}}));
+    for(let c=1;c<columns.length;c++)es.push(shape(o,"time-node/"+cols[c],[xs[c]+14,ys[1]-8,10,10],s,{shape:"ellipse",style:{fill:s.palette.accent,radius:999}}));
+  }
+  if(open) for(const e of es) {
+    if(e.type==='text'&&e.columnId===cols[0])e.style.fontWeight=700;
+    if(e.type==='line')e.style.stroke=presentation==='swimlanes'?s.palette.line:s.palette.accent;
+    if(e.type==='shape'&&e.id.includes('/cell/'))e.style.stroke=undefined;
+  }
   return es;
 }
 export {
