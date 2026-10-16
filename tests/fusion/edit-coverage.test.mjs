@@ -13,3 +13,10 @@ test('explicit edits remain traceable and do not falsely fail coverage against s
  p.slides[0].elements=p.slides[0].elements.filter(e=>e.id!=='photo');
  assert(checkCoverage(p).some(i=>i.kind==='required-media-not-rendered'),'deleting a required image must still fail');
 });
+
+test('editing a source-bound table cell preserves the original ledger and exports the explicit replacement',()=>{
+ let p=project();p.slides[0].objects=[{objectId:'table',kind:'table',layoutVersion:2,bounds:[100,400,1200,300],overrides:{},data:{fontSize:28,columns:[{columnId:'evidence',label:'合成证据'}],rows:[{rowId:'r',cells:{evidence:'原始标题'},contentRefs:{evidence:'fact'}}]}}];
+ p.slides[0].elements=p.slides[0].elements.filter(e=>e.id!=='title');
+ const r=applyEditCommand(p,{slideId:'a',elementId:'table/cell/r/evidence/text',type:'text',text:'经用户核对后的单元格'});
+ assert(r.ok);assert.deepEqual(checkCoverage(r.project),[]);assert.equal(r.project.contentPlan.nodes.fact.text,'原始标题');
+});

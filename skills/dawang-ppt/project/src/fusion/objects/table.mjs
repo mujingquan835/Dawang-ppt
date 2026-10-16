@@ -25,7 +25,7 @@ function layoutTable(o, s) {
   columns.forEach((col, c) => {
     const b = [xs[c], y, xs[c + 1] - xs[c], ys[1] - y];
     es.push(shape(o, "header/" + col.columnId, b, s, { style: { fill: header, radius: 0 } }));
-    es.push(text(o, "header/" + col.columnId + "/text", col.label, [b[0] + 14, b[1] + 9, b[2] - 28, b[3] - 18], s, { style: { fontSize: font, lineHeight: 1.08, fontWeight: 700, color: s.palette.onHeader || "#ffffff" } }));
+    es.push(text(o, "header/" + col.columnId + "/text", col.label, [b[0] + 14, b[1] + 9, b[2] - 28, b[3] - 18], s, { contentRef: col.contentRef, style: { fontSize: font, lineHeight: 1.08, fontWeight: 700, color: s.palette.onHeader || "#ffffff" } }));
   });
   const merged = /* @__PURE__ */ new Map(), covered = /* @__PURE__ */ new Set(), occupied = /* @__PURE__ */ new Set();
   for (const merge of o.data.merges || []) {
@@ -56,7 +56,7 @@ function layoutTable(o, s) {
     const b = [xs[c], ys[r + 1], xs[c1 + 1] - xs[c], ys[r1 + 2] - ys[r + 1]];
     const heat = o.data.heat ? heatColor(cellValue) : null;
     if (heat || row.emphasis || r % 2 === 0) es.push(shape(o, "cell/" + id, b, s, { style: { fill: heat || (row.emphasis ? s.palette.surface : s.palette.bg), radius: 0 } }));
-    es.push(text(o, "cell/" + id + "/text", cellValue, [b[0] + 14, b[1] + 10, b[2] - 28, b[3] - 18], s, { rowId: row.rowId, columnId: col.columnId, dataPath, style: { fontSize: font, lineHeight: 1.08, color: s.palette.ink, textAlign: col.numeric ? "right" : "left" } }));
+    es.push(text(o, "cell/" + id + "/text", cellValue, [b[0] + 14, b[1] + 10, b[2] - 28, b[3] - 18], s, { rowId: row.rowId, columnId: col.columnId, contentRef: !merge ? row.contentRefs?.[col.columnId] : undefined, dataPath, style: { fontSize: font, lineHeight: 1.08, color: s.palette.ink, textAlign: col.numeric ? "right" : "left" } }));
     es.push(line(o, "cell/" + id + "/bottom", [b[0], b[1] + b[3]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
     if (!s.table?.noVerticalRules) es.push(line(o, "cell/" + id + "/right", [b[0] + b[2], b[1]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
   }));
