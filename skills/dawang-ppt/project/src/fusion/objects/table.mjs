@@ -66,6 +66,14 @@ function layoutTable(o, s) {
         es.push(text(o,'cell/'+id+'/secondary',secondary.text,[b[0]+14,b[1]+6+cm.primaryHeight+4,b[2]-28,cm.secondaryHeight],s,{rowId:row.rowId,columnId:col.columnId,semanticRole:secondary.semanticRole||'support',contentRef:secondary.contentRef,dataPath:['rows',r,'secondaryCells',col.columnId,'text'],style:semanticTextStyle(secondary.semanticRole||'support',s,bodyPx(s))}));
       }
     }
+    if(o.data.typographyPolicy==='semantic'&&o.data.verticalAlign==='middle'){
+      const cm=o.data.cellMetrics?.[id];
+      if(cm){const primary=es.find(e=>e.id===o.objectId+'/cell/'+id+'/text'),secondary=es.find(e=>e.id===o.objectId+'/cell/'+id+'/secondary');
+       const used=cm.primaryHeight+(secondary?cm.secondaryHeight+4:0),top=b[1]+Math.max(6,(b[3]-used)/2);
+       primary.bounds[1]=top;primary.bounds[3]=cm.primaryHeight;
+       if(secondary)secondary.bounds[1]=top+cm.primaryHeight+4;
+      }
+    }
     es.push(line(o, "cell/" + id + "/bottom", [b[0], b[1] + b[3]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
     if (!open && !s.table?.noVerticalRules) es.push(line(o, "cell/" + id + "/right", [b[0] + b[2], b[1]], [b[0] + b[2], b[1] + b[3]], s, { style: { stroke: s.palette.line, strokeWidth: 1 } }));
   }));

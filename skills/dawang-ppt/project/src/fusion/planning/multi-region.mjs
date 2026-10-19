@@ -1,3 +1,4 @@
+import {reviewContent,reviewVisualStructure} from './content-review.mjs';
 import {bodyPx} from '../styles/registry.mjs';
 import {fitMeasuredTimeline} from '../objects/measured-timeline.mjs';
 import {selectRegionForms,regionLayouts} from './region-forms.mjs';
@@ -60,13 +61,13 @@ async function composeRegionCandidate(content,style,preset,measurer){
     y+=p.gap??8;
    }
   }else if(r.kind==='metrics'){
-   const items=r.data.items;
+   const items=r.data.items,valueSize=r.data.compact?Math.max(bodySize,40):56,labelSize=r.data.compact?bodySize:28;
    const widths=scaled(items.map(i=>Math.max(String(i.value).length*1.6,String(i.label).length)),w-(items.length-1)*22);
-   const specs=items.flatMap((item,i)=>[T('v'+i,item.value,[0,0,widths[i],0],56,style.palette.accent,'value',{fontWeight:600}),T('l'+i,item.label,[0,0,widths[i],0],28,style.palette.ink,'label')]);
+   const specs=items.flatMap((item,i)=>[T('v'+i,item.value,[0,0,widths[i],0],valueSize,style.palette.accent,'value',{fontWeight:600}),T('l'+i,item.label,[0,0,widths[i],0],labelSize,style.palette.ink,'label')]);
    const ms=await measurer.texts(specs,style);let x=0;const valueH=Math.max(...ms.filter((_,i)=>i%2===0).map(m=>m.height))+2;
    items.forEach((item,i)=>{
-    const v=T(prefix+'/metric/'+i+'/value',item.value,[x,y,widths[i],valueH],56,style.palette.accent,'value',{fontWeight:600});v.contentRef=item.valueRef;
-    const l=T(prefix+'/metric/'+i+'/label',item.label,[x,y+valueH+10,widths[i],ms[i*2+1].height+2],28,style.palette.ink,'label');l.contentRef=item.labelRef;
+    const v=T(prefix+'/metric/'+i+'/value',item.value,[x,y,widths[i],valueH],valueSize,style.palette.accent,'value',{fontWeight:600});v.contentRef=item.valueRef;
+    const l=T(prefix+'/metric/'+i+'/label',item.label,[x,y+valueH+10,widths[i],ms[i*2+1].height+2],labelSize,style.palette.ink,'label');l.contentRef=item.labelRef;
     es.push(v,l);x+=widths[i]+22;
    });y+=valueH+12+Math.max(...ms.filter((_,i)=>i%2).map(m=>m.height))+2;
   }else{
@@ -123,7 +124,8 @@ async function composeRegionCandidate(content,style,preset,measurer){
   if(!['row','column'].includes(node.direction)||!node.children?.length)throw new Error('Invalid region layout tree');
   const localGap=node.gap??gap;
   const demands=[];if(node.direction==='row')for(const c of node.children)demands.push(await visibleDemand(c,regions,measurer,style));
-  const widths=node.direction==='row'?scaled(demands,w-localGap*(node.children.length-1)):node.children.map(()=>w);
+  if(node.widths&&(!Array.isArray(node.widths)||node.widths.length!==node.children.length||node.widths.some(v=>!Number.isFinite(v)||v<=0)))throw new Error('Invalid explicit region widths');
+  const widths=node.direction==='row'?scaled(node.widths||demands,w-localGap*(node.children.length-1)):node.children.map(()=>w);
   const children=[];for(let i=0;i<node.children.length;i++)children.push(await measureTree(node.children[i],widths[i]));
   return {direction:node.direction,gap:localGap,w,h:node.direction==='row'?Math.max(...children.map(c=>c.h)):children.reduce((s,c)=>s+c.h,0)+localGap*(children.length-1),children};
  }
@@ -137,12 +139,30 @@ async function composeRegionCandidate(content,style,preset,measurer){
   let xx=x,yy=y;for(const c of tree.children){place(c,xx,yy);if(tree.direction==='row')xx+=c.w+tree.gap;else yy+=c.h+tree.gap;}
  }
  const tree=await measureTree(content.layout||{direction:'column',children:content.regions.map(r=>({regionId:r.regionId}))},contentBounds[2]);
+ // Opt-in: expand evidence rows and inter-module rhythm, never scale type or photos.
+ if(content.spacingPolicy==='balanced-evidence'){
+  let budget=Math.max(0,contentBounds[3]*.88-tree.h);
+  function expand(t){
+   if(t.region){
+    if(t.object?.kind==='table'&&budget>0){
+     const o=t.object,rows=o.data.rows,need=rows.reduce((sum,r)=>sum+Math.max(0,76-r.height),0),add=Math.min(budget,need);
+     if(need)rows.forEach(r=>r.height+=add*Math.max(0,76-r.height)/need);
+     rows.forEach(r=>r.minHeight=r.height);o.bounds[3]+=add;t.h+=add;budget-=add;
+    }return;
+   }
+   t.children.forEach(expand);
+   if(t.direction==='column'&&t.children.length>1){const extra=Math.min(Math.max(0,64-t.gap),budget/(t.children.length-1));t.gap+=extra;budget-=extra*(t.children.length-1);}
+   t.h=t.direction==='row'?Math.max(...t.children.map(c=>c.h)):t.children.reduce((sum,c)=>sum+c.h,0)+t.gap*(t.children.length-1);
+  }expand(tree);
+ }
  place(tree,m,start);if(seen.size!==regions.size)throw new Error('Layout must preserve every region');
  const slide={slideId:content.slideId,mode:'composition',styleId:style.id,appearance:content.appearance,typography:content.typography,typographyPolicy:content.typographyPolicy,styleBindingVersion:1,compositionId:preset.id,label:content.title,readerTask:content.readerTask,elements,objects,requiredContentRefs:content.requiredContentRefs||[]};
  assignElementRoles(slide);slide.elements=elements.map(e=>bindElementAppearance(e,style));
  return {layout:content.layout,presetId:preset.id,sourcePreset:preset.source,reason:preset.reason,slide,contentBounds,regions:placed,requiredHeight:tree.h};
 }
 async function planMultiRegion(content,style,{measurer}){
+ const review=reviewContent(content);
+ if(content.contentReview==='required'&&review.length)return {ok:false,conflicts:review,candidates:[]};
  const chosen=selectRegionForms(content);content=chosen.content;
  const candidates=[];
  for(const layout of regionLayouts(content))for(const preset of REGION_PRESETS){
@@ -165,7 +185,7 @@ async function planMultiRegion(content,style,{measurer}){
  }
  const selected=candidates.filter(c=>!c.measurement.issues.length).sort((a,b)=>b.score-a.score)[0];
  if(!selected)return {ok:false,conflicts:[{kind:'no-fitting-layout',message:'多区域内容未通过实测，保留全部内容与正文下限。'}],candidates};
- selected.selected=true;selected.slide.planning={engine:'content-first-v3',presetId:selected.presetId,sourcePreset:selected.sourcePreset,layoutId:selected.layoutId,formDecisions:selected.formDecisions,reason:selected.reason,measurement:selected.measurement,regions:selected.regions};
+ selected.selected=true;selected.slide.planning={engine:'content-first-v3',presetId:selected.presetId,sourcePreset:selected.sourcePreset,layoutId:selected.layoutId,formDecisions:selected.formDecisions,reason:selected.reason,measurement:selected.measurement,regions:selected.regions,contentReview:reviewContent(content),visualReview:reviewVisualStructure(content,selected.regions,selected.contentBounds)};
  return {ok:true,slide:selected.slide,candidates};
 }
 export {planMultiRegion,REGION_PRESETS};

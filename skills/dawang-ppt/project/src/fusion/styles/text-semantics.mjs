@@ -16,7 +16,7 @@ async function fitSemanticTable(o,s,measurer){
    if(secondary)specs.push({id:'secondary',type:'text',text:secondary.text,bounds:[0,0,w,0],style:semanticTextStyle(secondary.semanticRole||'support',s,bodyPx(s))});
    const ms=await measurer.texts(specs,s),primaryHeight=ms[0].height+2,secondaryHeight=ms[1]?ms[1].height+2:0;
    o.data.cellMetrics[row.rowId+'/'+col.columnId]={primaryHeight,secondaryHeight};rh=Math.max(rh,primaryHeight+(secondaryHeight?secondaryHeight+4:0)+12);
-  }hs.push(rh);
+  }hs.push(Math.max(rh,Number.isFinite(row.minHeight)?row.minHeight:0));
  }
  o.data.headerWeight=hs[0];rows.forEach((r,i)=>r.height=hs[i+1]);return hs.reduce((a,b)=>a+b,0);
 }

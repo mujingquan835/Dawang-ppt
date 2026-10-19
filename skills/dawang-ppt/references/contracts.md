@@ -52,3 +52,7 @@ process 的 data.presentation=inline-sequence 表示开放文字序列，不生�
 - 区域 `attachedTo=regionId` 将说明文字绑定到对应主区域，同栏参与自动构图；关系链宽度按全部节点的实际文字测量预算，纵向组合取最大宽度需求。
 - 深底表头默认使用 palette.onHeader（缺省白色），浅底表头按语义角色着色。语义规则不得把深底表头统一刷成灰字。
 - 新实测时间轴当前使用水平、有序阶段布局；显式垂直方向、日期比例分布和阶段带会明确报冲突，不能被静默替换。原单对象时间轴路径保留相应能力。缩小实测时间轴的组高度至可读下限以下会被拒绝。
+
+### 逐页内容复核与证据留白
+新稿明确设置 `contentReview:"required"`：含数量的正文若未记录 `dataDecision`、或 metrics 缺 nature/valueRef/labelRef，规划返回 conflict，不继续导出该新稿。旧项目未设置时保留兼容性，planning.contentReview 记录待人工处理的警告。数字扫描只覆盖常用单位，不能代替完整业务理解。
+`spacingPolicy:"balanced-evidence"` 只增加有预算的表格行高及模块间距，不缩放文字/图片；短文不强求满页。`table.data.verticalAlign:"middle"` 使用实测文字块（包括次级说明）居中；`row.minHeight` 保存已分配的行高，后续实测仍可因文字变长而增长。`layout.widths` 为 row 各子栏的正数权重，支持局部返工锁定照片栏；`metrics.data.compact:true` 采用20pt重点值和项目正文大小的标签。
