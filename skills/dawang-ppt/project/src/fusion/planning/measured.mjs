@@ -1,3 +1,4 @@
+import {resolveSlideStyle} from '../styles/registry.mjs';
 import {fitSemanticTable} from '../styles/text-semantics.mjs';
 import {planMultiRegion} from './multi-region.mjs';
 import {generateLayoutCandidates} from './candidates.mjs';
@@ -63,6 +64,7 @@ async function measureCandidate(candidate,style,measurer) {
 }
 async function planContentSlide(content,style,{measurer}={}) {
   if(!measurer) throw new Error('A real browser measurer is required; estimated-only selection is forbidden');
+  if(content.typography)style=resolveSlideStyle({styleId:style.id,appearance:{palette:style.palette},typography:content.typography});
   if(content.regions) return planMultiRegion(content,style,{measurer});
   const provisional=generateLayoutCandidates(content,style);
   if(!provisional.length) return {ok:false,conflicts:[{kind:'planning-conflict',message:'当前材料与风格规则不能组合；保留内容等待选择。'}],candidates:[]};

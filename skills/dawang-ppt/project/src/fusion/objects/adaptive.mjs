@@ -1,3 +1,4 @@
+import {bodyPx} from '../styles/registry.mjs';
 import {semanticTextStyle} from '../styles/text-semantics.mjs';
 import {text,shape,line,uniqueNodes} from './primitives.mjs';
 // Open rows expose labels and evidence directly; no fixed-height card grid.
@@ -57,13 +58,17 @@ function layoutMeasuredRelation(o,s){
  const boxes=fitted.map(m=>[x+m.bounds[0]*sx,y+m.bounds[1]*sy,m.bounds[2]*sx,m.bounds[3]*sy]);
  const elements=nodes.flatMap((n,i)=>{
   const m=fitted.find(m=>m.nodeId===n.nodeId),b=boxes[fitted.indexOf(m)];
-  return [...(o.data.presentation==='inline-sequence'?[]:[shape(o,`node/${n.nodeId}/shape`,b,s,{nodeId:n.nodeId,style:{fill:'transparent',stroke:s.palette.line,strokeWidth:1,radius:0}})]),
-   text(o,`node/${n.nodeId}/label`,n.label,[b[0],b[1],b[2],m.labelHeight],s,{nodeId:n.nodeId,contentRef:n.contentRef,dataPath:['nodes',i,'label'],style:o.data.presentation==='inline-sequence'?semanticTextStyle(o.data.semanticRole||'action',s,28):{fontSize:32,lineHeight:1.16,fontWeight:600,color:s.palette.ink}}),
-   ...n.detail?[text(o,`node/${n.nodeId}/detail`,n.detail,[b[0],b[1]+m.labelHeight+12,b[2],m.detailHeight],s,{nodeId:n.nodeId,dataPath:['nodes',i,'detail'],style:{fontSize:o.data.fontSize,lineHeight:1.16,color:s.palette.muted}})]:[]];
+  const open=['inline-sequence','numbered-sequence','open-comparison'].includes(o.data.presentation),numbered=o.data.presentation==='numbered-sequence',staged=o.data.presentation==='staged-sequence',offset=numbered?54:staged?24:0,last=i===nodes.length-1;
+  return [...(numbered?[shape(o,`node/${n.nodeId}/marker`,[b[0],b[1],40,40],s,{nodeId:n.nodeId,shape:'ellipse',style:{fill:s.palette.surface,radius:999}}),text(o,`node/${n.nodeId}/number`,String(i+1).padStart(2,'0'),[b[0]+5,b[1]+5,32,30],s,{nodeId:n.nodeId,role:'label',style:{fontSize:22,fontWeight:600,color:s.palette.accent,lineHeight:1.16}})]:[]),...(open?(o.data.presentation==='inline-sequence'?[]:[shape(o,`node/${n.nodeId}/shape`,b,s,{nodeId:n.nodeId,style:{fill:'transparent',radius:0}})]):[shape(o,`node/${n.nodeId}/shape`,b,s,{nodeId:n.nodeId,style:{fill:staged?(last?s.palette.ink:s.palette.surface):'transparent',stroke:staged?undefined:s.palette.line,strokeWidth:1,radius:0}})]),
+   text(o,`node/${n.nodeId}/label`,n.label,[b[0]+offset,b[1]+(staged?12:0),b[2]-offset-(staged?24:0),m.labelHeight],s,{nodeId:n.nodeId,contentRef:n.contentRef,dataPath:['nodes',i,'label'],style:o.data.presentation==='inline-sequence'?semanticTextStyle(o.data.semanticRole||'action',s,o.data.fontSize||bodyPx(s)):{fontSize:o.data.labelSize||32,lineHeight:1.16,fontWeight:600,color:staged&&last?'#ffffff':s.palette.ink}}),
+   ...n.detail?[text(o,`node/${n.nodeId}/detail`,n.detail,[b[0]+offset,b[1]+m.labelHeight+12+(staged?12:0),b[2]-offset-(staged?24:0),m.detailHeight],s,{nodeId:n.nodeId,dataPath:['nodes',i,'detail'],style:{fontSize:o.data.fontSize,lineHeight:1.16,color:staged&&last?'#ffffff':s.palette.muted}})]:[]];
  });
  for(const [i,n] of nodes.entries()){
   const moved=o.overrides?.[`${o.objectId}/node/${n.nodeId}/shape`]?.bounds;
-  if(moved)for(const e of elements.filter(e=>e.nodeId===n.nodeId&&e.type==='text'))if(!o.overrides?.[e.id]?.bounds)e.bounds=[moved[0]+e.bounds[0]-boxes[i][0],moved[1]+e.bounds[1]-boxes[i][1],moved[2],e.bounds[3]];
+  if(moved)for(const e of elements.filter(e=>e.nodeId===n.nodeId&&!e.id.endsWith('/shape')))if(!o.overrides?.[e.id]?.bounds){
+   const b=boxes[i],rightInset=b[0]+b[2]-e.bounds[0]-e.bounds[2],isCopy=/\/(label|detail)$/.test(e.id);
+   e.bounds=[moved[0]+e.bounds[0]-b[0],moved[1]+e.bounds[1]-b[1],isCopy?moved[2]-(e.bounds[0]-b[0])-rightInset:e.bounds[2],e.bounds[3]];
+  }
  }
  const edges=o.relationshipPolicy==='explicit'?o.relationships:o.kind==='comparison'?[]:nodes.slice(1).map((n,i)=>({relationshipId:nodes[i].nodeId+'-'+n.nodeId,from:nodes[i].nodeId,to:n.nodeId}));
  for(const edge of edges){

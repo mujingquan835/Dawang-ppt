@@ -29,6 +29,7 @@ function applyEditCommand(project, command) {
     } else if (command.type === "object-geometry") {
       if (!o || !boundsValid(command.bounds)) throw new Error("Invalid object bounds");
       if (o.layoutVersion === 3 && command.bounds[3] < Math.max(...o.data.measuredNodes.map(n => n.bounds[1]+n.bounds[3]))) throw new Error('流程组高度低于文字实测下限，请保留可读高度或重新排版');
+      if(o.layoutVersion===4&&o.kind==='timeline'&&command.bounds[3]<o.data.measuredTimeline.headerH+o.data.measuredTimeline.rows.reduce((a,b)=>a+b,0))throw new Error('时间轴高度低于文字实测下限，请保留可读高度或重新排版');
       const old = o.bounds, next = command.bounds;
       for (const over of Object.values(o.overrides || {})) if (over.bounds) {
         const b = over.bounds;

@@ -13,6 +13,14 @@ export { STYLE_DEFINITIONS, resolveStyle };
 function resolveSlideStyle(slide) {
  const style=resolveStyle(slide.styleId);
  if(slide.appearance?.palette)style.palette={...style.palette,...slide.appearance.palette};
+ if(slide.typography){
+  const pt=slide.typography.bodyPt;
+  if(!Number.isFinite(pt)||pt<10||pt>24)throw new Error('Invalid project bodyPt');
+  style.typography={...style.typography,bodyPt:pt,sizes:{...style.typography.sizes,body:pt*2}};
+ }
  return style;
 }
 export {resolveSlideStyle};
+
+// Historical skins retain their original defaults; only an explicit project setting changes them.
+export const bodyPx=s=>s.typography?.bodyPt?s.typography.bodyPt*2:28;

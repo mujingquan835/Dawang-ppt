@@ -11,7 +11,7 @@ const hue = (hex) => {
 };
 const family = (h) => h == null ? null : h < 20 || h >= 335 ? "red" : h < 70 ? "yellow" : h < 170 ? "green" : h < 255 ? "blue" : "purple";
 const contains = (o, i) => i[0] >= o[0] - 2 && i[1] >= o[1] - 2 && i[0] + i[2] <= o[0] + o[2] + 2 && i[1] + i[3] <= o[1] + o[3] + 2;
-function lintSlide(slide, { minBodyPx = 28 } = {}) {
+function lintSlide(slide, { minBodyPx = slide.typography?.bodyPt*2 || 28 } = {}) {
   const els = slide.elements || [], texts = els.filter((e) => e.type === "text"), issues = [];
   const id = slide.slideId;
   if(slide.typographyPolicy==='semantic'){
@@ -43,7 +43,7 @@ function lintSlide(slide, { minBodyPx = 28 } = {}) {
   const fams = new Set(colors.map(hue).map(family).filter(Boolean));
   if (["red", "purple", "yellow", "green"].every((f) => fams.has(f))) issues.push({ slideId: id, rule: "no-ai-palette", severity: "error", message: "同页同时出现红、紫、黄、绿" });
   // 4. Readability + required parts.
-  for (const t of texts) if (t.role === "body" && (t.style?.fontSize ?? minBodyPx) < minBodyPx) issues.push({ slideId: id, rule: "body-min-14pt", severity: "error", ids: [t.id] });
+  for (const t of texts) if (t.role === "body" && (t.style?.fontSize ?? minBodyPx) < minBodyPx) issues.push({ slideId: id, rule: minBodyPx===28?"body-min-14pt":"body-min-project", severity: "error", ids: [t.id] });
   if (!texts.some((t) => t.role === "title")) issues.push({ slideId: id, rule: "title-required", severity: "error" });
   if (slide.hasExternalData && !texts.some((t) => t.role === "source")) issues.push({ slideId: id, rule: "source-required", severity: "error" });
   return issues;

@@ -74,7 +74,7 @@ function assignElementRoles(slide) {
   for (const e of slide.elements || []) if (e.type === "text" && !e.role) e.role = defaultElementRole(e.id);
   return slide;
 }
-function checkElementRoles(slide, { minBodyPx = 28 } = {}) {
+function checkElementRoles(slide, { minBodyPx = slide.typography?.bodyPt*2 || 28 } = {}) {
   const issues = [], texts = (slide.elements || []).filter((e) => e.type === "text");
   for (const e of texts) {
     if (!e.role) issues.push({ slideId: slide.slideId, id: e.id, kind: "role-missing" });

@@ -89,6 +89,7 @@ async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
     for(const content of contents) {
       if(content.pageType) throw new Error('该显式家族页型尚未迁入共享规划器；保留原工程并先确认迁移，不静默替换。');
       content.appearance=brief.appearance;
+      content.typography=content.typography||brief.typography;
       for(const image of [...(content.data?.images || []),...(content.regions||[]).flatMap(r=>r.data?.images||[])]) {
         if(!image.src) throw new Error('图片缺失：'+image.mediaId+'；请补充素材或明确占位。');
         let source=image.src;

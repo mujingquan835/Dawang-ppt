@@ -1,3 +1,5 @@
+import {layoutMeasuredTimeline} from './measured-timeline.mjs';
+import {bodyPx} from '../styles/registry.mjs';
 import { layoutAdaptiveRelation, layoutAdaptiveTimeline, layoutMeasuredRelation } from "./adaptive.mjs";
 import { layoutTimeline } from "./timeline.mjs";
 import { layoutTable } from "./table.mjs";
@@ -11,8 +13,8 @@ function layoutObject(o, s) {
   const fn = o.kind === "timeline" ? layoutTimeline : o.kind === "table" ? layoutTable : ["bar", "line"].includes(o.kind) ? layoutChart : o.kind === "images" ? layoutImages : ["process", "hierarchy", "cycle", "matrix", "comparison", "causal"].includes(o.kind) ? layoutDiagram : null;
   if (!fn) throw new Error("Unsupported semantic kind " + o.kind);
   const adaptive = o.layoutVersion === 2 ? o.kind === "timeline" ? layoutAdaptiveTimeline(o,s) : ["process","causal","comparison"].includes(o.kind) ? layoutAdaptiveRelation(o,s) : null : null;
-  let elements = o.layoutVersion === 3 ? layoutMeasuredRelation(o,s) : adaptive || fn(o,s);
-  if (o.layoutVersion === 2) elements = elements.map(e => e.type === "text" && !e.id.endsWith("/caption") ? {...e, style:{...e.style,fontSize:Math.max(28,e.style?.fontSize || s.typography.sizes.body)}} : e);
+  let elements = o.layoutVersion === 4 && o.kind==='timeline' ? layoutMeasuredTimeline(o,s) : o.layoutVersion === 3 ? layoutMeasuredRelation(o,s) : adaptive || fn(o,s);
+  if (o.layoutVersion === 2) elements = elements.map(e => e.type === "text" && !e.id.endsWith("/caption") ? {...e, style:{...e.style,fontSize:Math.max(bodyPx(s),e.style?.fontSize || s.typography.sizes.body)}} : e);
   return applyOverrides(elements, o);
 }
 function deriveSlideElements(slide, style) {

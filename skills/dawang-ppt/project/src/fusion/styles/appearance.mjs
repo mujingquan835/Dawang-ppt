@@ -28,6 +28,7 @@ function geometryTokens(style) {
 function changeSlideAppearance(slide, before, after) {
   if (slide.styleBindingVersion !== 1) throw new Error('旧组合页缺少外观绑定，无法可靠区分手工颜色；保留现状并先确认迁移方式');
   const result = structuredClone(slide);
+  if(slide.typography?.bodyPt)after={...after,typography:{...after.typography,sizes:{...after.typography.sizes,body:slide.typography.bodyPt*2}}};
   for (const element of result.elements || []) {
     for (const [property, binding] of Object.entries(element.styleBindings || {})) {
       if (Object.hasOwn(element.manualStyle || {}, property)) continue;

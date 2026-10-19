@@ -1,3 +1,6 @@
+import {bodyPx} from '../styles/registry.mjs';
+import {fitMeasuredTimeline} from '../objects/measured-timeline.mjs';
+import {selectRegionForms,regionLayouts} from './region-forms.mjs';
 import {semanticTextStyle,fitSemanticTable} from '../styles/text-semantics.mjs';
 import {deriveSlideElements} from '../objects/index.mjs';
 import {assignElementRoles} from '../project/roles.mjs';
@@ -14,16 +17,22 @@ const REGION_PRESETS=[
 const T=(id,text,bounds,size,color,role='body',extra={})=>({id,type:'text',role,text:String(text??''),bounds,style:{fontSize:size,lineHeight:1.16,color,...extra}});
 function readingCopy(r){return [r.heading,...(r.paragraphs||[]).flatMap(p=>[p.heading,p.prefix?.text,p.text]),...(r.data?.nodes||[]).flatMap(n=>[n.label,n.detail]),...(r.data?.columns||[]).map(c=>c.label),...(r.data?.rows||[]).flatMap(r=>[...Object.values(r.cells),...Object.values(r.secondaryCells||{}).map(s=>s.text)]),...(r.data?.images||[]).map(i=>i.caption),...(r.data?.items||[]).flatMap(i=>[i.value,i.label])].filter(Boolean);}
 async function visibleDemand(node,regions,measurer,style){
- if(!node.regionId){const values=[];for(const c of node.children)values.push(await visibleDemand(c,regions,measurer,style));return Math.sqrt(values.reduce((sum,v)=>sum+v*v,0));}
+ if(!node.regionId){const values=[];for(const c of node.children)values.push(await visibleDemand(c,regions,measurer,style));return node.direction==='row'?values.reduce((sum,v)=>sum+v,0)+(node.gap??24)*Math.max(0,values.length-1):Math.max(0,...values);}
  const r=regions.get(node.regionId);if(!r)throw new Error('Missing region '+node.regionId);
- const specs=readingCopy(r).map((text,i)=>({id:String(i),type:'text',text,bounds:[0,0,10000,0],style:{fontSize:28,lineHeight:1.18}}));
- const ms=await measurer.texts(specs,style);let area=ms.reduce((sum,m)=>sum+m.naturalWidth*m.height,0);
+ const specs=readingCopy(r).map((text,i)=>({id:String(i),type:'text',text,bounds:[0,0,10000,0],style:{fontSize:bodyPx(style),lineHeight:1.18}}));
+ const ms=await measurer.texts(specs,style);
+ if(['process','comparison'].includes(r.kind)){
+  const ns=r.data.nodes,offset=r.data.presentation==='numbered-sequence'?54:r.data.presentation==='staged-sequence'?48:0;
+  const natural=await measurer.texts(ns.flatMap((n,i)=>[T('label'+i,n.label,[0,0,10000,0],bodyPx(style),style.palette.ink,'body',{fontWeight:600}),T('detail'+i,n.detail||'',[0,0,10000,0],bodyPx(style),style.palette.muted)]),style);
+  return ns.reduce((sum,n,i)=>sum+Math.max(natural[i*2].naturalWidth,natural[i*2+1].naturalWidth)+offset+8,0)+Math.max(0,ns.length-1)*32;
+ }
+ let area=ms.reduce((sum,m)=>sum+m.naturalWidth*m.height,0);
  if(r.kind==='images')area+=(r.preferredHeight||420)**2*(r.data.images||[]).reduce((sum,i)=>sum+Number(i.width)/Number(i.height),0);
  return Math.max(160,Math.sqrt(area),r.kind==='images'?0:Math.max(0,...ms.map(m=>m.naturalWidth))*.7);
 }
 function scaled(values,total){const sum=values.reduce((a,b)=>a+b,0);return values.map(v=>v/sum*total);}
 async function composeRegionCandidate(content,style,preset,measurer){
- const m=88,gap=preset.gap,bodySize=preset.bodySize,semantic=content.typographyPolicy==='semantic',regions=new Map();
+ const m=88,gap=preset.gap,bodySize=style.typography.bodyPt?bodyPx(style):preset.bodySize,semantic=content.typographyPolicy==='semantic',regions=new Map();
  for(const r of content.regions){if(!r.regionId||regions.has(r.regionId))throw new Error('Stable unique regionId required');regions.set(r.regionId,r);}
  const elements=[T('navigation',`${content.sequence||'01'}  ${content.section||''}`,[m,42,1744,38],28,style.palette.accent,'kicker'),T('title',content.title,[m,104,1744,140],preset.titleSize,style.palette.ink,'title',{fontWeight:600}),T('source',content.source||'来源待补充',[m,1026,1744,34],22,style.palette.muted,'source')];
  if(content.titleRef)elements[1].contentRef=content.titleRef;
@@ -40,10 +49,10 @@ async function composeRegionCandidate(content,style,preset,measurer){
   if(r.kind==='text'){
    for(const [i,p] of (r.paragraphs||[]).entries()){
     if(p.heading)await add('paragraph/'+i+'/heading',p.heading,30,style.palette.accent,'heading',p.headingRef,{fontWeight:600});
-    const ts=semantic?semanticTextStyle(p.semanticRole||'body',style,p.size||bodySize):{fontSize:Math.max(28,p.size||bodySize),color:style.palette.ink,fontWeight:p.bold?600:400};
+    const ts=semantic?semanticTextStyle(p.semanticRole||'body',style,p.size||bodySize):{fontSize:Math.max(bodyPx(style),p.size||bodySize),color:style.palette.ink,fontWeight:p.bold?600:400};
     let offset=0,prefix;
-    if(p.prefix){prefix=T(content.slideId+'-'+r.regionId+'/paragraph/'+i+'/prefix',p.prefix.text,[0,y,w,0],28,style.palette.accent,'body');
-     Object.assign(prefix,{semanticRole:p.prefix.semanticRole||'emphasis',contentRef:p.prefix.contentRef});prefix.style=semanticTextStyle(prefix.semanticRole,style,28);
+    if(p.prefix){prefix=T(content.slideId+'-'+r.regionId+'/paragraph/'+i+'/prefix',p.prefix.text,[0,y,w,0],bodySize,style.palette.accent,'body');
+     Object.assign(prefix,{semanticRole:p.prefix.semanticRole||'emphasis',contentRef:p.prefix.contentRef});prefix.style=semanticTextStyle(prefix.semanticRole,style,bodySize);
      const [pm]=await measurer.texts([prefix],style);offset=pm.naturalWidth+8;prefix.bounds[2]=offset-8;prefix.bounds[3]=pm.height+2;es.push(prefix);
     }
     const e=T(content.slideId+'-'+r.regionId+'/paragraph/'+i+'/body',p.text,[offset,y,w-offset,0],ts.fontSize,ts.color,p.role||'body',ts);e.semanticRole=p.semanticRole||'body';e.contentRef=p.contentRef;
@@ -72,19 +81,24 @@ async function composeRegionCandidate(content,style,preset,measurer){
     const hs=Array.from({length:rows.length+1},(_,i)=>Math.max(...ms.slice(i*cols.length,(i+1)*cols.length).map(v=>v.height))+22);
     object.data.headerWeight=hs[0];rows.forEach((r,i)=>r.height=hs[i+1]);object.bounds[3]=semantic?await fitSemanticTable(object,style,measurer):hs.reduce((s,v)=>s+v,0);
    }else if((r.kind==='process'||r.kind==='comparison')&&object.data.presentation==='inline-sequence'){
-    const ts=semanticTextStyle(object.data.semanticRole||'action',style,28);
-    const specs=object.data.nodes.map((n,i)=>T(String(i),n.label,[0,0,w,0],28,ts.color,'body',ts));
+    const ts=semanticTextStyle(object.data.semanticRole||'action',style,bodySize);
+    const specs=object.data.nodes.map((n,i)=>T(String(i),n.label,[0,0,w,0],bodySize,ts.color,'body',ts));
     const ms=await measurer.texts(specs,style),total=ms.reduce((s,m)=>s+m.naturalWidth+4,0)+(specs.length-1)*42-(object.data.leadingLabelNode?30:0);
     const scale=Math.min(1,w/total);let xx=0;
     object.layoutVersion=3;object.data.measuredNodes=object.data.nodes.map((n,i)=>{const ww=(ms[i].naturalWidth+4)*scale,h=ms[i].height+2;const v={nodeId:n.nodeId,bounds:[xx,0,ww,h],labelHeight:h,detailHeight:0};xx+=ww+(object.data.leadingLabelNode&&i===0?12:42)*scale;return v;});
     object.bounds[2]=Math.min(w,total);object.bounds[3]=Math.max(...ms.map(m=>m.height))+2;
    }else if(r.kind==='process'||r.kind==='comparison'){
-    const ns=object.data.nodes,ws=scaled(ns.map(n=>Math.max(5,String(n.label).length+String(n.detail||'').length*.7)),w-(ns.length-1)*32);
-    const specs=ns.flatMap((n,i)=>[T('l'+i,n.label,[0,0,ws[i],0],32,style.palette.ink,'body',{fontWeight:600}),T('d'+i,n.detail||'',[0,0,ws[i],0],bodySize,style.palette.muted)]);
+    const ns=object.data.nodes,labelSize=style.typography.bodyPt?bodySize:32,offset=object.data.presentation==='numbered-sequence'?54:object.data.presentation==='staged-sequence'?48:0;object.data.labelSize=labelSize;
+    const natural=await measurer.texts(ns.flatMap((n,i)=>[T('l'+i,n.label,[0,0,w,0],labelSize,style.palette.ink,'body',{fontWeight:600}),T('d'+i,n.detail||'',[0,0,w,0],bodySize,style.palette.muted)]),style);
+    const ws=scaled(ns.map((n,i)=>Math.max(natural[i*2].naturalWidth,natural[i*2+1].naturalWidth)+offset+8),w-(ns.length-1)*32);
+    const specs=ns.flatMap((n,i)=>[T('l'+i,n.label,[0,0,ws[i]-offset,0],labelSize,style.palette.ink,'body',{fontWeight:600}),T('d'+i,n.detail||'',[0,0,ws[i]-offset,0],bodySize,style.palette.muted)]);
     const ms=await measurer.texts(specs,style);let x=0;
     object.layoutVersion=3;
-    object.data.measuredNodes=ns.map((n,i)=>{const l=ms[i*2].height+2,d=n.detail?ms[i*2+1].height+2:0;const item={nodeId:n.nodeId,bounds:[x,0,ws[i],l+(d?d+12:0)+14],labelHeight:l,detailHeight:d};x+=ws[i]+32;return item;});
+    object.data.measuredNodes=ns.map((n,i)=>{const l=ms[i*2].height+2,d=n.detail?ms[i*2+1].height+2:0;const item={nodeId:n.nodeId,bounds:[x,0,ws[i],Math.max(offset?40:0,l+(d?d+12:0)+(object.data.presentation==='staged-sequence'?24:object.data.presentation==='open-comparison'?4:14))],labelHeight:l,detailHeight:d};x+=ws[i]+32;return item;});
     object.bounds[3]=Math.max(...object.data.measuredNodes.map(n=>n.bounds[3]));
+    object.data.measuredNodes.forEach(n=>n.bounds[3]=object.bounds[3]);
+   }else if(r.kind==='timeline'){
+    await fitMeasuredTimeline(object,style,measurer);
    }else if(r.kind==='images'){
     object.data.arrangement='justified';object.data.maxRows=object.data.maxRows||1;object.data.showCaptions=false;
     object.data.images.forEach(i=>i.fit='contain');object.bounds[3]=r.preferredHeight||420;
@@ -96,9 +110,9 @@ async function composeRegionCandidate(content,style,preset,measurer){
      const lines=[];let line='';
      for(const caption of captions){
       const next=line?line+' ／ '+caption:caption;
-      const [m]=await measurer.texts([T('caption',next,[0,0,w,0],28,style.palette.muted,'caption')],style);
+      const [m]=await measurer.texts([T('caption',next,[0,0,w,0],bodySize,style.palette.muted,'caption')],style);
       if(line&&m.height>34){lines.push(line);line=caption;}else line=next;
-     }if(line)lines.push(line);y+=12;await add('image-legend',lines.join('\n'),28,style.palette.muted,'caption');
+     }if(line)lines.push(line);y+=12;await add('image-legend',lines.join('\n'),bodySize,style.palette.muted,'caption');
     }
    }
   }
@@ -124,14 +138,16 @@ async function composeRegionCandidate(content,style,preset,measurer){
  }
  const tree=await measureTree(content.layout||{direction:'column',children:content.regions.map(r=>({regionId:r.regionId}))},contentBounds[2]);
  place(tree,m,start);if(seen.size!==regions.size)throw new Error('Layout must preserve every region');
- const slide={slideId:content.slideId,mode:'composition',styleId:style.id,appearance:content.appearance,typographyPolicy:content.typographyPolicy,styleBindingVersion:1,compositionId:preset.id,label:content.title,readerTask:content.readerTask,elements,objects,requiredContentRefs:content.requiredContentRefs||[]};
+ const slide={slideId:content.slideId,mode:'composition',styleId:style.id,appearance:content.appearance,typography:content.typography,typographyPolicy:content.typographyPolicy,styleBindingVersion:1,compositionId:preset.id,label:content.title,readerTask:content.readerTask,elements,objects,requiredContentRefs:content.requiredContentRefs||[]};
  assignElementRoles(slide);slide.elements=elements.map(e=>bindElementAppearance(e,style));
- return {presetId:preset.id,sourcePreset:preset.source,reason:preset.reason,slide,contentBounds,regions:placed,requiredHeight:tree.h};
+ return {layout:content.layout,presetId:preset.id,sourcePreset:preset.source,reason:preset.reason,slide,contentBounds,regions:placed,requiredHeight:tree.h};
 }
 async function planMultiRegion(content,style,{measurer}){
+ const chosen=selectRegionForms(content);content=chosen.content;
  const candidates=[];
- for(const preset of REGION_PRESETS){
-  const c=await composeRegionCandidate(content,style,preset,measurer);
+ for(const layout of regionLayouts(content))for(const preset of REGION_PRESETS){
+  const c=await composeRegionCandidate({...content,layout:layout.tree},style,preset,measurer);
+  c.layoutId=layout.id;c.reason+='；'+layout.reason;c.formDecisions=chosen.decisions;
   c.measurement=await measureCandidate(c,style,measurer);
   if(c.requiredHeight>c.contentBounds[3]+2)c.measurement.issues.push({kind:'region-overflow',needed:c.requiredHeight,available:c.contentBounds[3]});
   // Fill is judged per semantic region, not against unrelated short prose or photo whitespace.
@@ -140,16 +156,16 @@ async function planMultiRegion(content,style,{measurer}){
    const es=o?deriveSlideElements({elements:[],objects:[o]},style):[];
    const used=es.length?(Math.max(...es.map(e=>e.bounds[0]+e.bounds[2]))-Math.min(...es.map(e=>e.bounds[0])))*(Math.max(...es.map(e=>e.bounds[1]+e.bounds[3]))-Math.min(...es.map(e=>e.bounds[1]))):0;
    const fill=o?Math.min(1,used/(o.bounds[2]*o.bounds[3])):null;
-   const policy=['table','process','comparison'].includes(r.kind)?'evidence-min-70':'content-whitespace';
+   const policy=['table','process','comparison','timeline'].includes(r.kind)?'evidence-min-70':'content-whitespace';
    if(policy==='evidence-min-70'&&fill<.7)c.measurement.issues.push({kind:'region-underfilled',regionId:r.regionId,fill});
    return {...r,fillPolicy:policy,contentEnvelopeFill:fill};
   });
-  c.score=100-c.measurement.issues.length*1000+(content.preferredPreset===c.sourcePreset?20:0)+preset.bodySize;
+  c.score=100-c.measurement.issues.length*1000+(content.preferredPreset===c.sourcePreset?20:0)+(c.layoutId==='evidence-with-pair'?8:0);
   candidates.push(c);
  }
  const selected=candidates.filter(c=>!c.measurement.issues.length).sort((a,b)=>b.score-a.score)[0];
  if(!selected)return {ok:false,conflicts:[{kind:'no-fitting-layout',message:'多区域内容未通过实测，保留全部内容与正文下限。'}],candidates};
- selected.selected=true;selected.slide.planning={engine:'content-first-v3',presetId:selected.presetId,sourcePreset:selected.sourcePreset,reason:selected.reason,measurement:selected.measurement,regions:selected.regions};
+ selected.selected=true;selected.slide.planning={engine:'content-first-v3',presetId:selected.presetId,sourcePreset:selected.sourcePreset,layoutId:selected.layoutId,formDecisions:selected.formDecisions,reason:selected.reason,measurement:selected.measurement,regions:selected.regions};
  return {ok:true,slide:selected.slide,candidates};
 }
 export {planMultiRegion,REGION_PRESETS};
