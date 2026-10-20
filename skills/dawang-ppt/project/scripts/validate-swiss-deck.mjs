@@ -240,8 +240,8 @@ const previewAuthorSource = previewAuthorIndex >= 0
   : '';
 if (!previewPanelSource) {
   errors.push('Preview console is missing the preview-panel container.');
-} else if (previewAuthorIndex < 0 || !previewAuthorSource.includes('@大师的AI小灶')) {
-  errors.push('Preview console footer must show @大师的AI小灶 author info above the action buttons.');
+} else if (previewAuthorIndex < 0) {
+  errors.push('Preview console social links footer is missing.');
 } else {
   if (previewActionsIndex >= 0 && previewAuthorIndex > previewActionsIndex) {
     errors.push('Preview console author info must be placed above the footer action buttons.');

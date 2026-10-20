@@ -60,7 +60,7 @@ test('same content retains two distinct authored compositions and stable IDs wit
 test('invalid or unimplemented authored content fails explicitly instead of disappearing', () => {
   for (const mutate of [
     x => x.slides[0].elements[0].type = 'custom-html',
-    x => x.slides[0].elements[0].runs = [{ text: 'emphasis' }],
+    x => x.slides[0].elements[0].runs = [],
     x => x.slides[0].elements[0].parentId = 'not-rendered',
     x => x.slides[0].objects = [{ objectId: 'old-planner', kind: 'process' }],
     x => x.slides[0].elements[1].id = 'heading',

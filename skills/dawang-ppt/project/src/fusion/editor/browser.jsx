@@ -1,3 +1,4 @@
+import { readRunsFromDom, runsToHtml } from '../authoring/text-runs.mjs';
 import { openDraftStore, draftDecision } from "./drafts.mjs";
 import { writeEditablePackage } from "../export/write.mjs";
 import React from "react";
@@ -27,7 +28,13 @@ if (seed) {
         const el = [...section.querySelectorAll("[data-fusion-element]")].find((el2) => el2.dataset.fusionElement === e.id);
         if (!el) continue;
         if (el.innerText !== String(e.text ?? "")) {
-          const r = applyEditCommand(project, { slideId: slide.slideId, elementId: e.id, type: "text", text: el.innerText });
+          const runs = e.runs ? readRunsFromDom(el,e.runs) : null;
+          if(e.runs && !runs){
+            el.innerHTML=runsToHtml(e.runs);
+            status('整段替换会清除句内样式；请在侧栏逐段编辑，或明确转为纯文本。');
+            continue;
+          }
+          const r = applyEditCommand(project, { slideId: slide.slideId, elementId: e.id, ...(e.runs ? {type:'text-runs',runs} : {type:'text',text:el.innerText}) });
           if (r.ok) project = r.project;
         }
       }
@@ -305,7 +312,7 @@ if (seed) {
     const target = ev.target.closest?.("#deck [data-fusion-element]"), resize = ev.target.closest?.("[data-fusion-resize]");
     if (!window.__canEditDeck?.() || !resize && (!ev.altKey || !target)) return;
     if (target) selected = { slideId: target.closest(".slide").dataset.vmSlideId, elementId: target.dataset.fusionElement };
-    const p = sync(), s = p.slides.find((s2) => s2.slideId === selected.slideId), e = materializeElements(s, p).find((e2) => e2.id === selected.elementId), o = s.objects.find((o2) => o2.objectId === e.parentId);
+    const p = sync(), s = p.slides.find((s2) => s2.slideId === selected.slideId), e = materializeElements(s, p).find((e2) => e2.id === selected.elementId), o = s.objects?.find((o2) => o2.objectId === e.parentId);
     const b = selectionMode === "group" && o ? o.bounds : e.bounds;
     const root = sections().find((el) => el.dataset.vmSlideId === selected.slideId).querySelector(".fusion-root");
     drag = { x: ev.clientX, y: ev.clientY, b: [...b], scale: root.getBoundingClientRect().width / 1920, objectId: selectionMode === "group" ? o?.objectId : null, resize: !!resize };

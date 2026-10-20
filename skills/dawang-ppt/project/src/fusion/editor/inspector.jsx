@@ -78,7 +78,17 @@ function mountInspector(panel, selection, api) {
     apply({ type: api.selectionMode() === "group" && o ? "object-geometry" : "geometry", objectId: o?.objectId, bounds: b });
   }, "number"));
   if (e.type === "text") {
-    field("文字", e.text, (text) => apply({ type: "text", text }));
+    if(e.runs){
+      e.runs.forEach((run,index)=>{
+        const update=(patch)=>{const runs=structuredClone(e.runs);runs[index]={...runs[index],...patch};apply({type:'text-runs',runs});};
+        const input=field(`文字段 ${index+1}`,run.text,text=>update({text}));
+        input.dataset.runIndex=String(index);
+        const color=field(`段 ${index+1} 颜色`,run.style?.color||e.style?.color||'#111111',color=>update({style:{...run.style,color}}),'color');
+        color.dataset.runColor=String(index);
+        select(`段 ${index+1} 字重`,String(run.style?.fontWeight||400),[['400','常规'],['600','中粗'],['700','粗体']],value=>update({style:{...run.style,fontWeight:Number(value)}}));
+      });
+      button('转为纯文本（清除句内样式）',()=>apply({type:'text',text:e.text,resetRuns:true}));
+    }else field("文字", e.text, (text) => apply({ type: "text", text }));
     field("字号", e.style.fontSize || 34, (fontSize) => apply({ type: "style", style: { fontSize } }), "number");
     field("文字颜色", e.style.color || "#111111", (color) => apply({ type: "style", style: { color } }), "color");
     select("对齐", e.style.textAlign || "left", ["left", "center", "right"], (textAlign) => apply({ type: "style", style: { textAlign } }));
@@ -88,7 +98,7 @@ function mountInspector(panel, selection, api) {
     field("边框颜色", e.style.stroke || "#111111", (stroke) => apply({ type: "style", style: { stroke } }), "color");
     field("边框宽度", e.style.strokeWidth || 1, (strokeWidth) => apply({ type: "style", style: { strokeWidth } }), "number");
   }
-  if (e.type === "line") {
+  if (e.type === "line" || e.type === "vector") {
     field("线条颜色", e.style.stroke || "#111111", (stroke) => apply({ type: "style", style: { stroke } }), "color");
     field("线条宽度", e.style.strokeWidth || 3, (strokeWidth) => apply({ type: "style", style: { strokeWidth } }), "number");
   }

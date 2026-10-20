@@ -1,3 +1,5 @@
+import { validateTextRuns } from '../authoring/text-runs.mjs';
+import { validateVector } from '../scene/vector-model.mjs';
 const clone = (value) => structuredClone(value);
 const revision = () => globalThis.crypto.randomUUID();
 function validateProject(p) {
@@ -12,7 +14,9 @@ function validateProject(p) {
     if (s.authoring) issues.push(...validateAuthoredSlide(s, p));
     for (const e of Array.isArray(s.elements) ? s.elements : []) {
       if (!e || typeof e !== "object") { issues.push(`${s.slideId}: invalid element`); continue; }
-      if (!["text", "image", "shape", "line"].includes(e.type)) issues.push(`${s.slideId}: unsupported core element type ${e.type}`);
+      if (!["text", "image", "shape", "line", "vector"].includes(e.type)) issues.push(`${s.slideId}: unsupported core element type ${e.type}`);
+      if (e.runs !== undefined) issues.push(...(e.type === "text" ? validateTextRuns(e.runs) : ["runs require text element"]));
+      if (e.type === "vector") issues.push(...validateVector(e));
       if (!e.id || !Array.isArray(e.bounds) || e.bounds.length !== 4 || !e.bounds.every(Number.isFinite)) issues.push(`${s.slideId}: invalid element bounds`);
     }
   }
@@ -44,7 +48,6 @@ function validateAuthoredSlide(slide, project) {
     if (!element.id || ids.has(element.id)) issues.push(`${prefix} Duplicate/missing element ID`);
     ids.add(element.id);
     if (element.parentId) issues.push(`${prefix} parentId is unsupported for direct elements`);
-    if (element.runs !== undefined) issues.push(`${prefix} text runs are unsupported until W2`);
     if (Array.isArray(element.bounds) && (element.bounds[2] <= 0 || element.bounds[3] <= 0)) issues.push(`${prefix} invalid element bounds`);
     if (element.contentRef && typeof project.contentPlan?.nodes?.[element.contentRef]?.text !== 'string') issues.push(`${prefix} missing content reference ${element.contentRef}`);
     if (element.mediaRef && !project.media?.entries?.some(entry => entry.mediaId === element.mediaRef && entry.src)) issues.push(`${prefix} missing media reference ${element.mediaRef}`);

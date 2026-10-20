@@ -1,3 +1,4 @@
+import { validateTextRuns, runsText } from '../authoring/text-runs.mjs';
 import { clone, revision } from "../project/schema.mjs";
 import { layoutObject, deriveSlideElements } from "../objects/index.mjs";
 import { resolveStyle, resolveSlideStyle } from "../styles/registry.mjs";
@@ -45,18 +46,27 @@ function applyEditCommand(project, command) {
       if (!e) return { ok: false, conflicts: [{ kind: "missing-element" }] };
       const base = s.elements.find((x) => x.id === e.id);
       const target = base || (o.overrides[e.id] = o.overrides[e.id] || {});
-      if (command.type === "text") {
+      if (command.type === "text" || command.type === "text-runs") {
+        if (e.type !== 'text') throw new Error('Text command requires a text element');
+        if (command.type === 'text' && e.runs && command.resetRuns !== true) return {ok:false,conflicts:[{kind:'rich-text-reset-required',elementId:e.id}]};
+        let text=String(command.text??'');
+        if(command.type==='text-runs'){
+          const issues=validateTextRuns(command.runs);
+          if(issues.length)throw new Error(issues.join('\n'));
+          target.runs=clone(command.runs);text=runsText(command.runs);
+        }else delete target.runs;
+        target.text=text;
         if (e.contentRef) {
           const old = p.contentPlan.nodes[e.contentRef];
           const id = command.global ? e.contentRef : `edit:${s.slideId}:${e.id}`;
-          p.contentPlan.nodes[id] = { ...clone(old || {}), text: String(command.text), kind: "user-edit", sourceRef: old?.sourceRef || e.contentRef };
+          p.contentPlan.nodes[id] = { ...clone(old || {}), text, kind: "user-edit", sourceRef: old?.sourceRef || e.contentRef };
           target.sourceContentRef = e.sourceContentRef || e.contentRef;
           target.contentRef = id;
         } else if (e.dataPath && o) {
           let node = o.data;
           for (const key of e.dataPath.slice(0, -1)) node = node[key];
-          node[e.dataPath.at(-1)] = String(command.text);
-        } else target.text = String(command.text);
+          node[e.dataPath.at(-1)] = text;
+        } else target.text = text;
       } else if (command.type === "image") {
         if (!command.src) throw new Error("Image source required");
         let media = p.media.entries.find((m) => m.src === command.src);

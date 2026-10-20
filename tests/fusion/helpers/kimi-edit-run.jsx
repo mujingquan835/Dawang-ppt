@@ -1,0 +1,53 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {chromium} from '../../../skills/dawang-ppt/project/node_modules/playwright-core/index.mjs';
+import {main} from '../../../skills/dawang-ppt/project/scripts/fusion-cli.jsx';
+import {createFusionServer} from '../../../skills/dawang-ppt/project/scripts/fusion-preview.jsx';
+import {loadProject} from '../../../skills/dawang-ppt/project/src/fusion/project/store.mjs';
+const dir=process.argv[2],out=path.join(dir,'deck');
+await main(['render:authored',path.join(dir,'input.json'),path.join(out,'index.html')]);
+const server=await createFusionServer({dir:out});
+const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
+try{
+ const page=await browser.newPage({viewport:{width:1920,height:1200}}),errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ const url=`http://127.0.0.1:${server.address().port}/index.html`;
+ const ready=async()=>{await page.waitForFunction(()=>window.__fusionEditor);await page.evaluate(()=>window.__fusionEditor.ready());await page.evaluate(()=>window.__exitPresentMode());await page.waitForFunction(()=>!window.__getDeckNavigationState?.().locked);};
+ const read=()=>page.evaluate(()=>window.__fusionEditor.getProject());
+ await page.goto(url);await ready();
+ assert.equal(await page.locator('.preview-author-name').count(),0);
+ assert.equal(await page.locator('.preview-author-links a').count(),4);
+ assert.equal(await page.locator('#deck [data-fusion-run]').count(),2);
+ await page.locator('#deck [data-fusion-element="title"]').click();
+ await page.locator('#fusion-inspector [data-run-index="0"]').fill('先听懂结构');
+ await page.locator('#fusion-inspector [data-run-index="0"]').press('Tab');
+ await page.waitForFunction(()=>window.__fusionEditor.getProject().slides[0].elements[0].runs[0].text==='先听懂结构');
+ assert.equal((await read()).slides[0].elements[0].runs[0].style.fontWeight,700);
+ await page.evaluate(()=>window.__fusionEditor.undo());assert.equal((await read()).slides[0].elements[0].runs[0].text,'先看结构');
+ await page.evaluate(()=>window.__fusionEditor.redo());assert.equal((await read()).slides[0].elements[0].runs[0].text,'先听懂结构');
+ // Exercise actual canvas typing into one styled span.
+ await page.locator('#deck [data-fusion-run="0"]').evaluate(span=>{const range=document.createRange();range.selectNodeContents(span);const s=getSelection();s.removeAllRanges();s.addRange(range);span.parentElement.focus();});
+ await page.keyboard.insertText('先看音乐结构');
+ await page.waitForFunction(()=>window.__fusionEditor.getProject().slides[0].elements[0].runs[0].text==='先看音乐结构');
+ assert.equal((await read()).slides[0].elements[0].runs[0].style.color,'#B6D8D1');
+ await page.locator('#deck [data-fusion-element="photo"]').click();
+ await page.locator('#fusion-image-input').setInputFiles(path.join(dir,'pixel.png'));
+ await page.waitForFunction(()=>window.__fusionEditor.getProject().slides[0].elements[1].mediaRef.startsWith('upload/'));
+ let p=await read();assert.equal(p.slides[0].elements[1].fit,'cover');assert.equal(p.slides[0].elements[1].focal,'35% 28%');
+ // Real Alt-drag on an ungrouped authored image.
+ const box=await page.locator('#deck [data-fusion-element="photo"]').boundingBox();
+ await page.keyboard.down('Alt');await page.mouse.move(box.x+80,box.y+80);await page.mouse.down();await page.mouse.move(box.x+110,box.y+100);await page.mouse.up();await page.keyboard.up('Alt');
+ p=await read();assert(p.slides[0].elements[1].bounds[0]>200);const moved=p.slides[0].elements[1].bounds;
+ await page.evaluate(()=>window.__fusionEditor.save());
+ await page.reload();await ready();p=await read();
+ assert.equal(p.slides[0].elements[0].runs[0].text,'先看音乐结构');assert.equal(p.slides[0].elements[0].runs[0].style.fontWeight,700);
+ assert.deepEqual(p.slides[0].elements[1].bounds,moved);assert.equal(p.slides[0].elements[1].focal,'35% 28%');
+ assert.equal(await page.locator('#deck [data-fusion-element="icon"] path').getAttribute('d'),'M 3 12 L 9 18 L 21 6');
+ const color=await page.locator('#deck [data-fusion-run="0"]').evaluate(e=>getComputedStyle(e).color);assert.equal(color,'rgb(182, 216, 209)');
+ const block=await page.evaluate(()=>window.__fusionEditor.apply({slideId:'one',elementId:'title',type:'text',text:'不应覆盖'}));
+ assert.equal(block.conflicts[0].kind,'rich-text-reset-required');
+ assert.deepEqual(loadProject(path.join(out,'deck-project.json')).slides[0].elements[1].bounds,moved);
+ assert.deepEqual(errors,[]);
+ console.log(JSON.stringify({ok:true,sidebarRuns:true,canvasRuns:true,undoRedo:true,imageCrop:true,altDrag:true,reopened:true,vector:true,authorNameRemoved:true,browserErrors:errors}));
+}finally{await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));}
