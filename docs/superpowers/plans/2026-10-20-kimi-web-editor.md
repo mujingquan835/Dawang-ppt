@@ -1,6 +1,6 @@
 # Kimi 制作规则与 dashi 网页工作台整合方案 v4
 
-> 2026-10-20 执行更新：用户已授权逐小版本开发，完成一个检查点后反馈并暂停。本轮 W0 工程接口已实现，失败稿目录已确认并固定历史修订，两次失败对应的具体 revision 待核；W1—W5 未开始。原文“当前只规划”描述为本方案成文时状态，不再限制本轮已授权的 W0 开发。
+> 2026-10-20 执行更新：用户已授权逐小版本开发，完成一个检查点后反馈并暂停。本轮 W0 工程接口已实现，失败稿目录已确认并固定历史修订，两次失败对应的具体 revision 待核；W1 代码和两页预览已完成、效果待用户确认；W2—W5 未开始。详见 `docs/kimi-web/w1-checkpoint.md`。原文“当前只规划”描述为本方案成文时状态，不再限制本轮已授权的 W0 开发。
 
 > 执行方式：后续实施按 `superpowers:executing-plans` 逐项推进；本文是规划，不表示能力已实现或效果已通过。
 
@@ -136,11 +136,11 @@ HTML 并不天然比 PPTD 更省 token。保留工作台与绘制代码复用，
 
 **接口：** `createAuthoredProject(input) -> ProjectV2`；输入为 requirements、sources、media、contentPlan、designChoice、带稳定 ID 的 slides/elements。新命令 `render:authored <input.json> <output/index.html>`；`build` 仍保持原别名。
 
-- [ ] 先测：相同内容的两种明显不同构图被原样保留，包含长中文标题、空白区与裁切图片；未知元素明确失败。
-- [ ] 最小实现直接入口，不调用 `planContentSlide`；保留输入边界和样式，不自动换页型或替换配色。
-- [ ] 运行 `node --test tests/fusion/kimi-authoring.test.mjs`，断言元素结构保存、校验可用、原入口契约不变。
-- [ ] 使用现有渲染器完成两页可看版本；记录表达层缺口，不能退回旧 preset 凑样稿。
-- [ ] 保存独立检查点。
+- [x] 先测：相同内容的两种明显不同构图被原样保留，包含长中文标题、空白区与裁切图片；未知元素明确失败。
+- [x] 最小实现直接入口，不调用 `planContentSlide`；保留输入边界和样式，不自动换页型或替换配色。
+- [x] 运行 `node --test tests/fusion/kimi-authoring.test.mjs`，断言元素结构保存、校验可用、原入口契约不变。
+- [x] 使用现有渲染器完成两页可看版本；记录表达层缺口，不能退回旧 preset 凑样稿。
+- [x] 保存独立检查点。
 
 ### W2：补两页必需表达，并贯穿编辑状态
 

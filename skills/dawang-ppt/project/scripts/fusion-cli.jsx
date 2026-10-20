@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { THEME_PACK_OPTIONS } from "../src/options.jsx";
 import { composeDeck } from "../src/deckComposer.jsx";
 import { validateGoalSpec } from "./validate-goal-spec.mjs";
+import { createAuthoredProject } from "../src/fusion/authoring/create-project.mjs";
 import { importGoal } from "../src/fusion/project/import-goal.mjs";
 import { loadProject, saveProject, hashFile } from "../src/fusion/project/store.mjs";
 import { resolveSlideStyle } from "../src/fusion/styles/registry.mjs";
@@ -131,8 +132,8 @@ async function main(args = process.argv.slice(2)) {
     fs.writeFileSync(file.replace(/\.html$/i,'')+'.json',JSON.stringify(options,null,2));
     console.log(JSON.stringify({file,options}));return;
   }
-  if (!input) throw new Error("Usage: dawang <render:goal|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
-  if (["render:goal", "render:brief", "render:project"].includes(mode)) {
+  if (!input) throw new Error("Usage: dawang <render:authored|render:goal|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
+  if (["render:authored", "render:goal", "render:brief", "render:project"].includes(mode)) {
     if (!output) throw new Error("Output HTML path required");
     const file = absolute(input), outFile = absolute(output), dir2 = path.dirname(outFile), pf2 = path.join(dir2, "deck-project.json");
     if (mode === "render:project") {
@@ -149,7 +150,8 @@ async function main(args = process.argv.slice(2)) {
     if (fs.existsSync(pf2)) throw new Error("Project already exists. Re-render saved ProjectV2 instead of importing the initial goal over edits.");
     const source = JSON.parse(fs.readFileSync(file, "utf8"));
     let project;
-    if (mode === "render:brief") project = await createPlannedProjectFromBrief(source, {sourceDir:path.dirname(file)});
+    if (mode === "render:authored") project = createAuthoredProject(source);
+    else if (mode === "render:brief") project = await createPlannedProjectFromBrief(source, {sourceDir:path.dirname(file)});
     else {
       const issues = validateGoalSpec(source);
       if (issues.length) throw new Error(issues.join("\n"));
@@ -165,7 +167,8 @@ async function main(args = process.argv.slice(2)) {
       }
       project = importGoal({ ...composeDeck(source), audience: source.audience, goal: source.goal }, state);
     }
-    project.sources.entries[0] = { sourceId: "goal", kind: "input", source: file, sha256: hashFile(file) };
+    if (mode === "render:authored") project.sources.entries.push({ sourceId: "authored-input:" + hashFile(file), kind: "authored-input", source: file, sha256: hashFile(file) });
+    else project.sources.entries[0] = { sourceId: "goal", kind: "input", source: file, sha256: hashFile(file) };
     project = stageMedia(project, path.dirname(file), dir2);
     const result = saveProject(pf2, project, null);
     if (!result.ok) throw new Error(JSON.stringify(result));
