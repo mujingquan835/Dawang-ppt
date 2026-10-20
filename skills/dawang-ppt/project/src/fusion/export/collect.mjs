@@ -1,3 +1,4 @@
+import { waitForSlideReady } from '../qa/readiness.mjs';
 import { cssDecoration, cssTextGradient } from "./css-paint.mjs";
 import { checkCoverage } from "../qa/coverage.mjs";
 function collectSlideInDom(slideId) {
@@ -6,6 +7,7 @@ function collectSlideInDom(slideId) {
   const root = slide.querySelector(".fusion-root,.imported-theme-root") || slide;
   const box = root.getBoundingClientRect();
   const scale = box.width / 1920;
+  if(![box.x,box.y,box.width,box.height,scale].every(Number.isFinite)||scale<=0||box.height<=0)return {slideId,objects:[],issues:[{kind:'layout-not-ready',slideId}],finiteBounds:false};
   const bounds = (r) => [(r.x - box.x) / scale, (r.y - box.y) / scale, r.width / scale, r.height / scale];
   const objects = [], issues = [];
   const svgGradient = (value) => {
@@ -111,9 +113,11 @@ function collectSlideInDom(slideId) {
   let count = 0;
   for (const el of elements) {
     if (el.closest(".fusion-selection") || ["STYLE", "SCRIPT"].includes(el.tagName)) continue;
+    if(el.parentElement?.closest('[data-fusion-element][data-element-type="text"]')?.querySelector('[data-fusion-run]'))continue;
     const css = getComputedStyle(el);
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height || css.display === "none" || css.visibility === "hidden") continue;
+    if(el.dataset.elementType&&!['text','image','line','shape','vector'].includes(el.dataset.elementType))issues.push({kind:'unsupported-element',id:el.dataset.fusionElement,type:el.dataset.elementType});
     if (el instanceof HTMLCanvasElement) {
       issues.push({ kind: "canvas-needs-classification", message: "Canvas must be classified as decoration or information before export" });
       continue;
@@ -123,6 +127,14 @@ function collectSlideInDom(slideId) {
     for (let parent = el; parent && slide.contains(parent); parent = parent.parentElement) elementOpacity *= Number(getComputedStyle(parent).opacity);
     const id = el.dataset.fusionElement || el.dataset.editableId || `${slideId}-dom-${++count}`;
     const b = bounds(r);
+    const spans=[...el.querySelectorAll(':scope > [data-fusion-run]')];
+    if(el.dataset.elementType==='text'&&spans.length){
+      const runs=spans.map((span,index)=>{const style=getComputedStyle(span);span.dataset.dawangExportFont=slideId+'-rich-'+id+'-'+index;
+        return{fontNode:span.dataset.dawangExportFont,text:span.innerText,style:{fontSize:parseFloat(style.fontSize),fontFamily:resolveActualFont(style.fontFamily,span.innerText),requestedFontFamily:style.fontFamily,color:rgba(style.color),fontWeight:style.fontWeight,fontStyle:style.fontStyle,textDecoration:style.textDecorationLine,letterSpacing:parseFloat(style.letterSpacing)||0}};
+      });
+      objects.push({id,type:'text',text:runs.map(run=>run.text).join(''),runs,bounds:b,style:{fontSize:parseFloat(css.fontSize),fontFamily:css.fontFamily,color:rgba(css.color),fontWeight:css.fontWeight,lineHeight:parseFloat(css.lineHeight)||parseFloat(css.fontSize)*1.25,wrap:true,textAlign:css.textAlign}});
+      continue;
+    }
     if (el instanceof HTMLImageElement) {
       if (!el.complete || !el.naturalWidth) {
         issues.push({ id, kind: "missing-image", src: el.src });
@@ -214,12 +226,14 @@ function collectSlideInDom(slideId) {
         }
       }
       el.dataset.dawangExportFont ||= slideId + "-font-" + count + "-" + objects.length;
-      objects.push({ fontNode: el.dataset.dawangExportFont, id: id + "-text-" + objects.length, type: "text", text: node.textContent, bounds: bb, style: { color: rgba(css.color), textBackground: textPaint?.image, textBackgroundBounds: textPaint?.bounds, textTransparency: (1 - alpha(css.color) * elementOpacity) * 100, textStroke: parseFloat(css.webkitTextStrokeWidth) > 0 ? { color: rgba(css.webkitTextStrokeColor), width: parseFloat(css.webkitTextStrokeWidth), opacity: alpha(css.webkitTextStrokeColor) * elementOpacity } : void 0, letterSpacing: parseFloat(css.letterSpacing) || 0, fontSize: parseFloat(css.fontSize), fontFamily: resolveActualFont(css.fontFamily, node.textContent), fontWeight: css.fontWeight, fontStyle: css.fontStyle, textAlign: css.textAlign, wrap: range.getClientRects().length > 1, lineHeight: parseFloat(css.lineHeight) || parseFloat(css.fontSize) * 1.25 } });
+      objects.push({ fontNode: el.dataset.dawangExportFont, id: id + "-text-" + objects.length, type: "text", text: node.textContent, bounds: bb, style: { color: rgba(css.color), textBackground: textPaint?.image, textBackgroundBounds: textPaint?.bounds, textTransparency: (1 - alpha(css.color) * elementOpacity) * 100, textStroke: parseFloat(css.webkitTextStrokeWidth) > 0 ? { color: rgba(css.webkitTextStrokeColor), width: parseFloat(css.webkitTextStrokeWidth), opacity: alpha(css.webkitTextStrokeColor) * elementOpacity } : void 0, letterSpacing: parseFloat(css.letterSpacing) || 0, fontSize: parseFloat(css.fontSize), fontFamily: resolveActualFont(css.fontFamily, node.textContent), requestedFontFamily: css.fontFamily, fontWeight: css.fontWeight, fontStyle: css.fontStyle, textAlign: css.textAlign, wrap: range.getClientRects().length > 1, lineHeight: parseFloat(css.lineHeight) || parseFloat(css.fontSize) * 1.25 } });
     }
   }
-  return { slideId, objects, issues };
+  const finiteBounds=objects.every(o=>o.bounds.every(Number.isFinite));
+  if(!finiteBounds)issues.push({kind:'non-finite-bounds'});
+  return { slideId, objects, issues, finiteBounds };
 }
-async function prepareSlideForExport(page, id) {
+async function prepareSlideForExport(page, id, options = {}) {
   await page.evaluate(async (id2) => {
     const slides = window.__getVisibleSlides?.() || [];
     const slide = slides.find((s) => s.dataset.vmSlideId === id2);
@@ -244,16 +258,14 @@ async function prepareSlideForExport(page, id) {
     await new Promise((r) => requestAnimationFrame(r));
     await document.fonts.ready;
   }, id);
-  await page.waitForFunction((id2) => {
-    const slide = [...document.querySelectorAll("#deck > .slide")].find((s) => s.dataset.vmSlideId === id2);
-    return slide && [...slide.querySelectorAll("img")].every((i) => i.complete);
-  }, id);
+  return waitForSlideReady(page,id,options);
 }
 async function collectExportObjects(page, project) {
   const coverage = checkCoverage(project);
   if (coverage.length) throw new Error("Export coverage failed: " + JSON.stringify(coverage));
-  await page.evaluate(() => document.fonts.ready);
-  const results = [];
+  const actualRevision=await page.evaluate(()=>window.__fusionEditor?.getProject()?.revision);
+  if(actualRevision&&actualRevision!==project.revision)throw new Error('Revision mismatch: rendered page differs from requested project');
+  const results = [], fontEvidence = [];
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("DOM.enable");
   await cdp.send("CSS.enable");
@@ -297,7 +309,9 @@ async function collectExportObjects(page, project) {
         delete o.style.textBackground;
         delete o.style.textBackgroundBounds;
       }
-      if (o.fontNode) {
+      for (const text of o.runs || [o]) {
+      if (text.fontNode) {
+        const o=text;
         const selector = '[data-dawang-export-font="' + o.fontNode + '"]';
         const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: doc.root.nodeId, selector });
         if (!nodeId) throw new Error("FontSnapshotChanged: marked text node was replaced");
@@ -315,7 +329,10 @@ async function collectExportObjects(page, project) {
           o.style.fontFamily = actual.familyName;
           o.style.fontPostScript = actual.postScriptName;
         }
+        const requested=(o.style.requestedFontFamily||o.style.declaredFontFamily||o.style.fontFamily).split(',').map(f=>f.trim().replace(/^['"]|['"]$/g,'')),used=fonts.map(f=>f.familyName),normalize=f=>f.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]/g,'');
+        fontEvidence.push({requested,used,fallback:used.some(f=>normalize(f)!==normalize(requested[0])),availability:'measured',embedding:'not-embedded',targetEnvironment:'unverified'});
         delete o.fontNode;
+      }
       }
       expanded.push(o);
     }
@@ -338,7 +355,9 @@ async function collectExportObjects(page, project) {
     results.push(collected);
   }
   await cdp.detach();
-  return { revision: project.revision, width: 1920, height: 1080, slides: results };
+  const finalRevision=await page.evaluate(()=>window.__fusionEditor?.getProject()?.revision);
+  if(finalRevision&&finalRevision!==project.revision)throw new Error('Revision mismatch during collection');
+  return { revision: project.revision, width: 1920, height: 1080, slides: results, fonts:fontEvidence };
 }
 export {
   collectExportObjects,

@@ -7,7 +7,12 @@ function pickFont(stack, text, weight) {
 }
 function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {}) {
   const issues = collection.slides.flatMap((s) => s.issues || []);
-  if (issues.length) throw new Error("Export blocked: " + JSON.stringify(issues));
+  const unsupported=[];
+  for(const slide of collection.slides)for(const object of slide.objects){
+    if(!['text','image','shape','vector','line','decoration'].includes(object.type))unsupported.push({id:object.id,kind:'unsupported-element',type:object.type});
+    if(!Array.isArray(object.bounds)||object.bounds.length!==4||!object.bounds.every(Number.isFinite))issues.push({id:object.id,kind:'non-finite-bounds'});
+  }
+  if(issues.length||unsupported.length){const error=new Error('Export blocked: '+JSON.stringify([...issues,...unsupported]));error.report={revision:collection.revision,fonts:collection.fonts||[],unsupported,rasterized:[],issues};throw error;}
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "DAWANG", width: 13.3333333333, height: 7.5 });
   pptx.layout = "DAWANG";
@@ -16,7 +21,7 @@ function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {
   pptx.author = "Dawang-PPT";
   pptx.lang = "zh-CN";
   const color = (v, fallback) => v?.replace("#", "") || fallback;
-  const report = { revision: collection.revision, texts: 0, images: 0, shapes: 0, lines: 0, decorations: [], issues: [] };
+  const report = { revision: collection.revision, texts: 0, images: 0, shapes: 0, lines: 0, decorations: [], issues: [], fonts:collection.fonts||[], unsupported:[], rasterized:collection.slides.flatMap(slide=>slide.objects.filter(o=>o.type==='decoration').map(o=>({id:o.id,classification:o.classification,scope:'compatibility-preview',includesText:false}))) };
   for (const s of collection.slides) {
     const slide = pptx.addSlide();
     for (const o of s.objects) {
@@ -30,7 +35,8 @@ function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {
         slide.addImage({ ...box, data: "data:image/svg+xml;base64," + encoded, rotate: o.rotate || 0, objectName: o.id });
         report.decorations.push({ id: o.id, representation: "svg", classification: o.classification, compatibilityPreview: true });
       } else if (o.type === "text") {
-        slide.addText(o.text, { ...box, margin: 0, wrap: st.wrap !== false, breakLine: false, fontFace: pickFont(st.fontFamily, o.text, st.fontWeight), fontSize: (st.fontSize || 34) / 2, bold: /Archivo/.test(st.fontFamily || "") && Number(st.fontWeight) >= 750 ? false : Number(st.fontWeight) >= 600, italic: st.fontStyle === "italic", color: color(st.color, "111111"), align: ["left", "right", "center", "justify"].includes(st.textAlign) ? st.textAlign : "left", valign: "top", paraSpaceAfter: 0, charSpacing: (st.letterSpacing || 0) / 2, transparency: st.textTransparency || 0, objectName: o.id });
+        const runs=o.runs?.map(run=>({text:run.text,options:{fontFace:pickFont(run.style.fontFamily||st.fontFamily,run.text,run.style.fontWeight),fontSize:(run.style.fontSize||st.fontSize||34)/2,bold:Number(run.style.fontWeight)>=600||run.style.fontWeight==='bold',italic:run.style.fontStyle==='italic',underline:run.style.textDecoration?.includes('underline')||false,strike:run.style.textDecoration?.includes('line-through')||false,color:color(run.style.color||st.color,'111111'),charSpacing:(run.style.letterSpacing||0)/2}}));
+        slide.addText(runs||o.text, { ...box, margin: 0, wrap: st.wrap !== false, breakLine: false, fontFace: pickFont(st.fontFamily, o.text, st.fontWeight), fontSize: (st.fontSize || 34) / 2, bold: /Archivo/.test(st.fontFamily || "") && Number(st.fontWeight) >= 750 ? false : Number(st.fontWeight) >= 600, italic: st.fontStyle === "italic", color: color(st.color, "111111"), align: ["left", "right", "center", "justify"].includes(st.textAlign) ? st.textAlign : "left", valign: "top", paraSpaceAfter: 0, charSpacing: (st.letterSpacing || 0) / 2, transparency: st.textTransparency || 0, objectName: o.id });
         report.texts++;
       } else if (o.type === "image") {
         const opts = o.src.startsWith("data:") ? { data: o.src } : { path: o.src };

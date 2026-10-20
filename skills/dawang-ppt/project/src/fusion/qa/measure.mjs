@@ -1,50 +1,44 @@
-import { checkCoverage } from "./coverage.mjs";
-import { chromium } from "playwright-core";
-async function measureProject(url, project, { chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", screenshotDir } = {}) {
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  try {
-    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-    const errors = [];
-    page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto(url);
-    await page.waitForFunction(() => window.__fusionEditor && window.__renderRuntimeSlide);
-    const report = { revision: project.revision, pages: [], browserErrors: errors, coverageIssues: checkCoverage(project), aestheticAcceptance: "requires-human-review" };
-    const visible = project.editorState.slideOrder.filter((id) => !project.editorState.deletedSlides.includes(id) && !project.editorState.skippedSlides.includes(id));
-    for (const id of visible) {
-      await page.evaluate((id2) => {
-        const slides = window.__getVisibleSlides();
-        window.go(slides.findIndex((s) => s.dataset.vmSlideId === id2), { animate: false, force: true });
-      }, id);
-      await page.evaluate(() => document.fonts.ready);
-      const result = await page.evaluate((id2) => {
-        const slide = [...document.querySelectorAll("#deck > .slide")].find((s) => s.dataset.vmSlideId === id2);
-        const root = slide.querySelector(".fusion-root,.imported-theme-root");
-        const b = root.getBoundingClientRect(), scale = b.width / 1920;
-        const issues = [], elements = [];
-        for (const e of root.querySelectorAll("[data-fusion-element]")) {
-          const r = e.getBoundingClientRect(), bounds = [(r.x - b.x) / scale, (r.y - b.y) / scale, r.width / scale, r.height / scale];
-          const type = e.dataset.elementType;
-          elements.push({ id: e.dataset.fusionElement, type, bounds, text: type === "text" ? e.textContent : void 0 });
-          if (bounds[0] < -2 || bounds[1] < -2 || bounds[0] + bounds[2] > 1922 || bounds[1] + bounds[3] > 1082) issues.push({ kind: "outside-canvas", id: e.dataset.fusionElement, bounds });
-          if (type === "text" && (e.scrollWidth > e.clientWidth + 2 || e.scrollHeight > e.clientHeight + 2)) issues.push({ kind: "text-overflow", id: e.dataset.fusionElement, text: e.textContent, bounds, scroll: [e.scrollWidth, e.scrollHeight] });
-          if (type === "image" && (!e.complete || !e.naturalWidth)) issues.push({ kind: "missing-image", id: e.dataset.fusionElement });
-        }
-        const texts = elements.filter((e) => e.type === "text");
-        for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) {
-          const a = texts[i], c = texts[j], dx = Math.min(a.bounds[0] + a.bounds[2], c.bounds[0] + c.bounds[2]) - Math.max(a.bounds[0], c.bounds[0]), dy = Math.min(a.bounds[1] + a.bounds[3], c.bounds[1] + c.bounds[3]) - Math.max(a.bounds[1], c.bounds[1]);
-          if (dx > 4 && dy > 4) issues.push({ kind: "text-overlap", ids: [a.id, c.id], intersection: [dx, dy] });
-        }
-        return { slideId: id2, elements, issues };
-      }, id);
-      report.pages.push(result);
-      if (screenshotDir) await page.locator(`#deck [data-vm-slide-id="${id}"]`).screenshot({ path: screenshotDir + "/" + String(report.pages.length).padStart(2, "0") + ".png" });
+import { checkCoverage } from './coverage.mjs';
+import { chromium } from 'playwright-core';
+import { prepareSlideForExport } from '../export/collect.mjs';
+import { screenshotSlide } from './readiness.mjs';
+async function measureProject(url,project,{chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',screenshotDir,viewport={width:1920,height:1080},readinessTimeout=10000}={}){
+ const browser=await chromium.launch({executablePath:chrome,headless:true});
+ try{
+  const page=await browser.newPage({viewport}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(url);await page.waitForFunction(()=>window.__fusionEditor&&window.__renderRuntimeSlide);await page.evaluate(()=>window.__fusionEditor.ready());
+  const report={revision:project.revision,pages:[],browserErrors:errors,coverageIssues:checkCoverage(project),aestheticAcceptance:'requires-human-review',readiness:{ready:false},finiteBounds:false};
+  const visible=project.editorState.slideOrder.filter(id=>!project.editorState.deletedSlides.includes(id)&&!project.editorState.skippedSlides.includes(id));
+  for(const id of visible){
+   let readiness;
+   try{readiness=await prepareSlideForExport(page,id,{timeout:readinessTimeout});}
+   catch(error){report.pages.push({slideId:id,elements:[],issues:error.readiness?.issues||[{kind:'layout-not-ready',message:error.message}],readiness:error.readiness||{ready:false},finiteBounds:false});continue;}
+   const result=await page.evaluate(id=>{
+    const slide=[...document.querySelectorAll('#deck > .slide')].find(s=>s.dataset.vmSlideId===id),root=slide.querySelector('.fusion-root,.imported-theme-root')||slide;
+    const box=root.getBoundingClientRect(),scale=box.width/1920,issues=[],elements=[];
+    for(const el of root.querySelectorAll('[data-fusion-element]')){
+     const r=el.getBoundingClientRect(),bounds=[(r.x-box.x)/scale,(r.y-box.y)/scale,r.width/scale,r.height/scale],type=el.dataset.elementType;
+     elements.push({id:el.dataset.fusionElement,type,bounds,text:type==='text'?el.textContent:undefined});
+     if(!bounds.every(Number.isFinite))issues.push({kind:'non-finite-bounds',id:el.dataset.fusionElement});
+     if(bounds[0]<-2||bounds[1]<-2||bounds[0]+bounds[2]>1922||bounds[1]+bounds[3]>1082)issues.push({kind:'outside-canvas',id:el.dataset.fusionElement,bounds});
+     if(type==='text'&&(el.scrollWidth>el.clientWidth+2||el.scrollHeight>el.clientHeight+2))issues.push({kind:'text-overflow',id:el.dataset.fusionElement,bounds});
+     if(type==='image'&&(!el.complete||!el.naturalWidth))issues.push({kind:'missing-image',id:el.dataset.fusionElement});
+     if(!['text','image','shape','line','vector'].includes(type))issues.push({kind:'unsupported-element',id:el.dataset.fusionElement,type});
     }
-    report.ok = !report.coverageIssues.length && !errors.length && report.pages.every((p) => !p.issues.length);
-    return report;
-  } finally {
-    await browser.close();
+    const texts=elements.filter(e=>e.type==='text');
+    for(let i=0;i<texts.length;i++)for(let j=i+1;j<texts.length;j++){
+     const a=texts[i],b=texts[j],dx=Math.min(a.bounds[0]+a.bounds[2],b.bounds[0]+b.bounds[2])-Math.max(a.bounds[0],b.bounds[0]),dy=Math.min(a.bounds[1]+a.bounds[3],b.bounds[1]+b.bounds[3])-Math.max(a.bounds[1],b.bounds[1]);
+     if(dx>4&&dy>4)issues.push({kind:'text-overlap',ids:[a.id,b.id],intersection:[dx,dy]});
+    }
+    return{slideId:id,elements,issues,finiteBounds:elements.every(e=>e.bounds.every(Number.isFinite))};
+   },id);
+   report.pages.push({...result,readiness});
+   if(screenshotDir)await screenshotSlide(page,id,screenshotDir+'/'+String(report.pages.length).padStart(2,'0')+'.png');
   }
+  report.readiness={ready:report.pages.every(p=>p.readiness.ready),pages:report.pages.map(p=>({slideId:p.slideId,...p.readiness}))};
+  report.finiteBounds=report.pages.every(p=>p.finiteBounds);
+  report.ok=report.readiness.ready&&report.finiteBounds&&!report.coverageIssues.length&&!errors.length&&report.pages.every(p=>!p.issues.length);
+  return report;
+ }finally{await browser.close();}
 }
-export {
-  measureProject
-};
+export {measureProject};

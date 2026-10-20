@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { writeScreenshotPdf } from '../src/fusion/export/from-url.mjs';
 import { extractDataUrlMedia } from "./persist-deck-state.mjs";
 import http from "node:http";
 import fs from "node:fs";
@@ -57,7 +58,7 @@ function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chro
         if (["/api/export-editable-pptx", "/api/export-pdf"].includes(url.pathname)) {
           if (busy) return json(409, { ok: false, issues: ["Operation in progress"] });
           busy = true;
-          let browser;
+          let browser, exportResult;
           try {
             const project = loadProject(projectFile);
             if (data.expectedRevision && data.expectedRevision !== project.revision) return json(409, { ok: false, issues: ["Revision mismatch"] });
@@ -73,23 +74,15 @@ function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chro
             fs.mkdirSync(exportsDir, { recursive: true });
             let report;
             if (pdf) {
-              const { PDFDocument } = await import("pdf-lib");
-              const document = await PDFDocument.create();
-              for (const s of collected.slides) {
-                await prepareSlideForExport(page, s.slideId);
-                const png = await page.locator(`[data-vm-slide-id="${s.slideId}"]`).screenshot();
-                const image = await document.embedPng(png);
-                const p = document.addPage([960, 540]);
-                p.drawImage(image, { x: 0, y: 0, width: 960, height: 540 });
-              }
-              fs.writeFileSync(path.join(exportsDir, name), await document.save());
-              report = { revision: project.revision };
+              report=await writeScreenshotPdf(page,project,collected,path.join(exportsDir,name));
             } else report = await exportEditablePptx(collected, { fileName: path.join(exportsDir, name), title: project.requirements.title });
-            return json(200, { ok: true, revision: project.revision, report, downloadName: name, downloadUrl: "/exports/" + name });
+            if(loadProject(projectFile).revision!==project.revision)throw new Error("Revision mismatch: project changed during export");
+            exportResult={ ok: true, revision: project.revision, report, downloadName: name, downloadUrl: "/exports/" + name };
           } finally {
             await browser?.close();
             busy = false;
           }
+          return json(200,exportResult);
         }
         return json(404, { ok: false, issues: ["Unknown operation"] });
       }
@@ -101,7 +94,7 @@ function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chro
       res.writeHead(200, { "content-type": contentType(file) });
       fs.createReadStream(file).pipe(res);
     } catch (e) {
-      return json(500, { ok: false, issues: [e.message] });
+      return json(500, { ok: false, issues: [e.message], ...(e.report?{report:e.report}:{}) });
     }
   });
   return new Promise((resolve) => server.listen(port, "127.0.0.1", () => resolve(server)));

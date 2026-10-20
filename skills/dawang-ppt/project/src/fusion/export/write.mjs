@@ -76,6 +76,12 @@ async function writeEditablePackage(pptx, collection, { type = "uint8array" } = 
     });
     zip.file(file, xml);
   }
+  // PptxGenJS may leave overrides for masters that it did not write. Remove
+  // only absent-part declarations; relationship integrity is still checked on disk.
+  const types=zip.file('[Content_Types].xml');
+  if(types)zip.file('[Content_Types].xml',(await types.async('string')).replace(/<Override\b[^>]*\/>/g,entry=>{
+    const part=/PartName="([^"]+)"/.exec(entry)?.[1];return part&&!zip.file(part.replace(/^\//,''))?'':entry;
+  }));
   return zip.generateAsync({ type, compression: "DEFLATE" });
 }
 export {
