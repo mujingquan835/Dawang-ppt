@@ -4,6 +4,10 @@
 
 **当前分支为 0.2.0-dev。S1 八页真实稿于2026-10-20获用户确认可用；S2 统一日常制作入口，尚未合 main 或正式发布。**
 
+## 本分支接续开发
+
+`codex/kimi-web-editor` 已交付整合方案v4的W0—W4工程检查点；W5未开始，最终视觉认可与可比成本门槛仍待完成。换电脑继续请先看 [换机接续说明](docs/kimi-web/continue-on-another-computer.md) 与 [W4验收记录](docs/kimi-web/acceptance.md)。下方原有日常流程尚未在本分支切换为W5新默认入口。
+
 ## 日常流程
 
 大纲 → 外观选择 → 内容驱动出稿 → 原编辑器调整 → 导出。`build` 默认调用实测内容规划器，`styles` 仅列出6种已适配原主题外观；`styles:grid` 生成外观选择图。Kimi 规则用于判断和复核，不提供独立风格入口。已有工程用 `render:project`；用户指定原样模板才使用 `templates` / `render:goal`。
