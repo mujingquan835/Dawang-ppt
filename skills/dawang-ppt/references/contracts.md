@@ -4,7 +4,8 @@
 
 ```sh
 node skills/dawang-ppt/scripts/dawang.mjs styles
-node skills/dawang-ppt/scripts/dawang.mjs render:goal goal.json output/demo/index.html
+node skills/dawang-ppt/scripts/dawang.mjs styles:grid management-report output/appearance.html
+node skills/dawang-ppt/scripts/dawang.mjs build brief.json output/demo/index.html
 node skills/dawang-ppt/scripts/dawang.mjs render:brief brief.json output/demo/index.html
 node skills/dawang-ppt/scripts/dawang.mjs render:project output/demo/deck-project.json output/demo/index.html
 node skills/dawang-ppt/scripts/dawang.mjs preview:start output/demo 8766
@@ -13,9 +14,11 @@ node skills/dawang-ppt/scripts/dawang.mjs export:pptx output/demo output/demo/re
 node skills/dawang-ppt/scripts/dawang.mjs export:pdf output/demo output/demo/review.pdf
 ```
 
-`render:goal`沿用原goal校验、composeDeck和模板契约；`--from-html <原index.html>`合并已有文字/字体/槽样式/顺序等状态。输出已有工程时拒绝导入覆盖。局部返工加载ProjectV2，保存后重渲染；不回读初始goal覆盖新状态。
+`build` 默认等价 `render:brief`，只接受 contentSlides 内容计划和 `styles` 中已适配的原主题外观；拒绝 Kimi 家族新建和空内容。`styles:grid <scenario> <output.html>` 同时写出可视外观板和同名 JSON（6个可选项，不凑数）。已确认外观可跳过重复选择。
 
-`brief`由制作智能体生成，包含title/audience/purpose/scenario/styleId/contentNodes/contentSlides/requiredMedia/fixedPageCount。contentSlides每页有slideId/title或titleRef/readerTask/relation或kind/data/source/requiredContentRefs；首批模板另有judgments/explanations/pageType等材料。靛蓝判断栏需要2–4项真实判断。缺材料返回冲突，不自动编造。
+用户明确指定原样模板时，运行 `templates` 查看17个原主题，再用 `render:goal <goal.json> <output/index.html>`。`render:goal`沿用原goal校验、composeDeck和模板契约；`--from-html <原index.html>`合并已有文字/字体/槽样式/顺序等状态。输出已有工程时拒绝导入覆盖。局部返工加载ProjectV2，保存后重渲染；不回读初始goal覆盖新状态。
+
+`brief`由制作智能体生成，包含title/audience/purpose/scenario/styleId/contentNodes/contentSlides/requiredMedia/fixedPageCount。contentSlides每页有slideId/title或titleRef/readerTask/relation或kind/data/source/requiredContentRefs；新稿不使用历史家族 pageType；已保存工程使用 render:project 恢复。缺材料返回冲突，不自动编造。
 
 | kind | data 主要字段 |
 |---|---|
@@ -31,7 +34,7 @@ node skills/dawang-ppt/scripts/dawang.mjs export:pdf output/demo output/demo/rev
 
 逻辑画布1920×1080；导出13⅓×7½英寸。逻辑坐标/144为英寸，CSS字号/2为点值。原组件按浏览器实际布局采集；新对象保持文字、形状、图片和线条可编辑。
 
-## S1 语义文字（实验，待两页效果评审）
+## 语义文字（S1 八页已获用户验收）
 
 新多区域页可设 `typographyPolicy=semantic`。文本语义与对象种类分离：identity（主体）、support（辅助标签）、context（现状/背景）、action（行动）、emphasis（局部重点）、empty（空项）。旧工程默认正文下限28px；新多区域工程可在 brief 或单页设置 `typography: {bodyPt: 12}`，以24逻辑px测量、保存、渲染和导出为12pt，换外观仍保留该项目设置。标题、主体名称与重点标签保留独立层级，不通过缩字解决溢出。颜色从palette.body/muted/ink/accent/quiet/line读取，缺少body/quiet时回退ink/line。
 

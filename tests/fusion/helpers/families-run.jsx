@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
-import { createProjectFromBrief } from "../../../skills/dawang-ppt/project/scripts/fusion-cli.jsx";
+import { createProjectFromBrief } from "../../../skills/dawang-ppt/project/src/fusion/compat/create-family-project.jsx";
 import { saveProject, loadProject } from "../../../skills/dawang-ppt/project/src/fusion/project/store.mjs";
 import { renderProject } from "../../../skills/dawang-ppt/project/src/fusion/scene/render-project.jsx";
 import { createFusionServer } from "../../../skills/dawang-ppt/project/scripts/fusion-preview.jsx";

@@ -10,31 +10,24 @@ const DASHI_BY_SCENARIO = {
   "tech-engineering": ["theme03", "theme06", "theme16", "theme09", "theme13", "theme07"],
   "brand-creative": ["theme09", "theme15", "theme17", "theme04", "theme02", "theme16"]
 };
-const IMPLEMENTED_PRESETS = { "consulting/indigo-due-diligence": "kimi/consulting/indigo-due-diligence", "work/moon-white-imagery": "kimi/work/moon-white-imagery", "academic/blue-line-courseware": "kimi/academic/blue-line-courseware" };
-function buildStyleOptions(scenario, { presets = [], dashiThemes, availableThemes, dashiCount = 5, presetCount = 4 } = {}) {
+// Only already-adapted original appearances are selectable for new decks.
+function listAppearances() {
+  return Object.values(STYLE_DEFINITIONS).filter(s => s.id.startsWith("legacy/")).map(s => ({
+    id:s.id, styleId:s.id, themeKey:s.id.split('/')[1], label:s.name,
+    kind:"appearance", implemented:true, layoutEngine:"content-first",
+    palette:s.palette, typography:{heading:s.typography.heading,body:s.typography.body}
+  }));
+}
+function buildStyleOptions(scenario, { dashiThemes, availableThemes } = {}) {
   const s = SCENARIOS.find(x => x.id === scenario.primary);
   if (!s) throw new Error("Primary scenario required before style choice");
-  const matched = presets.filter(p => s.presetCategories.includes(p.category)).sort((a, b) =>
-    Number(!!a.numbered) - Number(!!b.numbered) ||
-    Number(!!IMPLEMENTED_PRESETS[`${b.category}/${b.name}`]) - Number(!!IMPLEMENTED_PRESETS[`${a.category}/${a.name}`]) ||
-    s.presetCategories.indexOf(a.category) - s.presetCategories.indexOf(b.category) || a.name.localeCompare(b.name)
-  );
-  const presetTiles = matched.slice(0, presetCount).map(p => ({
-    kind: "kimi-preset", id: p.presetId, label: `Kimi 预设 · ${p.name}`, category: p.category,
-    doc: p.doc, styleId: IMPLEMENTED_PRESETS[`${p.category}/${p.name}`] || null,
-    implemented: !!STYLE_DEFINITIONS[IMPLEMENTED_PRESETS[`${p.category}/${p.name}`]],
-    reason: `${s.zh}场景适用；迁移未完成的预设仅作资料索引`
-  }));
-  const preferred = dashiThemes || DASHI_BY_SCENARIO[s.id];
-  const keys = [...new Set([...preferred, ...(availableThemes || Object.values(DASHI_BY_SCENARIO).flat())])]
-    .filter(key => !availableThemes || availableThemes.includes(key));
-  const dashi = keys.map(key => ({ kind: "dashi-theme", id: key, themeKey: key,
-    label: `dashi ${key}`, styleId: "legacy/" + key,
-    implemented: !!STYLE_DEFINITIONS["legacy/" + key], reason: `保留${s.zh}适用的原风格；新稿使用统一规划器` }));
-  const tiles = [...dashi.slice(0, dashiCount), ...presetTiles, ...dashi.slice(dashiCount)]
-    .slice(0, 9).map((tile, i) => ({ index: i + 1, ...tile }));
-  return { scenario: s.id, scenarioZh: s.zh, auxiliary: scenario.auxiliary || null,
-    layoutEngine: "content-first", defaultIndex: null, tiles };
+  const preferred=dashiThemes || DASHI_BY_SCENARIO[s.id];
+  const available=listAppearances().filter(t=>!availableThemes||availableThemes.includes(t.themeKey));
+  const keys=[...new Set([...preferred,...available.map(t=>t.themeKey)])];
+  const tiles=keys.map(key=>available.find(t=>t.themeKey===key)).filter(Boolean).slice(0,9)
+    .map((t,i)=>({...t,index:i+1,reason:`${s.zh}适用外观；布局由内容关系与实测决定`}));
+  return {scenario:s.id,scenarioZh:s.zh,auxiliary:scenario.auxiliary||null,
+    layoutEngine:"content-first",defaultIndex:null,tiles};
 }
 function resolveChoice(options, choice) {
   if (choice == null) throw new Error("请先选择外观；不会自动选择另一条制作路线");
@@ -55,4 +48,4 @@ function checkDesignConsistency(project) {
   }
   return issues;
 }
-export { buildStyleOptions, resolveChoice, checkDesignConsistency, DASHI_BY_SCENARIO, IMPLEMENTED_PRESETS };
+export { buildStyleOptions, resolveChoice, checkDesignConsistency, DASHI_BY_SCENARIO, listAppearances };

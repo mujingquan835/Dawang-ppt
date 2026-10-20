@@ -8,10 +8,11 @@ import { composeDeck } from "../src/deckComposer.jsx";
 import { validateGoalSpec } from "./validate-goal-spec.mjs";
 import { importGoal } from "../src/fusion/project/import-goal.mjs";
 import { loadProject, saveProject, hashFile } from "../src/fusion/project/store.mjs";
-import { resolveStyle, resolveSlideStyle, STYLE_DEFINITIONS } from "../src/fusion/styles/registry.mjs";
+import { resolveSlideStyle } from "../src/fusion/styles/registry.mjs";
 import { planContentSlide } from "../src/fusion/planning/plan-slide.mjs";
 import { createLayoutMeasurer } from "../src/fusion/planning/measure-layout.mjs";
-import { composeContentSlide } from "../src/fusion/styles/compose.mjs";
+import { listAppearances, buildStyleOptions } from "../src/fusion/kimi/style-options.mjs";
+import { renderAppearanceGrid } from "../src/fusion/styles/appearance-grid.mjs";
 import { renderProject } from "../src/fusion/scene/render-project.jsx";
 import { createFusionServer } from "./fusion-preview.jsx";
 import { measureProject } from "../src/fusion/qa/measure.mjs";
@@ -70,18 +71,18 @@ function resolveBriefContents(brief, style) {
 }
 function projectFromContents(brief, style, contents, slides) {
   const p = importGoal({ title: brief.title, audience: brief.audience, goal: brief.purpose, styleId: brief.styleId, slides });
-  p.designChoice = { styleId: brief.styleId, sourceVariant: style.source.variant, originalTemplate: false };
+  p.designChoice = { layoutEngine: "content-first", styleId: brief.styleId, sourceVariant: style.source.variant, originalTemplate: false };
   p.editorState.legacy.typography = { mode: "global", headingFont: "theme", bodyFont: "theme", monoFont: "theme" };
   p.contentPlan = { audience: brief.audience || "", purpose: brief.purpose || "", scenario: brief.scenario || "management-report", nodes: brief.contentNodes || {}, slides: contents.map((c, i) => ({ ...c, slideId: slides[i].slideId, requiredContentRefs: c.requiredContentRefs || [] })) };
   p.requirements.requiredMedia = brief.requiredMedia || [];
   p.requirements.fixedPageCount = brief.fixedPageCount || brief.pageCount || null;
   return p;
 }
-function createProjectFromBrief(brief) {
-  const style=resolveStyle(brief.styleId), contents=resolveBriefContents(brief,style);
-  return projectFromContents(brief,style,contents,contents.map(c=>composeContentSlide(c,style)));
-}
 async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
+  if (!Array.isArray(brief.contentSlides) || !brief.contentSlides.length)
+    throw new Error('新建需要 contentSlides 内容计划；原样模板请显式使用 render:goal。');
+  if (!listAppearances().some(s=>s.id===brief.styleId))
+    throw new Error('新建请选择 styles 中的可用外观；旧家族工程请使用 render:project。');
   const style=resolveSlideStyle({styleId:brief.styleId,appearance:brief.appearance}), contents=resolveBriefContents(brief,style);
   const measurer=await createLayoutMeasurer();
   const slides=[], reports=[];
@@ -118,9 +119,17 @@ async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
 }
 async function main(args = process.argv.slice(2)) {
   const [mode, input, output] = args;
-  if (mode === "styles") {
-    console.log(JSON.stringify([...Object.entries(THEME_PACK_OPTIONS).map(([key, s]) => ({ id: "legacy/" + key, name: s.label || s.name, mode: "template", compositionSupport: !!STYLE_DEFINITIONS["legacy/" + key], status: "source-retained" })), ...Object.values(STYLE_DEFINITIONS).filter((s) => s.id.startsWith("kimi/")).map((s) => ({ id: s.id, name: s.name, status: s.status, pageTypes: s.pageTypes || s.compositions, signature: s.signature }))], null, 2));
-    return;
+  if (mode === "styles") { console.log(JSON.stringify(listAppearances(),null,2)); return; }
+  if (mode === "templates") {
+    console.log(JSON.stringify(Object.entries(THEME_PACK_OPTIONS).map(([key,s])=>({id:key,name:s.label||s.name,mode:"template"})),null,2)); return;
+  }
+  if (mode === "styles:grid") {
+    if (!input || !output) throw new Error('Usage: styles:grid <scenario> <output.html>');
+    const options=buildStyleOptions({primary:input});
+    const file=absolute(output);fs.mkdirSync(path.dirname(file),{recursive:true});
+    fs.writeFileSync(file,renderAppearanceGrid(options));
+    fs.writeFileSync(file.replace(/\.html$/i,'')+'.json',JSON.stringify(options,null,2));
+    console.log(JSON.stringify({file,options}));return;
   }
   if (!input) throw new Error("Usage: dawang <render:goal|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
   if (["render:goal", "render:brief", "render:project"].includes(mode)) {
@@ -198,7 +207,6 @@ if (process.argv[1] === import.meta.filename) main().catch((e) => {
   process.exitCode = 1;
 });
 export {
-  createProjectFromBrief,
   createPlannedProjectFromBrief,
-  main
+  resolveBriefContents, projectFromContents, main
 };

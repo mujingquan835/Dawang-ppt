@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 const project = path.resolve(import.meta.dirname, "../project"), args = process.argv.slice(2);
-const aliases = { build: "render:goal", preview: "preview:start", serve: "preview:start", export: "export:pptx", qa: "qa:project" };
+const aliases = { build: "render:brief", preview: "preview:start", serve: "preview:start", export: "export:pptx", qa: "qa:project" };
 if (aliases[args[0]]) args[0] = aliases[args[0]];
 if (args[0] === "doctor") {
   const ok = fs.existsSync(path.join(project, "node_modules/.bin/tsx"));

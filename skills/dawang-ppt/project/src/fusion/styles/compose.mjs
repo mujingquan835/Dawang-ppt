@@ -1,7 +1,8 @@
+// Historical composition helper; new briefs use planning/measured.mjs.
 import { planSlide } from "../planning/plan-slide.mjs";
 import { assignElementRoles } from "../project/roles.mjs";
 import { composeFrame } from "./frame-presets.mjs";
-import { applyPageType } from "./page-presets.mjs";
+import { applyPageType } from "../compat/family-page-presets.mjs";
 import { bindElementAppearance, geometryTokens } from "./appearance.mjs";
 function composeContentSlide(content, style) {
   const id = content.slideId || crypto.randomUUID(), kind = content.kind || planSlide(content, style).objectKind;

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs tests/fusion/*.test.mjs tests/fusion/*.spec.mjs",
-    "build": "node skills/dawang-ppt/scripts/dawang.mjs render:goal",
+    "build": "node skills/dawang-ppt/scripts/dawang.mjs build",
     "preview": "node skills/dawang-ppt/scripts/dawang.mjs preview:start",
     "export:pptx": "node skills/dawang-ppt/scripts/dawang.mjs export:pptx",
     "qa": "node skills/dawang-ppt/scripts/dawang.mjs qa:project",

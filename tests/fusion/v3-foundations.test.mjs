@@ -18,16 +18,12 @@ test('style choices select appearance while retaining one layout engine and no a
     { category: 'finance', name: 'pending', presetId: 'kimi-preset:finance/pending' }
   ];
   const options = buildStyleOptions({ primary: 'management-report' }, { presets });
-  assert.equal(options.tiles.length, 9);
-  assert(!options.tiles.some(t => t.kind === 'kimi-free'));
+  assert.equal(options.tiles.length, 6);
+  assert(options.tiles.every(t=>t.kind==='appearance' && t.implemented));
   const legacy = options.tiles.find(t => t.themeKey === 'theme13');
-  const kimi = options.tiles.find(t => t.styleId === 'kimi/work/moon-white-imagery');
   assert.equal(resolveChoice(options, legacy.index).layoutEngine, 'content-first');
-  assert.equal(resolveChoice(options, kimi.index).layoutEngine, 'content-first');
   assert.throws(() => resolveChoice(options), /选择/);
-  const pending = options.tiles.find(t => t.id === 'kimi-preset:finance/pending');
-  assert.equal(pending.implemented, false);
-  assert.throws(() => resolveChoice(options, pending.index), /迁移/);
+  assert.throws(() => resolveChoice(options,'kimi/work/moon-white-imagery'), /Unknown/);
 });
 
 test('external reference index respects configured location and incomplete references are reported', () => {
