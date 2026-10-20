@@ -54,3 +54,20 @@ function presetPalette(docPath, max = 5) {
   } catch { return []; }
 }
 export { LOCAL_REFERENCE_DIR, SCENARIOS, locateKimiSkill, scenarioDocs, listPresets, presetPalette };
+
+// New authoring path: locate original documents without selecting old presets.
+// Missing requested paths remain in the list so rule-manifest can report them.
+export function authoringRuleSources({ scenarioId, root = locateKimiSkill(), designDoc, formatDocs = [] }) {
+  if (!SCENARIOS.some((scenario) => scenario.id === scenarioId)) throw new Error('Unknown scenario ' + scenarioId);
+  if (!root) throw new Error('未找到本机 open-kimi-ppt 安装；请设置 KIMI_PPT_SKILL_DIR');
+  const reference = refDir(root);
+  const docs = scenarioDocs(scenarioId, root);
+  const sources = [
+    { id: 'workflow', path: path.join(root, 'SKILL.md'), section: '制作步骤' },
+    { id: 'general', path: docs.generalRules, section: '通用场景规则' },
+    { id: `scenario:${scenarioId}`, path: docs.scenarioDoc, section: '主场景' }
+  ];
+  if (designDoc) sources.push({ id: 'design', path: path.resolve(reference, designDoc), section: '用户指定设计系统或风格参考' });
+  for (const doc of formatDocs) sources.push({ id: `format:${doc}`, path: path.resolve(reference, doc), section: '表达格式' });
+  return sources;
+}

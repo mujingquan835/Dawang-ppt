@@ -1,5 +1,7 @@
 # Kimi 制作规则与 dashi 网页工作台整合方案 v4
 
+> 2026-10-20 执行更新：用户已授权逐小版本开发，完成一个检查点后反馈并暂停。本轮 W0 工程接口已实现，失败稿目录已确认并固定历史修订，两次失败对应的具体 revision 待核；W1—W5 未开始。原文“当前只规划”描述为本方案成文时状态，不再限制本轮已授权的 W0 开发。
+
 > 执行方式：后续实施按 `superpowers:executing-plans` 逐项推进；本文是规划，不表示能力已实现或效果已通过。
 
 **Goal:** 保留 Kimi 的材料理解、叙事、设计判断和视觉复核要求，以 dashi 网页工作台完成快速预览、修改、保存及 HTML／PDF／PPTX 交付。
@@ -122,11 +124,11 @@ HTML 并不天然比 PPTD 更省 token。保留工作台与绘制代码复用，
 
 **接口：** `createRuleManifest({sourceFiles, decisions}) -> {sources, decisions}`；每个 source 保留路径/哈希；`validateRuleManifest(manifest) -> issues[]` 检查引用、来源缺失和状态。
 
-- [ ] 建合成测试：来源缺失、哈希变化、not-applicable 有理由、unsupported 不得被写成通过；先确认失败。
-- [ ] 实现上述最小接口；运行 `node --test tests/fusion/kimi-rule-manifest.test.mjs` 通过。
+- [x] 建合成测试：来源缺失、哈希变化、not-applicable 有理由、unsupported 不得被写成通过；先确认失败。
+- [x] 实现上述最小接口；运行 `node --test tests/fusion/kimi-rule-manifest.test.mjs` 通过。
 - [ ] 固定《旅行导演》的原材料、两版失败稿、参考稿和对照页；缺失基准先定位，不把文档描述当作已看过实物。
-- [ ] 记录封面和功能页各自的读者任务、必需文字、取景目的与具体视觉问题，作为 W1—W3 验收依据。
-- [ ] 只提交源码、合成测试与自行撰写说明；不提交业务基准。
+- [x] 记录封面和功能页各自的读者任务、必需文字、取景目的与具体视觉问题，作为 W1—W3 验收依据。
+- [x] 只提交源码、合成测试与自行撰写说明；不提交业务基准。
 
 ### W1：增加直接设计入口，绕开旧规划器
 
