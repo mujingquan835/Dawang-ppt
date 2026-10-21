@@ -82,8 +82,17 @@ test('browser edits runs through sidebar and canvas, drags image, saves and reop
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'kimi-browser-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const input=source();input.media.entries[0].src='pixel.png';
  fs.writeFileSync(path.join(dir,'input.json'),JSON.stringify(input));
- fs.writeFileSync(path.join(dir,'pixel.png'),Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64'));
+ const {PNG}=await import('../../skills/dawang-ppt/project/node_modules/pngjs/lib/png.js');
+ const image=new PNG({width:400,height:400});for(let y=0;y<400;y++)for(let x=0;x<400;x++){const i=(y*400+x)*4;image.data[i]=x<200?255:0;image.data[i+1]=y<200?255:0;image.data[i+2]=x>=200?255:0;image.data[i+3]=255;}fs.writeFileSync(path.join(dir,'pixel.png'),PNG.sync.write(image));
  const r=spawnSync('skills/dawang-ppt/project/node_modules/.bin/tsx',['tests/fusion/helpers/kimi-edit-run.jsx',dir],{encoding:'utf8',timeout:90000});
  assert.equal(r.status,0,r.stderr+'\n'+r.stdout);
- assert.match(r.stdout,/"authorNameRemoved":true/);assert.match(r.stdout,/"canvasRuns":true/);
+ assert.match(r.stdout,/"authorBranding":true/);assert.match(r.stdout,/"canvasRuns":true/);
 });
+
+ test('whole-text formatting reaches rich runs and remains undoable',()=>{
+ let p=createAuthoredProject(source());
+ p=edit(p,{type:'style',elementId:'title',style:{color:'#ff0000',fontSize:80,fontFamily:'Arial'},textScope:'all-runs'});
+ for(const r of element(p,'title').runs){assert.equal(r.style.color,'#ff0000');assert.equal(r.style.fontSize,80);assert.equal(r.style.fontFamily,'Arial');}
+ assert.equal(element(p,'title').runs[0].style.fontWeight,700);
+ assert.equal(element(undoProject(p).project,'title').runs[0].style.color,'#B6D8D1');
+ });

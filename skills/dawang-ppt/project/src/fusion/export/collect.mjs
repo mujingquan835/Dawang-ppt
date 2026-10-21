@@ -112,7 +112,7 @@ function collectSlideInDom(slideId) {
   const elements = [...root.querySelectorAll("*")];
   let count = 0;
   for (const el of elements) {
-    if (el.closest(".fusion-selection") || ["STYLE", "SCRIPT"].includes(el.tagName)) continue;
+    if (el.closest('.fusion-crop-editor') || (el.parentElement?.closest('[data-fusion-crop]')) || el.closest(".fusion-selection") || ["STYLE", "SCRIPT"].includes(el.tagName)) continue;
     if(el.parentElement?.closest('[data-fusion-element][data-element-type="text"]')?.querySelector('[data-fusion-run]'))continue;
     const css = getComputedStyle(el);
     const r = el.getBoundingClientRect();
@@ -133,6 +133,12 @@ function collectSlideInDom(slideId) {
         return{fontNode:span.dataset.dawangExportFont,text:span.innerText,style:{fontSize:parseFloat(style.fontSize),fontFamily:resolveActualFont(style.fontFamily,span.innerText),requestedFontFamily:style.fontFamily,color:rgba(style.color),fontWeight:style.fontWeight,fontStyle:style.fontStyle,textDecoration:style.textDecorationLine,letterSpacing:parseFloat(style.letterSpacing)||0}};
       });
       objects.push({id,type:'text',text:runs.map(run=>run.text).join(''),runs,bounds:b,style:{fontSize:parseFloat(css.fontSize),fontFamily:css.fontFamily,color:rgba(css.color),fontWeight:css.fontWeight,lineHeight:parseFloat(css.lineHeight)||parseFloat(css.fontSize)*1.25,wrap:true,textAlign:css.textAlign}});
+      continue;
+    }
+    if (el.dataset.fusionCrop) {
+      const img=el.querySelector('img'),crop=JSON.parse(el.dataset.fusionCrop);
+      if(!img?.complete||!img.naturalWidth){issues.push({id,kind:'missing-image'});continue;}
+      objects.push({id,type:'image',bounds:b,src:img.src,crop,clipShape:el.dataset.clipShape,fit:'cover',naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,style:{radius:parseFloat(css.borderRadius)||0}});
       continue;
     }
     if (el instanceof HTMLImageElement) {

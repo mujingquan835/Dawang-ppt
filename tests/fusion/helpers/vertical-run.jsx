@@ -7,7 +7,7 @@ import { importGoal } from "../../../skills/dawang-ppt/project/src/fusion/projec
 import { saveProject, loadProject } from "../../../skills/dawang-ppt/project/src/fusion/project/store.mjs";
 import { renderProject } from "../../../skills/dawang-ppt/project/src/fusion/scene/render-project.jsx";
 import { createFusionServer } from "../../../skills/dawang-ppt/project/scripts/fusion-preview.jsx";
-const dir = path.resolve("output/fusion-v1/vertical-test");
+const dir = path.resolve(process.env.FUSION_TEST_DIR || "output/fusion-v1/vertical-test");
 fs.mkdirSync(path.join(dir, "assets/user-media"), { recursive: true });
 const { PNG } = await import("../../../skills/dawang-ppt/project/node_modules/pngjs/lib/png.js");
 const image = new PNG({ width: 320, height: 180 });
@@ -36,6 +36,11 @@ try {
   await page.evaluate(() => window.__fusionEditor.ready());
   await page.evaluate(() => window.__exitPresentMode());
   await page.waitForFunction(() => !window.__getDeckNavigationState?.().locked);
+  await page.locator('#preview-typography summary').click();
+  await page.locator('label[for="preview-font-global-mode"]').click();
+  assert.equal(await page.locator('#preview-text-font-field').isVisible(),true,'legacy text font controls must remain available');
+  await page.locator('label[for="preview-font-global-mode"]').click();
+  await page.locator('#preview-typography summary').click();
   await page.evaluate(() => window.go(1, { animate: false, force: true }));
   await page.waitForFunction(() => window.__getVisibleSlides()[1].classList.contains('active'));
   await page.locator('#deck [data-fusion-element="title"]').fill("纵向编辑后的标题");

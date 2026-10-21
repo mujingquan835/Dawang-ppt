@@ -1,3 +1,4 @@
+import {validImageCrop} from '../scene/image-crop.mjs';
 import { validateTextRuns } from '../authoring/text-runs.mjs';
 import { validateVector } from '../scene/vector-model.mjs';
 const clone = (value) => structuredClone(value);
@@ -16,10 +17,12 @@ function validateProject(p) {
       if (!e || typeof e !== "object") { issues.push(`${s.slideId}: invalid element`); continue; }
       if (!["text", "image", "shape", "line", "vector"].includes(e.type)) issues.push(`${s.slideId}: unsupported core element type ${e.type}`);
       if (e.runs !== undefined) issues.push(...(e.type === "text" ? validateTextRuns(e.runs) : ["runs require text element"]));
+      if (e.crop !== undefined && (e.type !== 'image' || !validImageCrop(e.crop))) issues.push(`${s.slideId}: invalid image crop`);
       if (e.type === "vector") issues.push(...validateVector(e));
       if (!e.id || !Array.isArray(e.bounds) || e.bounds.length !== 4 || !e.bounds.every(Number.isFinite)) issues.push(`${s.slideId}: invalid element bounds`);
     }
   }
+  for(const s of p?.slides || [])for(const o of s.objects || [])for(const over of Object.values(o.overrides || {}))if(over.crop!==undefined&&!validImageCrop(over.crop))issues.push(`${s.slideId}: invalid image crop override`);
   if (!p?.revision) issues.push("Missing revision");
   for (const k of ["requirements", "sources", "media", "contentPlan", "designChoice", "editorState"]) if (!p?.[k]) issues.push(`Missing ${k}`);
   return issues;

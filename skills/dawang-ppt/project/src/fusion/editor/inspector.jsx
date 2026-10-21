@@ -1,10 +1,23 @@
 import { materializeElements } from "../scene/model.mjs";
+const inspectorSections = new Map();
 function mountInspector(panel, selection, api) {
+  const expanded = new Map([...panel.querySelectorAll('#fusion-inspector details')].map(el => [el.id,el.open]));
+  for(const [id,open] of expanded)inspectorSections.set(id,open);
   panel.querySelector("#fusion-inspector")?.remove();
   const box = document.createElement("div");
   box.id = "fusion-inspector";
   box.style.cssText = "display:grid;gap:16px;padding-top:12px;font:500 13px/1.4 var(--sans-zh);color:var(--pp-fg)";
   panel.append(box);
+  let container = box;
+  const section = (id, title, open = false) => {
+    const details = document.createElement('details');
+    details.id = id; details.open = expanded.get(id) ?? inspectorSections.get(id) ?? open;
+    details.addEventListener('toggle',()=>inspectorSections.set(id,details.open));
+    const summary = document.createElement('summary'); summary.textContent = title;
+    details.append(summary); box.append(details);
+    const content = document.createElement('div'); content.style.cssText='display:grid;gap:12px;padding-top:12px';details.append(content);
+    return content;
+  };
   const project = api.getProject();
   const slide = project.slides.find((s) => s.slideId === selection.slideId);
   if (!slide) return;
@@ -18,7 +31,7 @@ function mountInspector(panel, selection, api) {
     b.className = "preview-prop-choice fusion-action";
     b.textContent = label;
     b.onclick = fn;
-    box.append(b);
+    container.append(b);
     return b;
   };
   const field = (label, value, fn, type = "text") => {
@@ -29,12 +42,21 @@ function mountInspector(panel, selection, api) {
     row.append(caption);
     const input = document.createElement("input");
     input.type = type;
+    input.setAttribute('aria-label',label);
     input.value = value ?? "";
     input.className = "fusion-input";
     input.style.cssText = "width:100%;min-width:0";
-    input.onchange = () => fn(type === "number" ? input.value === "" ? null : Number(input.value) : input.value);
+    const commit = () => {
+      if (type === 'number' && (input.value === '' || !input.validity.valid)) return;
+      fn(type === 'number' ? Number(input.value) : input.value);
+    };
+    input.onchange = commit;
+    input.onkeydown = event => {
+      if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
+      event.stopPropagation();
+    };
     row.append(input);
-    box.append(row);
+    container.append(row);
     return input;
   };
   const select = (label, value, options, fn) => {
@@ -44,6 +66,7 @@ function mountInspector(panel, selection, api) {
     caption.textContent = label;
     row.append(caption);
     const input = document.createElement("select");
+    input.setAttribute('aria-label',label);
     for (const option of options) {
       const v = Array.isArray(option) ? option[0] : option, t = Array.isArray(option) ? option[1] : option;
       input.add(new Option(t, v));
@@ -51,10 +74,14 @@ function mountInspector(panel, selection, api) {
     input.value = value;
     input.onchange = () => fn(input.value);
     row.append(input);
-    box.append(row);
+    container.append(row);
     return input;
   };
   const apply = (cmd) => api.apply({ ...selection, ...cmd });
+  const latestElement = () => {
+    const project = api.getProject();
+    return materializeElements(project.slides.find(s => s.slideId === selection.slideId),project).find(x => x.id === selection.elementId);
+  };
   const current = () => api.getProject().slides.find((s) => s.slideId === selection.slideId).objects.find((x) => x.objectId === o.objectId);
   const semantic = (data, relationships) => apply({ type: "semantic", objectId: o.objectId, data, relationships });
   const head = document.createElement("strong");
@@ -63,7 +90,7 @@ function mountInspector(panel, selection, api) {
   if (!document.getElementById("fusion-inspector-css")) {
     const css = document.createElement("style");
     css.id = "fusion-inspector-css";
-    css.textContent = "#fusion-inspector .fusion-action{width:100%;justify-content:center;min-height:36px;padding:8px 12px;font:500 12px/1.3 var(--sans-zh);border:1px solid var(--pp-border);border-radius:8px;background:var(--pp-chip);color:var(--pp-fg);cursor:pointer}#fusion-inspector .fusion-action:hover{background:var(--pp-blue-soft)}#fusion-inspector .fusion-input{height:38px;border:1px solid var(--pp-border);border-radius:8px;background:var(--pp-bg);color:var(--pp-fg);padding:0 10px;font:500 13px/1.3 var(--sans-zh)}#fusion-inspector select{height:38px;font:500 12px/1.3 var(--sans-zh);padding:0 28px 0 10px}#fusion-inspector .fusion-input:focus{outline:2px solid var(--pp-blue-soft);border-color:var(--pp-blue)}";
+    css.textContent = "#fusion-inspector summary{cursor:pointer;font-weight:650;color:var(--pp-fg)}#fusion-inspector details{border-top:1px solid var(--pp-border);padding-top:12px}#fusion-inspector .fusion-action{width:100%;justify-content:center;min-height:36px;padding:8px 12px;font:500 12px/1.3 var(--sans-zh);border:1px solid var(--pp-border);border-radius:8px;background:var(--pp-chip);color:var(--pp-fg);cursor:pointer}#fusion-inspector .fusion-action:hover{background:var(--pp-blue-soft)}#fusion-inspector .fusion-input{height:38px;border:1px solid var(--pp-border);border-radius:8px;background:var(--pp-bg);color:var(--pp-fg);padding:0 10px;font:500 13px/1.3 var(--sans-zh)}#fusion-inspector select{height:38px;font:500 12px/1.3 var(--sans-zh);padding:0 28px 0 10px}#fusion-inspector .fusion-input:focus{outline:2px solid var(--pp-blue-soft);border-color:var(--pp-blue)}";
     document.head.append(css);
   }
   const group = select("选择范围", api.selectionMode(), [["group", "整组"], ["element", "子对象"]], (value) => {
@@ -71,27 +98,36 @@ function mountInspector(panel, selection, api) {
     api.refreshSelection();
   });
   if (!o) group.disabled = true;
-  const bounds = api.selectionMode() === "group" && o ? o.bounds : e.bounds;
-  ["X", "Y", "宽度", "高度"].forEach((label, i) => field(label, bounds[i], (value) => {
-    const b = [...bounds];
-    b[i] = value;
-    apply({ type: api.selectionMode() === "group" && o ? "object-geometry" : "geometry", objectId: o?.objectId, bounds: b });
-  }, "number"));
   if (e.type === "text") {
+    container = section('fusion-text-properties','文字属性',true);
+    const textStyle = style => apply({type:'style',style,textScope:'all-runs'});
+    const families = ['OPPO Sans 4.0','Arial','Microsoft YaHei','SimSun','SimHei','DengXian','Source Han Sans SC','PingFang SC','KaiTi','Times New Roman'];
+    const currentFont = e.manualStyle?.fontFamily || e.style?.fontFamily || '';
+    const fonts = [...new Set([currentFont,...families].filter(Boolean))];
+    select('字体',currentFont, [['','跟随全稿字体'],...fonts.map(font => [font,font])], fontFamily => textStyle({fontFamily}));
+    field('自定义本机字体',currentFont,fontFamily => textStyle({fontFamily:fontFamily.trim().replace(/[;{}<>]/g,'')}));
+    const mixed = key => e.runs && new Set(e.runs.map(run => run.style?.[key] ?? e.style?.[key])).size > 1;
+    const effectiveSize = e.runs?.[0]?.style?.fontSize ?? e.style?.fontSize ?? 34;
+    const size = field('字号（pt）',effectiveSize/2,fontSize => { if(fontSize>0) textStyle({fontSize:fontSize*2}); },'number');
+    size.min='0.5';size.step='0.5';
+    if(mixed('fontSize'))size.title='当前包含多个字号，修改后统一应用';
+    const colorValue = e.runs?.[0]?.style?.color || e.style?.color || '#111111';
+    const color = field('文字颜色',/^#[0-9a-f]{6}$/i.test(colorValue)?colorValue:'#111111',color => textStyle({color}),'color');
+    if(mixed('color')){
+      const note=document.createElement('small');note.textContent='当前为多种颜色；修改文字颜色将统一整段。';container.append(note);
+    }
+    select('对齐',e.style.textAlign || 'left', [['left','左对齐'],['center','居中'],['right','右对齐']], textAlign => textStyle({textAlign}));
     if(e.runs){
+      container = section('fusion-text-runs','分段文字与样式');
       e.runs.forEach((run,index)=>{
-        const update=(patch)=>{const runs=structuredClone(e.runs);runs[index]={...runs[index],...patch};apply({type:'text-runs',runs});};
-        const input=field(`文字段 ${index+1}`,run.text,text=>update({text}));
-        input.dataset.runIndex=String(index);
-        const color=field(`段 ${index+1} 颜色`,run.style?.color||e.style?.color||'#111111',color=>update({style:{...run.style,color}}),'color');
-        color.dataset.runColor=String(index);
-        select(`段 ${index+1} 字重`,String(run.style?.fontWeight||400),[['400','常规'],['600','中粗'],['700','粗体']],value=>update({style:{...run.style,fontWeight:Number(value)}}));
+        const update=patch=>{const runs=structuredClone(latestElement().runs);runs[index]={...runs[index],...patch};apply({type:'text-runs',runs});};
+        const input=field(`文字段 ${index+1}`,run.text,text=>update({text}));input.dataset.runIndex=String(index);
+        const color=field(`段 ${index+1} 颜色`,run.style?.color||e.style?.color||'#111111',color=>update({style:{...latestElement().runs[index].style,color}}),'color');color.dataset.runColor=String(index);
+        select(`段 ${index+1} 字重`,String(run.style?.fontWeight||400),[['400','常规'],['600','中粗'],['700','粗体']],value=>update({style:{...latestElement().runs[index].style,fontWeight:Number(value)}}));
       });
-      button('转为纯文本（清除句内样式）',()=>apply({type:'text',text:e.text,resetRuns:true}));
-    }else field("文字", e.text, (text) => apply({ type: "text", text }));
-    field("字号", e.style.fontSize || 34, (fontSize) => apply({ type: "style", style: { fontSize } }), "number");
-    field("文字颜色", e.style.color || "#111111", (color) => apply({ type: "style", style: { color } }), "color");
-    select("对齐", e.style.textAlign || "left", ["left", "center", "right"], (textAlign) => apply({ type: "style", style: { textAlign } }));
+      button('转为纯文本（清除句内样式）',()=>apply({type:'text',text:latestElement().text,resetRuns:true}));
+    }else field('文字',e.text,text=>apply({type:'text',text}));
+    container = box;
   }
   if (e.type === "shape") {
     field("填充颜色", e.style.fill || "#ffffff", (fill) => apply({ type: "style", style: { fill } }), "color");
@@ -117,11 +153,16 @@ function mountInspector(panel, selection, api) {
       });
       apply({ type: "image", src });
     };
-    select("图片展示", e.fit || "contain", [["contain", "完整展示"], ["cover", "填满裁切"]], (fit) => apply({ type: "image", src: e.src, fit }));
-    field("焦点（如 50% 50%）", e.focal || "50% 50%", (focal) => apply({ type: "image", src: e.src, focal }));
+    select('图片展示',e.crop?'crop':e.fit||'contain',[['contain','完整展示'],['cover','填满'],['crop','裁切…']],fit=>{
+      if(fit==='crop')api.beginCrop(selection);
+      else apply({type:'image',src:latestElement().src,fit,crop:null});
+    });
+    button('裁切图片',()=>api.beginCrop(selection));
   }
+  container = section('fusion-layers','图层');
   button("置于前层", () => apply({ type: "layer", direction: "front", objectId: o?.objectId }));
   button("置于后层", () => apply({ type: "layer", direction: "back", objectId: o?.objectId }));
+  container = box;
   button("撤销", () => api.undo()).id = "fusion-undo";
   button("重做", () => api.redo()).id = "fusion-redo";
   button("保存工程", () => api.save()).id = "fusion-save";

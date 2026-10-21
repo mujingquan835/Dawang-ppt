@@ -1,3 +1,4 @@
+import {validImageCrop} from '../scene/image-crop.mjs';
 import { validateTextRuns, runsText } from '../authoring/text-runs.mjs';
 import { clone, revision } from "../project/schema.mjs";
 import { layoutObject, deriveSlideElements } from "../objects/index.mjs";
@@ -68,6 +69,13 @@ function applyEditCommand(project, command) {
           node[e.dataPath.at(-1)] = text;
         } else target.text = text;
       } else if (command.type === "image") {
+        if (e.type !== 'image') throw new Error('Image command requires an image');
+        if ('crop' in command) {
+          if(command.crop===null)delete target.crop;
+          else if(!validImageCrop(command.crop))throw new Error('Invalid image crop');
+          else target.crop=clone(command.crop);
+        }
+        if(command.bounds){if(!boundsValid(command.bounds))throw new Error('Invalid crop bounds');target.bounds=clone(command.bounds);}
         if (!command.src) throw new Error("Image source required");
         let media = p.media.entries.find((m) => m.src === command.src);
         if (!media) {
@@ -85,7 +93,14 @@ function applyEditCommand(project, command) {
         target.bounds = clone(command.bounds);
       } else if (command.type === "style") {
         target.style = { ...target.style || e.style, ...command.style };
-        if (base) target.manualStyle = { ...target.manualStyle, ...command.style };
+        target.manualStyle = { ...target.manualStyle, ...command.style };
+        if (e.type === 'text' && command.textScope === 'all-runs' && e.runs) {
+          const patch = Object.fromEntries(Object.entries(command.style).filter(([key]) => ['color','fontFamily','fontSize','fontWeight','fontStyle','textDecoration','letterSpacing'].includes(key)));
+          const runs = e.runs.map(run => ({...clone(run), style:{...run.style,...patch}}));
+          const issues = validateTextRuns(runs);
+          if (issues.length) throw new Error(issues.join('\n'));
+          target.runs = runs;
+        }
       }
       else throw new Error("Unsupported command " + command.type);
     }

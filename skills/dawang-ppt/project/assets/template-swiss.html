@@ -1800,6 +1800,11 @@
   .preview-prop-icon-choice img{max-width:46px;max-height:46px;width:auto;height:auto;object-fit:contain;display:block}
   .preview-prop-icon-empty{width:34px;height:34px;border-radius:8px;border:1px dashed var(--pp-muted);display:grid;place-items:center;color:var(--pp-muted);font:600 11px/1 var(--sans)}
   /* footer actions */
+  .preview-font-section{border-top:1px solid var(--pp-divider);padding:16px 0;margin-bottom:16px}
+  .preview-font-section summary{cursor:pointer;font:600 13px/1.4 var(--sans-zh);color:var(--pp-fg)}
+  .preview-font-section[open] summary{margin-bottom:18px}
+  body.fusion-composition-active #preview-text-font-field{display:none}
+  html[data-dashi-font-mode="individual"][data-dashi-font-mode="individual"] body #deck>.slide [data-fusion-font],html[data-dashi-font-mode="individual"][data-dashi-font-mode="individual"] body #deck>.slide [data-fusion-font] *{font-family:var(--fusion-text-font)!important}
   .preview-author{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px 12px;border-top:1px solid var(--pp-divider)}
   .preview-author-name{min-width:0;color:var(--pp-fg2);font:650 12px/1 var(--sans-zh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .preview-author-links{display:flex;align-items:center;gap:6px;flex:none}
@@ -1847,6 +1852,7 @@
   .page-transition-stage.is-active{opacity:1}
   body[data-mode="edit"] .page-transition-stage{border-radius:14px}
   body.editor-panels-collapsed .page-transition-stage,body[data-mode="present"] .page-transition-stage{border-radius:0}
+  .page-transition-stage[data-transition-mode="magicMove"] .slide *{animation:none!important;transition:none!important}
   .page-transition-stage .slide{position:absolute;left:0;top:0}
   .page-transition-stage [data-transition-role="current"] *{animation:none!important;transition:none!important}
   .page-transition-stage [data-transition-role="next"] *{animation-delay:0ms!important;animation-play-state:paused!important;animation-fill-mode:both!important;transition:none!important}
@@ -1960,6 +1966,7 @@
     <div class="preview-field">
       <label for="preview-transition">切换动画</label>
       <select id="preview-transition">
+        <option value="magicMove">神奇移动（平滑）</option>
         <option value="none">无动画</option>
         <option value="liquidMorph">液态形变</option>
         <option value="containerClip">切入</option>
@@ -1972,6 +1979,7 @@
         <option value="sliceGallery">画廊</option>
       </select>
     </div>
+    <details id="preview-typography" class="preview-font-section"><summary>全稿字体</summary>
     <div class="preview-field" id="preview-font-mode-field">
       <label>字体修改方式</label>
       <div class="preview-font-mode-control">
@@ -1999,6 +2007,7 @@
       <input class="preview-text-font-custom is-hidden" id="preview-text-font-custom" type="text" maxlength="80" placeholder="输入本机字体名称">
       <button class="preview-text-font-reset" id="preview-text-font-reset" type="button" disabled>跟随全局字体</button>
     </div>
+    </details>
     <div class="preview-field is-hidden" id="preview-media-slot-field">
       <label for="preview-media-slot">图片槽编辑</label>
       <div class="preview-media-slot-controls">
@@ -2027,18 +2036,10 @@
     </div>
   </div>
   <div class="preview-author" aria-label="作者信息">
+    <span class="preview-author-name">Jingquan</span>
     <div class="preview-author-links" aria-label="作者社媒链接">
       <a href="https://github.com/mujingquan835/dashiai-ppt-skill" target="_blank" rel="noopener noreferrer" data-platform="github" aria-label="GitHub" title="GitHub">
         <img src="assets/social-icons/github.svg" data-social-icon="github" alt="" aria-hidden="true">
-      </a>
-      <a href="https://www.douyin.com/user/MS4wLjABAAAAohe8JB4RvITJitJ69b7cV4NTaYTMYrVI43C-3SUnPPc" target="_blank" rel="noopener noreferrer" data-platform="douyin" aria-label="抖音" title="抖音">
-        <img src="assets/social-icons/douyin.svg" data-social-icon="douyin" alt="" aria-hidden="true">
-      </a>
-      <a href="https://www.xiaohongshu.com/user/profile/62e0c2bb000000001501408c?xsec_token=ABrZskc1MUcZWWuuMx7Fw52HYKSmhrHM2leT3iiPnMmG8%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer" data-platform="xiaohongshu" aria-label="小红书" title="小红书">
-        <img src="assets/social-icons/redbook.svg" data-social-icon="xiaohongshu" alt="" aria-hidden="true">
-      </a>
-      <a href="https://space.bilibili.com/3537118131391269/" target="_blank" rel="noopener noreferrer" data-platform="bilibili" aria-label="Bilibili" title="Bilibili">
-        <img src="assets/social-icons/bilibili.svg" data-social-icon="bilibili" alt="" aria-hidden="true">
       </a>
     </div>
   </div>
@@ -2161,6 +2162,7 @@
     '黑体': 'SimHei',
     '宋体': 'SimSun',
     '无动画': 'None',
+    '神奇移动（平滑）': 'Magic Move (Morph)',
     '液态形变': 'Liquid morph',
     '切入': 'Clip in',
     '横滑': 'Slide in',
@@ -2327,7 +2329,7 @@
 <script>
 (function(){
 	  window.__pageTransitionModes = [
-	    'none', 'liquidMorph', 'containerClip', 'containerSlide',
+	    'magicMove', 'none', 'liquidMorph', 'containerClip', 'containerSlide',
 	    'pixelReveal', 'pixelZoom', 'pixelBarsY',
 	    'sliceReveal', 'sliceHorizontal', 'sliceGallery',
 	  ];
@@ -5048,7 +5050,7 @@ function createOverviewDomPreview(slide){
   clone.style.cssText += ';--deck-scale:1;contain:layout paint style';
   clone.style.animation='none';
   clone.style.transition='none';
-  clone.querySelectorAll('script,style,template,noscript').forEach(node => node.remove());
+  clone.querySelectorAll('script,style,template,noscript,.fusion-selection,.fusion-crop-editor').forEach(node => node.remove());
   const freezeStyle = document.createElement('style');
   freezeStyle.textContent='[data-overview-thumb-preview] *,[data-overview-thumb-preview] *::before,[data-overview-thumb-preview] *::after{animation:none!important;animation-delay:0s!important;animation-duration:0s!important;animation-play-state:paused!important;transition:none!important}';
   clone.prepend(freezeStyle);
@@ -6106,7 +6108,7 @@ refreshRailCatalog();
 
   const urlThemePack = new URLSearchParams(location.search).get(VIEW_PARAM_PACK) || '';
   const saved = readSaved();
-  const transitionModes = window.__pageTransitionModes || ['none', 'liquidMorph'];
+  const transitionModes = window.__pageTransitionModes || ['magicMove', 'none', 'liquidMorph'];
   const themePacks = options.themePacks || {};
   const defaultThemePack = Object.keys(themePacks).find(key => /^theme\d{2}$/.test(key)) || '';
   const previewCountButtonLimit = normalizePreviewCountButtonLimit(
@@ -7920,6 +7922,7 @@ refreshRailCatalog();
     let exportUi = null;
     const viewState = captureExportViewState();
     try {
+      window.__fusionEditor?.commitPendingEdits?.();
       exportUi = beginDeckExport('HTML');
       updateDeckExport(exportUi, 0, 1, window.__deckI18n.ui('准备页面状态...'));
       window.__syncDeckPageNumbers?.();
@@ -7931,6 +7934,10 @@ refreshRailCatalog();
       window.__syncDeckViewModelFromDom?.();
       throwIfDeckExportCancelled(exportUi);
       const clone = document.documentElement.cloneNode(true);
+      clone.querySelectorAll('.fusion-selection,.fusion-crop-editor').forEach(node=>node.remove());
+      const fusionProject = window.__fusionEditor?.getProject?.();
+      const fusionSeed = clone.querySelector('#fusion-project');
+      if(fusionProject && fusionSeed) fusionSeed.textContent = JSON.stringify(fusionProject).replace(/</g, '\\u003c');
       await prepareSimpleHtmlExportClone(clone, slides);
       const html = await serializeHtmlExportClone(clone, exportUi);
       throwIfDeckExportCancelled(exportUi);
@@ -9035,6 +9042,7 @@ refreshRailCatalog();
 		    sliceGallery: {variant:'demo3-gallery-stagger', count:16, orientation:'vertical', show:'top', hide:'top', color:'#f7f7f2', stagger:'center', showDuration:.56, hideDuration:.38},
 		  };
 		  const transitionPlayers = {
+		    magicMove: playMagicMove,
 		    liquidMorph: playLiquidMorph,
 		    pixelReveal: (ctx, opts) => playPixelGrid(ctx, opts, pixelTransitionConfigs.pixelReveal),
 		    pixelZoom: (ctx, opts) => playPixelGrid(ctx, opts, pixelTransitionConfigs.pixelZoom),
@@ -9132,6 +9140,77 @@ refreshRailCatalog();
 	      tl.eventCallback('onComplete', ctx.finish);
 	    });
 	  }
+  // Match only unique identities. Repeated text/images must never jump to arbitrary objects.
+  function magicMoveObjects(slide){
+    const selector = '[data-morph-id],[data-fusion-element],[data-editable-id],[data-media-slot-id],img,svg';
+    return [...slide.querySelectorAll(selector)].filter(el => {
+      if(el.parentElement?.closest(selector)) return false;
+      const r = el.getBoundingClientRect(), style = getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0;
+    });
+  }
+  function magicMoveKeys(el){
+    const type = el.dataset.elementType || (el.matches('img,[data-media-slot-id]') ? 'image' : el.matches('svg') ? 'vector' : 'text');
+    const keys = [];
+    if(el.dataset.morphId) keys.push('explicit:' + type + ':' + el.dataset.morphId);
+    if(el.dataset.fusionElement) keys.push('element:' + type + ':' + el.dataset.fusionElement);
+    // Legacy editable IDs contain slide IDs, so they are not cross-slide identities.
+    if(type === 'image'){
+      const img = el.matches('img') ? el : el.querySelector('img');
+      if(img?.getAttribute('src')) keys.push('image:' + img.getAttribute('src'));
+    }else if(type === 'text'){
+      const text = el.textContent.replace(/\s+/g, ' ').trim();
+      if(text) keys.push('text:' + text);
+    }
+    return keys;
+  }
+  function magicMovePairs(current, next){
+    const sources = magicMoveObjects(current), targets = magicMoveObjects(next);
+    const index = elements => {
+      const map = new Map();
+      elements.forEach(el => magicMoveKeys(el).forEach(key => map.set(key, [...(map.get(key) || []), el])));
+      return map;
+    };
+    const from = index(sources), to = index(targets), used = new Set(), pairs = [];
+    targets.forEach(target => {
+      for(const key of magicMoveKeys(target)){
+        if(from.get(key)?.length !== 1 || to.get(key)?.length !== 1) continue;
+        const source = from.get(key)[0];
+        if(used.has(source)) continue;
+        used.add(source); pairs.push({source, target}); break;
+      }
+    });
+    return {pairs, sources, targets};
+  }
+  function playMagicMove(ctx, opts){
+    const {pairs} = magicMovePairs(ctx.current, ctx.next);
+    ctx.stage.dataset.morphMatches = String(pairs.length);
+    // Both clones keep their original parents, inherited styles, image crop and SVG context.
+    // Convert screen deltas back through the scaled 1920px authoring canvas.
+    const motions = pairs.map(({source, target}) => {
+      const a = source.getBoundingClientRect(), b = target.getBoundingClientRect();
+      const vars = (el, own, other) => {
+        const sx = Number(gsap.getProperty(el, 'scaleX')) || 1;
+        const sy = Number(gsap.getProperty(el, 'scaleY')) || 1;
+        const parentX = own.width / (el.offsetWidth || parseFloat(getComputedStyle(el).width) || own.width) / Math.abs(sx);
+        const parentY = own.height / (el.offsetHeight || parseFloat(getComputedStyle(el).height) || own.height) / Math.abs(sy);
+        return {x:(Number(gsap.getProperty(el,'x')) || 0) + (other.left-own.left)/parentX,
+          y:(Number(gsap.getProperty(el,'y')) || 0) + (other.top-own.top)/parentY,
+          scaleX:sx*other.width/own.width, scaleY:sy*other.height/own.height};
+      };
+      return {source,target,from:vars(target,b,a),to:vars(source,a,b)};
+    });
+    return playTimeline(ctx, tl => {
+      gsap.set([ctx.current,ctx.next], {autoAlpha:1, filter:'none'});
+      gsap.set(ctx.current, {zIndex:1}); gsap.set(ctx.next, {zIndex:2,autoAlpha:0});
+      tl.to(ctx.next, {autoAlpha:1,duration:.7},0);
+      motions.forEach(({source,target,from,to}) => {
+        gsap.set([source,target], {transformOrigin:'0 0'});
+        tl.to(source, {...to,duration:.7},0)
+          .from(target, {...from,duration:.7,immediateRender:true},0);
+      });
+    }, opts);
+  }
 		  function playLiquidMorph(ctx, opts){
 		    return playTimeline(ctx, tl => {
 		      const startTargetEnter = ctx.startTargetEnter;

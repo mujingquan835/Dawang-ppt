@@ -23,7 +23,11 @@ async function writeEditablePackage(pptx, collection, { type = "uint8array" } = 
       const name = /<p:cNvPr[^>]*name="([^"]+)"/.exec(pic)?.[1];
       const o = images.get(name);
       if (!o) return pic;
-      if (o.fit === "cover") {
+      if (o.crop) {
+        const [x,y,w,h]=o.crop;
+        const l=Math.round(x*1e5),r=Math.round(Math.max(0,1-x-w)*1e5),t=Math.round(y*1e5),b=Math.round(Math.max(0,1-y-h)*1e5);
+        pic=pic.replace(/<a:srcRect[^>]*\/>/g,'').replace(/<a:stretch>/,`<a:srcRect l="${l}" r="${r}" t="${t}" b="${b}"/><a:stretch>`);
+      } else if (o.fit === "cover") {
         const [, , w, h] = o.bounds;
         const nw = o.naturalWidth, nh = o.naturalHeight;
         const scale = Math.max(w / nw, h / nh), dw = nw * scale, dh = nh * scale;

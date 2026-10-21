@@ -42,7 +42,7 @@ function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {
         const opts = o.src.startsWith("data:") ? { data: o.src } : { path: o.src };
         const ratio = o.naturalWidth / o.naturalHeight;
         if (!Number.isFinite(ratio) || ratio <= 0) throw new Error("Image intrinsic dimensions missing: " + o.id);
-        if (o.fit === "cover") {
+        if (o.fit === "cover" || o.crop) {
           slide.addImage({ ...opts, x, y, w, h, objectName: o.id });
         } else {
           const iw = Math.min(w, h * ratio), ih = iw / ratio;

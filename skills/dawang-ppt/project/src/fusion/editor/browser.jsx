@@ -1,3 +1,4 @@
+import {mountImageCrop} from './image-crop.jsx';
 import { readRunsFromDom, runsToHtml } from '../authoring/text-runs.mjs';
 import { openDraftStore, draftDecision } from "./drafts.mjs";
 import { writeEditablePackage } from "../export/write.mjs";
@@ -13,6 +14,12 @@ import { collectSlideInDom } from "../export/collect.mjs";
 import { composeEditablePptx } from "../export/pptx-core.mjs";
 const seed = document.getElementById("fusion-project");
 if (seed) {
+  document.body.classList.add('fusion-editor');
+  const syncEditorMode = () => document.body.classList.toggle('fusion-composition-active',!!document.querySelector('#deck > .fusion-slide.active'));
+  syncEditorMode();
+  // Selected element properties precede the optional full-deck font controls.
+  const propsField = document.getElementById('preview-props-field');
+  document.getElementById('preview-typography')?.before(propsField);
   let scheduleDraft = function() {
     clearTimeout(draftTimer);
     draftTimer = setTimeout(() => persistDraft().catch((error) => status("本地草稿保存失败，当前内容仍在页面中：" + error.message)), 100);
@@ -64,11 +71,14 @@ if (seed) {
     window.__markOverviewThumbDirty?.(el);
     refreshSelection();
   }, restore = function(snapshot) {
+    cropEditor?.cancel();
     restoring = true;
     try {
+      const previousSelection = selected;
       project = structuredClone(snapshot);
       project.revision = savedRevision;
       applySnapshot(project.editorState.legacy);
+      selected = previousSelection;
       for (const s of project.slides) if (s.mode === "composition") redraw(s.slideId);
       window.__deckViewModel?.persist();
       scheduleDraft();
@@ -83,13 +93,19 @@ if (seed) {
     stockPush({ label: "重做", undo: () => restore(before) });
     return true;
   }, apply = function(command) {
+    cropEditor?.cancel();
     sync();
     const before = structuredClone(project), r = applyEditCommand(project, command);
     if (!r.ok) {
       status("修改未应用，当前草稿保留：" + JSON.stringify(r.conflicts));
       return r;
     }
+    if (JSON.stringify([before.slides,before.contentPlan.nodes,before.media.entries]) === JSON.stringify([r.project.slides,r.project.contentPlan.nodes,r.project.media.entries])) return {...r,project};
     project = r.project;
+    if (command.type === 'style' && 'fontFamily' in (command.style || {})) {
+      window.__deckViewModel?.setTypography?.({mode:'individual'});
+      project.editorState.legacy = window.__deckViewModel.getState();
+    }
     redraw(command.slideId);
     window.__dashiUndo.push({ label: "组合对象修改", undo: () => restore(before) });
     window.__deckViewModel?.persist();
@@ -132,12 +148,16 @@ if (seed) {
     handle.setAttribute("aria-label", "缩放选中对象");
     handle.dataset.fusionResize = "true";
     handle.style.cssText = "position:absolute;right:-8px;bottom:-8px;width:16px;height:16px;cursor:nwse-resize;pointer-events:auto;background:#1db477;border:1px solid white";
-    overlay.append(handle);
+    const move = document.createElement('button');
+    move.type='button';move.dataset.fusionMove='true';move.setAttribute('aria-label','移动选中对象');
+    move.textContent='移动';move.style.cssText='position:absolute;left:0;top:-28px;height:24px;padding:2px 8px;border:0;border-radius:4px;background:#1db477;color:white;cursor:move;pointer-events:auto;font:12px sans-serif';
+    overlay.append(move,handle);
     el.querySelector(".fusion-root").append(overlay);
     const field = document.getElementById("preview-props-field");
     field.classList.remove("is-hidden");
     mountInspector(document.getElementById("preview-props"), selected, api);
   };
+  let cropEditor = null;
   let project = JSON.parse(seed.textContent), savedRevision = project.revision, selected = null, selectionMode = "group", redoSnapshots = [], restoring = false, saveQueue = Promise.resolve();
   const roots = /* @__PURE__ */ new Map();
   let draftStore = null, draftTimer = null, draftQueue = Promise.resolve(), ready = Promise.resolve();
@@ -167,6 +187,7 @@ if (seed) {
   };
   async function saveNow() {
     await ready;
+    cropEditor?.confirm();
     const current = sync();
     await persistDraft();
     const response = await fetch("/api/save-deck-state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: current.editorState.legacy, project: current, expectedRevision: savedRevision }) });
@@ -192,7 +213,19 @@ if (seed) {
     saveQueue = task;
     return task;
   };
-  const api = { ready: () => ready, flushDraft: async () => {
+  const beginCrop = selection => {
+    cropEditor?.cancel();
+    if(!window.__canEditDeck?.())return;
+    const p=sync(),slide=p.slides.find(s=>s.slideId===selection.slideId);
+    const element=slide&&materializeElements(slide,p).find(e=>e.id===selection.elementId);
+    const root=sections().find(s=>s.dataset.vmSlideId===selection.slideId)?.querySelector('.fusion-root');
+    const node=root&&[...root.querySelectorAll('[data-fusion-element]')].find(e=>e.dataset.fusionElement===selection.elementId);
+    const image=node?.tagName==='IMG'?node:node?.querySelector('img');
+    if(element?.type!=='image'||!image?.complete||!image.naturalWidth){status('图片尚未加载完成，请稍后重试。');return;}
+    document.querySelectorAll('#deck .fusion-selection').forEach(e=>e.remove());
+    cropEditor=mountImageCrop({root,element,image,onClose:()=>{cropEditor=null;refreshSelection();},onApply:({crop,bounds})=>apply({...selection,type:'image',src:element.src,fit:'cover',crop,bounds})});
+  };
+  const api = { beginCrop, commitPendingEdits: () => cropEditor?.confirm(), ready: () => ready, flushDraft: async () => {
     await ready;
     sync();
     await persistDraft();
@@ -205,6 +238,7 @@ if (seed) {
   } };
   window.__fusionEditor = api;
   async function browserExport() {
+    cropEditor?.confirm();
     const p = sync(), collection = { revision: p.revision, width: 1920, height: 1080, slides: [] };
     const oldIndex = window.__currentSlideIndex;
     try {
@@ -302,32 +336,80 @@ if (seed) {
     }
   })();
   document.addEventListener("click", (ev) => {
+    if(ev.target.closest?.('.fusion-crop-editor'))return;
     const el = ev.target.closest?.("#deck [data-fusion-element]");
     if (!el || !window.__canEditDeck?.()) return;
     selected = { slideId: el.closest(".slide").dataset.vmSlideId, elementId: el.dataset.fusionElement };
     refreshSelection();
   });
-  let drag = null;
-  document.addEventListener("pointerdown", (ev) => {
-    const target = ev.target.closest?.("#deck [data-fusion-element]"), resize = ev.target.closest?.("[data-fusion-resize]");
-    if (!window.__canEditDeck?.() || !resize && (!ev.altKey || !target)) return;
-    if (target) selected = { slideId: target.closest(".slide").dataset.vmSlideId, elementId: target.dataset.fusionElement };
-    const p = sync(), s = p.slides.find((s2) => s2.slideId === selected.slideId), e = materializeElements(s, p).find((e2) => e2.id === selected.elementId), o = s.objects?.find((o2) => o2.objectId === e.parentId);
-    const b = selectionMode === "group" && o ? o.bounds : e.bounds;
-    const root = sections().find((el) => el.dataset.vmSlideId === selected.slideId).querySelector(".fusion-root");
-    drag = { x: ev.clientX, y: ev.clientY, b: [...b], scale: root.getBoundingClientRect().width / 1920, objectId: selectionMode === "group" ? o?.objectId : null, resize: !!resize };
-    ev.preventDefault();
-    ev.stopPropagation();
-  }, true);
-  document.addEventListener("pointerup", (ev) => {
+  let drag = null, suppressClick = false;
+  const restorePreview = d => d.nodes.forEach(({node,css}) => {node.style.cssText=css;});
+  const cancelDrag = () => {
     if (!drag) return;
-    const d = drag;
-    drag = null;
-    const dx = (ev.clientX - d.x) / d.scale, dy = (ev.clientY - d.y) / d.scale;
-    const b = d.resize ? [d.b[0], d.b[1], Math.max(20, d.b[2] + dx), Math.max(20, d.b[3] + dy)] : [d.b[0] + dx, d.b[1] + dy, d.b[2], d.b[3]];
-    apply({ ...selected, type: d.objectId ? "object-geometry" : "geometry", objectId: d.objectId, bounds: b });
+    const d=drag;drag=null;restorePreview(d);
+    if(d.capture.hasPointerCapture?.(d.pointerId))d.capture.releasePointerCapture(d.pointerId);
+    refreshSelection();
+  };
+  document.addEventListener('click',ev=>{
+    if(!suppressClick)return;
+    suppressClick=false;ev.preventDefault();ev.stopImmediatePropagation();
+  },true);
+  document.addEventListener('pointerdown', ev => {
+    if(cropEditor)return;
+    const target=ev.target.closest?.('#deck [data-fusion-element]');
+    const resize=ev.target.closest?.('[data-fusion-resize]'),move=ev.target.closest?.('[data-fusion-move]');
+    if(ev.button!==0 || !window.__canEditDeck?.() || (!resize&&!move&&(!target || (target.dataset.elementType==='text'&&!ev.altKey))))return;
+    if(target)selected={slideId:target.closest('.slide').dataset.vmSlideId,elementId:target.dataset.fusionElement};
+    if(!selected)return;
+    const p=sync(),slide=p.slides.find(s=>s.slideId===selected.slideId);
+    if(!slide)return;
+    const elements=materializeElements(slide,p),element=elements.find(e=>e.id===selected.elementId);
+    if(!element)return;
+    const object=slide.objects?.find(o=>o.objectId===element.parentId);
+    const grouped=selectionMode==='group'&&object;
+    const b=grouped?object.bounds:element.bounds;
+    const root=sections().find(el=>el.dataset.vmSlideId===selected.slideId).querySelector('.fusion-root');
+    const scale=root.getBoundingClientRect().width/1920;
+    if(!Number.isFinite(scale)||scale<=0)return;
+    if(!resize&&!move)refreshSelection();
+    const ids=new Set((grouped?elements.filter(e=>e.parentId===object.objectId):[element]).map(e=>e.id));
+    const nodes=[...root.querySelectorAll('[data-fusion-element]')].filter(node=>ids.has(node.dataset.fusionElement)).map(node=>({node,css:node.style.cssText,b:elements.find(e=>e.id===node.dataset.fusionElement).bounds}));
+    const overlay=root.querySelector('.fusion-selection');
+    if(overlay)nodes.push({node:overlay,css:overlay.style.cssText,b:[...b]});
+    drag={x:ev.clientX,y:ev.clientY,b:[...b],next:[...b],scale,objectId:grouped?object.objectId:null,resize:!!resize,nodes,selection:{...selected},pointerId:ev.pointerId,capture:ev.target,moved:false};
+    ev.target.setPointerCapture?.(ev.pointerId);
+    ev.preventDefault();ev.stopPropagation();
+  },true);
+  const previewDrag = ev => {
+    if(!drag || ev.pointerId!==drag.pointerId)return;
+    const d=drag,dx=(ev.clientX-d.x)/d.scale,dy=(ev.clientY-d.y)/d.scale;
+    if(!d.moved && Math.hypot(ev.clientX-d.x,ev.clientY-d.y)<3)return;
+    d.moved=true;
+    d.next=d.resize?[d.b[0],d.b[1],Math.max(20,d.b[2]+dx),Math.max(20,d.b[3]+dy)]:[d.b[0]+dx,d.b[1]+dy,d.b[2],d.b[3]];
+    for(const {node,b} of d.nodes){
+      const sx=d.next[2]/d.b[2],sy=d.next[3]/d.b[3];
+      Object.assign(node.style,{left:(d.next[0]+(b[0]-d.b[0])*sx)+'px',top:(d.next[1]+(b[1]-d.b[1])*sy)+'px',width:b[2]*sx+'px',height:b[3]*sy+'px'});
+    }
+    ev.preventDefault();
+  };
+  document.addEventListener('pointermove',previewDrag,{passive:false});
+  document.addEventListener('pointerup',ev=>{
+    if(!drag || ev.pointerId!==drag.pointerId)return;
+    previewDrag(ev);
+    const d=drag;drag=null;restorePreview(d);
+    if(d.capture.hasPointerCapture?.(d.pointerId))d.capture.releasePointerCapture(d.pointerId);
+    if(!d.moved)return;
+    suppressClick=true;
+    setTimeout(()=>{suppressClick=false;},0);
+    apply({...d.selection,type:d.objectId?'object-geometry':'geometry',objectId:d.objectId,bounds:d.next});
   });
+  document.addEventListener('pointercancel',cancelDrag);
+  document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&drag){cancelDrag();ev.preventDefault();ev.stopImmediatePropagation();}},true);
+  addEventListener('blur',cancelDrag);
   addEventListener("swiss-slide-change", () => {
+    cropEditor?.cancel();
+    cancelDrag();
+    syncEditorMode();
     selected = null;
     document.querySelectorAll("#deck .fusion-selection").forEach((e) => e.remove());
   });
