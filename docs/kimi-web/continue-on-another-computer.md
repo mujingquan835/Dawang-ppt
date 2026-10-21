@@ -1,6 +1,6 @@
 # 换机继续本分支
 
-更新：2026-10-20。当前工作分支 **codex/kimi-web-editor**，不是main或旧codex/fusion-v1。用户已授权将开发进度推送GitHub，方便另一台电脑继续；这次同步不等于合并、发布或默认入口切换。
+更新：2026-10-21。当前工作分支 **codex/kimi-web-editor**，不是main或旧codex/fusion-v1。用户已授权将开发进度推送GitHub，方便另一台电脑继续；这次同步不等于合并、发布或默认入口切换。
 
 ## 已完成与下一步
 
@@ -15,16 +15,16 @@ W0规则来源、W1直接制作、W2富文本/矢量及编辑保存、W3可信QA
 | W3 | 29898e5 |
 | W4 | b8e06aa |
 
-最后一次代码全量检查：`npm test -- --test-concurrency=1`，144/144，0失败；换机后须重新验证本机环境。完整验收和未完成项看 [acceptance.md](acceptance.md)，逐项计划看 [整合方案v4](../superpowers/plans/2026-10-20-kimi-web-editor.md)。
+最后一次代码全量检查（W5）：`npm test -- --test-concurrency=1`，152/152，0失败；换机后须重新验证本机环境。完整验收和未完成项看 [acceptance.md](acceptance.md)，逐项计划看 [整合方案v4](../superpowers/plans/2026-10-20-kimi-web-editor.md)。
 
-**W5尚未开始。** 下一位开发者先读AGENTS.md、上述验收记录和v4计划，不自动沿README的旧分支命令或默认build制作新稿。新路径是`render:authored`，保留`render:project`重开工程。不要从初始brief覆盖保存过的工程。
+**W5候选入口已开发，最终验证结果与日常启用状态见验收记录。** 下一位开发者先读AGENTS.md、上述验收记录和v4计划，不自动沿README的旧分支命令或默认build制作新稿。新路径是`render:authored`，保留`render:project`重开工程。不要从初始brief覆盖保存过的工程。
 
 仍待处理：
 
 - 用户对旅行导演4页与管理汇报8页分别给出最终视觉认可，不能把144/144或Office打开视为认可。
 - 旧八页对象、内容、几何和DOM一致；7页PNG逐像素相同，第3页原照片内部有小像素差异。原严格比较失败保留，后续视觉检查未见内容或构图变化；“栅格采样差异”仍为推断。
 - 两条路径的实际模型/token不可归属，为unavailable；仅有程序回放计时，不能宣称普遍更快、更省或已达到认可总成本。若继续比较，设计同材料同要求的连续实验，记录实际usage，或由用户明确接受该证据限制。
-- W5修改技能说明、命令默认入口与安装核对须在前置验收后单独执行，并留回退点。当前全局安装、默认入口、main未切换。
+- W5候选build默认值已开发；日常安装为2948a42旧快照，待验收后按[w5-entry-and-rollback.md](w5-entry-and-rollback.md)启用并保留回退点。源电脑的安装快照不会随Git同步；新机必须重新doctor核对实际链接。main未切换。
 
 ## 在另一台电脑拉取代码
 
@@ -74,4 +74,4 @@ node skills/dawang-ppt/scripts/dawang.mjs preview:start output/kimi-web/w4/manag
 
 ## 发给另一台电脑Codex的接续提示
 
-> 继续此仓库codex/kimi-web-editor分支。先读AGENTS.md、docs/kimi-web/continue-on-another-computer.md、acceptance.md与v4方案。W0—W4开发检查点已交付，W4全量144/144；两份整稿视觉认可、旧页照片像素差异和实际token证据限制仍需如实处理。先核对分支、同步提交、依赖与本地接续包，再根据我的下一条指令处理验收或W5；不要自动推main、发布或覆盖全局安装。
+> 继续此仓库codex/kimi-web-editor分支。先读AGENTS.md、docs/kimi-web/continue-on-another-computer.md、acceptance.md与v4方案。W0—W4开发检查点已交付，W5候选入口已开发，最终测试/安装状态看acceptance.md；两份整稿视觉认可、旧页照片像素差异和实际token证据限制仍需如实处理。先核对分支、同步提交、依赖与本地接续包，再根据我的下一条指令处理验收或W5日常启用；不要自动推main、发布或覆盖全局安装。

@@ -6,11 +6,11 @@
 
 ## 本分支接续开发
 
-`codex/kimi-web-editor` 已交付整合方案v4的W0—W4工程检查点；W5未开始，最终视觉认可与可比成本门槛仍待完成。换电脑继续请先看 [换机接续说明](docs/kimi-web/continue-on-another-computer.md) 与 [W4验收记录](docs/kimi-web/acceptance.md)。下方原有日常流程尚未在本分支切换为W5新默认入口。
+`codex/kimi-web-editor` 已交付整合方案v4的W0—W4工程检查点，W5候选入口开发检查已通过；最终视觉认可与可比成本门槛仍待完成。换电脑继续请先看 [换机接续说明](docs/kimi-web/continue-on-another-computer.md) 与 [W4验收记录](docs/kimi-web/acceptance.md)。本分支候选`build`现走直接制作；日常安装启用单独核对，详见 [W5入口与回退](docs/kimi-web/w5-entry-and-rollback.md)。
 
 ## 日常流程
 
-大纲 → 外观选择 → 内容驱动出稿 → 原编辑器调整 → 导出。`build` 默认调用实测内容规划器，`styles` 仅列出6种已适配原主题外观；`styles:grid` 生成外观选择图。Kimi 规则用于判断和复核，不提供独立风格入口。已有工程用 `render:project`；用户指定原样模板才使用 `templates` / `render:goal`。
+材料 → 读取原Kimi规则 → 智能体逐页直接设计 → 原编辑器调整保存 → 同版本导出。候选`build`等价`render:authored`，自主外观用`authored/custom`，不要求从六种外观或九宫格选择。历史brief显式用`render:brief`，已有工程用`render:project`；原样模板保留`templates`/`render:goal`。
 
 沿用 [V3.1规划](docs/开发规划-v3.1.md)，实时执行状态见 [S2记录](docs/S2-执行记录.md)。原17主题与原编辑器保留，0.1 runtime及旧家族构图仅用于兼容恢复。
 
@@ -23,7 +23,7 @@
 ```sh
 git clone https://github.com/mujingquan835/Dawang-ppt.git
 cd Dawang-ppt
-git switch codex/fusion-v1
+git switch codex/kimi-web-editor
 npm ci --prefix skills/dawang-ppt/project
 node skills/dawang-ppt/scripts/dawang.mjs doctor
 node skills/dawang-ppt/scripts/dawang.mjs styles

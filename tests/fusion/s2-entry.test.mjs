@@ -18,18 +18,18 @@ test('styles command exposes only usable appearances and templates are explicit'
  const templates=JSON.parse(execFileSync(process.execPath,[cli,'templates'],{encoding:'utf8'}));
  assert.equal(templates.length,17);
 });
-test('default build expects a content brief rather than a legacy goal',()=>{
+test('historical content planning remains explicit after authored build migration',()=>{
  const source=fs.readFileSync(cli,'utf8');
- assert.match(source,/build: "render:brief"/);
+ assert.match(source,/build: "render:authored"/);
  const pkg=JSON.parse(fs.readFileSync('package.json'));
  assert.match(pkg.scripts.build,/dawang.mjs build$/);
 });
-test('build rejects a legacy goal and retired family before creating output',async()=>{
+test('explicit render:brief rejects a legacy goal and retired family before creating output',async()=>{
  const {default:os}=await import('node:os');const {default:path}=await import('node:path');const {spawnSync}=await import('node:child_process');
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'s2-default-'));
  try{for(const input of [{title:'旧目标',slides:[{layout:'theme14_page007',props:{}}]}, {title:'历史家族',styleId:'kimi/work/moon-white-imagery',contentSlides:[{slideId:'one',title:'内容'}]}]){
   const file=path.join(dir,'brief.json'),output=path.join(dir,'deck/index.html');fs.writeFileSync(file,JSON.stringify(input));
-  const r=spawnSync(process.execPath,[cli,'build',file,output],{encoding:'utf8'});assert.notEqual(r.status,0);assert.match(r.stderr,/contentSlides|旧家族工程/);assert(!fs.existsSync(output));
+  const r=spawnSync(process.execPath,[cli,'render:brief',file,output],{encoding:'utf8'});assert.notEqual(r.status,0);assert.match(r.stderr,/contentSlides|旧家族工程/);assert(!fs.existsSync(output));
  }}finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('appearance grid provides exactly the usable options with a matching sidecar',async()=>{

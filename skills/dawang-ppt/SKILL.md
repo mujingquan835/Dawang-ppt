@@ -1,28 +1,30 @@
 ---
 name: dawang-ppt
-description: 制作、编辑和返工中文演示文稿。先分析材料与信息关系，只选外观，默认经内容驱动规划器生成，在原 dashi 操作台编辑并交付可编辑 PPTX 与完整 HTML 源项目。
+description: 制作、编辑和返工中文演示文稿。依据Kimi原始制作规则理解材料与自主设计，在原dashi网页工作台编辑保存，交付可编辑PPTX、PDF与完整HTML源目录。
 ---
 # Dawang-PPT
 
-## 默认流程
+## 默认制作流程（W5开发入口）
 
-**大纲 → 外观选择 → 内容驱动出稿 → 原编辑器调整 → 导出。** Kimi 的内容判断、图片组织和视觉复核作为制作规则，不作为可选风格或另一条制作路线。用户明确调用其他技能时尊重选择。
+**理解材料 → 按需读原规则 → 逐页自主设计 → 网页编辑保存 → 看图修正 → 同版本交付。** 用户用自然语言提交材料；下述工程输入和CLI由制作智能体完成，不要求用户编写JSON。
 
-先执行 `node <skill>/scripts/dawang.mjs doctor`，确认实际运行目录。首次使用在仓库运行 `npm ci --prefix skills/dawang-ppt/project`。不运行旧技能自动更新器。用户不需要编写 JSON。
+先运行 `node <skill>/scripts/dawang.mjs doctor`，核对实际skill/project路径、defaultBuild和installations。开发源码与日常安装可能不同；不得据仓库改动宣称全局安装已切换。首次检出运行 `npm ci --prefix skills/dawang-ppt/project`；不运行旧自动更新器。
 
-1. 完整读取材料，区分新建、局部修改、整体重构和指定原样模板。记录受众、用途、固定页数、时期、单位、来源、必需照片。按 [制作规则](references/fusion/production.md) 和 [场景规则](references/fusion/scenarios.md) 判断事实，不补造业绩、目标或因果。
-2. 先确定全稿叙事、逐页读者任务、结论和信息关系。重要数据区分结果、投入、方式、背景，记录口径与来源；为文字确定正文、辅助、重点角色。用稳定 ID 建立内容与图片台账，不把重要数据遗漏在普通正文里。
-3. 已确认外观直接沿用。否则运行 `styles:grid <scenario> <绝对路径/appearance.html>`，展示截图并等待用户选编号；同时读取输出的 JSON 获得 styleId。九宫格仅展示已适配外观，目前6项，其余为空位，不用未适配主题或 Kimi 预设凑数。选的是配色字体，不能承诺固定模板构图。用户明确委托选择时记录理由后继续。`styles` 列出相同可用外观。
-4. 智能体将大纲整理为 brief，使用 [工程与命令](references/contracts.md) 的内容契约。新多区域页设置 `contentReview:"required"`，逐项保留必需内容引用。材料先于构图：照片保留主体、文字截图完整 contain、按实际比例组织；缺图报告，不编造。正文遵循本次要求，已确认八页项目为12pt，不将其强加给所有新任务。
-5. 新建统一运行 `node <skill>/scripts/dawang.mjs build <brief.json> <输出目录/index.html>`；等价于 `render:brief`，所有页面经内容关系与真实字体测量。不要用 `render:goal` 绕过规划器。显式 layout 用于用户要求或有理由的关系组织，不能只为绕过失败而锁死布局。冲突保留材料并报告，不删内容或无限缩字。
-6. 启动 `preview:start <输出目录> <空闲端口>`，在原 dashi 目录、画布、侧栏中调整。唯一工程是 `deck-project.json`（ProjectV2）；手工几何、裁切、字体优先。局部返工锁住未点名页面，用稳定 ID 修改；撤销、保存重开及导出使用同一已保存 revision。重渲染用 `render:project`，不要回读初始 brief 覆盖编辑。磁盘修订冲突保留两份并报告。
-7. 按 [视觉复核](references/fusion/visual-review.md) 检查全部内容、溢出重叠、重点层级、图片主体及全稿节奏。运行 `qa`，查看实际整稿与逐页截图，然后 `export` 得到 PPTX。独立渲染与 PowerPoint 打开分别验证；几何检查通过不等于审美或用户验收。同一问题最多三轮有依据的修正。
-8. 默认交付原编辑器预览、真实可编辑 PPTX 链接、完整源目录及实际验收状态。源目录包含媒体、内容计划和编辑状态，不能只复制 HTML。PDF 按需。
+1. 完整读取用户材料，区分新建、局部修改、重构和原样模板。记录受众、用途、主场景、页数、来源时期、单位、必需图片和不可改内容。不补造业绩、目标或因果，不擅自联网扩充原材料。
+2. 按 [制作规则](references/fusion/production.md) 定位并实际读取Kimi原始制作步骤、通用场景、一个主场景，必要时一个辅场景、用户指定设计系统及相关格式文档。来源可在 `KIMI_PPT_SKILL_DIR`、`~/.dawang-ppt/kimi-reference/` 或本机open-kimi-ppt安装中。缺必读原文明确报告；不以本文件摘要或少量关键词替代原文，不把全部风格库一次载入。
+3. 确定全稿叙事、逐页读者任务、结论、信息关系、图片取景和文字层级。按材料直接设计，不经过旧模板选页、`planContentSlide` 或 `REGION_PRESETS`。自主设计不受六种已适配外观限制，也不强制先选九宫格；已确认视觉方向沿用。用户指定dashi原样模板才走下方兼容入口。
+4. 按 [工程契约](references/contracts.md) 生成authored工程，使用稳定元素ID、内容引用与媒体台账。自主外观采用 `styleId:"authored/custom"`，明确页面palette、文字字体/字号和元素bounds；也可沿用已支持绘制默认值，但不将其作为强制模板。逻辑画布1920×1080，CSS字号/2转pt，不能直接照搬PPTD单位。
+5. 单稿保存 `rules-manifest.json`，逐页记录原规则来源SHA、适用/不适用/用户覆盖/不支持、理由和实际证据路径。程序只校验清单结构与指纹，不能替代智能体判断。用文字、runs、图片、基础形状、线条和受控vector表达信息；不支持项明确报告，不静默改成整页图片。
+6. 新建运行 `node <skill>/scripts/dawang.mjs build <authored.json> <输出目录/index.html>`，等价 `render:authored`。已有 `deck-project.json` 用 `render:project`；唯一保存状态为ProjectV2，HTML为派生结果。严禁重新导入初始输入覆盖人工修改。
+7. `preview:start <输出目录> <端口>` 后在原dashi目录、画布和侧栏中编辑；保留手工位置、裁切、字号及runs，核对撤销重做、保存重开。跨run整段替换需明确保留格式或重置，不静默摊平。冲突保留两份，不能清空编辑状态。
+8. 按 [视觉复核](references/fusion/visual-review.md) 查看全稿与可疑页原尺寸截图，先改构图再解决溢出，不删必需事实或无限缩字。QA检查readiness、有限几何、缺图、溢出、覆盖；不以几何通过代替用户效果认可。
+9. 从同一已保存revision交付完整HTML源目录、截图PDF和可编辑PPTX。明确PDF文字不可选、PPTX字体未嵌入、截图内部不可编辑及目标电脑字体未验证；ZIP检查、独立渲染、PowerPoint编辑保存重开与用户认可分别记录。未经用户要求不添加演讲者备注。
 
-## 旧工程和指定原样模板
+## 已有工程与历史输入
 
-- 已有 ProjectV2（包括历史 Kimi 家族工程）：直接 `render:project`，保留原外观、页型与手工状态。历史家族 ID 不进入新建候选。
-- 用户明确要求原样模板时，`templates` 查看17个原主题，使用 `render:goal` 兼容入口与 layout+props；原 theme17 外观不变。这是明确选择的兼容流程，不是新稿默认值。
-- 表格、图表、关系图通过可编辑文字、形状和线条实现；不承诺原生数据图表/SmartArt、任意 PPTX 无损导入或跨客户端像素一致。
+- ProjectV2：`render:project <deck-project.json> <index.html>`，保留旧外观、布局、人工编辑与媒体。
+- 历史contentSlides brief：显式 `render:brief <brief.json> <index.html>`，保留原实测规划器；`build`不再静默消费旧brief。
+- 用户指定原样模板：`templates`查看17主题，`render:goal <goal.json> <index.html>`；原模板契约保持。已有HTML导入仅走已支持的兼容契约，不承诺任意HTML/PPTX无损导入。
+- `styles`、`styles:grid` 是旧规划路径的已适配外观工具，不代表自主设计可用风格总数，不是新稿前置门槛。
 
-S1 八页真实稿于2026-10-20获用户确认可用；其他稿件仍逐份验收。开发、安装、测试与发布状态见仓库 `docs/S2-执行记录.md`。不把六种外观可生成表述为全库迁移完成。
+不承诺原生数据图表、SmartArt、任意SVG/动画或跨客户端像素一致。开发入口、日常安装、真实效果验收和正式发布分别记录；本轮阶段记录见仓库 `docs/kimi-web/acceptance.md`，W5切换与回退见 `docs/kimi-web/w5-entry-and-rollback.md`。

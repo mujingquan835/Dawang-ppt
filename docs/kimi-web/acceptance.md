@@ -1,6 +1,6 @@
 # Kimi 制作路径验收记录
 
-2026-10-20，W4 开发检查点。工程、真实材料与本机客户端证据分开记录；当前不建议切换日常入口。W5 未开始。
+2026-10-21 更新：W4工程检查点已交付，W5候选入口开发检查已通过。工程、真实材料与本机客户端证据分开记录；日常安装未启用候选。
 
 ## 验收状态
 
@@ -19,7 +19,8 @@
 | 全量回归 | 144/144通过 | 新增6项benchmark测试，含CLI；npm test -- --test-concurrency=1，132.6秒，0失败 |
 | 用户最终视觉认可 | 待确认 | 旅行导演4页和管理汇报8页须分别确认；正文截图内部小字、长图证据仍需放大查看 |
 | 实际模型token/达到认可的总成本 | unavailable | 历史路径模型/用量不可归属，本轮也无分稿实际usage；没有用字符数、文件大小或账户窗口用量估算 |
-| W5切换 | 未开始 | 当前证据不支持宣布普遍更快、更省或视觉已被认可 |
+| W5候选入口 | 工程检查通过 | build→render:authored、authored/custom、显式旧入口、保存工程保护、doctor安装区分及回退测试；详见 [W5入口与回退](w5-entry-and-rollback.md) |
+| W5日常启用 | 待单独执行 | 日常安装固定开发前2948a42快照；视觉认可与成本证据限制未被开发授权自动消除 |
 
 ## 对照与本地证据
 
@@ -48,4 +49,18 @@ node skills/dawang-ppt/project/scripts/benchmark-authoring.mjs runs.json report.
 
 ## 本轮结论
 
-W4 的工具开发、双场景稿件及工程检查点已交付；视觉认可与可比成本的验收门槛未完成。保留当前入口，W5待后续明确授权与前置验收；不推送、不合main、不发布、不修改全局安装。
+W4 的工具开发、双场景稿件及工程检查点已交付；视觉认可与可比成本的验收门槛未完成。保留当前入口，W5候选开发另见下方记录，日常启用待前置验收；不合main、不发布，不把GitHub开发分支同步视为正式发布。
+
+
+## W5候选开发记录（2026-10-21）
+
+- 默认build迁到render:authored。旧brief/goal给出显式迁移提示；保存的ProjectV2要求render:project，不允许丢弃editorState重建。旧render:brief/render:goal/render:project保留。
+- 新增authored/custom中性绘制默认值，仅对显式kimi-authored-v1页面开放。直接设计不再依赖六种已适配外观，不放宽旧composition契约或宣称未适配模板已迁入。
+- 更新SKILL、contracts、production、visual-review：实际读原规则、自然语言材料、逐页自主设计、规则清单与同revision交付；保留字体/PDF/可编辑程度限制。
+- doctor显示当前源码与实际安装。原日常symlink指向开发树，修改前已把同内容2948a42快照固定到本机install-snapshots并重指链接，防止开发自动激活。快照只在本机，依赖仍链接原安装的node_modules；无锁文件变更。
+- 新增7项入口检查和1项安装回退检查。实际Chromium侧栏改字、撤销重做、保存重开、自由几何和用户导出接口同revision验证；临时安装已验证候选启用和恢复旧快照。
+- 保留原失败记录：初轮入口测试发现六外观依赖和保存工程重建风险；浏览器测试夹具曾选择到目录缩略图、撤销后直接读缺省text字段，安装夹具曾混用macOS /var与/private/var路径，均已按真实契约修正。
+- 首轮全量152项中151通过，唯一失败是测试缓存QA前revision后裸POST，期间自动保存更新版本。独立诊断复现并确认服务端正确拒绝；helper改走真实用户__exportDeckPptx入口，再比对返回、当前工程与磁盘revision。生产版本冲突保护未放宽。
+- 独立只读审查未发现阻断W5的生产Critical/Important问题；上述Important验证问题已修正。审查不替代用户视觉验收或目标机Office检查。
+
+最终全量 `npm test -- --test-concurrency=1`：152/152，0失败，105.1秒（`output/kimi-web/w5/full-final.log`）。7项新入口检查、3项安装检查及5项旧入口检查均通过；持久目录浏览器复测和两页实际截图亦已核对。开发源码、日常安装、用户视觉认可和发布四种状态继续分开；本轮不宣称整个v4效果验收完成。
