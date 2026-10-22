@@ -73,6 +73,7 @@ if (seed) {
     window.__markOverviewThumbDirty?.(el);
     refreshSelection();
   }, restore = function(snapshot) {
+    if(exportBusy)return false;
     cropEditor?.cancel();
     restoring = true;
     try {
@@ -88,6 +89,7 @@ if (seed) {
       restoring = false;
     }
   }, redo = function() {
+    if(exportBusy)return false;
     const next = redoSnapshots.pop();
     if (!next) return false;
     const before = sync();
@@ -179,6 +181,7 @@ if (seed) {
     stockPush(action);
   };
   window.__dashiUndo.undo = () => {
+    if(exportBusy)return false;
     const after = sync();
     const ok = stockUndo();
     if (ok) {
@@ -211,7 +214,8 @@ if (seed) {
     status(result.previewError ? "内容已保存，预览更新失败：" + result.previewError : "已保存");
     return result;
   }
-  const save = () => {
+  const save = (options={}) => {
+    if(exportBusy&&!options.forExport)return Promise.reject(new Error('导出期间请等待当前操作完成'));
     const task = saveQueue.catch(() => {
     }).then(saveNow);
     saveQueue = task;
@@ -308,7 +312,7 @@ if (seed) {
   }
   window.__dawangExport = { applyEditablePptxSnapshot: ({ state, currentIndex }) => applySnapshot(state, currentIndex), exportEditablePptxInBrowser: browserExport };
   async function exportFile(pdf = false) {
-    await save();
+    await save({forExport:true});
     const response = await fetch(pdf ? "/api/export-pdf" : "/api/export-editable-pptx", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: savedRevision }) });
     const r = await response.json();
     if (!r.ok) {
