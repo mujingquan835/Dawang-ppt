@@ -10,7 +10,7 @@
 
 **Spec:** 本文件第1节为已确认需求规格；源依据为用户本次对话的两次纠正。桌面《Dawang-PPT速度问题诊断与优化建议_20261022_Codex.md》仅作为诊断证据，其中“默认全格式交付”已被本规格替代。执行无需重新解释两份复盘里的建议。
 
-**状态：** 仅完成规划，以下任务均未实施。规划日期2026-10-22；规划者未改动运行代码、原演示稿或全局安装。
+**状态：** 2026-10-22 已按 T0–T8 实施并分项提交；最终全量回归171/171通过。HTML默认交付、候选快照已验证；现有全局安装未切换，未合主线/推送/正式发布。真实四页已内容与实际看图复核，用户视觉认可、首次制作速度目标仍待验证。执行证据见 `docs/kimi-web/html-first-acceptance.md`。原规划日期2026-10-22。
 
 ## 1. 已确认需求与约束
 
@@ -195,11 +195,11 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** 当前仓库、安装与真实四页材料。**Produces:** 实际HEAD、工作区状态、技能路径、失败复现与测试命令。
 
-- [ ] 运行`git status --short --branch`、`git log -1 --oneline`和实际技能`doctor`，保留现有改动，不切分支或重置用户文件。
-- [ ] 开发以当前main为基线；如执行环境需要隔离，按工作树规则在执行窗口处理。不得照抄历史分支名或直接在安装快照开发。
-- [ ] 在临时副本复现普通图通过、`crop:[0,0,1,1]`却报missing-image。现有原稿不改。
-- [ ] 先定位并运行相关现有测试，确认失败是否已存在，不把旧缺陷归给新改动。
-- [ ] 记录现有HTML按钮离线打开、保存、导出哪些已可用，哪些因函数覆盖或assets缺失失败，作为T4/T5最小改动依据。
+- [x] 运行`git status --short --branch`、`git log -1 --oneline`和实际技能`doctor`，保留现有改动，不切分支或重置用户文件。
+- [x] 开发以当前main为基线；如执行环境需要隔离，按工作树规则在执行窗口处理。不得照抄历史分支名或直接在安装快照开发。
+- [x] 在临时副本复现普通图通过、`crop:[0,0,1,1]`却报missing-image。现有原稿不改。
+- [x] 先定位并运行相关现有测试，确认失败是否已存在，不把旧缺陷归给新改动。
+- [x] 记录现有HTML按钮离线打开、保存、导出哪些已可用，哪些因函数覆盖或assets缺失失败，作为T4/T5最小改动依据。
 
 **完成标准：** 无运行代码变更；后续任务知道真实基线，未声称全部历史测试已通过。
 
@@ -209,12 +209,12 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** 既有图片readiness。**Produces:** crop正确识别、`measureProject`可选注入page/页ID/截图策略，不改变旧调用者返回结构。
 
-- [ ] 添加失败用例：相同正常图片在img和crop外层div下均通过；坏图在两种结构中均失败；未加载图有有界超时。
-- [ ] 添加截图用例：缩放编辑器在不同视口下捕获均为1920×1080；截图后编辑器缩放/当前页恢复；不靠放大低分辨率PNG冒充原尺寸。
-- [ ] 实现统一读取真实img加载信息，消除对div读取naturalWidth的错误；readiness失败仍阻止发布。
-- [ ] 原尺寸捕获只临时调整隔离页面的布局/scale并恢复。注入page时不关闭调用者拥有的浏览器；自建浏览器必须关闭。
-- [ ] 执行 `node --test tests/fusion/qa-readiness.spec.mjs tests/fusion/qa-project.spec.mjs`；预期新用例与原有小视口、零scale、缺字体检查全部通过。
-- [ ] 独立提交T1修复及相关测试。
+- [x] 添加失败用例：相同正常图片在img和crop外层div下均通过；坏图在两种结构中均失败；未加载图有有界超时。
+- [x] 添加截图用例：缩放编辑器在不同视口下捕获均为1920×1080；截图后编辑器缩放/当前页恢复；不靠放大低分辨率PNG冒充原尺寸。
+- [x] 实现统一读取真实img加载信息，消除对div读取naturalWidth的错误；readiness失败仍阻止发布。
+- [x] 原尺寸捕获只临时调整隔离页面的布局/scale并恢复。注入page时不关闭调用者拥有的浏览器；自建浏览器必须关闭。
+- [x] 执行 `node --test tests/fusion/qa-readiness.spec.mjs tests/fusion/qa-project.spec.mjs`；预期新用例与原有小视口、零scale、缺字体检查全部通过。
+- [x] 独立提交T1修复及相关测试。
 
 ### T2：完整工程用法与真实文本测量
 
@@ -222,13 +222,13 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** 正式SceneElement的CSS、authoringRuleSources和原规则。**Produces:** 元素辅助、批量测量、`rules:read`、`text:measure`。
 
-- [ ] 单位/元素用例：CSS64px对应导出32pt；横线、竖线和斜线的bounds均为正且端点一致；参数未指定时使用渲染器真实默认值。
-- [ ] DOM测量用例：中文、中英数字混排、显式换行、不同字重、runs内不同字号/字体、letterSpacing及窄文本框。与正式页面自然高度比较误差≤2逻辑px；指定字体缺失时明确报错，不返回伪成功。
-- [ ] 扩展原测量器，按实际runs生成span；测量无需调用旧规划器，结束关闭浏览器/删除测量页。line辅助函数统一计算端点与bounds。
-- [ ] `rules:read`返回选定原文、来源路径和SHA，不输出整套风格库；缺必读来源明确失败。辅助样例包含完整requirements/sources/media/contentPlan/designChoice/slides，用合成资源，不绑定用户目录。
-- [ ] 文档给出完整可运行命令与字段速查，区分px、pt和裁切比例；保留任意受支持直接元素写法。
-- [ ] 执行 `node --test tests/fusion/authoring-api.test.mjs tests/fusion/text-measure.spec.mjs tests/fusion/kimi-rule-manifest.test.mjs`，并由样例构建工程；预期无需翻源码或临时写辅助脚本。
-- [ ] 独立提交T2。
+- [x] 单位/元素用例：CSS64px对应导出32pt；横线、竖线和斜线的bounds均为正且端点一致；参数未指定时使用渲染器真实默认值。
+- [x] DOM测量用例：中文、中英数字混排、显式换行、不同字重、runs内不同字号/字体、letterSpacing及窄文本框。与正式页面自然高度比较误差≤2逻辑px；指定字体缺失时明确报错，不返回伪成功。
+- [x] 扩展原测量器，按实际runs生成span；测量无需调用旧规划器，结束关闭浏览器/删除测量页。line辅助函数统一计算端点与bounds。
+- [x] `rules:read`返回选定原文、来源路径和SHA，不输出整套风格库；缺必读来源明确失败。辅助样例包含完整requirements/sources/media/contentPlan/designChoice/slides，用合成资源，不绑定用户目录。
+- [x] 文档给出完整可运行命令与字段速查，区分px、pt和裁切比例；保留任意受支持直接元素写法。
+- [x] 执行 `node --test tests/fusion/authoring-api.test.mjs tests/fusion/text-measure.spec.mjs tests/fusion/kimi-rule-manifest.test.mjs`，并由样例构建工程；预期无需翻源码或临时写辅助脚本。
+- [x] 独立提交T2。
 
 ### T3：按ID批量修改与保存冲突
 
@@ -236,12 +236,12 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** `applyEditCommand`、`saveProject`。**Produces:** `patchProject`及`patch:project`，返回changedSlideIds供T6使用。
 
-- [ ] 失败用例：修改一个标题后，其他文字runs、图片原图/crop/focal、位置、图层和页序保持；撤销重做仍生效。
-- [ ] 冲突用例：旧expectedRevision拒绝且磁盘不变；第二项命令非法时整批不写盘；活跃锁存在时不删锁；富文本整段重置继续要求显式resetRuns。
-- [ ] 在内存克隆上顺序调用已有命令，全部成功后以批次开始revision原子保存一次；不要先保存中间状态再回滚。
-- [ ] CLI明确输出工程路径/revision/改动页；现有`build`覆盖保护不删除。锁遗留只诊断，不自动“rm lock/tmp”。
-- [ ] 执行 `node --test tests/fusion/project-patch.test.mjs tests/fusion/project.test.mjs tests/fusion/kimi-edit-roundtrip.test.mjs`；预期保存冲突、历史及网页编辑回环均通过。
-- [ ] 独立提交T3。
+- [x] 失败用例：修改一个标题后，其他文字runs、图片原图/crop/focal、位置、图层和页序保持；撤销重做仍生效。
+- [x] 冲突用例：旧expectedRevision拒绝且磁盘不变；第二项命令非法时整批不写盘；活跃锁存在时不删锁；富文本整段重置继续要求显式resetRuns。
+- [x] 在内存克隆上顺序调用已有命令，全部成功后以批次开始revision原子保存一次；不要先保存中间状态再回滚。
+- [x] CLI明确输出工程路径/revision/改动页；现有`build`覆盖保护不删除。锁遗留只诊断，不自动“rm lock/tmp”。
+- [x] 执行 `node --test tests/fusion/project-patch.test.mjs tests/fusion/project.test.mjs tests/fusion/kimi-edit-roundtrip.test.mjs`；预期保存冲突、历史及网页编辑回环均通过。
+- [x] 独立提交T3。
 
 ### T4：单文件HTML打包、保存和受控导入
 
@@ -249,14 +249,14 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** T1检查与现有HTML克隆/内嵌函数。**Produces:** 共用序列化/提取/自包含校验、离线保存HTML、`import:html`。
 
-- [ ] 先从既有HTML导出链提取最小共用模块，已有菜单和新CLI共用，不增加第二套序列化逻辑。
-- [ ] 失败用例：交付HTML移到空目录并改名，原服务关闭、新浏览器上下文断网，页面、富文本、图片及必要动画正常，无assets/CDN/API资源依赖；不测试远程视频作为本轮默认能力。
-- [ ] 操作用例：未确认裁切/刚改文字立即“保存HTML”，下载的新HTML重开后保留最新runs、crop、图框、页序、隐藏/跳过状态。原图资源仍在，裁切可再次调整。
-- [ ] 修复内嵌的ProjectV2、VM状态及资源引用一致性；防止切页时从旧seed恢复旧内容，处理`</script>`和中文文件名。
-- [ ] 离线IndexedDB不可用时允许编辑/下载保存，明确草稿恢复不可用，不能阻断文稿或冒充已写磁盘。
-- [ ] 导入用例：本产品快照可建立新内部工程；导入到已有工程需同时匹配expectedRevision和portable元数据baseRevision，离线保存多次后baseRevision仍不漂移；冲突不改任何文件。未知任意HTML、无效schema或不受支持的版本明确拒绝，不执行导入文档里的脚本来提取数据。
-- [ ] 执行 `node --test tests/fusion/portable-html.spec.mjs tests/fusion/portable-import.test.mjs`；预期以上均通过并保留已有HTML导出行为。
-- [ ] 独立提交T4。
+- [x] 先从既有HTML导出链提取最小共用模块，已有菜单和新CLI共用，不增加第二套序列化逻辑。
+- [x] 失败用例：交付HTML移到空目录并改名，原服务关闭、新浏览器上下文断网，页面、富文本、图片及必要动画正常，无assets/CDN/API资源依赖；不测试远程视频作为本轮默认能力。
+- [x] 操作用例：未确认裁切/刚改文字立即“保存HTML”，下载的新HTML重开后保留最新runs、crop、图框、页序、隐藏/跳过状态。原图资源仍在，裁切可再次调整。
+- [x] 修复内嵌的ProjectV2、VM状态及资源引用一致性；防止切页时从旧seed恢复旧内容，处理`</script>`和中文文件名。
+- [x] 离线IndexedDB不可用时允许编辑/下载保存，明确草稿恢复不可用，不能阻断文稿或冒充已写磁盘。
+- [x] 导入用例：本产品快照可建立新内部工程；导入到已有工程需同时匹配expectedRevision和portable元数据baseRevision，离线保存多次后baseRevision仍不漂移；冲突不改任何文件。未知任意HTML、无效schema或不受支持的版本明确拒绝，不执行导入文档里的脚本来提取数据。
+- [x] 执行 `node --test tests/fusion/portable-html.spec.mjs tests/fusion/portable-import.test.mjs`；预期以上均通过并保留已有HTML导出行为。
+- [x] 独立提交T4。
 
 ### T5：统一用户按需导出
 
@@ -264,13 +264,13 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** T4单文件与一致快照。**Produces:** 唯一的菜单调度，HTML/PPTX/PDF/图片均在用户选择时执行对应动作。
 
-- [ ] 用例：打开/编辑/保存HTML均无PPTX/PDF/图片下载，也无导出端点请求；点击某格式只下载该格式一次。
-- [ ] 离线用例：新上下文file协议断网，PPTX含可编辑文字/形状和原图crop，PDF页数/顺序正确，图片按用户选定页面生成；依赖不再读取assets相对路径。
-- [ ] 同时存在模板与fusion代码时，全局导出函数只有一个最终调度入口；离线不先尝试API再耗时降级，服务模式保持revision检查。
-- [ ] 操作前统一确认pending edits、字体/图片readiness，并采集一致ProjectV2快照。导出中新的编辑不混入旧快照；失败和取消不破坏编辑状态、当前页与视图。
-- [ ] 真坏图/不支持元素保持显式失败；PPTX不静默变整页截图。PDF仍明确是截图型，字体未嵌入等边界放相应导出提示或帮助中，不塞进日常页面主流程。
-- [ ] 执行 `node --test tests/fusion/on-demand-export.spec.mjs tests/fusion/image-crop.test.mjs tests/fusion/export-integrity.test.mjs tests/fusion/kimi-export.spec.mjs`；预期单文件和服务模式均通过。
-- [ ] 独立提交T5。
+- [x] 用例：打开/编辑/保存HTML均无PPTX/PDF/图片下载，也无导出端点请求；点击某格式只下载该格式一次。
+- [x] 离线用例：新上下文file协议断网，PPTX含可编辑文字/形状和原图crop，PDF页数/顺序正确，图片按用户选定页面生成；依赖不再读取assets相对路径。
+- [x] 同时存在模板与fusion代码时，全局导出函数只有一个最终调度入口；离线不先尝试API再耗时降级，服务模式保持revision检查。
+- [x] 操作前统一确认pending edits、字体/图片readiness，并采集一致ProjectV2快照。导出中新的编辑不混入旧快照；失败和取消不破坏编辑状态、当前页与视图。
+- [x] 真坏图/不支持元素保持显式失败；PPTX不静默变整页截图。PDF仍明确是截图型，字体未嵌入等边界放相应导出提示或帮助中，不塞进日常页面主流程。
+- [x] 执行 `node --test tests/fusion/on-demand-export.spec.mjs tests/fusion/image-crop.test.mjs tests/fusion/export-integrity.test.mjs tests/fusion/kimi-export.spec.mjs`；预期单文件和服务模式均通过。
+- [x] 独立提交T5。
 
 ### T6：HTML优先流水线与文件生命周期
 
@@ -278,14 +278,14 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** T1检查、T3改动页、T4打包、T5按需能力。**Produces:** `make`、`check`、`publish:html`和内部工程定位。
 
-- [ ] 默认行为用例：调用make后，干净交付目录只新增一个HTML，无exports/qa/screenshots/delivery子目录；拦截验证从未调用PPTX/PDF导出或生成总览。
-- [ ] 生命周期用例：patch/publish连续三轮，复用同一工程及已存在素材，临时目录释放，不复制整套交付目录；原用户文件不删除。
-- [ ] 修改页检查用例：仅文字变化可以局部检查；共享字体/素材、页序、全局样式变化强制扩大检查；publish始终全稿检查。局部通过不能充当全稿通过。
-- [ ] publish在检查通过后原子写HTML，失败保留原交付HTML和当前内部工程；检查产物仅留最近一次必要失败证据，不积累每轮截图。
-- [ ] make若内部工程存在则拒绝重导入，返回明确patch/publish用法。publish不自动把离线快照覆盖回内部工程。
-- [ ] 在单次操作内复用浏览器/page及readiness，T2独立预排版测量不强行合并；不建立长期全局缓存或浏览器池。
-- [ ] 执行 `node --test tests/fusion/html-first-pipeline.test.mjs tests/fusion/kimi-entry.test.mjs`；预期新推荐入口仅HTML，旧低层入口仍兼容。
-- [ ] 独立提交T6。
+- [x] 默认行为用例：调用make后，干净交付目录只新增一个HTML，无exports/qa/screenshots/delivery子目录；拦截验证从未调用PPTX/PDF导出或生成总览。
+- [x] 生命周期用例：patch/publish连续三轮，复用同一工程及已存在素材，临时目录释放，不复制整套交付目录；原用户文件不删除。
+- [x] 修改页检查用例：仅文字变化可以局部检查；共享字体/素材、页序、全局样式变化强制扩大检查；publish始终全稿检查。局部通过不能充当全稿通过。
+- [x] publish在检查通过后原子写HTML，失败保留原交付HTML和当前内部工程；检查产物仅留最近一次必要失败证据，不积累每轮截图。
+- [x] make若内部工程存在则拒绝重导入，返回明确patch/publish用法。publish不自动把离线快照覆盖回内部工程。
+- [x] 在单次操作内复用浏览器/page及readiness，T2独立预排版测量不强行合并；不建立长期全局缓存或浏览器池。
+- [x] 执行 `node --test tests/fusion/html-first-pipeline.test.mjs tests/fusion/kimi-entry.test.mjs`；预期新推荐入口仅HTML，旧低层入口仍兼容。
+- [x] 独立提交T6。
 
 ### T7：技能规则、计时与真实质量验收
 
@@ -293,14 +293,14 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** T6产品闭环与原材料。**Produces:** 一致文档、实际计时记录、真实稿审核证据。
 
-- [ ] 同时更新技能description和默认流程，将“交付PPTX/PDF完整源目录”改为“HTML默认交付，其他格式按需”。删除每稿必须写出截图/总览/整套报告的要求，保留内容判断和看图检查。
-- [ ] 核对规则：原规则按需实际读取，自主设计不受样例限制；内部记录不要求用户填写JSON；用户未要求导出时不安排Office文件检查。完整引擎回归属于版本验收。
-- [ ] 扩展benchmark字段：installedFingerprint、host、deliveryProfile=html-first、冷/热启动、首版时间、端到端制作时间、分阶段时间、修正轮数、质量/编辑状态、实际可得tokens。程序回放单独标scope，不和制作混算。
-- [ ] 测试统计不重叠加总、缺失token不估计、不同模型/材料/要求不可宣称直接速度优劣；执行 `node --test tests/fusion/html-first-benchmark.test.mjs tests/fusion/kimi-benchmark.spec.mjs`。
-- [ ] 在私人四页材料副本做真实制作审核：7张素材逐项核对用途与删并理由；内容主线、证据作用、必要限定与页面可读性保留。与原稿比较截图，但不要求复制旧版设计。用户视觉认可单独记录。
-- [ ] 质量门槛优先：通过后才做每个固定条件至少3次速度记录，报告中位数和范围。原“多格式默认”与新“仅HTML默认”的结果分别列口径，不能全部归因于引擎提速；附同交付要求的比较。
-- [ ] 目标仅作待验证：同类4页首版≤10分钟、经一次内容/视觉复核的HTML交付≤20–30分钟。不承诺5–8分钟，不要求为了冲时间删内容或跳检查。未完成多次实测则如实标未验证，不阻止提交明确完成的功能修复。
-- [ ] 独立提交T7；真实素材、生成文件和原规则不进入公开Git。
+- [x] 同时更新技能description和默认流程，将“交付PPTX/PDF完整源目录”改为“HTML默认交付，其他格式按需”。删除每稿必须写出截图/总览/整套报告的要求，保留内容判断和看图检查。
+- [x] 核对规则：原规则按需实际读取，自主设计不受样例限制；内部记录不要求用户填写JSON；用户未要求导出时不安排Office文件检查。完整引擎回归属于版本验收。
+- [x] 扩展benchmark字段：installedFingerprint、host、deliveryProfile=html-first、冷/热启动、首版时间、端到端制作时间、分阶段时间、修正轮数、质量/编辑状态、实际可得tokens。程序回放单独标scope，不和制作混算。
+- [x] 测试统计不重叠加总、缺失token不估计、不同模型/材料/要求不可宣称直接速度优劣；执行 `node --test tests/fusion/html-first-benchmark.test.mjs tests/fusion/kimi-benchmark.spec.mjs`。
+- [x] 在私人四页材料副本做真实制作审核：7张素材逐项核对用途与删并理由；内容主线、证据作用、必要限定与页面可读性保留。与原稿比较截图，但不要求复制旧版设计。用户视觉认可单独记录。
+- [x] 质量门槛优先：通过后才做每个固定条件至少3次速度记录，报告中位数和范围。原“多格式默认”与新“仅HTML默认”的结果分别列口径，不能全部归因于引擎提速；附同交付要求的比较。
+- [x] 目标仅作待验证：同类4页首版≤10分钟、经一次内容/视觉复核的HTML交付≤20–30分钟。不承诺5–8分钟，不要求为了冲时间删内容或跳检查。未完成多次实测则如实标未验证，不阻止提交明确完成的功能修复。
+- [x] 独立提交T7；真实素材、生成文件和原规则不进入公开Git。
 
 ### T8：全量回归、安装验证与交接
 
@@ -308,12 +308,12 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 
 **Consumes:** T1–T7实现和可审阅commit。**Produces:** 开发状态、安装状态及回退信息分别明确。
 
-- [ ] 在仓库根运行`npm test -- --test-concurrency=1`与`git diff --check`。对失败定位相关改动，不能用跳过/删断言换绿。旧模板/历史ProjectV2兼容、网页编辑、裁切、runs、保存、导出专项必须覆盖。
-- [ ] 从两页合成稿验证端到端，再用真实四页HTML验证用户操作；Office独立渲染与PowerPoint打开/编辑/保存仅作为本次引擎版本导出验证，未能执行时写明未验，不冒充成功。
-- [ ] 新安装先建候选快照，独立跑doctor、make单HTML、离线保存重开、用户点击导出；开发源码通过不代表日常入口已切换。
-- [ ] 若执行窗口得到启用授权，沿现有安装器原子切换并保留旧快照/回退回执；从实际入口复测。未得到启用授权则交付候选及切换方法，不暗改全局链接。不自动修改WorkBuddy/Antigravity未确认的配置。
-- [ ] 合主线、推送、正式发布和用户视觉认可按该窗口实际授权分别处理。不得把本规划误读为已经完成验收或无条件发布授权。
-- [ ] 最终只给用户简短开发总结、一个真实HTML审核入口及必要未完成项；无需再生成全套附件。记录代码commit、候选/实际安装指纹、测试与回退路径即可。
+- [x] 在仓库根运行`npm test -- --test-concurrency=1`与`git diff --check`。对失败定位相关改动，不能用跳过/删断言换绿。旧模板/历史ProjectV2兼容、网页编辑、裁切、runs、保存、导出专项必须覆盖。
+- [x] 从两页合成稿验证端到端，再用真实四页HTML验证用户操作；Office独立渲染与PowerPoint打开/编辑/保存仅作为本次引擎版本导出验证，未能执行时写明未验，不冒充成功。
+- [x] 新安装先建候选快照，独立跑doctor、make单HTML、离线保存重开、用户点击导出；开发源码通过不代表日常入口已切换。
+- [x] 若执行窗口得到启用授权，沿现有安装器原子切换并保留旧快照/回退回执；从实际入口复测。未得到启用授权则交付候选及切换方法，不暗改全局链接。不自动修改WorkBuddy/Antigravity未确认的配置。
+- [x] 合主线、推送、正式发布和用户视觉认可按该窗口实际授权分别处理。不得把本规划误读为已经完成验收或无条件发布授权。
+- [x] 最终只给用户简短开发总结、一个真实HTML审核入口及必要未完成项；无需再生成全套附件。记录代码commit、候选/实际安装指纹、测试与回退路径即可。
 
 ## 7. 总验收表
 
@@ -353,3 +353,12 @@ publishHtml({workspaceDir,outFile}) -> Promise<{ok,projectId,revision,outFile,is
 - [x] 保留事实/内容/视觉质量，区分程序检查、Office验证与用户认可。
 - [x] 未以默认全格式打包、跨会话导出缓存或大规模架构重写扩大本轮范围。
 - [x] 本轮只新增本规划文档；所有开发任务仍未勾选。
+
+## 10. 实施回执（2026-10-22）
+
+- T0–T3：现场/安装区分；crop真实img检查；独立1920截图带像素断言；原文+SHA；runs自然高度对正式渲染误差≤2px；批次修改、revision与锁保护。
+- T4–T6：统一单HTML打包、离线下载保存与受控导入；两页合成稿保留未确认crop、runs、页序/跳过状态；只按点击格式下载；三轮patch/publish复用工程、失败不覆盖交付。
+- T7：技能与命令说明同步；真实四页、七张素材逐项核对，旧多格式口径只在副本中修订；3次记录明确为程序回放，不宣称首版制作或模型提速。
+- T8：171项回归通过、diff检查通过；候选快照独立doctor/make/离线保存重开/点击导出；实际全局入口仍是旧统一快照。LibreOffice独立渲染及PowerPoint合成样本打开/编辑/保存/重开已实测。
+- 独立审阅的Important（导出中撤销/重做混入快照）已通过真实快捷键失败回归修复；Minor代码格式整理延后。
+- 勾选表示实现及该条要求的处置已完成；不表示有条件的“启用安装/合主线/推送/用户认可”已经发生。首次制作≤10分钟、端到端20–30分钟及同交付条件速度比较未验证，按原规划保留此状态。
