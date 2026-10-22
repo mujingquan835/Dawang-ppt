@@ -5,7 +5,7 @@
 ```sh
 node skills/dawang-ppt/scripts/dawang.mjs styles
 node skills/dawang-ppt/scripts/dawang.mjs styles:grid management-report output/appearance.html
-node skills/dawang-ppt/scripts/dawang.mjs build authored.json output/demo/index.html
+node skills/dawang-ppt/scripts/dawang.mjs make authored.json output/报告.html
 node skills/dawang-ppt/scripts/dawang.mjs render:brief brief.json output/demo/index.html
 node skills/dawang-ppt/scripts/dawang.mjs render:project output/demo/deck-project.json output/demo/index.html
 node skills/dawang-ppt/scripts/dawang.mjs preview:start output/demo 8766
@@ -16,7 +16,9 @@ node skills/dawang-ppt/scripts/dawang.mjs export:pdf output/demo output/demo/rev
 
 ## 默认直接制作契约（W5）
 
-`build` 默认等价 `render:authored`，由智能体整理authored输入，不要求用户写JSON。旧brief/goal输入会明确提示使用render:brief/render:goal；已保存ProjectV2必须render:project，不静默回落或覆盖编辑。
+日常新稿推荐 `make <authored.json> <报告.html>`，仅输出一个独立HTML。内部ProjectV2和媒体在任务工作区复用；`patch:project`按ID批次修改，`publish:html`全稿检查后原子发布。`import:html`只接受本产品快照，expectedRevision和baseRevision同时匹配才可更新已有工程。单位、参数与样例见 [authoring-api.md](authoring-api.md)。
+
+兼容低层 `build` 默认等价 `render:authored`，由智能体整理authored输入，不要求用户写JSON。旧brief/goal输入会明确提示使用render:brief/render:goal；已保存ProjectV2必须render:project，不静默回落或覆盖编辑。
 
 输入包含requirements、sources.entries、media.entries、contentPlan.nodes/slides、designChoice与slides。每页包含稳定slideId、styleId、elements；程序写入mode:composition与authoring.engine:kimi-authored-v1。直接元素指定id、type、bounds及style，可用contentRef/mediaRef关联事实和媒体。文字可有runs:[{text,style}]；vector使用正尺寸bounds、四数值viewBox、受控path/style，不接收任意HTML/SVG脚本。
 
@@ -42,7 +44,7 @@ node skills/dawang-ppt/scripts/dawang.mjs export:pdf output/demo output/demo/rev
 
 各对象均有objectId/bounds/overrides。显式空relationships表示无连接，不自动补线。日期比例模式要求实际日期，顺序时间轴可用阶段名。图片ID、节点、行列和关系ID必须稳定，不能用重排后的下标代替。
 
-唯一源文件为`deck-project.json`：version=2、requirements、sources、media、contentPlan、designChoice、slides、editorState、revision。原模板mode=template；新组合mode=composition。图片复制到assets/user-media；用户上传去重落盘，撤销记录引用媒体。完整交付保留整个输出目录，不只复制HTML。
+唯一源文件为`deck-project.json`：version=2、requirements、sources、media、contentPlan、designChoice、slides、editorState、revision。原模板mode=template；新组合mode=composition。图片复制到assets/user-media；用户上传去重落盘，撤销记录引用媒体。旧低层渲染目录需保留资源；推荐 make/publish:html 的交付仅一个HTML，已嵌入工程和所需资源。
 
 逻辑画布1920×1080；导出13⅓×7½英寸。逻辑坐标/144为英寸，CSS字号/2为点值。原组件按浏览器实际布局采集；新对象保持文字、形状、图片和线条可编辑。
 
