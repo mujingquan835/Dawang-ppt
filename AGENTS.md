@@ -1,6 +1,6 @@
 # Dawang-PPT 维护规则
 ## 2026-10-22 HTML 默认交付启用
-用户已确认当前 HTML 版本无问题，并明确同意合并主分支与启用新版。本机 main 已纳入 HTML-first T0–T8 实现；日常 Codex 安装使用 `html-first-candidate-20261022-5f3149c` 快照，旧 `main-unified-20261021-d4c19a3` 保留回退。默认只交付一个 HTML，PPTX、PDF、图片按需导出。本次授权不包含远端推送、正式版本发布或未经测试的制作速度承诺。安装与验收记录见 `docs/kimi-web/html-first-acceptance.md`。
+用户已确认当前 HTML 版本无问题，并明确同意合并主分支与启用新版。本机 main 已纳入 HTML-first T0–T8 实现；日常 Codex 安装使用 `html-first-candidate-20261022-5f3149c` 快照，旧 `main-unified-20261021-d4c19a3` 保留回退。默认只交付一个 HTML，PPTX、PDF、图片按需导出。随后用户要求“继续”，授权将已验收主分支同步到既有GitHub远端。本次不包含正式版本发布或未经测试的制作速度承诺。安装与验收记录见 `docs/kimi-web/html-first-acceptance.md`。
 
 ## 2026-10-21 主线整合
 用户已明确授权将《整合方案 v4》对应的 `codex/kimi-web-editor`（W0—W5 与内容策划规则完善）合入 `main`，并清理其他分支。本次合主线授权覆盖下文历史阶段的“不合主分支”约束；不等同于全局安装切换、正式版本发布或全部稿件效果验收。后续以 `main` 为共同基线，未提交的编辑器/裁剪/动画工作仍需单独验证后提交。

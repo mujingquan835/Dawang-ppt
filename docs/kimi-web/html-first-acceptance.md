@@ -1,6 +1,6 @@
 # HTML 默认交付：开发、验收与本机启用
 
-2026-10-22，执行规划 `docs/superpowers/plans/2026-10-22-html-first-authoring.md`。源码从 `d4c19a3` 开发于 `codex/html-first-authoring`；运行实现截止 `5f3149c`，正式渲染测量对比测试提交 `e1810e4`。用户确认当前 HTML 版本无问题并授权合并、启用后，已快进合入本机 main；未推送、未正式发布。
+2026-10-22，执行规划 `docs/superpowers/plans/2026-10-22-html-first-authoring.md`。源码从 `d4c19a3` 开发于 `codex/html-first-authoring`；运行实现截止 `5f3149c`，正式渲染测量对比测试提交 `e1810e4`。用户确认当前 HTML 版本无问题并授权合并、启用后，已快进合入本机 main；随后用户要求“继续”，本轮将已验收主分支同步到既有GitHub远端。未正式发布。
 
 ## 功能与验证
 
