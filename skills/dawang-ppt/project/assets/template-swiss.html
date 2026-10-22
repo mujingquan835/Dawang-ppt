@@ -7955,6 +7955,10 @@ refreshRailCatalog();
     }
   };
 
+  window.__preparePortableClone = async function(clone){
+    const slides=[...document.querySelectorAll('#deck > .slide')];
+    await prepareSimpleHtmlExportClone(clone,slides);
+  };
   async function materializeExportSlides(exportUi, label){
     const slides = window.__getVisibleSlides?.() || [...document.querySelectorAll('#deck > .slide:not([hidden])')];
     for(let index = 0; index < slides.length; index++){
@@ -8008,8 +8012,8 @@ refreshRailCatalog();
   }
 
   async function prepareSimpleHtmlExportClone(clone, visibleSlides){
-    pruneHiddenSlidesForHtmlExport(clone, visibleSlides);
-    materializeHtmlExportViewModel(clone, visibleSlides);
+    if(!window.__fusionEditor)pruneHiddenSlidesForHtmlExport(clone, visibleSlides);
+    if(!window.__fusionEditor)materializeHtmlExportViewModel(clone, visibleSlides);
     await inlineLocalScriptsForHtmlExport(clone);
     await embedUnicornAssetsForExport(clone);
     clone.querySelector('.deck-export-overlay')?.remove();

@@ -1,3 +1,4 @@
+import {serializePortableHtml} from '../portable/html.mjs';
 import {mountImageCrop} from './image-crop.jsx';
 import { readRunsFromDom, runsToHtml } from '../authoring/text-runs.mjs';
 import { openDraftStore, draftDecision } from "./drafts.mjs";
@@ -167,7 +168,7 @@ if (seed) {
     const record = { projectId, baseRevision: savedRevision, updatedAt: (/* @__PURE__ */ new Date()).toISOString(), project: structuredClone(project) };
     draftQueue = draftQueue.catch(() => {
     }).then(() => draftStore.put(record));
-    await draftQueue;
+    try{await draftQueue;}catch(error){draftStore=null;status("本地草稿不可用，仍可下载HTML："+error.message);}
   }
   const stockUndo = window.__dashiUndo.undo.bind(window.__dashiUndo), stockPush = window.__dashiUndo.push.bind(window.__dashiUndo);
   const sections = () => [...document.querySelectorAll("#deck > .fusion-slide")];
@@ -189,7 +190,8 @@ if (seed) {
     await ready;
     cropEditor?.confirm();
     const current = sync();
-    await persistDraft();
+    if(location.protocol==='file:'||document.getElementById('portable-project-meta'))return downloadHtml();
+    await persistDraft().catch(error=>status('草稿不可用：'+error.message));
     const response = await fetch("/api/save-deck-state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: current.editorState.legacy, project: current, expectedRevision: savedRevision }) });
     const result = await response.json();
     if (!result.ok) {
@@ -237,6 +239,22 @@ if (seed) {
     project.revision = r;
   } };
   window.__fusionEditor = api;
+  const portable=()=>location.protocol==='file:'||!!document.getElementById('portable-project-meta');
+  const download=async(blob,name)=>{const href=URL.createObjectURL(blob);try{const a=document.createElement('a');a.href=href;a.download=name;a.click();}finally{setTimeout(()=>URL.revokeObjectURL(href),1000);}};
+  async function portableHtml(){
+    await ready;cropEditor?.confirm();const p=sync();
+    if(portable())p.revision=crypto.randomUUID();
+    const clone=document.documentElement.cloneNode(true);
+    await window.__preparePortableClone?.(clone);
+    const html=await serializePortableHtml({document:clone,project:p,baseRevision:savedRevision});
+    if(portable()){project.revision=p.revision;savedRevision=p.revision;}
+    return html;
+  }
+  async function downloadHtml(){const html=await portableHtml();await download(new Blob([html],{type:'text/html;charset=utf-8'}),(project.requirements.title||'报告')+'.html');status('已下载修改后的HTML；请打开下载文件继续使用。');return {ok:true,revision:project.revision};}
+  api.serializeHtml=portableHtml;
+  window.__exportDeckHtml=downloadHtml;
+  if(portable()){const saveButton=document.getElementById('preview-save');if(saveButton)saveButton.textContent='下载修改后的HTML';}
+
   async function browserExport() {
     cropEditor?.confirm();
     const p = sync(), collection = { revision: p.revision, width: 1920, height: 1080, slides: [] };

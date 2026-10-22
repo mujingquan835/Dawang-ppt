@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {patchProject} from '../src/fusion/project/patch.mjs';
 import {readAuthoringRules} from '../src/fusion/kimi/reference-index.mjs';
+import {importPortableHtml} from "../src/fusion/portable/import.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -122,6 +123,7 @@ async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
 }
 async function main(args = process.argv.slice(2)) {
   const [mode, input, output] = args;
+  if(mode==='import:html'){const i=args.indexOf('--expected-revision'),r=importPortableHtml(absolute(input),absolute(output),{expectedRevision:i<0?undefined:args[i+1]});console.log(JSON.stringify(r));if(!r.ok)process.exitCode=1;return;}
   if(mode==='patch:project'){const result=patchProject(absolute(input),JSON.parse(fs.readFileSync(absolute(output),'utf8')));console.log(JSON.stringify(result));if(!result.ok)process.exitCode=1;return;}
   if(mode==='rules:read') {const docs=args.flatMap((v,i)=>v==='--format'?[args[i+1]]:[]);console.log(JSON.stringify(readAuthoringRules({scenarioId:input,designDoc:args.includes('--design')?args[args.indexOf('--design')+1]:undefined,formatDocs:docs}),null,2));return;}
   if(mode==='text:measure') {const m=await createLayoutMeasurer();try{console.log(JSON.stringify(await m.texts(JSON.parse(fs.readFileSync(absolute(input),'utf8'))),null,2));}finally{await m.close();}return;}
