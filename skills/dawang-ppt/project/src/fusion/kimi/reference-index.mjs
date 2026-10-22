@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 // Paths and metadata only. Reference text stays in the user's local installation.
 import fs from "node:fs";
 import os from "node:os";
@@ -70,4 +71,8 @@ export function authoringRuleSources({ scenarioId, root = locateKimiSkill(), des
   if (designDoc) sources.push({ id: 'design', path: path.resolve(reference, designDoc), section: '用户指定设计系统或风格参考' });
   for (const doc of formatDocs) sources.push({ id: `format:${doc}`, path: path.resolve(reference, doc), section: '表达格式' });
   return sources;
+}
+
+export function readAuthoringRules(options) {
+ return authoringRuleSources(options).map(source=>{const text=fs.readFileSync(source.path,'utf8');return {...source,text,sha256:createHash('sha256').update(text).digest('hex')};});
 }

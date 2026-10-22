@@ -20,21 +20,30 @@ async function createLayoutMeasurer({chrome='/Applications/Google Chrome.app/Con
     const page=await browser.newPage({viewport:{width:1920,height:1080}});
     await page.goto(pathToFileURL(file).href);
     return {
-      async texts(specs,style) {
-        const normalized=specs.map(e=>({...e,fontFamily:cssFontStack(e.style?.fontFamily || (e.role==='title'?style.typography.heading:style.typography.body)),fontSize:e.style?.fontSize||style.typography.sizes.body}));
+      async texts(specs,style={typography:{heading:"sans-serif",body:"sans-serif",sizes:{body:32}}}) {
+        const normalized=specs.map(e=>({...e,runs:e.runs?.map(r=>({...r,style:{...r.style,...(r.style?.fontFamily?{fontFamily:cssFontStack(r.style.fontFamily)}:{})}})),fontFamily:cssFontStack(e.style?.fontFamily || (e.role==='title'?style.typography.heading:style.typography.body)),fontSize:e.style?.fontSize||style.typography.sizes.body}));
         return page.evaluate(async specs=>{
           const root=document.getElementById('measure');root.replaceChildren();
           const nodes=specs.map(e=>{
-            const node=document.createElement('div');node.textContent=String(e.text??'');
+            const node=document.createElement('div');
+            const apply=(node,style)=>{for(const [key,value] of Object.entries(style||{}))node.style[key]=typeof value==='number'&&!['fontWeight','lineHeight','opacity','zIndex'].includes(key)?value+'px':String(value);};
+            if(e.runs)for(const run of e.runs){const span=document.createElement('span');span.textContent=run.text;span.dataset.fusionRun='true';apply(span,run.style);node.append(span);}else node.textContent=String(e.text??'');
+            apply(node,e.style);
             Object.assign(node.style,{position:'relative',width:e.bounds[2]+'px',boxSizing:'border-box',fontFamily:e.fontFamily,fontSize:e.fontSize+'px',fontWeight:String(e.style?.fontWeight||400),lineHeight:String(e.style?.lineHeight||1.25),whiteSpace:'pre-wrap',overflowWrap:'break-word'});
             root.append(node);return node;
           });
           await document.fonts.ready;
+          const generic=new Set(['serif','sans-serif','monospace','cursive','fantasy','system-ui','ui-sans-serif','ui-serif','ui-monospace','-apple-system']);
+          const ctx=document.createElement('canvas').getContext('2d');
+          for(const node of nodes)for(const el of [node,...node.querySelectorAll('span')]){
+           const family=getComputedStyle(el).fontFamily.split(',')[0].trim().replace(/^['"]|['"]$/g,'');
+           if(!generic.has(family)&&!['serif','monospace'].some(fallback=>{ctx.font='24px '+fallback;const base=ctx.measureText('Aa0123汉字').width;ctx.font='24px '+JSON.stringify(family)+','+fallback;return Math.abs(ctx.measureText('Aa0123汉字').width-base)>.01;}))throw new Error('font-unavailable: '+family);
+          }
           return nodes.map((node,i)=>{
  const height=node.getBoundingClientRect().height,width=node.scrollWidth;
  const clone=node.cloneNode(true);Object.assign(clone.style,{width:'max-content',whiteSpace:'pre'});root.append(clone);
  const naturalWidth=clone.getBoundingClientRect().width;clone.remove();
- return {id:specs[i].id,height,width,naturalWidth,fontFamily:getComputedStyle(node).fontFamily,fontSize:parseFloat(getComputedStyle(node).fontSize)};
+ return {fontAvailable:true,id:specs[i].id,height,width,naturalWidth,fontFamily:getComputedStyle(node).fontFamily,fontSize:parseFloat(getComputedStyle(node).fontSize)};
 });
         },normalized);
       },
