@@ -26,7 +26,7 @@ if (args[0] === "doctor") {
     try { const stat=fs.lstatSync(file), resolved=fs.realpathSync(file); return {path:file,link:stat.isSymbolicLink()?fs.readlinkSync(file):null,resolved,usesThisSkill:resolved===fs.realpathSync(skill)}; }
     catch(error) {return {path:file,usesThisSkill:false,status:error.code==='ENOENT'?'missing-or-broken':'unreadable'};}
   });
-  console.log(JSON.stringify({ node: process.version, skill, project, defaultBuild: "render:authored", legacyBuild: "render:brief", installations, runtime: ok, install: "npm ci --prefix skills/dawang-ppt/project" }));
+  console.log(JSON.stringify({ node: process.version, skill, project, defaultBuild: "render:authored", defaultAuthoringCommand:"make", defaultDeliverable:"html", legacyBuild: "render:brief", installations, runtime: ok, install: "npm ci --prefix skills/dawang-ppt/project" }));
   process.exitCode = ok ? 0 : 1;
 } else {
   const command = path.join(project, "node_modules/.bin/tsx");

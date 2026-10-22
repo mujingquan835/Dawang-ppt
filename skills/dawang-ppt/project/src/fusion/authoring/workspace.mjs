@@ -1,0 +1,4 @@
+import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
+export function workspacePath(projectId,explicit){if(explicit)return path.resolve(explicit);if(!projectId)throw Error('projectId required');return path.join(process.env.DAWANG_WORKSPACE_ROOT||path.join(os.homedir(),'.dawang-ppt/workspaces'),encodeURIComponent(projectId));}
+export async function withRunDirectory(operation){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dawang-run-'));try{return await operation(dir);}finally{fs.rmSync(dir,{recursive:true,force:true});}}
+export function recordRun(workspaceDir,report){fs.mkdirSync(workspaceDir,{recursive:true});const failure=path.join(workspaceDir,'.last-failure');fs.rmSync(failure,{recursive:true,force:true});if(!report.ok){fs.mkdirSync(failure);fs.writeFileSync(path.join(failure,'report.json'),JSON.stringify(report,null,2));}fs.writeFileSync(path.join(workspaceDir,'run.json'),JSON.stringify(report,null,2));}
