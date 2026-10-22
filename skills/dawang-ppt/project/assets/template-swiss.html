@@ -1912,7 +1912,8 @@
       </button>
       <div class="pp-export-menu" role="menu">
         <button id="preview-export" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg><span>HTML</span><kbd>离线包</kbd></button>
-        <button id="preview-export-pdf" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg><span>PDF</span><kbd>下载</kbd></button>
+        <button id="preview-export-image" type="button" role="menuitem"><span>当前页图片</span><kbd>PNG</kbd></button>
+        <button id="preview-export-pdf" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg><span>PDF</span><kbd>截图型</kbd></button>
         <button id="preview-export-pptx" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h20"/><path d="M4 4v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V4"/><path d="m9 20 3-3 3 3"/></svg><span>PPTX</span><kbd>可编辑</kbd></button>
       </div>
     </div>
@@ -7566,6 +7567,7 @@ refreshRailCatalog();
       // 在浏览器内合成并直接下载,导出不依赖任何服务端能力。
       let result = null;
       try {
+        if(location.protocol==='file:'||document.getElementById('portable-project-meta'))throw new Error('portable-browser-assembly');
         const response = await fetch('/api/export-pdf-assemble', {
           method: 'POST',
           headers: {'content-type': 'application/json'},

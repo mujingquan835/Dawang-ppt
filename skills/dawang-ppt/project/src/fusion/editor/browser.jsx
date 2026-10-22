@@ -1,3 +1,4 @@
+import {inspectReadinessInDom} from '../qa/readiness.mjs';
 import {serializePortableHtml} from '../portable/html.mjs';
 import {mountImageCrop} from './image-crop.jsx';
 import { readRunsFromDom, runsToHtml } from '../authoring/text-runs.mjs';
@@ -94,6 +95,7 @@ if (seed) {
     stockPush({ label: "重做", undo: () => restore(before) });
     return true;
   }, apply = function(command) {
+    if(exportBusy)return {ok:false,conflicts:[{kind:'export-in-progress'}]};
     cropEditor?.cancel();
     sync();
     const before = structuredClone(project), r = applyEditCommand(project, command);
@@ -158,7 +160,7 @@ if (seed) {
     field.classList.remove("is-hidden");
     mountInspector(document.getElementById("preview-props"), selected, api);
   };
-  let cropEditor = null;
+  let cropEditor = null, exportBusy=false;
   let project = JSON.parse(seed.textContent), savedRevision = project.revision, selected = null, selectionMode = "group", redoSnapshots = [], restoring = false, saveQueue = Promise.resolve();
   const roots = /* @__PURE__ */ new Map();
   let draftStore = null, draftTimer = null, draftQueue = Promise.resolve(), ready = Promise.resolve();
@@ -252,9 +254,21 @@ if (seed) {
   }
   async function downloadHtml(){const html=await portableHtml();await download(new Blob([html],{type:'text/html;charset=utf-8'}),(project.requirements.title||'报告')+'.html');status('已下载修改后的HTML；请打开下载文件继续使用。');return {ok:true,revision:project.revision};}
   api.serializeHtml=portableHtml;
-  window.__exportDeckHtml=downloadHtml;
+  window.__exportDeckHtml=()=>withSnapshot(downloadHtml);
+  document.getElementById('preview-export-image')?.addEventListener('click',()=>window.__exportDeckImage());
   if(portable()){const saveButton=document.getElementById('preview-save');if(saveButton)saveButton.textContent='下载修改后的HTML';}
 
+  async function waitReady(id){
+    const deadline=Date.now()+10000;let state;
+    do{state=inspectReadinessInDom(id);if(state.ready)return state;if(state.issues.some(i=>['missing-image','font-unavailable'].includes(i.kind)))break;await new Promise(r=>setTimeout(r,30));}while(Date.now()<deadline);
+    throw Error('导出检查未通过：'+JSON.stringify(state.issues));
+  }
+  async function withSnapshot(operation){
+    if(exportBusy)throw Error('导出正在进行');await ready;cropEditor?.confirm();sync();
+    exportBusy=true;const index=window.__currentSlideIndex,editables=[...document.querySelectorAll('#deck [contenteditable="true"]')];
+    editables.forEach(e=>e.setAttribute('contenteditable','false'));
+    try{return await operation();}finally{editables.forEach(e=>e.setAttribute('contenteditable','true'));exportBusy=false;window.go(index,{animate:false,force:true});}
+  }
   async function browserExport() {
     cropEditor?.confirm();
     const p = sync(), collection = { revision: p.revision, width: 1920, height: 1080, slides: [] };
@@ -265,6 +279,7 @@ if (seed) {
         await document.fonts.ready;
         await Promise.all([...el.querySelectorAll("img")].map((img) => img.decode().catch(() => {
         })));
+        await waitReady(el.dataset.vmSlideId);
         const collected = collectSlideInDom(el.dataset.vmSlideId);
         for (const o of collected.objects) if (o.type === "image" && !o.src.startsWith("data:")) {
           const blob = await (await fetch(o.src)).blob();
@@ -276,6 +291,7 @@ if (seed) {
         }
         collection.slides.push(collected);
       }
+      window.pptxgen ||= window.PptxGenJS;
       if (!window.pptxgen) await new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = "assets/vendor/pptxgen.bundle.js";
@@ -283,6 +299,7 @@ if (seed) {
         script.onerror = reject;
         document.head.append(script);
       });
+      window.pptxgen ||= window.PptxGenJS;
       const { pptx, report } = composeEditablePptx(window.pptxgen, collection, { title: p.requirements.title });
       return { blob: await writeEditablePackage(pptx, collection, { type: "blob" }), report };
     } finally {
@@ -307,8 +324,19 @@ if (seed) {
     a.remove();
     return r;
   }
-  window.__exportDeckPptx = () => exportFile();
-  window.__exportDeckPdf = () => exportFile(true);
+  window.__exportDeckPptx = () => withSnapshot(()=>portable()?window.__exportDeckPptxInBrowser():exportFile());
+  window.__exportDeckPdf = () => withSnapshot(async()=>{
+    if(!portable())return exportFile(true);
+    for(const [index,el] of window.__getVisibleSlides().entries()){window.go(index,{animate:false,force:true});await waitReady(el.dataset.vmSlideId);}
+    return window.__exportDeckPdfInBrowser();
+  });
+  window.__exportDeckImage = () => withSnapshot(async()=>{
+    const el=window.__getVisibleSlides()[window.__currentSlideIndex||0];await waitReady(el.dataset.vmSlideId);
+    if(!window.htmlToImage){const script=document.createElement('script');script.src='assets/vendor/html-to-image.js';await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;document.head.append(script);});}
+    const root=el.querySelector('.fusion-root,.imported-theme-root')||el;
+    const blob=await window.htmlToImage.toBlob(root,{width:1920,height:1080,pixelRatio:1,style:{transform:'none',left:'0',top:'0'},filter:node=>!node.classList?.contains('fusion-selection')&&!node.classList?.contains('fusion-crop-editor')});
+    await download(blob,(project.requirements.title||'报告')+'-'+(window.__currentSlideIndex+1)+'.png');return {ok:true};
+  });
   window.__exportDeckPptxInBrowser = async () => {
     const result = await browserExport();
     const a = document.createElement("a");
