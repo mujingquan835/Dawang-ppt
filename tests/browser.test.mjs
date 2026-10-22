@@ -29,7 +29,10 @@ test("browser text/image editing survives save/reopen/export; conflict preserves
     await page.locator('[data-element-id="s3.title"]').click();
     await page.locator("#text").fill("第三页已由浏览器修改");
     await page.locator("#apply").click();
-    await page.locator("#save").click();
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "load" }),
+      page.locator("#save").click(),
+    ]);
     await page.waitForFunction(
       () =>
         document.querySelector('[data-element-id="s3.title"]').textContent ===
@@ -47,7 +50,10 @@ test("browser text/image editing survives save/reopen/export; conflict preserves
       () =>
         document.querySelector("#status").textContent === "图片草稿尚未保存",
     );
-    await page.locator("#save").click();
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "load" }),
+      page.locator("#save").click(),
+    ]);
     await page.waitForFunction(
       () =>
         document
