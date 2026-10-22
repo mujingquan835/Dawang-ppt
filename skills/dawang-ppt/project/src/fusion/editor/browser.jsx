@@ -1,5 +1,5 @@
 import {inspectReadinessInDom} from '../qa/readiness.mjs';
-import {serializePortableHtml} from '../portable/html.mjs';
+import {serializePortableHtml,collectUsedFontFamilies} from '../portable/html.mjs';
 import {mountImageCrop} from './image-crop.jsx';
 import { readRunsFromDom, runsToHtml } from '../authoring/text-runs.mjs';
 import { openDraftStore, draftDecision } from "./drafts.mjs";
@@ -250,9 +250,10 @@ if (seed) {
   async function portableHtml(){
     await ready;cropEditor?.confirm();const p=sync();
     if(portable())p.revision=crypto.randomUUID();
+    const usedFontFamilies=collectUsedFontFamilies(document,p);
     const clone=document.documentElement.cloneNode(true);
     await window.__preparePortableClone?.(clone);
-    const html=await serializePortableHtml({document:clone,project:p,baseRevision:savedRevision});
+    const html=await serializePortableHtml({document:clone,project:p,baseRevision:savedRevision,usedFontFamilies});
     if(portable()){project.revision=p.revision;savedRevision=p.revision;}
     return html;
   }

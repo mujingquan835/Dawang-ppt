@@ -26,6 +26,8 @@ export function stageMedia(project, sourceDir, targetDir) {
     return value;
   };
   const p = transform(project);
-  p.media.entries = [...p.media.entries, ...media.filter((m) => !p.media.entries.some((e) => e.mediaId === m.mediaId))];
+  // Authored entries keep readable mediaIds; a file already listed by content or staged path is not listed again.
+  const listed = (m) => p.media.entries.some((e) => e.mediaId === m.mediaId || e.sha256 === m.sha256 || e.src === m.src);
+  p.media.entries = [...p.media.entries, ...media.filter((m, i) => !listed(m) && media.findIndex((o) => o.mediaId === m.mediaId) === i)];
   return p;
 }

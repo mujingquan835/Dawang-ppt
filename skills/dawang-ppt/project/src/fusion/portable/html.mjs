@@ -12,9 +12,19 @@ export function validatePortableHtml(html){
  const issues=[];try{const p=extractPortableProject(html);const walk=(value,key='')=>{if(value&&typeof value==='object')for(const [k,v] of Object.entries(value))walk(v,Array.isArray(value)?key:k);else if(typeof value==='string'&&['src','image','images','imageSrc','imageUrl','heroImage','coverImage'].includes(key)&&!value.startsWith('data:'))unresolvedResources.push(value);};walk(p);}catch(error){issues.push(error.message);}
  return {ok:!unresolvedResources.length&&!issues.length,unresolvedResources:[...new Set(unresolvedResources)],issues};
 }
+const fontKey=family=>family.trim().replace(/^['"]|['"]$/g,'').toLowerCase();
+// Families the live page computes (all stack entries, so fallbacks still load) plus any fontFamily in the project.
+export function collectUsedFontFamilies(doc,project){
+ const used=new Set(),add=stack=>{for(const family of String(stack||'').split(','))if(family.trim())used.add(fontKey(family));};
+ for(const el of doc.querySelectorAll('*')){add(getComputedStyle(el).fontFamily);for(const pseudo of ['::before','::after']){const c=getComputedStyle(el,pseudo);if(c.content&&!['none','normal'].includes(c.content))add(c.fontFamily);}}
+ const walk=value=>{if(Array.isArray(value))value.forEach(walk);else if(value&&typeof value==='object')for(const [k,v] of Object.entries(value)){if(k==='fontFamily'&&typeof v==='string')add(v);else walk(v);}};
+ walk(project?.slides);return used;
+}
+export function dropUnusedFontFaces(text,used){return text.replace(/@font-face\s*{[^}]*}/gi,rule=>{const family=/font-family\s*:\s*([^;}]+)/i.exec(rule)?.[1];return !family||used.has(fontKey(family))?rule:'';});}
 // Shared DOM serializer: called by both the menu and the CLI's browser page.
 // Only media fields are traversed; ordinary prose/URLs in source evidence are not rewritten.
-export async function serializePortableHtml({document:doc,project,resolveAsset,baseRevision,runtimeFingerprint}){
+// usedFontFamilies (from collectUsedFontFamilies on the live page) limits embedded @font-face rules; omitted keeps all.
+export async function serializePortableHtml({document:doc,project,resolveAsset,baseRevision,runtimeFingerprint,usedFontFamilies}){
  const clone=doc.documentElement?doc.documentElement.cloneNode(true):doc;
  const base=doc.baseURI||globalThis.document?.baseURI;
  const cache=new Map();
@@ -38,14 +48,15 @@ export async function serializePortableHtml({document:doc,project,resolveAsset,b
  }
  for(const link of clone.querySelectorAll('link[rel="stylesheet"]')){const response=await fetch(new URL(link.getAttribute('href'),base));if(!response.ok)throw Error('Stylesheet unavailable');const style=clone.ownerDocument.createElement('style');style.textContent=await css(await response.text());link.replaceWith(style);}
  for(const script of clone.querySelectorAll('script[src]')){const url=script.getAttribute('src');const data=await resource(url);const response=await fetch(data);script.textContent=(await response.text()).replace(/<\/script/gi,'<\\/script');script.removeAttribute('src');script.removeAttribute('integrity');script.removeAttribute('crossorigin');}
- for(const style of clone.querySelectorAll('style'))style.textContent=await css(style.textContent);
+ for(const style of clone.querySelectorAll('style'))style.textContent=await css(usedFontFamilies?dropUnusedFontFaces(style.textContent,usedFontFamilies):style.textContent);
  for(const node of clone.querySelectorAll('[style]'))node.setAttribute('style',await css(node.getAttribute('style')));
  for(const node of clone.querySelectorAll('[src]'))node.setAttribute('src',await resource(node.getAttribute('src')));
  for(const node of clone.querySelectorAll('a[href^="assets/"],link[href]'))node.setAttribute('href',await resource(node.getAttribute('href')));
  const put=(id,value)=>{let node=clone.querySelector('#'+id);if(!node){node=clone.ownerDocument.createElement('script');node.id=id;node.type='application/json';clone.querySelector('head').append(node);}node.textContent=safeJson(value);};
  put('fusion-project',p);
  // VM composition props must agree with the embedded ProjectV2, including hidden slides.
- const vmNode=clone.querySelector('#deck-view-model');if(vmNode){const vm=await mapMedia(JSON.parse(vmNode.textContent));vm.state=structuredClone(p.editorState.legacy);for(const slide of vm.slides||[]){const s=p.slides.find(s=>s.slideId===slide.id);if(s?.mode==='composition')slide.props={...slide.props,fusionSlide:s,fusionProject:p};}put('deck-view-model',vm);}
+ // The project itself lives once in #fusion-project; per-slide copies multiplied every embedded image by the page count.
+ const vmNode=clone.querySelector('#deck-view-model');if(vmNode){const vm=await mapMedia(JSON.parse(vmNode.textContent));vm.state=structuredClone(p.editorState.legacy);for(const slide of vm.slides||[]){const s=p.slides.find(s=>s.slideId===slide.id);if(s?.mode==='composition'){const {fusionProject,...props}=slide.props||{};slide.props={...props,fusionSlide:s};}}put('deck-view-model',vm);}
  put('embedded-text-state',p.editorState.legacy.text||{});
  const old=clone.querySelector('#portable-project-meta');const previous=old?JSON.parse(old.textContent):null;
  if(!runtimeFingerprint){const scripts=[...clone.querySelectorAll('script:not([type="application/json"])')].map(s=>s.textContent).join('\n');runtimeFingerprint=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(scripts)))).map(b=>b.toString(16).padStart(2,'0')).join('');}
