@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {chromium} from 'playwright-core';
+import {resolveSlideStyle} from '../styles/registry.mjs';
 import {cssFontStack} from '../styles/css-font.mjs';
 
 // The same local @font-face declarations and CSS text properties used by the editor.
@@ -20,8 +21,8 @@ async function createLayoutMeasurer({chrome='/Applications/Google Chrome.app/Con
     const page=await browser.newPage({viewport:{width:1920,height:1080}});
     await page.goto(pathToFileURL(file).href);
     return {
-      async texts(specs,style={typography:{heading:"sans-serif",body:"sans-serif",sizes:{body:32}}}) {
-        const normalized=specs.map(e=>({...e,runs:e.runs?.map(r=>({...r,style:{...r.style,...(r.style?.fontFamily?{fontFamily:cssFontStack(r.style.fontFamily)}:{})}})),fontFamily:cssFontStack(e.style?.fontFamily || (e.role==='title'?style.typography.heading:style.typography.body)),fontSize:e.style?.fontSize||style.typography.sizes.body}));
+      async texts(specs,style=resolveSlideStyle({styleId:'authored/custom',authoring:{engine:'kimi-authored-v1'}})) {
+        const normalized=specs.map(e=>({...e,runs:e.runs?.map(r=>({...r,style:{...r.style,...(r.style?.fontFamily?{fontFamily:cssFontStack(r.style.fontFamily)}:{})}})),fontFamily:cssFontStack(e.style?.fontFamily || ((e.role==='title'||e.id==='title')?style.typography.heading:style.typography.body)),fontSize:e.style?.fontSize||style.typography.sizes.body}));
         return page.evaluate(async specs=>{
           const root=document.getElementById('measure');root.replaceChildren();
           const nodes=specs.map(e=>{

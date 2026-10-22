@@ -2981,6 +2981,9 @@
     serverSaveInFlight = true;
     let succeeded = false;
     try {
+      if(window.__fusionEditor&&(location.protocol==='file:'||document.getElementById('portable-project-meta'))){
+        await window.__fusionEditor.flushDraft();serverSaveAvailable=false;return;
+      }
       const response = window.__fusionEditor ? {ok:true,json:()=>window.__fusionEditor.save()} : await fetch(SERVER_SAVE_URL, {
         method:'POST',
         headers:{'content-type':'application/json'},
@@ -3333,7 +3336,7 @@ function isPresentMode(){
 }
 
 function canEditDeck(){
-  return isEditMode() && !window.__deckExportLocked;
+  return isEditMode() && !window.__deckExportLocked && !window.__fusionEditor?.isExporting?.();
 }
 window.__canEditDeck = canEditDeck;
 window.__setDeckDiagnosticFlags = flags => {
@@ -3431,6 +3434,7 @@ function formatDeckPageNumber(value, pad=2){
   return text.padStart(Math.max(0, Number(pad) || 0), '0');
 }
 
+const overviewThumbRevisions=new Map();
 function syncDeckPageNumbers(scope=document){
   const roots = [];
   if(scope instanceof Element && scope.classList.contains('slide')) roots.push(scope);
@@ -4540,7 +4544,6 @@ let overviewPerfMarks=createOverviewPerfMarks();
 const overviewThumbBitmapCache=new Map();
 // 缩略图内容修订号:存模块级 Map(key=稳定 slideId)。不能存 slide.dataset——
 // 运行时 slide 会被 releaseRuntimeSlide 销毁重建,dataset 归零会让缓存 key 永久失配。
-const overviewThumbRevisions=new Map();
 function getOverviewThumbRevision(slide){
   return overviewThumbRevisions.get(getOverviewStableSlideId(slide)) || '0';
 }

@@ -229,7 +229,7 @@ if (seed) {
     document.querySelectorAll('#deck .fusion-selection').forEach(e=>e.remove());
     cropEditor=mountImageCrop({root,element,image,onClose:()=>{cropEditor=null;refreshSelection();},onApply:({crop,bounds})=>apply({...selection,type:'image',src:element.src,fit:'cover',crop,bounds})});
   };
-  const api = { beginCrop, commitPendingEdits: () => cropEditor?.confirm(), ready: () => ready, flushDraft: async () => {
+  const api = { isExporting:()=>exportBusy, isPortable:()=>location.protocol==='file:'||!!document.getElementById('portable-project-meta'), beginCrop, commitPendingEdits: () => cropEditor?.confirm(), ready: () => ready, flushDraft: async () => {
     await ready;
     sync();
     await persistDraft();
@@ -256,7 +256,7 @@ if (seed) {
   api.serializeHtml=portableHtml;
   window.__exportDeckHtml=()=>withSnapshot(downloadHtml);
   document.getElementById('preview-export-image')?.addEventListener('click',()=>window.__exportDeckImage());
-  if(portable()){const saveButton=document.getElementById('preview-save');if(saveButton)saveButton.textContent='下载修改后的HTML';}
+  if(portable()){const label=document.querySelector('#preview-export span');if(label)label.textContent='下载修改后的HTML';}
 
   async function waitReady(id){
     const deadline=Date.now()+10000;let state;

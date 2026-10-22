@@ -37,13 +37,20 @@ export async function screenshotSlide(page,slideId,file){
  await waitForSlideReady(page,slideId);
  let locator=page.locator(`#deck > [data-vm-slide-id="${slideId}"] .fusion-root,#deck > [data-vm-slide-id="${slideId}"] .imported-theme-root`).first();
  if(!await locator.count())locator=page.locator(`#deck > [data-vm-slide-id="${slideId}"]`);
- const token=await locator.evaluate(el=>{const old=el.getAttribute('style');el.style.setProperty('transform','none','important');el.style.setProperty('position','fixed','important');el.style.setProperty('left','0','important');el.style.setProperty('top','0','important');el.style.setProperty('width','1920px','important');el.style.setProperty('height','1080px','important');return old;});
- const viewport=page.viewportSize();
+ const viewport=page.viewportSize(),token='qa-'+crypto.randomUUID();
  try{
   await page.setViewportSize({width:1920,height:1080});
-  return await locator.screenshot(file?{path:file}:{});
+  await locator.evaluate((root,token)=>{
+   const stage=document.createElement('div');stage.dataset.qaCapture=token;stage.id='deck';stage.style.cssText='position:fixed!important;left:0!important;top:0!important;width:1920px!important;height:1080px!important;overflow:hidden!important;z-index:2147483647!important;transform:none!important;background:white';
+   const slide=root.closest('.slide').cloneNode(false);slide.classList.add('active');slide.hidden=false;slide.style.cssText='position:static!important;display:block!important;visibility:visible!important;opacity:1!important;width:1920px!important;height:1080px!important;transform:none!important;overflow:visible!important;border-radius:0!important';
+   const copy=root.cloneNode(true);copy.querySelectorAll('.fusion-selection,.fusion-crop-editor').forEach(n=>n.remove());
+   const computed=getComputedStyle(root);for(const key of ['font-family','font-size','font-weight','line-height','color','letter-spacing','text-align'])copy.style.setProperty(key,computed.getPropertyValue(key));
+   copy.style.setProperty('--deck-scale','1');for(const [k,v]of Object.entries({position:'absolute',left:'0',top:'0',width:'1920px',height:'1080px',transform:'none',margin:'0',borderRadius:'0'}))copy.style.setProperty(k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase()),v,'important');
+   slide.append(copy);stage.append(slide);document.body.append(stage);
+  },token);
+  return await page.locator('[data-qa-capture="'+token+'"]').screenshot(file?{path:file}:{});
  }finally{
+  await page.locator('[data-qa-capture="'+token+'"]').evaluateAll(nodes=>nodes.forEach(n=>n.remove()));
   if(viewport)await page.setViewportSize(viewport);
-  await locator.evaluate((el,old)=>{if(old===null)el.removeAttribute('style');else el.setAttribute('style',old);},token);
  }
 }
