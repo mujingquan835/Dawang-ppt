@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DISPOSITION_LEGEND, dispositionFor } from "./rule-dispositions.mjs";
 const LOCAL_REFERENCE_DIR = path.join(os.homedir(), ".dawang-ppt/kimi-reference");
 const SCENARIOS = Object.freeze([
   { id: "analysis-decision", zh: "分析决策", doc: "analysis-decision.md", presetCategories: ["consulting", "finance", "01_strategy"] },
@@ -13,7 +14,8 @@ const SCENARIOS = Object.freeze([
   { id: "tech-engineering", zh: "技术工程", doc: "tech-engineering.md", presetCategories: ["work", "academic", "01_strategy"] },
   { id: "brand-creative", zh: "品牌创意", doc: "brand-creative.md", presetCategories: ["promotion", "work", "04_promotion"] }
 ]);
-const CANDIDATE_DIRS = () => [process.env.KIMI_PPT_SKILL_DIR, LOCAL_REFERENCE_DIR, path.join(os.homedir(), ".codex/skills/open-kimi-ppt"), path.join(os.homedir(), ".agents/skills/open-kimi-ppt")].filter(Boolean);
+// The Kimi desktop copy is last: it is only used when it is the pinned version or nothing else is installed.
+const CANDIDATE_DIRS = () => [process.env.KIMI_PPT_SKILL_DIR, LOCAL_REFERENCE_DIR, path.join(os.homedir(), ".codex/skills/open-kimi-ppt"), path.join(os.homedir(), ".agents/skills/open-kimi-ppt"), path.join(os.homedir(), "Library/Application Support/kimi-desktop/daimon-share/daimon/skills/kimi-slides")].filter(Boolean);
 function locateKimiSkill(dirs = CANDIDATE_DIRS()) {
   for (const d of dirs) if (fs.existsSync(path.join(d, "reference/slides_categories.md")) || fs.existsSync(path.join(d, "slides_categories.md"))) return d;
   return null;
@@ -73,6 +75,88 @@ export function authoringRuleSources({ scenarioId, root = locateKimiSkill(), des
   return sources;
 }
 
-export function readAuthoringRules(options) {
- return authoringRuleSources(options).map(source=>{const text=fs.readFileSync(source.path,'utf8');return {...source,text,sha256:createHash('sha256').update(text).digest('hex')};});
+// Version pin: the lock records relative paths and SHA-256 of every local rule file, never their text.
+export const RULES_LOCK_FILE = path.resolve(import.meta.dirname, '../../../../references/kimi-rules.lock.json');
+const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const relativeRulePath = (root, file) => {
+  const rel = path.relative(root, file).split(path.sep).join('/');
+  return refDir(root) === root && rel !== 'SKILL.md' ? 'reference/' + rel : rel;
+};
+export function fingerprintKimiRules(root) {
+  const files = {}, add = (file) => { if (fs.existsSync(file)) files[relativeRulePath(root, file)] = sha(fs.readFileSync(file)); };
+  add(path.join(root, 'SKILL.md'));
+  const reference = refDir(root);
+  for (const file of fs.readdirSync(reference, { recursive: true }).map(String).filter((f) => f.endsWith('.md'))) add(path.join(reference, file));
+  const sorted = Object.fromEntries(Object.entries(files).sort(([a], [b]) => (a < b ? -1 : 1)));
+  return { files: sorted, bundleSha256: sha(Object.entries(sorted).map(([file, hash]) => file + '\0' + hash).join('\n')) };
+}
+export function readRulesLock(file = RULES_LOCK_FILE) {
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+}
+export function compareToLock(fingerprint, lock) {
+  if (!lock) return { status: 'unpinned', changed: [], added: [], removed: [] };
+  const locked = lock.files || {}, current = fingerprint.files;
+  const changed = Object.keys(current).filter((f) => f in locked && locked[f] !== current[f]);
+  const added = Object.keys(current).filter((f) => !(f in locked)), removed = Object.keys(locked).filter((f) => !(f in current));
+  return { status: fingerprint.bundleSha256 === lock.bundleSha256 ? 'pinned' : 'drift', changed, added, removed };
+}
+// Prefer the installation that matches the lock, so a second Kimi copy cannot silently become the source.
+// An explicit KIMI_PPT_SKILL_DIR is always used; a mismatch then surfaces as drift instead of being skipped.
+export function locatePinnedKimiSkill(lock = readRulesLock(), dirs = CANDIDATE_DIRS()) {
+  const explicit = process.env.KIMI_PPT_SKILL_DIR;
+  if (explicit && dirs.includes(explicit) && locateKimiSkill([explicit])) return explicit;
+  const found = dirs.filter((dir) => locateKimiSkill([dir]));
+  return found.find((dir) => lock && fingerprintKimiRules(dir).bundleSha256 === lock.bundleSha256) || found[0] || null;
+}
+export function writeRulesLock({ root = locatePinnedKimiSkill(), file = RULES_LOCK_FILE, label } = {}) {
+  if (!root) throw new Error('未找到本机 open-kimi-ppt 安装；请设置 KIMI_PPT_SKILL_DIR');
+  const previous = readRulesLock(file), fingerprint = fingerprintKimiRules(root);
+  const lock = { version: 1, label: label || previous?.label || path.basename(root), pinnedAt: new Date().toISOString(), bundleSha256: fingerprint.bundleSha256, files: fingerprint.files };
+  fs.writeFileSync(file, JSON.stringify(lock, null, 2) + '\n');
+  return { file, root, label: lock.label, bundleSha256: lock.bundleSha256, files: Object.keys(lock.files).length, changes: compareToLock(fingerprint, previous) };
+}
+
+// Flat sections: every line belongs to the nearest heading above it; headings inside code fences are text.
+export function splitRuleSections(text) {
+  const sections = [];
+  let fence = null, current = { heading: '(preamble)', level: 0, start: 1, lines: [] };
+  text.split('\n').forEach((line, index) => {
+    const marker = /^\s*(```|~~~)/.exec(line)?.[1];
+    if (marker) fence = fence === marker ? null : fence ?? marker;
+    const heading = !fence && !marker && /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+    if (heading) {
+      if (current.level || current.lines.some((l) => l.trim())) sections.push(current);
+      current = { heading: heading[2], level: heading[1].length, start: index + 1, lines: [] };
+    }
+    current.lines.push(line);
+  });
+  sections.push(current);
+  return sections.map((s) => ({ heading: s.heading, level: s.level, lines: [s.start, s.start + s.lines.length - 1], text: s.lines.join('\n') }));
+}
+
+// Sections carry apply/adapt/replaced labels. Replaced text is omitted unless includeReplaced; a file that differs
+// from the lock stops the read unless allowDrift, and then its sections are reported as unreviewed.
+export function readAuthoringRules({ lock = readRulesLock(), allowDrift = false, includeReplaced = false, ...options }) {
+  const root = options.root === undefined ? locatePinnedKimiSkill(lock) : options.root;
+  const sources = authoringRuleSources({ ...options, root });
+  const pin = { ...compareToLock(fingerprintKimiRules(root), lock), label: lock?.label ?? null, lockedBundleSha256: lock?.bundleSha256 ?? null, root };
+  if (pin.status === 'drift' && !allowDrift) {
+    const error = new Error('Kimi 原规则与锁定版本不一致（改动 ' + pin.changed.length + '、新增 ' + pin.added.length + '、缺失 ' + pin.removed.length + '）：' + [...pin.changed, ...pin.added, ...pin.removed].slice(0, 8).join('，') + '。核对差异后运行 rules:lock 重新锁定，或本次加 --allow-drift。');
+    error.pin = pin;
+    throw error;
+  }
+  const drifted = new Set([...pin.changed, ...pin.added]);
+  const documents = sources.map((source) => {
+    const bytes = fs.readFileSync(source.path), relativePath = relativeRulePath(root, source.path), stale = drifted.has(relativePath);
+    const sections = splitRuleSections(bytes.toString('utf8')).map((section, index) => {
+      const label = dispositionFor(relativePath, section.heading);
+      const shown = stale ? { disposition: 'unreviewed', note: '文件与锁定版本不同；锁定版本中此标题标注为 ' + label.disposition } : label;
+      const { text, ...rest } = section;
+      return { id: source.id + '#' + String(index + 1).padStart(2, '0'), ...rest, ...shown, ...(shown.disposition === 'replaced' && !includeReplaced ? { textOmitted: true } : { text }) };
+    });
+    return { ...source, relativePath, sha256: sha(bytes), sections };
+  });
+  const summary = {};
+  for (const section of documents.flatMap((d) => d.sections)) summary[section.disposition] = (summary[section.disposition] || 0) + 1;
+  return { version: 1, legend: DISPOSITION_LEGEND, pin, summary, documents };
 }

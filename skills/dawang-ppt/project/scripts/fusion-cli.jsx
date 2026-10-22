@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import {patchProject} from '../src/fusion/project/patch.mjs';
-import {readAuthoringRules} from '../src/fusion/kimi/reference-index.mjs';
+import {readAuthoringRules,writeRulesLock} from '../src/fusion/kimi/reference-index.mjs';
 import {importPortableHtml} from "../src/fusion/portable/import.mjs";
 import {stageMedia} from "../src/fusion/authoring/media.mjs";
 import {makeHtml,publishHtml,checkProject} from "../src/fusion/authoring/pipeline.mjs";
@@ -107,7 +107,8 @@ async function main(args = process.argv.slice(2)) {
   }
   if(mode==='import:html'){const i=args.indexOf('--expected-revision'),r=importPortableHtml(absolute(input),absolute(output),{expectedRevision:i<0?undefined:args[i+1]});console.log(JSON.stringify(r));if(!r.ok)process.exitCode=1;return;}
   if(mode==='patch:project'){const result=patchProject(absolute(input),JSON.parse(fs.readFileSync(absolute(output),'utf8')));console.log(JSON.stringify(result));if(!result.ok)process.exitCode=1;return;}
-  if(mode==='rules:read') {const docs=args.flatMap((v,i)=>v==='--format'?[args[i+1]]:[]);console.log(JSON.stringify(readAuthoringRules({scenarioId:input,designDoc:args.includes('--design')?args[args.indexOf('--design')+1]:undefined,formatDocs:docs}),null,2));return;}
+  if(mode==='rules:read') {const docs=args.flatMap((v,i)=>v==='--format'?[args[i+1]]:[]);console.log(JSON.stringify(readAuthoringRules({scenarioId:input,designDoc:args.includes('--design')?args[args.indexOf('--design')+1]:undefined,formatDocs:docs,allowDrift:args.includes('--allow-drift'),includeReplaced:args.includes('--full')}),null,2));return;}
+  if(mode==='rules:lock') {const flag=name=>args.includes(name)?args[args.indexOf(name)+1]:undefined;console.log(JSON.stringify(writeRulesLock({root:flag('--root')&&absolute(flag('--root')),label:flag('--label')}),null,2));return;}
   if(mode==='text:measure') {const m=await createLayoutMeasurer();try{const i=args.indexOf('--project'),p=i<0?null:loadProject(path.join(absolute(args[i+1]),'deck-project.json'));const specs=JSON.parse(fs.readFileSync(absolute(input),'utf8'));const results=[];for(const spec of specs)results.push(...await m.texts([spec],p?resolveSlideStyle(p.slides.find(s=>s.slideId===spec.slideId)||p.slides[0]):undefined));console.log(JSON.stringify(results,null,2));}finally{await m.close();}return;}
   if (mode === "styles") { console.log(JSON.stringify(listAppearances(),null,2)); return; }
   if (mode === "templates") {

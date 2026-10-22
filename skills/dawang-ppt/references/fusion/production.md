@@ -2,7 +2,7 @@
 
 先完整读取材料，核对来源、事实、单位、时期与必需图片。明确受众、用途、主场景、页数；区分新建、局部修改、重构和原样模板。未经授权不补业绩、目标、因果或网络资料。
 
-使用 `node <skill>/scripts/dawang.mjs rules:read <scenarioId> [--design <doc>] [--format <doc> ...]` 一次返回原文、来源与SHA，定位原制作步骤、通用规则、一个主场景及所需格式文档，随后实际读取原文。设计系统仅在用户指定时读取，自主设计不自动强选预设。必读来源缺失明确报告，不用二次摘要冒充完整规则。`createRuleManifest`/`validateRuleManifest` 记录来源与决定，清单通过不等于规则已被正确执行。
+使用 `node <skill>/scripts/dawang.mjs rules:read <scenarioId> [--design <doc>] [--format <doc> ...]` 一次返回原制作步骤、通用规则、一个主场景及所需格式文档，按章节给出原文、行号、来源与SHA，每节标注 apply（照做）、adapt（按 note 的 Dawang 边界执行）、replaced（按 by 指向的 Dawang 规则执行，原文默认省略，`--full` 返回）或 unreviewed（上游新增/改动，逐条判断并告知用户）。随后实际阅读 apply/adapt 章节原文。来源版本由 `references/kimi-rules.lock.json` 固定；与锁定版本不一致时命令失败，需用户核对差异后由维护者运行 `rules:lock` 重新锁定，或经用户同意本次加 `--allow-drift`。设计系统仅在用户指定时读取，自主设计不自动强选预设。必读来源缺失明确报告，不用二次摘要冒充完整规则。`createRuleManifest`/`validateRuleManifest` 记录来源与决定，清单通过不等于规则已被正确执行。
 
 ## 内容策划与取舍
 

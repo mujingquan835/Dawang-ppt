@@ -26,7 +26,13 @@ if (args[0] === "doctor") {
     try { const stat=fs.lstatSync(file), resolved=fs.realpathSync(file); return {path:file,link:stat.isSymbolicLink()?fs.readlinkSync(file):null,resolved,usesThisSkill:resolved===fs.realpathSync(skill)}; }
     catch(error) {return {path:file,usesThisSkill:false,status:error.code==='ENOENT'?'missing-or-broken':'unreadable'};}
   });
-  console.log(JSON.stringify({ node: process.version, skill, project, defaultBuild: "render:authored", defaultAuthoringCommand:"make", defaultDeliverable:"html", legacyBuild: "render:brief", installations, runtime: ok, install: "npm ci --prefix skills/dawang-ppt/project" }));
+  let kimiRules;
+  try {
+    const rules = await import(path.join(project, "src/fusion/kimi/reference-index.mjs"));
+    const lock = rules.readRulesLock(), root = rules.locatePinnedKimiSkill(lock);
+    kimiRules = root ? { root, label: lock?.label ?? null, ...rules.compareToLock(rules.fingerprintKimiRules(root), lock) } : { status: "missing" };
+  } catch (error) { kimiRules = { status: "error", message: error.message }; }
+  console.log(JSON.stringify({ node: process.version, skill, project, defaultBuild: "render:authored", defaultAuthoringCommand:"make", defaultDeliverable:"html", legacyBuild: "render:brief", installations, runtime: ok, kimiRules, install: "npm ci --prefix skills/dawang-ppt/project" }));
   process.exitCode = ok ? 0 : 1;
 } else {
   const command = path.join(project, "node_modules/.bin/tsx");
