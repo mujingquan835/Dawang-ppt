@@ -37,7 +37,13 @@ export async function screenshotSlide(page,slideId,file){
  await waitForSlideReady(page,slideId);
  let locator=page.locator(`#deck > [data-vm-slide-id="${slideId}"] .fusion-root,#deck > [data-vm-slide-id="${slideId}"] .imported-theme-root`).first();
  if(!await locator.count())locator=page.locator(`#deck > [data-vm-slide-id="${slideId}"]`);
- const box=await locator.boundingBox();
- if(!box)throw new Error('Screenshot layout unavailable: '+slideId);
- return page.screenshot({...(file?{path:file}:{}),clip:box});
+ const token=await locator.evaluate(el=>{const old=el.getAttribute('style');el.style.setProperty('transform','none','important');el.style.setProperty('position','fixed','important');el.style.setProperty('left','0','important');el.style.setProperty('top','0','important');el.style.setProperty('width','1920px','important');el.style.setProperty('height','1080px','important');return old;});
+ const viewport=page.viewportSize();
+ try{
+  await page.setViewportSize({width:1920,height:1080});
+  return await locator.screenshot(file?{path:file}:{});
+ }finally{
+  if(viewport)await page.setViewportSize(viewport);
+  await locator.evaluate((el,old)=>{if(old===null)el.removeAttribute('style');else el.setAttribute('style',old);},token);
+ }
 }

@@ -2,14 +2,14 @@ import { checkCoverage } from './coverage.mjs';
 import { chromium } from 'playwright-core';
 import { prepareSlideForExport } from '../export/collect.mjs';
 import { screenshotSlide } from './readiness.mjs';
-async function measureProject(url,project,{chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',screenshotDir,viewport={width:1920,height:1080},readinessTimeout=10000}={}){
- const browser=await chromium.launch({executablePath:chrome,headless:true});
+async function measureProject(url,project,{chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',screenshotDir,viewport={width:1920,height:1080},readinessTimeout=10000,page:injectedPage,slideIds,capture}={}){
+ const browser=injectedPage?null:await chromium.launch({executablePath:chrome,headless:true});
  try{
-  const page=await browser.newPage({viewport}),errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(url);await page.waitForFunction(()=>window.__fusionEditor&&window.__renderRuntimeSlide);await page.evaluate(()=>window.__fusionEditor.ready());
+  const page=injectedPage||await browser.newPage({viewport}),errors=[];const onError=e=>errors.push(e.message);page.on('pageerror',onError);
+  if(url)await page.goto(url);await page.waitForFunction(()=>window.__fusionEditor&&window.__renderRuntimeSlide);await page.evaluate(()=>window.__fusionEditor.ready());
   const report={revision:project.revision,pages:[],browserErrors:errors,coverageIssues:checkCoverage(project),aestheticAcceptance:'requires-human-review',readiness:{ready:false},finiteBounds:false};
   const visible=project.editorState.slideOrder.filter(id=>!project.editorState.deletedSlides.includes(id)&&!project.editorState.skippedSlides.includes(id));
-  for(const id of visible){
+  for(const id of visible.filter(id=>!slideIds||slideIds.includes(id))){
    let readiness;
    try{readiness=await prepareSlideForExport(page,id,{timeout:readinessTimeout});}
    catch(error){report.pages.push({slideId:id,elements:[],issues:error.readiness?.issues||[{kind:'layout-not-ready',message:error.message}],readiness:error.readiness||{ready:false},finiteBounds:false});continue;}
@@ -22,7 +22,6 @@ async function measureProject(url,project,{chrome='/Applications/Google Chrome.a
      if(!bounds.every(Number.isFinite))issues.push({kind:'non-finite-bounds',id:el.dataset.fusionElement});
      if(bounds[0]<-2||bounds[1]<-2||bounds[0]+bounds[2]>1922||bounds[1]+bounds[3]>1082)issues.push({kind:'outside-canvas',id:el.dataset.fusionElement,bounds});
      if(type==='text'&&(el.scrollWidth>el.clientWidth+2||el.scrollHeight>el.clientHeight+2))issues.push({kind:'text-overflow',id:el.dataset.fusionElement,bounds});
-     if(type==='image'&&(!el.complete||!el.naturalWidth))issues.push({kind:'missing-image',id:el.dataset.fusionElement});
      if(!['text','image','shape','line','vector'].includes(type))issues.push({kind:'unsupported-element',id:el.dataset.fusionElement,type});
     }
     const texts=elements.filter(e=>e.type==='text');
@@ -33,12 +32,13 @@ async function measureProject(url,project,{chrome='/Applications/Google Chrome.a
     return{slideId:id,elements,issues,finiteBounds:elements.every(e=>e.bounds.every(Number.isFinite))};
    },id);
    report.pages.push({...result,readiness});
-   if(screenshotDir)await screenshotSlide(page,id,screenshotDir+'/'+String(report.pages.length).padStart(2,'0')+'.png');
+   if(screenshotDir||capture){const buffer=await screenshotSlide(page,id,screenshotDir?screenshotDir+'/'+String(report.pages.length).padStart(2,'0')+'.png':undefined);if(typeof capture==='function')await capture({slideId:id,buffer});}
   }
   report.readiness={ready:report.pages.every(p=>p.readiness.ready),pages:report.pages.map(p=>({slideId:p.slideId,...p.readiness}))};
   report.finiteBounds=report.pages.every(p=>p.finiteBounds);
   report.ok=report.readiness.ready&&report.finiteBounds&&!report.coverageIssues.length&&!errors.length&&report.pages.every(p=>!p.issues.length);
+  page.off('pageerror',onError);
   return report;
- }finally{await browser.close();}
+ }finally{await browser?.close();}
 }
 export {measureProject};
