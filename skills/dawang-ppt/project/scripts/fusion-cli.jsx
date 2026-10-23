@@ -23,6 +23,7 @@ import { renderAppearanceGrid } from "../src/fusion/styles/appearance-grid.mjs";
 import { renderProject } from "../src/fusion/scene/render-project.jsx";
 import { createFusionServer } from "./fusion-preview.jsx";
 import { measureProject } from "../src/fusion/qa/measure.mjs";
+import { reviewKeyLines } from "../src/fusion/qa/key-lines.mjs";
 const caller = process.env.INIT_CWD || process.cwd();
 const absolute = (file) => path.resolve(caller, file);
 function resolveBriefContents(brief, style) {
@@ -107,7 +108,7 @@ async function main(args = process.argv.slice(2)) {
    let r;if(mode==='make'){if(!output)throw Error('make requires output.html');r=await makeHtml({inputFile:absolute(input),outFile:absolute(output),workspaceDir:flag('--workspace')&&absolute(flag('--workspace')),screenshots});}
    else if(mode==='publish:html'){if(!output)throw Error('publish:html requires output.html');r=await publishHtml({workspaceDir:absolute(input),outFile:absolute(output),screenshots});}
    else r=await checkProject({workspaceDir:absolute(input),slideIds:flag('--slides')?.split(','),screenshots:flag('--screenshots')&&absolute(flag('--screenshots'))});
-   console.log(JSON.stringify(args.includes('--summary')?{ok:r.ok,issues:r.issues,warnings:r.warnings,workspaceDir:r.workspaceDir,outFile:r.outFile,revision:r.revision,phases:r.phases,durationMs:r.durationMs,reportFile:path.join(r.workspaceDir,'run.json'),screenshots}:r));if(!r.ok)process.exitCode=1;return;
+   console.log(JSON.stringify(args.includes('--summary')?{ok:r.ok,issues:r.issues,warnings:r.warnings,contentReview:r.contentReview,workspaceDir:r.workspaceDir,outFile:r.outFile,revision:r.revision,phases:r.phases,durationMs:r.durationMs,reportFile:path.join(r.workspaceDir,'run.json'),screenshots}:r));if(!r.ok)process.exitCode=1;return;
   }
   if(mode==='import:html'){const i=args.indexOf('--expected-revision'),r=importPortableHtml(absolute(input),absolute(output),{expectedRevision:i<0?undefined:args[i+1]});console.log(JSON.stringify(r));if(!r.ok)process.exitCode=1;return;}
   if(mode==='patch:project'){const result=patchProject(absolute(input),JSON.parse(fs.readFileSync(absolute(output),'utf8')));console.log(JSON.stringify(result));if(!result.ok)process.exitCode=1;return;}
@@ -183,9 +184,11 @@ async function main(args = process.argv.slice(2)) {
   try {
     const origin = `http://127.0.0.1:${server.address().port}`;
     if (mode === "qa:project") {
-      const qa = await measureProject(origin + "/index.html", p);
+      const qa = await measureProject(origin + "/index.html", p), content = reviewKeyLines(p);
+      if (content.issues.length) qa.ok = false;
+      qa.contentReview = content.review;
       fs.writeFileSync(path.join(dir, "qa-report.json"), JSON.stringify(qa, null, 2));
-      console.log(JSON.stringify({ ok: qa.ok, pages: qa.pages.length, issues: qa.pages.flatMap((p2) => p2.issues), warnings: qa.pages.flatMap((p2) => (p2.warnings || []).map((w) => ({ slideId: p2.slideId, ...w }))), aestheticAcceptance: qa.aestheticAcceptance }));
+      console.log(JSON.stringify({ ok: qa.ok, pages: qa.pages.length, issues: [...qa.pages.flatMap((p2) => p2.issues), ...content.issues], warnings: [...qa.pages.flatMap((p2) => (p2.warnings || []).map((w) => ({ slideId: p2.slideId, ...w }))), ...content.warnings], contentReview: content.review, aestheticAcceptance: qa.aestheticAcceptance }));
       if (!qa.ok) process.exitCode = 1;
     } else if (["export:pptx", "export:pdf"].includes(mode)) {
       const response = await fetch(origin + (mode === "export:pdf" ? "/api/export-pdf" : "/api/export-editable-pptx"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: p.revision }) });
