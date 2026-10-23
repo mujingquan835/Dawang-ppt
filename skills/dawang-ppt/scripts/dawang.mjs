@@ -21,10 +21,14 @@ if (args[0] === "build" && args[1]) {
 if (aliases[args[0]]) args[0] = aliases[args[0]];
 if (args[0] === "doctor") {
   const ok = fs.existsSync(path.join(project, "node_modules/.bin/tsx"));
-  const paths = [...new Set([path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "skills/dawang-ppt"), path.join(os.homedir(), ".agents/skills/dawang-ppt")])];
-  const installations = paths.map(file => {
-    try { const stat=fs.lstatSync(file), resolved=fs.realpathSync(file); return {path:file,link:stat.isSymbolicLink()?fs.readlinkSync(file):null,resolved,usesThisSkill:resolved===fs.realpathSync(skill)}; }
-    catch(error) {return {path:file,usesThisSkill:false,status:error.code==='ENOENT'?'missing-or-broken':'unreadable'};}
+  // Hosts are checked independently: a host without an entry is "not-installed", not an error.
+  const hosts = [["codex", path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "skills/dawang-ppt")], ["workbuddy", path.join(os.homedir(), ".workbuddy/skills/dawang-ppt")], ["agents", path.join(os.homedir(), ".agents/skills/dawang-ppt")]];
+  const installations = hosts.map(([host, file]) => {
+    let stat;
+    try { stat = fs.lstatSync(file); } catch (error) { return { host, path: file, usesThisSkill: false, status: error.code === "ENOENT" ? "not-installed" : "unreadable" }; }
+    const link = stat.isSymbolicLink() ? fs.readlinkSync(file) : null;
+    try { const resolved = fs.realpathSync(file); return { host, path: file, link, resolved, usesThisSkill: resolved === fs.realpathSync(skill), status: link ? "linked" : "directory" }; }
+    catch { return { host, path: file, link, usesThisSkill: false, status: "broken-link" }; }
   });
   let kimiRules;
   try {

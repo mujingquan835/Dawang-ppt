@@ -13,7 +13,12 @@ test('rerender saved project preserves manual edit; build refuses to overwrite i
  const dir=temp(t),file=path.join(dir,'authored.json'),html=path.join(dir,'deck/index.html');fs.writeFileSync(file,JSON.stringify(input()));assert.equal(run('build',file,html).status,0);const saved=path.join(dir,'deck/deck-project.json'),p=JSON.parse(fs.readFileSync(saved));p.contentPlan.nodes.claim.text='已保存的人工修改';p.slides[0].elements[0].bounds=[333,234,900,300];fs.writeFileSync(saved,JSON.stringify(p));assert.equal(run('render:project',saved,html).status,0);assert.match(fs.readFileSync(html,'utf8'),/已保存的人工修改/);const original=fs.readFileSync(saved,'utf8');assert.notEqual(run('build',file,html).status,0);assert.equal(fs.readFileSync(saved,'utf8'),original);
 });
 test('doctor exposes default route and actual installation separately',()=>{
- const r=run('doctor');assert.equal(r.status,0,r.stderr);const d=JSON.parse(r.stdout);assert.equal(d.defaultBuild,'render:authored');assert.equal(d.legacyBuild,'render:brief');assert.equal(d.skill,path.dirname(path.dirname(cli)));assert(Array.isArray(d.installations));for(const i of d.installations){assert.equal(typeof i.usesThisSkill,'boolean');assert.equal(typeof i.path,'string');}
+ const r=run('doctor');assert.equal(r.status,0,r.stderr);const d=JSON.parse(r.stdout);assert.equal(d.defaultBuild,'render:authored');assert.equal(d.legacyBuild,'render:brief');assert.equal(d.skill,path.dirname(path.dirname(cli)));assert(Array.isArray(d.installations));for(const i of d.installations){assert.equal(typeof i.usesThisSkill,'boolean');assert.equal(typeof i.path,'string');assert(['linked','directory','not-installed','broken-link','unreadable'].includes(i.status));}assert.deepEqual(d.installations.map(i=>i.host),['codex','workbuddy','agents']);
+});
+test('doctor tells an absent host apart from a broken link',t=>{
+ const home=temp(t),skill=path.dirname(path.dirname(cli));fs.mkdirSync(path.join(home,'.codex/skills'),{recursive:true});fs.symlinkSync(skill,path.join(home,'.codex/skills/dawang-ppt'));fs.mkdirSync(path.join(home,'.workbuddy/skills'),{recursive:true});fs.symlinkSync(path.join(home,'gone'),path.join(home,'.workbuddy/skills/dawang-ppt'));
+ const r=spawnSync(process.execPath,[cli,'doctor'],{encoding:'utf8',timeout:60000,env:{...process.env,HOME:home,CODEX_HOME:''}});assert.equal(r.status,0,r.stderr);const byHost=Object.fromEntries(JSON.parse(r.stdout).installations.map(i=>[i.host,i]));
+ assert.equal(byHost.codex.status,'linked');assert.equal(byHost.codex.usesThisSkill,true);assert.equal(byHost.workbuddy.status,'broken-link');assert.equal(byHost.agents.status,'not-installed');
 });
 
 test('saved ProjectV2 input must use render:project rather than rebuilding away editor state',t=>{
