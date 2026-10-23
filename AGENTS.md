@@ -1,4 +1,7 @@
 # Dawang-PPT 维护规则
+## 2026-10-23 主动文案编辑启用
+用户明确要求“更新到日常版，保持一致”，授权将内容表达与主动文案编辑规则合入main，同步既有GitHub远端，并更新Codex、WorkBuddy日常安装。使用同一提交导出的完整快照，保留旧`main-20261023-0ea6707`回退；不覆盖已有用户演示文件。默认制作继续单HTML交付，新建/重构时先执行文案编辑再排版。安装路径、字节核对及冒烟结果记录在本机忽略目录`output/kimi-web/content-expression-install/`；以实际回执和doctor为准。本次不作为正式版本发布或跨模型内容效果保证。
+
 ## 2026-10-22 HTML 默认交付启用
 用户已确认当前 HTML 版本无问题，并明确同意合并主分支与启用新版。本机 main 已纳入 HTML-first T0–T8 实现；日常 Codex 安装使用 `html-first-candidate-20261022-5f3149c` 快照，旧 `main-unified-20261021-d4c19a3` 保留回退。默认只交付一个 HTML，PPTX、PDF、图片按需导出。随后用户要求“继续”，授权将已验收主分支同步到既有GitHub远端。本次不包含正式版本发布或未经测试的制作速度承诺。安装与验收记录见 `docs/kimi-web/html-first-acceptance.md`。
 
