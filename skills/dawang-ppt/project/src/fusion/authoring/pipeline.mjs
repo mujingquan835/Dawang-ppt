@@ -20,13 +20,14 @@ async function run({workspaceDir,outFile,slideIds,screenshots}){
    phases.qaMs=performance.now()-qaStart;
    if(!qa.pages.length){qa.ok=false;qa.coverageIssues.push({kind:'no-visible-pages'});}
    const issues=[...qa.coverageIssues,...qa.pages.flatMap(p=>p.issues),...qa.browserErrors.map(message=>({kind:'browser-error',message}))];
-   if(!qa.ok)return {ok:false,issues,qa};
+   const warnings=qa.pages.flatMap(p=>(p.warnings||[]).map(w=>({slideId:p.slideId,...w})));
+   if(!qa.ok)return {ok:false,issues,warnings,qa};
    if(outFile){const serializationStart=performance.now();const html=await page.evaluate(()=>window.__fusionEditor.serializeHtml());const validation=validatePortableHtml(html);if(!validation.ok)return {ok:false,issues:[validation],qa};
     phases.serializeMs=performance.now()-serializationStart;
     if(requests.length)throw Error('Unexpected automatic format export');
     fs.mkdirSync(path.dirname(path.resolve(outFile)),{recursive:true});const tmp=outFile+'.'+process.pid+'.tmp';try{fs.writeFileSync(tmp,html);fs.renameSync(tmp,outFile);}finally{fs.rmSync(tmp,{force:true});}
    }
-   return {ok:true,issues,qa,exportRequests:requests};
+   return {ok:true,issues,warnings,qa,exportRequests:requests};
   }finally{await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  });}catch(error){result={ok:false,issues:[{kind:'operation-failed',message:error.message}]};}
  const report={...result,projectId:project.requirements.projectId,revision:project.revision,workspaceDir,outFile,scope:slideIds?'slides':'all',deliveryProfile:'html-first',phases,durationMs:performance.now()-start,at:new Date().toISOString()};recordRun(workspaceDir,report);return report;

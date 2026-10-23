@@ -6,7 +6,7 @@ import { materializeElements } from "./model.mjs";
 import { materializeElements as materializeElements2 } from "./model.mjs";
 import { cssFontStack } from "../styles/css-font.mjs";
 function SceneRoot({ slide, project }) {
-  const style = resolveSlideStyle(slide);
+  const style = resolveSlideStyle(slide, project);
   return <div className="fusion-root" data-authoring-engine={slide.authoring?.engine} style={{ position: "absolute", left: 0, top: 0, width: 1920, height: 1080, overflow: "hidden", transform: "scale(var(--deck-scale))", transformOrigin: "top left", background: style.palette.bg, color: style.palette.ink, fontFamily: cssFontStack(style.typography.body) }}>
  {materializeElements(slide, project).map((e) => <SceneElement key={e.id} element={e} styleDefinition={style} />)}
  </div>;

@@ -11,7 +11,7 @@ function applyEditCommand(project, command) {
   const s = p.slides.find((s2) => s2.slideId === command.slideId);
   if (!s) return { ok: false, conflicts: [{ kind: "missing-slide" }] };
   if (s.mode !== "composition") return { ok: false, conflicts: [{ kind: "use-original-template-controls" }] };
-  const style = resolveSlideStyle(s);
+  const style = resolveSlideStyle(s, p);
   const o = s.objects?.find((o2) => o2.objectId === command.objectId) || s.objects?.find((o2) => command.elementId?.startsWith(o2.objectId + "/"));
   const e = deriveSlideElements(s, style).find((e2) => e2.id === command.elementId);
   const beforeSlide = clone(s), beforeNodes = clone(p.contentPlan.nodes), beforeEdits = p.sources.userEdits.length;
@@ -104,7 +104,7 @@ function applyEditCommand(project, command) {
       }
       else throw new Error("Unsupported command " + command.type);
     }
-    const result = deriveSlideElements(s, resolveSlideStyle(s));
+    const result = deriveSlideElements(s, resolveSlideStyle(s, p));
     if (result.some((e2) => !e2.bounds.every(Number.isFinite))) throw new Error("Invalid derived bounds");
     p.sources.userEdits.push({ slideId: s.slideId, elementId: command.elementId, objectId: o?.objectId, type: command.type });
     const changedNodes = Object.keys({ ...beforeNodes, ...p.contentPlan.nodes }).filter((id) => JSON.stringify(beforeNodes[id]) !== JSON.stringify(p.contentPlan.nodes[id]));

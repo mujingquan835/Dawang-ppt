@@ -22,7 +22,7 @@ node skills/dawang-ppt/scripts/dawang.mjs export:pdf output/demo output/demo/rev
 
 输入包含requirements、sources.entries、media.entries、contentPlan.nodes/slides、designChoice与slides。每页包含稳定slideId、styleId、elements；程序写入mode:composition与authoring.engine:kimi-authored-v1。直接元素指定id、type、bounds及style，可用contentRef/mediaRef关联事实和媒体。文字可有runs:[{text,style}]；vector使用正尺寸bounds、四数值viewBox、受控path/style，不接收任意HTML/SVG脚本。
 
-自主外观使用styleId:authored/custom及appearance.palette、元素字体/字号；这是中性绘制默认值，不选择旧模板或限制六种外观。仅明确的authored页可使用该默认值，不能据此宣称原17主题全部已适配组合页。沿用已支持绘制风格仍可显式指定legacy/theme09等；新稿构图由直接元素决定，不经旧规划器。完整字段校验见project/schema.mjs、authoring/create-project.mjs；缺材料不编造。
+自主外观使用styleId:authored/custom及appearance.palette（全稿默认写在designChoice.appearance，单页覆盖写在该页appearance，见authoring-api.md）、元素字体/字号；这是中性绘制默认值，不选择旧模板或限制六种外观。仅明确的authored页可使用该默认值，不能据此宣称原17主题全部已适配组合页。沿用已支持绘制风格仍可显式指定legacy/theme09等；新稿构图由直接元素决定，不经旧规划器。完整字段校验见project/schema.mjs、authoring/create-project.mjs；缺材料不编造。
 
 新稿先实际读取原规则，单稿保存rules-manifest来源指纹与逐页决定；CLI不会替智能体读取、理解规则或自动完成设计。authored输入由智能体编写，程序只渲染、保存、测量与导出。
 

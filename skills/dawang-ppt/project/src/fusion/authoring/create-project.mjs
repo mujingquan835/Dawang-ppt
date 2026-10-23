@@ -32,6 +32,6 @@ export function createAuthoredProject(input) {
   const issues = validateProject(project);
   if (issues.length) throw new Error(issues.join('\n'));
   // Existing style tokens supply drawing defaults only; they never choose a layout.
-  for (const slide of slides) resolveSlideStyle(slide);
+  for (const slide of slides) resolveSlideStyle(slide, source);
   return syncCompositionTextState(project);
 }
