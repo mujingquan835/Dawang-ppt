@@ -16,3 +16,19 @@
 - `text:measure <specs.json>` 批量接受文字元素字段，返回真实字体高度/宽度/自然宽度/字体可用性；缺字体报 `font-unavailable`，关闭临时浏览器。样例可任意更改构图，直接 elements 与自定义样式始终可用。
 - patch 为 `{expectedRevision,commands:[{type:'text',slideId,elementId,text}]}`；commands 与编辑器一致，富文本清空必须显式 `resetRuns:true`。整批失败不写盘，冲突保留双方。
 - `check <工程目录> [--slides id1,id2] [--screenshots <目录>]`。最终发布全稿检查，内容判断与实际看图检查仍需执行；仅显式 screenshots 才长期保留截图。检查按文字下方实际铺色（先前绘制的纯色形状，再到页面背景）计算对比度：低于 3:1 为 `low-contrast` 错误（新制作阻断）；常规字号低于 4.5:1 列入 `warnings`。压在图片、渐变或 vector 上的文字不计算，需看图确认。
+
+## 减少工程往返
+
+- `rules:list` 列出合法场景，不需要查源码猜ID。
+- `prepare <材料.html|json|md|txt> <全新目录> [--scenario business-plan]` 返回 material.json、完整规则文件和原图路径。HTML只接受经过验证的portable快照；不承诺任意网页或PPTX导入。读取正文并查看原图，JSON中的相对媒体路径以原输入目录解析。准备目录已存在则拒绝覆盖。
+- `make <authored.json> <交付.html> --screenshots <临时目录> --summary`、`publish:html <工程目录> <交付.html> --screenshots <临时目录> --summary` 在同一次检查中取得全稿原尺寸截图。截图供逐页实际复核，默认不加入交付。`--summary`输出诊断摘要与完整run.json位置。
+- `preview:start <workspaceDir> [端口]` 从make结果取内部工程目录；省略端口自动分配，指定端口冲突仍报告错误。
+- 元素帮助器同模块导出 `createTextAuthor({baseStyle,roles})`，返回函数接收`{role,id,text,runs,bounds,style,contentRef}`；样式按基础→角色→元素顺序合并。角色和数值由模型按稿件定义，不强制标题/正文大小。
+- `distributeBounds({origin:[x,y],sizes:[[width,height],...],gap,direction:'horizontal'|'vertical'})` 返回bounds数组，可分配不同宽高。它只做坐标计算，不选构图；直接bounds始终可用。
+
+```js
+const text = createTextAuthor({baseStyle:{fontFamily:'PingFang SC'},roles:{title:{fontSize:72},body:{fontSize:36}}});
+const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:[120,140,1500,120]});
+```
+
+运行记录的浏览器就绪、渲染、QA等是程序计时，不包含完整模型制作成本。`runs.jsonl`保留多轮程序记录，不自动测量模型/平台等待。

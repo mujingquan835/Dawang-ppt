@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+import {prepareMaterial} from '../src/fusion/authoring/prepare.mjs';
 import {patchProject} from '../src/fusion/project/patch.mjs';
-import {readAuthoringRules,writeRulesLock} from '../src/fusion/kimi/reference-index.mjs';
+import {readAuthoringRules,writeRulesLock,SCENARIOS} from '../src/fusion/kimi/reference-index.mjs';
 import {importPortableHtml} from "../src/fusion/portable/import.mjs";
 import {stageMedia} from "../src/fusion/authoring/media.mjs";
 import {makeHtml,publishHtml,checkProject} from "../src/fusion/authoring/pipeline.mjs";
@@ -98,12 +99,15 @@ async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
 }
 async function main(args = process.argv.slice(2)) {
   const [mode, input, output] = args;
+  if(mode==='rules:list'){console.log(JSON.stringify(SCENARIOS.map(({id,zh})=>({id,name:zh})),null,2));return;}
+  if(mode==='prepare'){if(!input||!output)throw Error('prepare <material.html|json|md|txt> <new-directory> [--scenario id]');const i=args.indexOf('--scenario');console.log(JSON.stringify(prepareMaterial({inputFile:absolute(input),outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]}),null,2));return;}
   if(['make','publish:html','check'].includes(mode)){
    const flag=name=>args.includes(name)?args[args.indexOf(name)+1]:undefined;
-   let r;if(mode==='make'){if(!output)throw Error('make requires output.html');r=await makeHtml({inputFile:absolute(input),outFile:absolute(output),workspaceDir:flag('--workspace')&&absolute(flag('--workspace'))});}
-   else if(mode==='publish:html'){if(!output)throw Error('publish:html requires output.html');r=await publishHtml({workspaceDir:absolute(input),outFile:absolute(output)});}
+   const screenshots=flag('--screenshots')&&absolute(flag('--screenshots'));
+   let r;if(mode==='make'){if(!output)throw Error('make requires output.html');r=await makeHtml({inputFile:absolute(input),outFile:absolute(output),workspaceDir:flag('--workspace')&&absolute(flag('--workspace')),screenshots});}
+   else if(mode==='publish:html'){if(!output)throw Error('publish:html requires output.html');r=await publishHtml({workspaceDir:absolute(input),outFile:absolute(output),screenshots});}
    else r=await checkProject({workspaceDir:absolute(input),slideIds:flag('--slides')?.split(','),screenshots:flag('--screenshots')&&absolute(flag('--screenshots'))});
-   console.log(JSON.stringify(r));if(!r.ok)process.exitCode=1;return;
+   console.log(JSON.stringify(args.includes('--summary')?{ok:r.ok,issues:r.issues,warnings:r.warnings,workspaceDir:r.workspaceDir,outFile:r.outFile,revision:r.revision,phases:r.phases,durationMs:r.durationMs,reportFile:path.join(r.workspaceDir,'run.json'),screenshots}:r));if(!r.ok)process.exitCode=1;return;
   }
   if(mode==='import:html'){const i=args.indexOf('--expected-revision'),r=importPortableHtml(absolute(input),absolute(output),{expectedRevision:i<0?undefined:args[i+1]});console.log(JSON.stringify(r));if(!r.ok)process.exitCode=1;return;}
   if(mode==='patch:project'){const result=patchProject(absolute(input),JSON.parse(fs.readFileSync(absolute(output),'utf8')));console.log(JSON.stringify(result));if(!result.ok)process.exitCode=1;return;}
@@ -167,10 +171,11 @@ async function main(args = process.argv.slice(2)) {
     return;
   }
   const dir = absolute(input), pf = path.join(dir, "deck-project.json");
+  if(!fs.existsSync(pf))throw Error('Preview/export needs the internal workspace containing deck-project.json, not the delivery HTML directory. Use workspaceDir from make/publish:html.');
   const p = loadProject(pf);
   renderProject(p, path.join(dir, "index.html"));
   if (mode === "preview:start") {
-    const server2 = await createFusionServer({ dir, port: Number(output) || 8766 });
+    const server2 = await createFusionServer({ dir, port: output===undefined?0:Number(output) });
     console.log(`Dawang-PPT http://127.0.0.1:${server2.address().port}/index.html`);
     return;
   }

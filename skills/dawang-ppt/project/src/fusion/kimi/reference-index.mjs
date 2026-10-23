@@ -24,7 +24,7 @@ function locateKimiSkill(dirs = CANDIDATE_DIRS()) {
 const refDir = (root) => fs.existsSync(path.join(root, "reference/slides_categories.md")) ? path.join(root, "reference") : root;
 function scenarioDocs(scenarioId, root = locateKimiSkill()) {
   const s = SCENARIOS.find((x) => x.id === scenarioId);
-  if (!s) throw new Error("Unknown scenario " + scenarioId);
+  if (!s) throw new Error("Unknown scenario " + scenarioId + ". Valid scenarios: " + SCENARIOS.map(s=>s.id).join(", "));
   if (!root) return { available: false, generalRules: null, scenarioDoc: null, reason: "未找到本机 open-kimi-ppt 安装；请设置 KIMI_PPT_SKILL_DIR" };
   const generalRules = path.join(refDir(root), "slides_categories.md"), scenarioDoc = path.join(refDir(root), "slides_categories", s.doc);
   const missing = [generalRules, scenarioDoc].filter((p) => !fs.existsSync(p));
@@ -61,7 +61,7 @@ export { LOCAL_REFERENCE_DIR, SCENARIOS, locateKimiSkill, scenarioDocs, listPres
 // New authoring path: locate original documents without selecting old presets.
 // Missing requested paths remain in the list so rule-manifest can report them.
 export function authoringRuleSources({ scenarioId, root = locateKimiSkill(), designDoc, formatDocs = [] }) {
-  if (!SCENARIOS.some((scenario) => scenario.id === scenarioId)) throw new Error('Unknown scenario ' + scenarioId);
+  if (!SCENARIOS.some((scenario) => scenario.id === scenarioId)) throw new Error('Unknown scenario ' + scenarioId + '. Valid scenarios: ' + SCENARIOS.map(s=>s.id).join(', '));
   if (!root) throw new Error('未找到本机 open-kimi-ppt 安装；请设置 KIMI_PPT_SKILL_DIR');
   const reference = refDir(root);
   const docs = scenarioDocs(scenarioId, root);

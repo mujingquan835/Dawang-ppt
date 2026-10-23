@@ -13,9 +13,10 @@ async function run({workspaceDir,outFile,slideIds,screenshots}){
  let result;try{result=await withRunDirectory(async dir=>{
   const renderStart=performance.now();
   const staged=stageMedia(project,workspaceDir,dir);fs.writeFileSync(path.join(dir,'deck-project.json'),JSON.stringify(staged));renderProject(staged,path.join(dir,'index.html'));
-  phases.renderMs=performance.now()-renderStart;const server=await createFusionServer({dir});let browser;
+  phases.renderMs=performance.now()-renderStart;const server=await createFusionServer({dir});let browser;const browserStart=performance.now();
   try{browser=await chromium.launch({executablePath:chrome,headless:true});const page=await browser.newPage({viewport:{width:1920,height:1080}});const requests=[];page.on('request',r=>{if(r.url().includes('/api/export'))requests.push(r.url());});
    await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);await page.waitForFunction(()=>window.__fusionEditor);await page.evaluate(()=>window.__fusionEditor.ready());
+   phases.browserReadyMs=performance.now()-browserStart;
    const qaStart=performance.now();if(screenshots)fs.mkdirSync(screenshots,{recursive:true});const qa=await measureProject(null,staged,{page,slideIds,screenshotDir:screenshots});
    phases.qaMs=performance.now()-qaStart;
    if(!qa.pages.length){qa.ok=false;qa.coverageIssues.push({kind:'no-visible-pages'});}
@@ -34,8 +35,8 @@ async function run({workspaceDir,outFile,slideIds,screenshots}){
 }
 export async function publishHtml(options){return run(options);}
 export async function checkProject(options){return run({...options,outFile:undefined});}
-export async function makeHtml({inputFile,outFile,workspaceDir}){
+export async function makeHtml({inputFile,outFile,workspaceDir,screenshots}){
  const source=JSON.parse(fs.readFileSync(inputFile,'utf8')),p=createAuthoredProject(source);workspaceDir=workspacePath(p.requirements.projectId,workspaceDir);
  const file=path.join(workspaceDir,'deck-project.json');if(fs.existsSync(file))throw Error('工程已存在：'+workspaceDir+'；使用 patch:project / publish:html 保留修改。');
- const staged=stageMedia(p,path.dirname(inputFile),workspaceDir);const saved=saveProject(file,staged,null);if(!saved.ok)throw Error(JSON.stringify(saved));return publishHtml({workspaceDir,outFile});
+ const staged=stageMedia(p,path.dirname(inputFile),workspaceDir);const saved=saveProject(file,staged,null);if(!saved.ok)throw Error(JSON.stringify(saved));return publishHtml({workspaceDir,outFile,screenshots});
 }
