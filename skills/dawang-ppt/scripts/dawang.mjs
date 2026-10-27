@@ -30,14 +30,13 @@ if (args[0] === "doctor") {
     try { const resolved = fs.realpathSync(file); return { host, path: file, link, resolved, usesThisSkill: resolved === fs.realpathSync(skill), status: link ? "linked" : "directory" }; }
     catch { return { host, path: file, link, usesThisSkill: false, status: "broken-link" }; }
   });
-  let kimiRules;
+  let rules;
   try {
-    const rules = await import(path.join(project, "src/fusion/kimi/reference-index.mjs"));
-    const lock = rules.readRulesLock(), root = rules.locatePinnedKimiSkill(lock);
-    kimiRules = root ? { root, label: lock?.label ?? null, ...rules.compareToLock(rules.fingerprintKimiRules(root), lock) } : { status: "missing" };
-  } catch (error) { kimiRules = { status: "error", message: error.message }; }
-  console.log(JSON.stringify({ node: process.version, skill, project, defaultBuild: "render:authored", defaultAuthoringCommand:"make", defaultDeliverable:"html", legacyBuild: "render:brief", installations, runtime: ok, kimiRules, install: "npm ci --prefix skills/dawang-ppt/project" }));
-  process.exitCode = ok ? 0 : 1;
+    const provider = await import(path.join(project, "src/fusion/rules/index.mjs"));
+    rules = provider.ruleStatus();
+  } catch (error) { rules = { provider: "dawang-ppt", status: "error", message: error.message }; }
+  console.log(JSON.stringify({ node: process.version, skill, project, defaultBuild: "render:authored", defaultAuthoringCommand:"make", defaultDeliverable:"html", legacyBuild: "render:brief", installations, runtime: ok, rules, install: "npm ci --prefix skills/dawang-ppt/project" }));
+  process.exitCode = ok && rules.status === "pinned" ? 0 : 1;
 } else {
   const command = path.join(project, "node_modules/.bin/tsx");
   if (!fs.existsSync(command)) throw new Error("Run npm ci --prefix skills/dawang-ppt/project first");

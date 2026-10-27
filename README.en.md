@@ -1,9 +1,19 @@
 # Dawang-PPT
 
-An experimental content-driven presentation skill for Chinese management reports, analysis and training. Semantic facts, styles, compositions and export are separate. HTML editing writes back to the same content state used for PPTX export.
+A Chinese presentation skill that turns source material into a single offline-editable HTML file. The authoring agent plans the content, edits screen-ready copy, designs each slide and reviews the result. PPTX, PDF and images are optional exports.
 
-Version 0.1.0 supports six compositions, three experimental styles, custom tokens, editable text/images/shapes/connectors/native tables. Native data charts, SmartArt, arbitrary PPTX template import and automatic style transfer are not implemented. User visual acceptance and target Office/WPS client compatibility remain pending.
+The sharing build is `v0.2.0-preview.20261027`, a **prerelease**, primarily tested on macOS with Node.js 22+ and Chrome. Production rules are bundled; no other presentation skill or external rule installation is required.
 
-Install the complete repository, run `npm ci`, then `node skills/dawang-ppt/scripts/install.mjs`. Start a new Codex session and invoke `$dawang-ppt`. Existing skills remain installed.
+Download the dedicated skill ZIP from the [release page](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261027), extract to a permanent location, open the `dawang-ppt` folder and run:
 
-See [Chinese documentation](README.md), [architecture](docs/architecture.md), [acceptance](docs/acceptance.md) and [licenses](docs/upstream-sources.md). Original upstream notices and component licenses remain in force. The new runtime uses an independent MIT PptxGenJS adapter rather than the proprietary upstream exporter.
+```sh
+npm ci --prefix project
+node scripts/install.mjs
+node scripts/dawang.mjs doctor
+```
+
+Check `runtime: true`, `rules.provider: "dawang-ppt"`, and `rules.status: "pinned"`. Start a new AI session, request `dawang-ppt`, attach material and specify audience, purpose, slide count and constraints. See the [Chinese guide](docs/USAGE.md) for other clients, updating and troubleshooting.
+
+Recipients only viewing or manually editing the delivered HTML do not need Node.js or the skill. Use Chrome/Edge, select the existing HTML when first saving, and grant write access. A browser draft is not a saved source file.
+
+PPTX fonts are not embedded; PDF is rasterized. Arbitrary PPTX imports, native data charts, SmartArt, and identical rendering across clients are not guaranteed. See [release notes](docs/RELEASE-20261027.md), [LICENSE](LICENSE) and [NOTICE](NOTICE.md).

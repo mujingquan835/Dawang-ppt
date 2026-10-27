@@ -1,58 +1,55 @@
 # Dawang-PPT
 
-以原 dashi-PPT 操作台为制作、编辑基座，融入 Kimi 的材料理解、叙事、图片组织与关系排版规则。旧模板页与新组合页共用目录、画布、侧栏、保存和可编辑PPTX导出。
+把已有材料变成可在浏览器中编辑的中文演示文稿：先整理观点和上屏文案，再逐页设计，最后交付 **一个可离线打开、编辑、保存的 HTML 文件**。
 
-**当前分支为 0.2.0-dev。S1 八页真实稿于2026-10-20获用户确认可用；S2 统一日常制作入口，尚未合 main 或正式发布。**
+适合经营汇报、方案提案、产品介绍、培训和技术说明。用自然语言交材料即可，不需要写工程 JSON；PPTX、PDF、图片按需导出。完整制作规则随 skill 提供，无需安装其他演示 skill 或外部规则包。
 
-## 本分支接续开发
+**同事分享版：`v0.2.0-preview.20261027`（预发布）。** 主要实测环境为 macOS + Node.js 22+ + Chrome；不等同于所有电脑、模型及 Office 客户端效果验收。
 
-`codex/kimi-web-editor` 已交付整合方案v4的W0—W4工程检查点，W5候选入口开发检查已通过；最终视觉认可与可比成本门槛仍待完成。换电脑继续请先看 [换机接续说明](docs/kimi-web/continue-on-another-computer.md) 与 [W4验收记录](docs/kimi-web/acceptance.md)。本分支候选`build`现走直接制作；日常安装启用单独核对，详见 [W5入口与回退](docs/kimi-web/w5-entry-and-rollback.md)。
+## 下载与安装
 
-## 日常流程
+到 [分享版下载页](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261027)，下载 `dawang-ppt-v0.2.0-preview.20261027.zip`。请选这个附件，自动生成的 Source code 是完整仓库，包含维护历史文件。
 
-材料 → 读取原Kimi规则 → 智能体逐页直接设计 → 原编辑器调整保存 → 同版本导出。候选`build`等价`render:authored`，自主外观用`authored/custom`，不要求从六种外观或九宫格选择。历史brief显式用`render:brief`，已有工程用`render:project`；原样模板保留`templates`/`render:goal`。
-
-沿用 [V3.1规划](docs/开发规划-v3.1.md)，实时执行状态见 [S2记录](docs/S2-执行记录.md)。原17主题与原编辑器保留，0.1 runtime及旧家族构图仅用于兼容恢复。
-
-当前处于本地开发及个人使用阶段，不代表所有风格与场景已通过效果验收。Kimi 原始参考资料仅从本机路径读取，不随公开代码再分发；缺少资料时明确报告。设置 `KIMI_PPT_SKILL_DIR` 可指定本机资料目录，或使用 `~/.dawang-ppt/kimi-reference/`。
-
-## 运行
-
-要求Node.js 22+、Chrome；完整实测环境为macOS。LibreOffice与pdftoppm用于独立渲染验证。
+解压后将 `dawang-ppt` 文件夹放在长期保留的位置，在该文件夹打开终端：
 
 ```sh
-git clone https://github.com/mujingquan835/Dawang-ppt.git
-cd Dawang-ppt
-git switch codex/kimi-web-editor
-npm ci --prefix skills/dawang-ppt/project
-node skills/dawang-ppt/scripts/dawang.mjs doctor
-node skills/dawang-ppt/scripts/dawang.mjs styles
+npm ci --prefix project
+node scripts/install.mjs
+node scripts/dawang.mjs doctor
 ```
 
-[技能入口](skills/dawang-ppt/SKILL.md) · [命令与工程契约](skills/dawang-ppt/references/contracts.md)。开发版可在当前仓库直接调用；不需要覆盖原技能。安装入口仍由`node skills/dawang-ppt/scripts/install.mjs`创建独立符号链接，已有不同安装时拒绝覆盖。测试安装使用`--target <临时目录>/dawang-ppt`，不修改日常安装。
+`install.mjs` 默认注册到 Codex。确认 `runtime: true`、`rules.provider: "dawang-ppt"`、`rules.status: "pinned"`，再新开 AI 会话。其他客户端、已有版本升级与排错见 [详细使用说明](docs/USAGE.md)。
 
-## 第一版范围
+## 直接这样使用
 
-| 能力 | 当前实现与边界 |
-|---|---|
-| 原编辑器与模板 | 保留17主题、18项本地扩展及原编辑操作；新组合控件挂在原侧栏 |
-| 原风格使用新对象 | theme13钴蓝经营、theme09深蓝杂志、theme16奶油蓝图，以及 theme14、theme06、theme17；数据化适配待真实稿件效果验收 |
-| Kimi规则与历史工程 | 方法与检查进入统一流程；历史三个家族仅保留工程恢复，不作为新建候选 |
-| 新对象 | 图片组合、时间轴、表格、流程/层级/循环/矩阵/比较/因果关系、条形/折线 |
-| 编辑与保存 | 节点、行列、连接、组与子对象、撤销重做、媒体引用、浏览器草稿、修订冲突保护 |
-| 导出 | 独立PptxGenJS适配器；文字/图片/形状/线条可编辑，PDF按截图生成 |
-| 全库迁移 | 60份源资料有哈希与批次，3份适配中，57份待后续批次；索引不是完成迁移 |
+> 使用 dawang-ppt，将附件整理为一份 6 页管理汇报，面向部门负责人。先提炼结论和上屏文案，再设计页面。保留数据的单位、时期和来源，不补造事实。默认交付一个可离线编辑的 HTML。
 
-表格/图表/关系图不要求原生数据表、图表或SmartArt。不支持任意PPTX模板导入。字体与复杂旧模板装饰的跨客户端效果需逐项复核，不能把文件生成成功当作通过。
+修改已有稿件：
 
-## 验证与维护
+> 使用 dawang-ppt，修改这份 HTML 的第 3 页：调整标题并放大流程图，其余文案和布局保持不变，保留已有人工编辑。
 
-```sh
-npm ci
-npm test
-npm run test:fusion
-```
+需要 PowerPoint 文件时补充：
 
-浏览器回归使用公开合成夹具；真实图片、原稿对照、生成稿留在本地output，不进入公开Git。新增改动先在开发分支提交，真实效果验收通过后才合入main并发布0.2.0。恢复点为`v0.1.0-recovery`。
+> 同时导出可编辑 PPTX，并说明字体和目标客户端尚未验证的部分。
 
-[当前验收](docs/acceptance-v0.2.md) · [架构](docs/architecture.md) · [迁移台账](docs/style-migration-v2.json) · [来源与许可](NOTICE.md)。
+## 编辑与保存
+
+用 Chrome 或 Edge 打开生成的 HTML。单击选择文字或对象，拖动移动、控制点缩放；双击文字进入编辑。顶部支持撤销、重做和保存。
+
+第一次保存时，在文件选择框中选择**当前打开的原 HTML**并授予写入权限；之后点击“保存”或按 `⌘S / Ctrl+S` 写回该文件。重开时浏览器可能再次要求授权。浏览器草稿不能代替源文件保存，“下载 HTML 副本”是单独的导出操作。
+
+同事仅查看或手动编辑交付 HTML 时，不需要安装 skill、Node.js 或启动服务。让 AI 继续制作或修改时，才需要完整 skill 环境。
+
+## 能力边界
+
+- HTML 是默认交付物；PPTX、PDF、图片不会默认一起生成。
+- PPTX 中的文字、图片和基础形状可编辑；不承诺原生数据图表、SmartArt、任意 PPTX 模板导入或跨客户端像素一致。
+- PDF 为截图型，正文不可按普通文本选择。PPTX 不嵌入字体，换电脑后要复核。
+- 任意网页 HTML 不属于无损可编辑导入范围。
+- 内容策划、逐页设计和看图复核由制作智能体执行；没有固定的整稿耗时或跨模型质量保证。
+
+## 更多说明
+
+[完整安装、示例与排错](docs/USAGE.md) · [本次更新与验证](docs/RELEASE-20261027.md) · [技能入口](skills/dawang-ppt/SKILL.md) · [许可证](LICENSE) · [版权与来源](NOTICE.md)
+
+源码仓库维护者可运行 `npm ci`、`npm ci --prefix skills/dawang-ppt/project`、`npm test`；打包命令为 `node scripts/package-skill.mjs`。独立分享包不包含历史 skill、外部规则正文、个人材料、生成稿、node_modules 或 Git 历史。仓库历史文件继续保留。

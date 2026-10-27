@@ -14,7 +14,7 @@ export function createAuthoredProject(input) {
   const slides = source.slides.map(slide => ({
     ...slide,
     mode: slide.mode ?? 'composition',
-    authoring: slide.authoring ?? { engine: 'kimi-authored-v1' },
+    authoring: slide.authoring ?? { engine: 'dawang-authored-v1' },
     styleId: slide.styleId ?? source.designChoice.styleId
   }));
   const slideOrder = slides.map(slide => slide.slideId);

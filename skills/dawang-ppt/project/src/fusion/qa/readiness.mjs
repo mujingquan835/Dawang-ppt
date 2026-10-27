@@ -2,7 +2,7 @@
 export function inspectReadinessInDom(slideId) {
  const slide=[...document.querySelectorAll('#deck > .slide')].find(s=>s.dataset.vmSlideId===slideId);
  const root=slide?.querySelector('.fusion-root,.imported-theme-root')||slide;
- const rect=root?.getBoundingClientRect(),scale=(rect?.width||0)/1920,issues=[],warnings=[],strictFonts=root?.dataset.authoringEngine==='kimi-authored-v1';
+ const rect=root?.getBoundingClientRect(),scale=(rect?.width||0)/1920,issues=[],warnings=[],strictFonts=['dawang-authored-v1','kimi-authored-v1'].includes(root?.dataset.authoringEngine);
  const finiteBounds=!!rect&&[rect.x,rect.y,rect.width,rect.height,scale].every(Number.isFinite)&&scale>0&&rect.height>0;
  if(!finiteBounds)issues.push({kind:'layout-not-ready',slideId});
  const images=[...(root?.querySelectorAll('img')||[])].map(img=>({src:img.currentSrc||img.src,complete:img.complete,decoded:img.complete&&img.naturalWidth>0}));

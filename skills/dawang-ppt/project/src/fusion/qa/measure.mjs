@@ -31,7 +31,7 @@ async function measureProject(url,project,{chrome='/Applications/Google Chrome.a
     }
     // Contrast: text colour against the solid fills painted beneath its text (earlier elements, then the slide background).
     // Text over images, gradients or vectors is not judged. Below 3:1 blocks new authored decks; below 4.5:1 warns for normal-size text.
-    const warnings=[],strict=root.dataset.authoringEngine==='kimi-authored-v1';
+    const warnings=[],strict=['dawang-authored-v1','kimi-authored-v1'].includes(root.dataset.authoringEngine);
     const parse=c=>{const m=/rgba?\(([^)]+)\)/.exec(c||'');if(!m)return null;const v=m[1].split(/[\s,/]+/).filter(Boolean).map(Number);return{r:v[0],g:v[1],b:v[2],a:v.length>3?v[3]:1};};
     const over=(top,base)=>({r:top.r*top.a+base.r*(1-top.a),g:top.g*top.a+base.g*(1-top.a),b:top.b*top.a+base.b*(1-top.a),a:1});
     const lum=c=>{const f=v=>{v/=255;return v<=0.03928?v/12.92:((v+0.055)/1.055)**2.4;};return .2126*f(c.r)+.7152*f(c.g)+.0722*f(c.b);};

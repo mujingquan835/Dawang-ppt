@@ -24,8 +24,12 @@ Dawang-PPT 0.2.0 development additions are maintained by mujingquan835. The new 
 
 The maintained fusion runtime is `skills/dawang-ppt/project`. It retains the original editing shell and licensed open source template runtime, but excludes the proprietary export package and browser bundle. Its export adapter is independently authored with PptxGenJS and JSZip. The root `runtime` remains a historical prototype. OPPO Sans copyright and license are retained alongside the bundled font.
 
-## V3 local reference boundary
+## Historical V3 local reference boundary
 
 The current fusion work is a local development build for personal use and has not passed final visual acceptance. This status does not replace the licenses of upstream code or assets. Kimi original reference text is read only from an external local installation (`KIMI_PPT_SKILL_DIR`, `~/.dawang-ppt/kimi-reference/`, or the existing user skill). It is not bundled with the public source or its integration history. A reference index or palette preview is not a completed template migration.
 
 Selected original integration modules were authored on the owner's local `grok/fusion-opt-v1` branch (source snapshot `23b15a1`). Integration uses reviewed source changes rather than merging the branch containing local-only reference copies; see `docs/开发进度-v3.md`.
+
+## Dawang-PPT sharing build (2026-10-27)
+
+The active authoring entry now reads bundled Dawang-PPT production rules from `references/rules/` and the maintained authoring guides, fingerprinted by `dawang-rules.lock.json`. It does not load external Kimi rule installations. Historical source, metadata and adapters remain in the repository for compatibility and provenance. The dedicated skill ZIP excludes the historical skills, external rule reader, external rule lock, and proprietary exporter. This rule-path change does not remove the upstream copyright or licensing obligations for the editor, templates, assets or dependencies.

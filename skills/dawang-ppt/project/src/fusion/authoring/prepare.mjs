@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {extractPortableProject} from '../portable/html.mjs';
-import {readAuthoringRules,SCENARIOS} from '../kimi/reference-index.mjs';
+import {readAuthoringRules,SCENARIOS} from '../rules/index.mjs';
 
 // Candidates only: the agent confirms them into contentPlan.authorNotes / keyLine and may reject any of them.
 const AUTHOR_SECTION=/不放进|不放入|不上屏|不进\s*PPT|仅供|内部|备注|配图说明|制作说明|for author/i;
@@ -56,5 +56,5 @@ export function prepareMaterial({inputFile,outDir,scenarioId}) {
  const manifest=media.map(({data,...entry})=>entry);
  fs.writeFileSync(path.join(dest,'material.json'),JSON.stringify({source:input,sourceSha256:createHash('sha256').update(raw).digest('hex'),...material,extractedMedia:manifest,...candidates},null,2));
  if(rules)fs.writeFileSync(path.join(dest,'rules.json'),JSON.stringify(rules,null,2));
- return {materialFile:path.join(dest,'material.json'),rulesFile:rules?path.join(dest,'rules.json'):null,media:manifest,...candidates,scenarios:SCENARIOS.map(({id,zh})=>({id,name:zh})),note:'Read the full material and applicable original rules; inspect required images. This preparation makes no content or layout decisions. Relative media paths in JSON resolve against source directory: '+path.dirname(input)};
+ return {materialFile:path.join(dest,'material.json'),rulesFile:rules?path.join(dest,'rules.json'):null,media:manifest,...candidates,scenarios:SCENARIOS.map(({id,zh})=>({id,name:zh})),note:'Read the full material and applicable Dawang-PPT rules; inspect required images. This preparation makes no content or layout decisions. Relative media paths in JSON resolve against source directory: '+path.dirname(input)};
 }

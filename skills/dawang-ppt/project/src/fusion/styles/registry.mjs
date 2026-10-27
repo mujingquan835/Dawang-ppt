@@ -12,7 +12,7 @@ export { STYLE_DEFINITIONS, resolveStyle };
 // Project-specific brand tokens do not register a new style or change original templates.
 // Authored slides take the deck palette (designChoice.appearance) as their default; a slide's own palette wins.
 function resolveSlideStyle(slide,project) {
- const authored=slide.authoring?.engine==='kimi-authored-v1' && slide.styleId==='authored/custom';
+ const authored=['dawang-authored-v1','kimi-authored-v1'].includes(slide.authoring?.engine) && slide.styleId==='authored/custom';
  const style=authored
   ? {id:'authored/custom',source:{kind:'authored'},palette:{bg:'#FFFFFF',ink:'#161616',muted:'#667085',accent:'#245B48',line:'#D8DEE5'},typography:{heading:'sans-serif',body:'sans-serif',mono:'monospace',sizes:{title:82,body:34,note:23}}}
   : resolveStyle(slide.styleId);

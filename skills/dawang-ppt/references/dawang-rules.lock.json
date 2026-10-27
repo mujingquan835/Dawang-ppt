@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "provider": "dawang-ppt",
+  "label": "Dawang-PPT production rules v1",
+  "files": {
+    "fusion/content-editing.md": "c3011e53356c987c01b01a7ff4fac1bb8574a98b4b0a0732f90710e7a797c42d",
+    "fusion/production.md": "2538e301054771908f73e9dd83e1b2789148d077dd042fc90fa70872b9c93bb9",
+    "fusion/visual-review.md": "ef03824000ad5f2ad5ac38bf200bb8b9a9fdbbf5c8a77a01359595a355b5a21a",
+    "rules/academic-research.md": "a24fa0829bd3b571703bf5d371537d51c8ab98f8aa37b52f41f18b2ae1ef8b51",
+    "rules/analysis-decision.md": "33e2d28d54aef9ce8e6cf867c1cb90770eb6def3bc4fb21d0eabc14bc1edb107",
+    "rules/brand-creative.md": "64f783e687675bf208ee01e6ff59e5c9aee89884b73d80dc0e39364077b7c946",
+    "rules/business-plan.md": "e2835325ce5a20fb73963f658e6fdbfa8c1c97d35f27dd9bcbb2fc2ac66ce6ee",
+    "rules/education-training.md": "837ed5b44647dc40fe8b4430b6149a5068bbe27a24af98b8300fec8498b72d00",
+    "rules/management-report.md": "dda934f2dc5188e2c85ddc1f2c95cf60f2b2d60eeaf4b9ce6f926928b546bde5",
+    "rules/tech-engineering.md": "dd63d1bc8df05d23709eb3340ae61ceb1a41a5428bd3ac6ba49750a2c90df7e4",
+    "rules/workflow.md": "52738590ad618c389f0cca8c77992c45900862b8c0bddc75d7672350ed409afc"
+  },
+  "bundleSha256": "56fbc32265d43e984c30e42b393cacb0e8e59a1fcc3499096bc72fd6f3977a9d"
+}
