@@ -39,7 +39,7 @@ export async function serializePortableHtml({document:doc,project,resolveAsset,b
  const mediaKeys=new Set(['src','image','images','imageSrc','imageUrl','heroImage','coverImage']);
  const mapMedia=async(value,key='')=>{if(Array.isArray(value))return Promise.all(value.map(v=>mapMedia(v,key)));if(value&&typeof value==='object')return Object.fromEntries(await Promise.all(Object.entries(value).map(async([k,v])=>[k,await mapMedia(v,k)])));if(typeof value==='string'&&value&&mediaKeys.has(key))return resource(value);return value;};
  const p=await mapMedia(structuredClone(project));
- clone.querySelectorAll('.fusion-selection,.fusion-crop-editor,.deck-export-overlay,.page-transition-stage').forEach(n=>n.remove());
+ clone.querySelectorAll('.fusion-selection,.fusion-crop-editor,.deck-export-overlay,.page-transition-stage,#fusion-save-controls,#fusion-status').forEach(n=>n.remove());
  clone.querySelector('body')?.classList.remove('exporting-deck');
  // Include lazy dependencies now. No network is needed when the user later clicks export.
  for(const src of ['assets/vendor/html-to-image.js','assets/vendor/pdf-lib.min.js','assets/vendor/pptxgen.bundle.js']){

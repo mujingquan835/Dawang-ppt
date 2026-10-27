@@ -1,5 +1,6 @@
+import {mountSaveControls} from './save-controls.mjs';
 import {inspectReadinessInDom} from '../qa/readiness.mjs';
-import {serializePortableHtml,collectUsedFontFamilies} from '../portable/html.mjs';
+import {serializePortableHtml,collectUsedFontFamilies,extractPortableProject} from '../portable/html.mjs';
 import {mountImageCrop} from './image-crop.jsx';
 import { readRunsFromDom, runsToHtml } from '../authoring/text-runs.mjs';
 import { openDraftStore, draftDecision } from "./drafts.mjs";
@@ -16,6 +17,8 @@ import { collectSlideInDom } from "../export/collect.mjs";
 import { composeEditablePptx } from "../export/pptx-core.mjs";
 const seed = document.getElementById("fusion-project");
 if (seed) {
+  let saveControls = null;
+  const saveKey = () => { const p = sync(); return JSON.stringify([p.slides,p.contentPlan,p.media,p.editorState]); };
   document.body.classList.add('fusion-editor');
   const syncEditorMode = () => document.body.classList.toggle('fusion-composition-active',!!document.querySelector('#deck > .fusion-slide.active'));
   syncEditorMode();
@@ -23,6 +26,7 @@ if (seed) {
   const propsField = document.getElementById('preview-props-field');
   document.getElementById('preview-typography')?.before(propsField);
   let scheduleDraft = function() {
+    saveControls?.changed();
     clearTimeout(draftTimer);
     draftTimer = setTimeout(() => persistDraft().catch((error) => status("本地草稿保存失败，当前内容仍在页面中：" + error.message)), 100);
   }, sync = function() {
@@ -191,11 +195,14 @@ if (seed) {
     }
     return ok;
   };
-  async function saveNow() {
+  async function saveNow(options = {}) {
     await ready;
     cropEditor?.confirm();
-    const current = sync();
-    if(location.protocol==='file:'||document.getElementById('portable-project-meta'))return downloadHtml();
+    const current = sync(), currentKey = saveKey();
+    if(location.protocol==='file:'||document.getElementById('portable-project-meta')){
+      if(!options.fileHandle)throw Error('请先关联源文件；保存不会自动下载副本');
+      return downloadHtml(options.fileHandle);
+    }
     await persistDraft().catch(error=>status('草稿不可用：'+error.message));
     const response = await fetch("/api/save-deck-state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: current.editorState.legacy, project: current, expectedRevision: savedRevision }) });
     const result = await response.json();
@@ -211,13 +218,17 @@ if (seed) {
     savedRevision = result.revision;
     project.revision = savedRevision;
     await persistDraft();
+    saveControls?.saved(currentKey, '已保存工程');
     status(result.previewError ? "内容已保存，预览更新失败：" + result.previewError : "已保存");
     return result;
   }
   const save = (options={}) => {
     if(exportBusy&&!options.forExport)return Promise.reject(new Error('导出期间请等待当前操作完成'));
-    const task = saveQueue.catch(() => {
-    }).then(saveNow);
+    const task = saveQueue.catch(() => {}).then(async () => {
+      saveControls?.begin();
+      try { return await saveNow({...options,fileHandle:options.fileHandle || saveControls?.getFileHandle()}); }
+      catch (error) { saveControls?.failed(error); throw error; }
+    });
     saveQueue = task;
     return task;
   };
@@ -237,7 +248,7 @@ if (seed) {
     await ready;
     sync();
     await persistDraft();
-  }, getProject: sync, apply, save, undo: () => window.__dashiUndo.undo(), redo, selectionMode: (value) => {
+  }, getProject: sync, apply, save: (options={}) => (location.protocol==='file:'||document.getElementById('portable-project-meta'))&&!options.fileHandle ? saveControls.run() : save(options), undo: () => window.__dashiUndo.undo(), redo, selectionMode: (value) => {
     if (value) selectionMode = value;
     return selectionMode;
   }, refreshSelection, acceptRevision: (r) => {
@@ -247,21 +258,45 @@ if (seed) {
   window.__fusionEditor = api;
   const portable=()=>location.protocol==='file:'||!!document.getElementById('portable-project-meta');
   const download=async(blob,name)=>{const href=URL.createObjectURL(blob);try{const a=document.createElement('a');a.href=href;a.download=name;a.click();}finally{setTimeout(()=>URL.revokeObjectURL(href),1000);}};
-  async function portableHtml(){
+  async function portableHtml(onSnapshot){
     await ready;cropEditor?.confirm();const p=sync();
     if(portable())p.revision=crypto.randomUUID();
+    if(typeof onSnapshot === 'function')onSnapshot(saveKey(),p.revision);
     const usedFontFamilies=collectUsedFontFamilies(document,p);
     const clone=document.documentElement.cloneNode(true);
     await window.__preparePortableClone?.(clone);
     const html=await serializePortableHtml({document:clone,project:p,baseRevision:savedRevision,usedFontFamilies});
-    if(portable()){project.revision=p.revision;savedRevision=p.revision;}
     return html;
   }
-  async function downloadHtml(){const html=await portableHtml();await download(new Blob([html],{type:'text/html;charset=utf-8'}),(project.requirements.title||'报告')+'.html');status('已下载修改后的HTML；请打开下载文件继续使用。');return {ok:true,revision:project.revision};}
+  function htmlFilename(){
+    if(location.protocol==='file:')try{return decodeURIComponent(location.pathname.split('/').pop()) || '报告.html';}catch{}
+    return (project.requirements.title||'报告')+'.html';
+  }
+  async function downloadHtml(fileHandle){
+    let key,revision;
+    const html=await portableHtml((k,r)=>{key=k;revision=r;});
+    if(fileHandle){
+      const writable=await fileHandle.createWritable();
+      try{await writable.write(html);await writable.close();}
+      catch(error){try{await writable.abort();}catch{}throw error;}
+    }else await download(new Blob([html],{type:'text/html;charset=utf-8'}),htmlFilename());
+    if(fileHandle){
+      if(portable()){project.revision=revision;savedRevision=revision;}
+      saveControls?.saved(key,'已保存到源文件：'+fileHandle.name);
+      await persistDraft();
+    }
+    status(fileHandle?'已保存到源文件：'+fileHandle.name:'已导出HTML副本；源文件的修改仍需点击保存。');
+    return {ok:true,revision:project.revision};
+  }
   api.serializeHtml=portableHtml;
   window.__exportDeckHtml=()=>withSnapshot(downloadHtml);
   document.getElementById('preview-export-image')?.addEventListener('click',()=>window.__exportDeckImage());
-  if(portable()){const label=document.querySelector('#preview-export span');if(label)label.textContent='下载修改后的HTML';}
+  saveControls=mountSaveControls({portable:portable(),getKey:saveKey,save,validateSource:async handle=>{
+    const file=await handle.getFile();
+    if(location.protocol==='file:' && file.name!==htmlFilename())throw Error('请选择当前打开的原HTML：'+htmlFilename());
+    const source=extractPortableProject(await file.text());
+    if(source.requirements.projectId!==project.requirements.projectId)throw Error('所选文件不属于当前演示稿，请重新关联原HTML');
+  }});
 
   async function waitReady(id){
     const deadline=Date.now()+10000;let state;

@@ -165,7 +165,7 @@ function mountInspector(panel, selection, api) {
   container = box;
   button("撤销", () => api.undo()).id = "fusion-undo";
   button("重做", () => api.redo()).id = "fusion-redo";
-  button(api.isPortable?.()?"下载修改后的HTML":"保存工程", () => api.save()).id = "fusion-save";
+  button(api.isPortable?.()?"保存":"保存工程", () => api.save().catch(() => {})).id = "fusion-save";
   if (!o) return;
   const editItem = (key, id, idField, fieldName, value) => {
     const data = structuredClone(current().data), item = data[key].find((n) => n[idField] === id);

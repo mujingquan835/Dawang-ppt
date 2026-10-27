@@ -2922,6 +2922,7 @@
       } catch {}
     }
     scheduleServerSave();
+    window.dispatchEvent(new Event('dashi-deck-change'));
   }
   async function restoreDraftFromIdb(){
     const draft = await idbDraft('get');
