@@ -1,4 +1,5 @@
 import {mountSaveControls} from './save-controls.mjs';
+import {describeConflicts} from './messages.mjs';
 import {inspectReadinessInDom} from '../qa/readiness.mjs';
 import {serializePortableHtml,collectUsedFontFamilies,extractPortableProject} from '../portable/html.mjs';
 import {mountImageCrop} from './image-crop.jsx';
@@ -106,7 +107,7 @@ if (seed) {
     sync();
     const before = structuredClone(project), r = applyEditCommand(project, command);
     if (!r.ok) {
-      status("修改未应用，当前草稿保留：" + JSON.stringify(r.conflicts));
+      status("修改未应用：" + describeConflicts(r.conflicts));
       return r;
     }
     if (JSON.stringify([before.slides,before.contentPlan.nodes,before.media.entries]) === JSON.stringify([r.project.slides,r.project.contentPlan.nodes,r.project.media.entries])) return {...r,project};
@@ -151,21 +152,28 @@ if (seed) {
     const overlay = document.createElement("div");
     overlay.className = "fusion-selection";
     overlay.dataset.editableSkip = "true";
-    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;border:2px solid #1db477;pointer-events:none;z-index:10000`;
+    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;border:2px solid var(--pp-blue,#0e9f6e);pointer-events:none;z-index:10000`;
     const handle = document.createElement("button");
     handle.type = "button";
     handle.setAttribute("aria-label", "缩放选中对象");
     handle.dataset.fusionResize = "true";
-    handle.style.cssText = "position:absolute;right:-8px;bottom:-8px;width:16px;height:16px;cursor:nwse-resize;pointer-events:auto;background:#1db477;border:1px solid white";
+    handle.style.cssText = "position:absolute;right:-8px;bottom:-8px;width:16px;height:16px;cursor:nwse-resize;pointer-events:auto;background:var(--pp-blue,#0e9f6e);border:1px solid white";
     const move = document.createElement('button');
     move.type='button';move.dataset.fusionMove='true';move.setAttribute('aria-label','移动选中对象');
-    move.textContent='移动';move.style.cssText='position:absolute;left:0;top:-28px;height:24px;padding:2px 8px;border:0;border-radius:4px;background:#1db477;color:white;cursor:move;pointer-events:auto;font:12px sans-serif';
+    move.textContent='移动';move.style.cssText='position:absolute;left:0;top:-28px;height:24px;padding:2px 8px;border:0;border-radius:4px;background:var(--pp-blue,#0e9f6e);color:white;cursor:move;pointer-events:auto;font:12px sans-serif';
     overlay.append(move,handle);
     el.querySelector(".fusion-root").append(overlay);
     const field = document.getElementById("preview-props-field");
     field.classList.remove("is-hidden");
     mountInspector(document.getElementById("preview-props"), selected, api);
   };
+  function clearSelection() {
+    selected = null;
+    document.querySelectorAll("#deck .fusion-selection").forEach((e) => e.remove());
+    document.getElementById("fusion-inspector")?.remove();
+    const field = document.getElementById("preview-props-field"), panel = document.getElementById("preview-props");
+    if (field && panel && !panel.children.length) field.classList.add("is-hidden");
+  }
   let cropEditor = null, exportBusy=false;
   let project = JSON.parse(seed.textContent), savedRevision = project.revision, selected = null, selectionMode = "group", redoSnapshots = [], restoring = false, saveQueue = Promise.resolve();
   const roots = /* @__PURE__ */ new Map();
@@ -207,8 +215,9 @@ if (seed) {
     const response = await fetch("/api/save-deck-state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: current.editorState.legacy, project: current, expectedRevision: savedRevision }) });
     const result = await response.json();
     if (!result.ok) {
-      status("保存冲突，草稿已保留：" + JSON.stringify(result.conflicts || result.issues));
-      throw new Error("Save conflict");
+      const reason = describeConflicts(result.conflicts || result.issues);
+      status("保存未完成，修改已保留为草稿：" + reason);
+      throw new Error(reason);
     }
     if (result.mediaMap) {
       const reconcile = (value) => typeof value === "string" ? result.mediaMap[value] || value : Array.isArray(value) ? value.map(reconcile) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, reconcile(v)])) : value;
@@ -297,11 +306,37 @@ if (seed) {
     const source=extractPortableProject(await file.text());
     if(source.requirements.projectId!==project.requirements.projectId)throw Error('所选文件不属于当前演示稿，请重新关联原HTML');
   }});
+  mountHistoryControls();
+  function mountHistoryControls(){
+    const actions=document.querySelector('#deck-topbar .pp-topbar-actions');
+    if(!actions)return;
+    document.getElementById('fusion-history-controls')?.remove();
+    const box=document.createElement('div');
+    box.id='fusion-history-controls';
+    box.style.cssText='display:flex;align-items:center;gap:4px';
+    const make=(id,label,title,fn)=>{
+      const b=document.createElement('button');
+      b.type='button';b.id=id;b.textContent=label;b.title=title;b.setAttribute('aria-label',label);
+      b.style.cssText='height:34px;padding:0 10px;border:1px solid var(--pp-border);border-radius:6px;cursor:pointer;background:var(--pp-chip);color:var(--pp-fg);font:500 13px/1 var(--sans-zh);white-space:nowrap';
+      b.addEventListener('click',()=>{if(!fn())status(id==='fusion-undo'?'没有可撤销的操作。':'没有可重做的操作。');});
+      box.append(b);
+    };
+    const mac=/Mac|iPhone|iPad/.test(navigator.platform);
+    make('fusion-undo','撤销',mac?'撤销（⌘Z）':'撤销（Ctrl+Z）',()=>api.undo());
+    make('fusion-redo','重做',mac?'重做（⇧⌘Z）':'重做（Ctrl+Y）',()=>api.redo());
+    actions.prepend(box);
+  }
+  document.addEventListener('keydown',ev=>{
+    const key=String(ev.key||'').toLowerCase();
+    const isRedo=(ev.metaKey||ev.ctrlKey)&&!ev.altKey&&((key==='z'&&ev.shiftKey)||(key==='y'&&ev.ctrlKey&&!ev.shiftKey));
+    if(!isRedo||ev.target.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"],[role="textbox"]'))return;
+    ev.preventDefault();ev.stopImmediatePropagation();redo();
+  },true);
 
   async function waitReady(id){
     const deadline=Date.now()+10000;let state;
     do{state=inspectReadinessInDom(id);if(state.ready)return state;if(state.issues.some(i=>['missing-image','font-unavailable'].includes(i.kind)))break;await new Promise(r=>setTimeout(r,30));}while(Date.now()<deadline);
-    throw Error('导出检查未通过：'+JSON.stringify(state.issues));
+    throw Error('导出检查未通过：'+describeConflicts(state.issues));
   }
   async function withSnapshot(operation){
     if(exportBusy)throw Error('导出正在进行');await ready;cropEditor?.confirm();sync();
@@ -352,8 +387,9 @@ if (seed) {
     const response = await fetch(pdf ? "/api/export-pdf" : "/api/export-editable-pptx", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: savedRevision }) });
     const r = await response.json();
     if (!r.ok) {
-      status("导出未完成：" + JSON.stringify(r.issues));
-      throw new Error(JSON.stringify(r.issues));
+      const reason = describeConflicts(r.issues);
+      status("导出未完成：" + reason);
+      throw new Error(reason);
     }
     window.__lastPptxExportResult = r;
     const a = document.createElement("a");
@@ -422,8 +458,10 @@ if (seed) {
     }
   })();
   document.addEventListener("click", (ev) => {
-    if(ev.target.closest?.('.fusion-crop-editor'))return;
+    if(ev.target.closest?.('.fusion-crop-editor,.fusion-selection'))return;
     const el = ev.target.closest?.("#deck [data-fusion-element]");
+    // Empty slide space has no pointer target of its own, so clicks there reach body.
+    if (!el && selected && !ev.target.closest?.('#preview-panel,#deck-topbar,[role="dialog"],[role="menu"]')) return clearSelection();
     if (!el || !window.__canEditDeck?.()) return;
     selected = { slideId: el.closest(".slide").dataset.vmSlideId, elementId: el.dataset.fusionElement };
     refreshSelection();
@@ -491,12 +529,16 @@ if (seed) {
   });
   document.addEventListener('pointercancel',cancelDrag);
   document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&drag){cancelDrag();ev.preventDefault();ev.stopImmediatePropagation();}},true);
+  document.addEventListener('keydown',ev=>{
+    if(ev.key!=='Escape'||!selected||drag||cropEditor||ev.defaultPrevented)return;
+    if(ev.target.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"]'))return;
+    clearSelection();
+  });
   addEventListener('blur',cancelDrag);
   addEventListener("swiss-slide-change", () => {
     cropEditor?.cancel();
     cancelDrag();
     syncEditorMode();
-    selected = null;
-    document.querySelectorAll("#deck .fusion-selection").forEach((e) => e.remove());
+    clearSelection();
   });
 }

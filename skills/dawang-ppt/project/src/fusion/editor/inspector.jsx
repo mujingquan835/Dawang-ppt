@@ -1,11 +1,22 @@
 import { materializeElements } from "../scene/model.mjs";
 const inspectorSections = new Map();
+const FOCUSABLE = "input,select,button,summary";
+// A rebuild replaces every control; remember which one had focus (or where Tab was heading) by position.
+let pendingFocus = null;
+const focusables = root => [...root.querySelectorAll(FOCUSABLE)].filter(el => !el.disabled && el.offsetParent !== null);
 function mountInspector(panel, selection, api) {
+  const previous = panel.querySelector("#fusion-inspector");
+  const sameTarget = previous?.dataset.selection === selection.slideId + "/" + selection.elementId;
+  const active = previous?.contains(document.activeElement) ? focusables(previous).indexOf(document.activeElement) : -1;
+  const restoreFocus = sameTarget ? (pendingFocus ?? (active >= 0 ? active : null)) : null;
+  pendingFocus = null;
   const expanded = new Map([...panel.querySelectorAll('#fusion-inspector details')].map(el => [el.id,el.open]));
   for(const [id,open] of expanded)inspectorSections.set(id,open);
   panel.querySelector("#fusion-inspector")?.remove();
   const box = document.createElement("div");
   box.id = "fusion-inspector";
+  box.dataset.selection = selection.slideId + "/" + selection.elementId;
+  if (restoreFocus !== null) queueMicrotask(() => { if (box.isConnected) focusables(box)[restoreFocus]?.focus(); });
   box.style.cssText = "display:grid;gap:16px;padding-top:12px;font:500 13px/1.4 var(--sans-zh);color:var(--pp-fg)";
   panel.append(box);
   let container = box;
@@ -53,6 +64,15 @@ function mountInspector(panel, selection, api) {
     input.onchange = commit;
     input.onkeydown = event => {
       if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
+      if (event.key === 'Tab' && type !== 'file') {
+        // Commit first; the rebuild that follows lands focus on the next control.
+        const list = focusables(box), next = list.indexOf(input) + (event.shiftKey ? -1 : 1);
+        if (next < 0 || next >= list.length) { event.stopPropagation(); return; }
+        event.preventDefault();
+        pendingFocus = next;
+        input.blur();
+        if (box.isConnected) { const target = focusables(box)[pendingFocus]; pendingFocus = null; target?.focus(); }
+      }
       event.stopPropagation();
     };
     row.append(input);
@@ -163,9 +183,6 @@ function mountInspector(panel, selection, api) {
   button("置于前层", () => apply({ type: "layer", direction: "front", objectId: o?.objectId }));
   button("置于后层", () => apply({ type: "layer", direction: "back", objectId: o?.objectId }));
   container = box;
-  button("撤销", () => api.undo()).id = "fusion-undo";
-  button("重做", () => api.redo()).id = "fusion-redo";
-  button(api.isPortable?.()?"保存":"保存工程", () => api.save().catch(() => {})).id = "fusion-save";
   if (!o) return;
   const editItem = (key, id, idField, fieldName, value) => {
     const data = structuredClone(current().data), item = data[key].find((n) => n[idField] === id);
@@ -191,14 +208,14 @@ function mountInspector(panel, selection, api) {
   }
   if (o.data.nodes) {
     if (o.kind === "timeline") {
-      select("方向", o.data.direction || "horizontal", ["horizontal", "vertical", "alternating"], (direction) => semantic({ ...current().data, direction }));
+      select("方向", o.data.direction || "horizontal", [["horizontal", "横向"], ["vertical", "纵向"], ["alternating", "上下交替"]], (direction) => semantic({ ...current().data, direction }));
       select("分布", o.data.distribution || "sequence", [["sequence", "顺序均布"], ["date", "按日期比例"]], (distribution) => semantic({ ...current().data, distribution }));
     }
     o.data.nodes.forEach((node, i) => {
       field(`节点 ${i + 1}`, node.label, (v) => editItem("nodes", node.nodeId, "nodeId", "label", v));
-      field("说明", node.detail, (v) => editItem("nodes", node.nodeId, "nodeId", "detail", v));
+      field(`节点 ${i + 1} 说明`, node.detail, (v) => editItem("nodes", node.nodeId, "nodeId", "detail", v));
       if (o.kind === "timeline") {
-        field("日期", node.date, (v) => editItem("nodes", node.nodeId, "nodeId", "date", v));
+        field(`节点 ${i + 1} 日期`, node.date, (v) => editItem("nodes", node.nodeId, "nodeId", "date", v));
       }
       button("上移节点 " + (i + 1), () => {
         const data = structuredClone(current().data), index = data.nodes.findIndex((n) => n.nodeId === node.nodeId);
@@ -217,7 +234,8 @@ function mountInspector(panel, selection, api) {
       semantic(data);
     });
     if (!["timeline", "matrix", "comparison"].includes(o.kind)) {
-      const opts = o.data.nodes.map((n) => [n.nodeId, n.label]);
+      const opts = o.data.nodes.map((n, i) => [n.nodeId, `${i + 1}. ${n.label || "未命名节点"}`]);
+      const nodeName = (id) => opts.find(([v]) => v === id)?.[1] || "已删除节点";
       const from = select("连接起点", opts[0][0], opts, () => {
       }), to = select("连接终点", opts.at(-1)[0], opts, () => {
       });
@@ -225,7 +243,7 @@ function mountInspector(panel, selection, api) {
         const object = current();
         semantic(object.data, [...object.relationships || [], { relationshipId: crypto.randomUUID(), from: from.value, to: to.value }]);
       });
-      for (const r of o.relationships || []) button("删除连接 " + r.from + " → " + r.to, () => {
+      for (const r of o.relationships || []) button("删除连接：" + nodeName(r.from) + " → " + nodeName(r.to), () => {
         const object = current();
         semantic(object.data, object.relationships.filter((x) => x.relationshipId !== r.relationshipId));
       });
@@ -233,28 +251,29 @@ function mountInspector(panel, selection, api) {
   }
   if (o.kind === "table") {
     const cols = o.data.columns;
-    for (const col of cols) {
-      field("列名", col.label, (v) => editItem("columns", col.columnId, "columnId", "label", v));
-      field("列宽比例", col.width || 1, (v) => editItem("columns", col.columnId, "columnId", "width", v), "number");
-      button("删除列 " + col.label, () => {
+    const rowName = (index) => `第 ${index + 1} 行`;
+    cols.forEach((col, colIndex) => {
+      field(`第 ${colIndex + 1} 列 · 列名`, col.label, (v) => editItem("columns", col.columnId, "columnId", "label", v));
+      field(`第 ${colIndex + 1} 列 · 列宽比例`, col.width || 1, (v) => editItem("columns", col.columnId, "columnId", "width", v), "number");
+      button(`删除第 ${colIndex + 1} 列`, () => {
         const data = structuredClone(current().data);
         data.columns = data.columns.filter((c) => c.columnId !== col.columnId);
         semantic(data);
       });
-    }
-    for (const row of o.data.rows) {
-      for (const col of cols) field(row.rowId.slice(0, 8) + " · " + col.label, row.cells[col.columnId], (value) => {
+    });
+    o.data.rows.forEach((row, rowIndex) => {
+      for (const col of cols) field(rowName(rowIndex) + " · " + (col.label || "未命名列"), row.cells[col.columnId], (value) => {
         const data = structuredClone(current().data);
         data.rows.find((r) => r.rowId === row.rowId).cells[col.columnId] = value;
         semantic(data);
       });
-      field("行高比例", row.height || 1, (v) => editItem("rows", row.rowId, "rowId", "height", v), "number");
-      button("删除该行", () => {
+      field(rowName(rowIndex) + " · 行高比例", row.height || 1, (v) => editItem("rows", row.rowId, "rowId", "height", v), "number");
+      button(`删除${rowName(rowIndex)}`, () => {
         const data = structuredClone(current().data);
         data.rows = data.rows.filter((r) => r.rowId !== row.rowId);
         semantic(data);
       });
-    }
+    });
     button("添加行", () => {
       const data = structuredClone(current().data);
       data.rows.push({ rowId: crypto.randomUUID(), cells: Object.fromEntries(data.columns.map((c) => [c.columnId, ""])) });
@@ -266,10 +285,10 @@ function mountInspector(panel, selection, api) {
       semantic(data);
     });
     if (o.data.rows.length && cols.length > 1) {
-      const row = select("起始行", o.data.rows[0].rowId, o.data.rows.map((r) => [r.rowId, r.rowId.slice(0, 8)]), () => {
-      }), rowEnd = select("结束行", o.data.rows[0].rowId, o.data.rows.map((r) => [r.rowId, r.rowId.slice(0, 8)]), () => {
-      }), col1 = select("起始列", cols[0].columnId, cols.map((c) => [c.columnId, c.label]), () => {
-      }), col2 = select("结束列", cols.at(-1).columnId, cols.map((c) => [c.columnId, c.label]), () => {
+      const row = select("起始行", o.data.rows[0].rowId, o.data.rows.map((r, i) => [r.rowId, rowName(i)]), () => {
+      }), rowEnd = select("结束行", o.data.rows[0].rowId, o.data.rows.map((r, i) => [r.rowId, rowName(i)]), () => {
+      }), col1 = select("起始列", cols[0].columnId, cols.map((c, i) => [c.columnId, `第 ${i + 1} 列 ${c.label || ""}`.trim()]), () => {
+      }), col2 = select("结束列", cols.at(-1).columnId, cols.map((c, i) => [c.columnId, `第 ${i + 1} 列 ${c.label || ""}`.trim()]), () => {
       });
       button("合并所选单元格", () => {
         const data = structuredClone(current().data), a = data.columns.findIndex((c) => c.columnId === col1.value), b = data.columns.findIndex((c) => c.columnId === col2.value);
@@ -292,14 +311,15 @@ function mountInspector(panel, selection, api) {
     });
   }
   if (o.kind === "images") {
-    select("图片组合", o.data.arrangement || "single", ["single", "text-photo", "primary-secondary", "grid", "full-bleed"], (arrangement) => semantic({ ...current().data, arrangement }));
-    for (const image of o.data.images) {
-      button("设为主图 " + image.mediaId, () => {
+    select("图片组合", o.data.arrangement || "single", [["single", "单图"], ["text-photo", "图文并排"], ["primary-secondary", "主图＋副图"], ["grid", "网格"], ["full-bleed", "满版出血"]], (arrangement) => semantic({ ...current().data, arrangement }));
+    o.data.images.forEach((image, imageIndex) => {
+      if (imageIndex === 0) return;
+      button(`设图片 ${imageIndex + 1} 为主图`, () => {
         const data = structuredClone(current().data), index = data.images.findIndex((i) => i.mediaId === image.mediaId);
         data.images.unshift(...data.images.splice(index, 1));
         semantic(data);
       });
-    }
+    });
   }
 }
 export {
