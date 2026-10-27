@@ -53,8 +53,7 @@ try{
  await page.locator('#deck [data-fusion-element="photo"]').click();
  assert.equal(await page.locator('#fusion-layers').getAttribute('open'),null);
  await page.locator('#fusion-layers summary').click();
- for(const label of ['X','Y','宽度','高度'])assert.equal(await page.getByLabel(label,{exact:true}).count(),1);
- assert.equal(await page.getByLabel('焦点（如 50% 50%）',{exact:true}).count(),0);
+ for(const label of ['X','Y','宽度','高度','焦点（如 50% 50%）'])assert.equal(await page.getByLabel(label,{exact:true}).count(),0);
  await page.getByRole('button',{name:'裁切图片',exact:true}).click();
  const cropHandle=page.locator('#deck [data-crop-handle="se"]');
  let cb=await cropHandle.boundingBox();await page.mouse.move(cb.x+cb.width/2,cb.y+cb.height/2);await page.mouse.down();await page.mouse.move(cb.x-55,cb.y-35,{steps:5});await page.mouse.up();

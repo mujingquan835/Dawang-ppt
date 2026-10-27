@@ -74,9 +74,8 @@ try {
  await page.locator('#fusion-undo').click();
  assert.deepEqual(await boundsOf('claim'),start);
 
- // Numeric geometry fields.
- const x=page.getByLabel('X',{exact:true});await x.fill('300');await x.press('Enter');
- assert.equal((await boundsOf('claim'))[0],300);
+ // Position and size are changed on the canvas only; the sidebar has no coordinate fields.
+ for(const label of ['X','Y','宽度','高度'])assert.equal(await page.getByLabel(label,{exact:true}).count(),0);
 
  // Double-click edits text; Esc leaves editing but keeps the selection, a second Esc deselects.
  cb=await claim.boundingBox();

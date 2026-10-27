@@ -179,21 +179,6 @@ function mountInspector(panel, selection, api) {
     });
     button('裁切图片',()=>api.beginCrop(selection));
   }
-  const grouped = api.selectionMode() === "group" && o;
-  if (grouped || !e.relationshipId) {
-    container = section('fusion-geometry', '位置与尺寸', true);
-    const bounds = () => grouped ? current().bounds : latestElement().bounds;
-    // Logical pixels on the 1920×1080 canvas, matching drag and arrow-key moves.
-    [["X", 0], ["Y", 1], ["宽度", 2], ["高度", 3]].forEach(([label, index]) => {
-      const input = field(label, Math.round((grouped ? o.bounds : e.bounds)[index]), (value) => {
-        const next = [...bounds()];
-        next[index] = value;
-        apply(grouped ? { type: "object-geometry", objectId: o.objectId, bounds: next } : { type: "geometry", bounds: next });
-      }, "number");
-      input.step = "1";
-      if (index >= 2) input.min = "1";
-    });
-  }
   container = section('fusion-layers','图层');
   button("置于前层", () => apply({ type: "layer", direction: "front", objectId: o?.objectId }));
   button("置于后层", () => apply({ type: "layer", direction: "back", objectId: o?.objectId }));
