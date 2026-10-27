@@ -4,36 +4,40 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import * as baseline from '../../skills/dawang-ppt/project/src/fusion/kimi/reference-index.mjs';
+import * as current from '../../skills/dawang-ppt/project/src/fusion/rules/index.mjs';
 const cli=path.resolve('skills/dawang-ppt/scripts/dawang.mjs');
-function isolated(t){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dawang-independent-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}
-function run(home,...args){return spawnSync(process.execPath,[cli,...args],{encoding:'utf8',timeout:60000,env:{...process.env,HOME:home,CODEX_HOME:path.join(home,'codex'),KIMI_PPT_SKILL_DIR:path.join(home,'no-external-rules')}});}
-test('doctor and complete rule read work without any external rule installation',t=>{
- const home=isolated(t),d=run(home,'doctor');assert.equal(d.status,0,d.stderr);const doctor=JSON.parse(d.stdout);
- assert.equal(doctor.rules?.provider,'dawang-ppt');assert.equal(doctor.rules.status,'pinned');assert.equal(doctor.kimiRules,undefined);
- const list=run(home,'rules:list');assert.equal(list.status,0,list.stderr);
- for(const scenario of JSON.parse(list.stdout)){
-  const r=run(home,'rules:read',scenario.id);assert.equal(r.status,0,r.stderr);const rules=JSON.parse(r.stdout);
-  assert.equal(rules.provider,'dawang-ppt');assert.equal(rules.pin.status,'pinned');
-  assert(rules.documents.some(d=>d.id==='scenario:'+scenario.id));assert(rules.documents.some(d=>d.id==='content-editing'));assert(rules.documents.some(d=>d.id==='visual-review'));
-  for(const doc of rules.documents){assert(doc.path.startsWith(path.resolve('skills/dawang-ppt/references')));assert.match(doc.sha256,/^[a-f0-9]{64}$/);assert(doc.sections.some(s=>s.text?.length>30));}
+function temp(t){const p=fs.mkdtempSync(path.join(os.tmpdir(),'dawang-preserve-'));t.after(()=>fs.rmSync(p,{recursive:true,force:true}));return p;}
+function fixture(t){const root=temp(t);fs.mkdirSync(path.join(root,'reference/slides_categories'),{recursive:true});fs.mkdirSync(path.join(root,'reference/design_system/custom'),{recursive:true});
+ fs.writeFileSync(path.join(root,'SKILL.md'),'# Definition\nsynthetic format\n## PPT production workflow\n### step1. Read the context thoroughly\nRead every source; Kimi\n### step5. PPT output and delivery\nold delivery\n### New heading\nunknown must remain unreviewed\n');
+ fs.writeFileSync(path.join(root,'reference/slides_categories.md'),'# PPT category guide\n## Requirements\nSynthetic exact requirement and threshold: 14pt.\n');
+ for(const s of baseline.SCENARIOS)fs.writeFileSync(path.join(root,'reference/slides_categories',s.doc),'# Key Requirements\nFull synthetic '+s.id+' rule; keep exceptions, numbers and strong language.\n');
+ fs.writeFileSync(path.join(root,'reference/fonts.md'),'# Font requirements\nSynthetic font condition.\n');fs.writeFileSync(path.join(root,'reference/design_system/custom/design.md'),'# Visual constraints\nSynthetic custom layout.\n');
+ const file=path.join(root,'lock.json');baseline.writeRulesLock({root,file,label:'fixture'});return{root,lock:baseline.readRulesLock(file)};}
+
+test('full production rule sections and all adaptation decisions match the baseline, including optional documents',t=>{
+ const {root,lock}=fixture(t);
+ for(const s of baseline.SCENARIOS){const opts={scenarioId:s.id,root,lock,designDoc:'design_system/custom/design.md',formatDocs:['fonts.md']};const before=baseline.readAuthoringRules(opts),after=current.readAuthoringRules(opts);
+  assert.equal(after.provider,'dawang-ppt');assert.deepEqual(after.summary,before.summary);assert.equal(after.pin.lockedBundleSha256,before.pin.lockedBundleSha256);
+  assert.deepEqual(after.documents.map(d=>[d.relativePath,d.sha256,d.sections.length]),before.documents.map(d=>[d.relativePath,d.sha256,d.sections.length]));
+  for(let i=0;i<before.documents.length;i++)for(let j=0;j<before.documents[i].sections.length;j++){
+   const a=after.documents[i].sections[j],b=before.documents[i].sections[j];assert.deepEqual(a.lines,b.lines);assert.equal(a.disposition,b.disposition);assert.equal(a.textOmitted,b.textOmitted);assert.equal(a.by,b.by);
+   if(b.text!==undefined)assert.equal(a.text,b.text.replace(/\bKimi\b/g,'Dawang-PPT'));
+  }
+  const full=current.readAuthoringRules({...opts,includeReplaced:true});assert(full.documents[0].sections.some(s=>s.text?.includes('old delivery')));
  }
 });
-test('prepare includes complete bundled rules and preserves source in an isolated environment',t=>{
- const home=isolated(t),input=path.join(home,'input.md'),out=path.join(home,'prepared');fs.writeFileSync(input,'# 合成材料\n试点结果尚待核对，不能表述为生产验证通过。');
- const r=run(home,'prepare',input,out,'--scenario','tech-engineering');assert.equal(r.status,0,r.stderr);const result=JSON.parse(r.stdout);
- assert.match(JSON.parse(fs.readFileSync(result.materialFile)).text,/尚待核对/);assert.equal(JSON.parse(fs.readFileSync(result.rulesFile)).provider,'dawang-ppt');
+test('drift is blocked; explicit audited override preserves unreviewed status',t=>{
+ const {root,lock}=fixture(t);fs.appendFileSync(path.join(root,'reference/slides_categories.md'),'\nSynthetic changed condition.');
+ assert.throws(()=>current.readAuthoringRules({scenarioId:'business-plan',root,lock}),/rules:lock/);
+ const r=current.readAuthoringRules({scenarioId:'business-plan',root,lock,allowDrift:true});assert.equal(r.pin.status,'drift');assert(r.documents.find(d=>d.id==='general').sections.every(s=>s.disposition==='unreviewed'));
 });
-test('new authored projects use the Dawang engine and old saved projects remain readable',async()=>{
- const {createAuthoredProject}=await import('../../skills/dawang-ppt/project/src/fusion/authoring/create-project.mjs');
- const {validateProject}=await import('../../skills/dawang-ppt/project/src/fusion/project/schema.mjs');
- const p=createAuthoredProject({requirements:{title:'合成测试'},sources:{entries:[]},media:{entries:[]},contentPlan:{nodes:{}},designChoice:{styleId:'authored/custom'},slides:[{slideId:'s',elements:[{id:'t',type:'text',text:'合成测试',bounds:[100,100,1000,100]}]}]});
- assert.equal(p.slides[0].authoring.engine,'dawang-authored-v1');assert.deepEqual(validateProject(p),[]);
- p.slides[0].authoring.engine='kimi-authored-v1';assert.deepEqual(validateProject(p),[]);
+test('missing full rules are reported and prepare cannot substitute abbreviated bundled summaries',t=>{
+ const home=temp(t),env={...process.env,HOME:home,CODEX_HOME:path.join(home,'codex'),DAWANG_PPT_RULES_DIR:path.join(home,'missing'),KIMI_PPT_SKILL_DIR:''};
+ const run=(...args)=>spawnSync(process.execPath,[cli,...args],{encoding:'utf8',timeout:60000,env});const d=run('doctor');const doctor=JSON.parse(d.stdout);assert.equal(doctor.rules.status,'missing');assert.equal(doctor.ready,false);
+ const input=path.join(home,'input.md'),out=path.join(home,'prepared');fs.writeFileSync(input,'# 合成材料\n保留待核状态。');const r=run('prepare',input,out,'--scenario','tech-engineering');assert.notEqual(r.status,0);assert.equal(fs.existsSync(out),false);
 });
-test('modified bundled rules block reading until the maintainer explicitly reviews and locks them',async t=>{
- const {ROOT,readAuthoringRules,writeRulesLock}=await import('../../skills/dawang-ppt/project/src/fusion/rules/index.mjs');
- const home=isolated(t),root=path.join(home,'references');fs.cpSync(ROOT,root,{recursive:true});
- const source=path.join(root,'rules/tech-engineering.md');fs.appendFileSync(source,'\n合成维护变更。\n');
- assert.throws(()=>readAuthoringRules({scenarioId:'tech-engineering',root}),/drift/);
- writeRulesLock({root});const result=readAuthoringRules({scenarioId:'tech-engineering',root});assert.equal(result.pin.status,'pinned');assert(result.documents.some(d=>d.sections.some(s=>s.text.includes('合成维护变更'))));
+test('new authored projects keep branded metadata and old saved projects remain readable',async()=>{
+ const {createAuthoredProject}=await import('../../skills/dawang-ppt/project/src/fusion/authoring/create-project.mjs');const {validateProject}=await import('../../skills/dawang-ppt/project/src/fusion/project/schema.mjs');
+ const p=createAuthoredProject({requirements:{title:'合成测试'},sources:{entries:[]},media:{entries:[]},contentPlan:{nodes:{}},designChoice:{styleId:'authored/custom'},slides:[{slideId:'s',elements:[{id:'t',type:'text',text:'合成测试',bounds:[100,100,1000,100]}]}]});assert.equal(p.slides[0].authoring.engine,'dawang-authored-v1');assert.deepEqual(validateProject(p),[]);p.slides[0].authoring.engine='kimi-authored-v1';assert.deepEqual(validateProject(p),[]);
 });

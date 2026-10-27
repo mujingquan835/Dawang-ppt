@@ -2,23 +2,24 @@
 
 把已有材料变成可在浏览器中编辑的中文演示文稿：先整理观点和上屏文案，再逐页设计，最后交付 **一个可离线打开、编辑、保存的 HTML 文件**。
 
-适合经营汇报、方案提案、产品介绍、培训和技术说明。用自然语言交材料即可，不需要写工程 JSON；PPTX、PDF、图片按需导出。完整制作规则随 skill 提供，无需安装其他演示 skill 或外部规则包。
+适合经营汇报、方案提案、产品介绍、培训和技术说明。用自然语言交材料即可，不需要写工程 JSON；PPTX、PDF、图片按需导出。沿用完整制作规则与既有逐节适配机制，不以简化摘要替代。**AI 制作前需要单独配置匹配的完整规则资料**，公开 ZIP 不附未获再分发许可的原文。
 
-**同事分享版：`v0.2.0-preview.20261027`（预发布）。** 主要实测环境为 macOS + Node.js 22+ + Chrome；不等同于所有电脑、模型及 Office 客户端效果验收。
+**规则恢复修正版：`v0.2.0-preview.20261027.1`（预发布）。** 主要实测环境为 macOS + Node.js 22+ + Chrome；不等同于所有电脑、模型及 Office 客户端效果验收。
 
 ## 下载与安装
 
-到 [分享版下载页](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261027)，下载 `dawang-ppt-v0.2.0-preview.20261027.zip`。请选这个附件，自动生成的 Source code 是完整仓库，包含维护历史文件。
+到 [分享版下载页](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261027.1)，下载 `dawang-ppt-v0.2.0-preview.20261027.1.zip`。请选这个附件，自动生成的 Source code 是完整仓库，包含维护历史文件。
 
 解压后将 `dawang-ppt` 文件夹放在长期保留的位置，在该文件夹打开终端：
 
 ```sh
 npm ci --prefix project
 node scripts/install.mjs
+export DAWANG_PPT_RULES_DIR="/你的实际路径/完整规则目录"
 node scripts/dawang.mjs doctor
 ```
 
-`install.mjs` 默认注册到 Codex。确认 `runtime: true`、`rules.provider: "dawang-ppt"`、`rules.status: "pinned"`，再新开 AI 会话。其他客户端、已有版本升级与排错见 [详细使用说明](docs/USAGE.md)。
+`install.mjs` 默认注册到 Codex。确认 `ready: true`、`runtime: true`、`rules.provider: "dawang-ppt"`、`rules.status: "pinned"`，再新开 AI 会话。其他客户端、已有版本升级与排错见 [详细使用说明](docs/USAGE.md)。
 
 ## 直接这样使用
 
@@ -50,6 +51,6 @@ node scripts/dawang.mjs doctor
 
 ## 更多说明
 
-[完整安装、示例与排错](docs/USAGE.md) · [本次更新与验证](docs/RELEASE-20261027.md) · [技能入口](skills/dawang-ppt/SKILL.md) · [许可证](LICENSE) · [版权与来源](NOTICE.md)
+[完整安装、示例与排错](docs/USAGE.md) · [本次更新与验证](docs/RELEASE-20261027.md) · [完整规则对照](docs/RULES-PARITY.md) · [技能入口](skills/dawang-ppt/SKILL.md) · [许可证](LICENSE) · [版权与来源](NOTICE.md)
 
 源码仓库维护者可运行 `npm ci`、`npm ci --prefix skills/dawang-ppt/project`、`npm test`；打包命令为 `node scripts/package-skill.mjs`。独立分享包不包含历史 skill、外部规则正文、个人材料、生成稿、node_modules 或 Git 历史。仓库历史文件继续保留。

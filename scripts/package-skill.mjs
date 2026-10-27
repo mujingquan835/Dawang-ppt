@@ -6,25 +6,27 @@ import JSZip from 'jszip';
 import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const version='v0.2.0-preview.20261027';
+const version='v0.2.0-preview.20261027.1';
 const out=path.resolve(root,process.argv[2]||'output/releases/'+version);
 const zip=new JSZip(),prefix='skills/dawang-ppt/';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 // Git-indexed/public source only. No recursive copy of local dependencies or materials.
-const files=[...new Set(execFileSync('git',['ls-files','-z','--cached','--others','--exclude-standard'],{cwd:root}).toString().split('\0').filter(Boolean))].sort();
+const deleted=new Set(execFileSync('git',['ls-files','-z','--deleted'],{cwd:root}).toString().split('\0'));
+const files=[...new Set(execFileSync('git',['ls-files','-z','--cached','--others','--exclude-standard'],{cwd:root}).toString().split('\0').filter(file=>file&&!deleted.has(file)))].sort();
 const excluded=new Set(['references/legacy-and-revision.md','references/kimi-rules.lock.json','project/src/fusion/styles/source-index.json']);
+const requiredCompatibility=new Set(['project/src/fusion/kimi/reference-index.mjs','project/src/fusion/kimi/rule-dispositions.mjs']);
 const contents=new Map();
 for(const file of files){
  if(!file.startsWith(prefix))continue;
  const relative=file.slice(prefix.length);
- if(excluded.has(relative)||relative.startsWith('project/src/fusion/kimi/')||relative.startsWith('references/kimi/'))continue;
+ if(excluded.has(relative)||(relative.startsWith('project/src/fusion/kimi/')&&!requiredCompatibility.has(relative))||relative.startsWith('references/kimi/'))continue;
  if(/(^|\/)(node_modules|output|\.cache|\.git)(\/|$)/.test(relative)||/\.env(?:\.|$)/.test(relative))throw Error('Private path in package: '+relative);
  const full=path.join(root,file),stat=fs.lstatSync(full);if(!stat.isFile())throw Error('Expected ordinary source file: '+file);
  contents.set(relative,fs.readFileSync(full));
 }
 let readme=fs.readFileSync(path.join(root,'README.md'),'utf8').replaceAll('skills/dawang-ppt/SKILL.md','SKILL.md');
 contents.set('README.md',Buffer.from(readme));
-for(const file of ['LICENSE','docs/USAGE.md','docs/RELEASE-20261027.md'])contents.set(file,fs.readFileSync(path.join(root,file)));
+for(const file of ['LICENSE','docs/USAGE.md','docs/RELEASE-20261027.md','docs/RULES-PARITY.md','docs/production-rules-parity.json'])contents.set(file,fs.readFileSync(path.join(root,file)));
 contents.set('NOTICE.md',Buffer.from(fs.readFileSync(path.join(root,'docs/SHARE-NOTICE.md'),'utf8')));
 for(const [file,bytes] of contents){
  if(file==='SKILL.md'||file.startsWith('references/')||file==='README.md'||file==='docs/USAGE.md'){

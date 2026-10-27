@@ -33,3 +33,7 @@ Selected original integration modules were authored on the owner's local `grok/f
 ## Dawang-PPT sharing build (2026-10-27)
 
 The active authoring entry now reads bundled Dawang-PPT production rules from `references/rules/` and the maintained authoring guides, fingerprinted by `dawang-rules.lock.json`. It does not load external Kimi rule installations. Historical source, metadata and adapters remain in the repository for compatibility and provenance. The dedicated skill ZIP excludes the historical skills, external rule reader, external rule lock, and proprietary exporter. This rule-path change does not remove the upstream copyright or licensing obligations for the editor, templates, assets or dependencies.
+
+## Sharing preview correction (2026-10-27, revision 1)
+
+The previous sharing preview substituted shortened rule documents and did not preserve the complete authoring-rule behavior. Revision `v0.2.0-preview.20261027.1` restores the complete pinned rule reader, section dispositions and original reference fingerprint; presentation terminology is normalized without replacing the underlying rules. Version-matched original documents remain an external prerequisite and are not redistributed without confirmed permission. Earlier statements that no external references were required apply only to the superseded, non-equivalent preview. Historical short drafts are archived and excluded from the skill package.

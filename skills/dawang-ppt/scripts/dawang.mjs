@@ -35,8 +35,8 @@ if (args[0] === "doctor") {
     const provider = await import(path.join(project, "src/fusion/rules/index.mjs"));
     rules = provider.ruleStatus();
   } catch (error) { rules = { provider: "dawang-ppt", status: "error", message: error.message }; }
-  console.log(JSON.stringify({ node: process.version, skill, project, defaultBuild: "render:authored", defaultAuthoringCommand:"make", defaultDeliverable:"html", legacyBuild: "render:brief", installations, runtime: ok, rules, install: "npm ci --prefix skills/dawang-ppt/project" }));
-  process.exitCode = ok && rules.status === "pinned" ? 0 : 1;
+  console.log(JSON.stringify({ node: process.version, skill, project, defaultBuild: "render:authored", defaultAuthoringCommand:"make", defaultDeliverable:"html", legacyBuild: "render:brief", installations, runtime: ok, ready: ok && rules.status === "pinned", rules, install: "npm ci --prefix skills/dawang-ppt/project" }));
+  process.exitCode = ok ? 0 : 1;
 } else {
   const command = path.join(project, "node_modules/.bin/tsx");
   if (!fs.existsSync(command)) throw new Error("Run npm ci --prefix skills/dawang-ppt/project first");

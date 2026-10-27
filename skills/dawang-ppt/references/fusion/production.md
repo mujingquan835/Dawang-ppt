@@ -2,7 +2,7 @@
 
 先完整读取材料，核对来源、事实、单位、时期与必需图片。明确受众、用途、主场景、页数；区分新建、局部修改、重构和原样模板。未经授权不补业绩、目标、因果或网络资料。
 
-使用 `node <skill>/scripts/dawang.mjs rules:read <scenarioId> [--design <本机文档>] [--format <本机文档> ...]` 读取完整的Dawang-PPT规则与当前主场景。返回正文、章节、行号、路径与SHA，必须实际阅读并执行；全部必读规则随skill提供，不依赖其他skill安装。`references/dawang-rules.lock.json`固定本版规则，缺失或漂移时阻断；维护者审核改动后才可用`rules:lock`更新本版锁。额外设计或格式文档仅按用户需求读取，不自动强选预设。`project/src/fusion/rules/manifest.mjs`中的`createRuleManifest`/`validateRuleManifest`记录规则来源与执行决定，清单通过不能替代内容和视觉判断。
+使用 `node <skill>/scripts/dawang.mjs rules:read <scenarioId> [--design <doc>] [--format <doc> ...]` 一次返回原制作步骤、通用规则、一个主场景及所需格式文档，按章节给出原文、行号、来源与SHA，每节标注 apply（照做）、adapt（按 note 的 Dawang 边界执行）、replaced（按 by 指向的 Dawang 规则执行，原文默认省略，`--full` 返回）或 unreviewed（上游新增/改动，逐条判断并告知用户）。随后实际阅读 apply/adapt 章节原文。来源版本由 `references/production-rules.lock.json` 固定；与锁定版本不一致时命令失败，需用户核对差异后由维护者运行 `rules:lock` 重新锁定，或经用户同意本次加 `--allow-drift`。设计系统仅在用户指定时读取，自主设计不自动强选预设。必读来源缺失明确报告，不用二次摘要冒充完整规则。`createRuleManifest`/`validateRuleManifest` 记录来源与决定，清单通过不等于规则已被正确执行。
 
 ## 内容策划与取舍
 
@@ -41,4 +41,4 @@
 
 唯一主数据为ProjectV2；交付HTML是包含一致快照的可移交文件。离线连续保存保持baseRevision，snapshotRevision更新；重新导入必须显式检查冲突。稳定ID不随排序改变。局部改字、位置、裁切或样式不重新运行旧规划器；手工覆盖优先，冲突给出具体选项，不静默清空。预览与导出读取同一已保存revision。局部更新用patch:project，再publish:html；低层重渲染用render:project，不从初始authored/brief覆盖保存稿。内部单次run记录汇总规则指纹/决定/计时/检查；临时截图、测量页成功即清理，失败仅留最近一次必要证据。用户历史文件不自动清理。
 
-历史render:brief继续保留语义文字、数量dataDecision、实测布局及balanced-evidence契约；这些属于显式旧规划路径，不要求新直接制作把所有内容转成旧semantic objects。原样模板继续render:goal。程序负责保存、绘制、测量与导出，不宣称程序能替代内容判断或保证所有客户端排版一致。
+历史render:brief继续保留语义文字、数量dataDecision、实测布局及balanced-evidence契约；这些属于显式旧规划路径，不要求新直接制作把所有内容转成旧semantic objects。原样模板继续render:goal。程序负责保存、绘制、测量与导出，不宣称自动理解全部制作规则或复现官方排版引擎。
