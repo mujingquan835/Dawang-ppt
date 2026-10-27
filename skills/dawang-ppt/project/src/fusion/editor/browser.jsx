@@ -1,5 +1,6 @@
 import {mountSaveControls} from './save-controls.mjs';
 import {describeConflicts} from './messages.mjs';
+import {HANDLES,HANDLE_CURSORS,resizeBounds,snapBounds,snapTargets} from './geometry.mjs';
 import {inspectReadinessInDom} from '../qa/readiness.mjs';
 import {serializePortableHtml,collectUsedFontFamilies,extractPortableProject} from '../portable/html.mjs';
 import {mountImageCrop} from './image-crop.jsx';
@@ -95,13 +96,14 @@ if (seed) {
     }
   }, redo = function() {
     if(exportBusy)return false;
+    lastMerge = null;
     const next = redoSnapshots.pop();
     if (!next) return false;
     const before = sync();
     restore(next);
     stockPush({ label: "重做", undo: () => restore(before) });
     return true;
-  }, apply = function(command) {
+  }, apply = function(command, options = {}) {
     if(exportBusy)return {ok:false,conflicts:[{kind:'export-in-progress'}]};
     cropEditor?.cancel();
     sync();
@@ -117,7 +119,15 @@ if (seed) {
       project.editorState.legacy = window.__deckViewModel.getState();
     }
     redraw(command.slideId);
-    window.__dashiUndo.push({ label: "组合对象修改", undo: () => restore(before) });
+    // Repeated nudges of the same selection within a second share one undo step.
+    const now = Date.now();
+    if (options.mergeKey && lastMerge?.key === options.mergeKey && now - lastMerge.at < 1000) {
+      lastMerge.at = now;
+      redoSnapshots = [];
+    } else {
+      window.__dashiUndo.push({ label: "组合对象修改", undo: () => restore(before) });
+      lastMerge = options.mergeKey ? { key: options.mergeKey, at: now } : null;
+    }
     window.__deckViewModel?.persist();
     scheduleDraft();
     return r;
@@ -149,20 +159,23 @@ if (seed) {
     const element = materializeElements(slide, project).find((e) => e.id === selected.elementId), object = slide.objects?.find((o) => o.objectId === element?.parentId);
     if (!element) return;
     const b = selectionMode === "group" && object ? object.bounds : element.bounds;
+    const root = el.querySelector(".fusion-root");
+    // The canvas is scaled down; size chrome in screen pixels so handles stay grabbable.
+    const scale = root.getBoundingClientRect().width / 1920, u = (px) => px / (scale > 0 ? scale : 1);
     const overlay = document.createElement("div");
     overlay.className = "fusion-selection";
     overlay.dataset.editableSkip = "true";
-    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;border:2px solid var(--pp-blue,#0e9f6e);pointer-events:none;z-index:10000`;
-    const handle = document.createElement("button");
-    handle.type = "button";
-    handle.setAttribute("aria-label", "缩放选中对象");
-    handle.dataset.fusionResize = "true";
-    handle.style.cssText = "position:absolute;right:-8px;bottom:-8px;width:16px;height:16px;cursor:nwse-resize;pointer-events:auto;background:var(--pp-blue,#0e9f6e);border:1px solid white";
-    const move = document.createElement('button');
-    move.type='button';move.dataset.fusionMove='true';move.setAttribute('aria-label','移动选中对象');
-    move.textContent='移动';move.style.cssText='position:absolute;left:0;top:-28px;height:24px;padding:2px 8px;border:0;border-radius:4px;background:var(--pp-blue,#0e9f6e);color:white;cursor:move;pointer-events:auto;font:12px sans-serif';
-    overlay.append(move,handle);
-    el.querySelector(".fusion-root").append(overlay);
+    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;outline:${u(2)}px solid var(--pp-blue,#0e9f6e);pointer-events:none;z-index:10000`;
+    for (const dir of HANDLES) {
+      const handle = document.createElement("button");
+      handle.type = "button";
+      handle.setAttribute("aria-label", "缩放选中对象（" + dir + "）");
+      handle.dataset.fusionResize = dir;
+      const size = u(10), x = dir.includes("w") ? 0 : dir.includes("e") ? 100 : 50, y = dir.includes("n") ? 0 : dir.includes("s") ? 100 : 50;
+      handle.style.cssText = `position:absolute;left:calc(${x}% - ${size / 2}px);top:calc(${y}% - ${size / 2}px);width:${size}px;height:${size}px;padding:0;cursor:${HANDLE_CURSORS[dir]};pointer-events:auto;background:#fff;border:${u(1.5)}px solid var(--pp-blue,#0e9f6e);border-radius:${u(2)}px`;
+      overlay.append(handle);
+    }
+    root.append(overlay);
     const field = document.getElementById("preview-props-field");
     field.classList.remove("is-hidden");
     mountInspector(document.getElementById("preview-props"), selected, api);
@@ -174,7 +187,7 @@ if (seed) {
     const field = document.getElementById("preview-props-field"), panel = document.getElementById("preview-props");
     if (field && panel && !panel.children.length) field.classList.add("is-hidden");
   }
-  let cropEditor = null, exportBusy=false;
+  let cropEditor = null, exportBusy=false, lastMerge = null;
   let project = JSON.parse(seed.textContent), savedRevision = project.revision, selected = null, selectionMode = "group", redoSnapshots = [], restoring = false, saveQueue = Promise.resolve();
   const roots = /* @__PURE__ */ new Map();
   let draftStore = null, draftTimer = null, draftQueue = Promise.resolve(), ready = Promise.resolve();
@@ -194,6 +207,7 @@ if (seed) {
   };
   window.__dashiUndo.undo = () => {
     if(exportBusy)return false;
+    lastMerge = null;
     const after = sync();
     const ok = stockUndo();
     if (ok) {
@@ -410,7 +424,7 @@ if (seed) {
     const el=window.__getVisibleSlides()[window.__currentSlideIndex||0];await waitReady(el.dataset.vmSlideId);
     if(!window.htmlToImage){const script=document.createElement('script');script.src='assets/vendor/html-to-image.js';await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;document.head.append(script);});}
     const root=el.querySelector('.fusion-root,.imported-theme-root')||el;
-    const blob=await window.htmlToImage.toBlob(root,{width:1920,height:1080,pixelRatio:1,style:{transform:'none',left:'0',top:'0'},filter:node=>!node.classList?.contains('fusion-selection')&&!node.classList?.contains('fusion-crop-editor')});
+    const blob=await window.htmlToImage.toBlob(root,{width:1920,height:1080,pixelRatio:1,style:{transform:'none',left:'0',top:'0'},filter:node=>!node.classList?.contains('fusion-selection')&&!node.classList?.contains('fusion-guide')&&!node.classList?.contains('fusion-crop-editor')});
     await download(blob,(project.requirements.title||'报告')+'-'+(window.__currentSlideIndex+1)+'.png');return {ok:true};
   });
   window.__exportDeckPptxInBrowser = async () => {
@@ -468,11 +482,24 @@ if (seed) {
   });
   let drag = null, suppressClick = false;
   const restorePreview = d => d.nodes.forEach(({node,css}) => {node.style.cssText=css;});
+  const clearGuides = () => document.querySelectorAll('#deck .fusion-guide').forEach(e => e.remove());
   const cancelDrag = () => {
     if (!drag) return;
-    const d=drag;drag=null;restorePreview(d);
+    const d=drag;drag=null;restorePreview(d);clearGuides();
     if(d.capture.hasPointerCapture?.(d.pointerId))d.capture.releasePointerCapture(d.pointerId);
     refreshSelection();
+  };
+  const isEditingText = node => !!node && node.dataset.elementType === 'text' && node.contains(document.activeElement) && document.activeElement.isContentEditable;
+  // Bounds the selection acts on: the whole object in group mode, else the element.
+  const selectionGeometry = (p, selection) => {
+    const slide=p.slides.find(s=>s.slideId===selection.slideId);
+    if(!slide)return null;
+    const elements=materializeElements(slide,p),element=elements.find(e=>e.id===selection.elementId);
+    if(!element)return null;
+    const object=slide.objects?.find(o=>o.objectId===element.parentId);
+    const grouped=selectionMode==='group'&&object;
+    return {slide,elements,element,object:grouped?object:null,bounds:[...(grouped?object.bounds:element.bounds)],
+      ids:new Set((grouped?elements.filter(e=>e.parentId===object.objectId):[element]).map(e=>e.id))};
   };
   document.addEventListener('click',ev=>{
     if(!suppressClick)return;
@@ -481,35 +508,49 @@ if (seed) {
   document.addEventListener('pointerdown', ev => {
     if(cropEditor)return;
     const target=ev.target.closest?.('#deck [data-fusion-element]');
-    const resize=ev.target.closest?.('[data-fusion-resize]'),move=ev.target.closest?.('[data-fusion-move]');
-    if(ev.button!==0 || !window.__canEditDeck?.() || (!resize&&!move&&(!target || (target.dataset.elementType==='text'&&!ev.altKey))))return;
-    if(target)selected={slideId:target.closest('.slide').dataset.vmSlideId,elementId:target.dataset.fusionElement};
+    const resize=ev.target.closest?.('[data-fusion-resize]');
+    // Text drags like any object; only a text already in edit mode keeps native caret behaviour.
+    if(ev.button!==0 || !window.__canEditDeck?.() || (!resize&&(!target || isEditingText(target))))return;
+    if(target&&!resize)selected={slideId:target.closest('.slide').dataset.vmSlideId,elementId:target.dataset.fusionElement};
     if(!selected)return;
-    const p=sync(),slide=p.slides.find(s=>s.slideId===selected.slideId);
-    if(!slide)return;
-    const elements=materializeElements(slide,p),element=elements.find(e=>e.id===selected.elementId);
-    if(!element)return;
-    const object=slide.objects?.find(o=>o.objectId===element.parentId);
-    const grouped=selectionMode==='group'&&object;
-    const b=grouped?object.bounds:element.bounds;
+    const g=selectionGeometry(sync(),selected);
+    if(!g)return;
     const root=sections().find(el=>el.dataset.vmSlideId===selected.slideId).querySelector('.fusion-root');
     const scale=root.getBoundingClientRect().width/1920;
     if(!Number.isFinite(scale)||scale<=0)return;
-    if(!resize&&!move)refreshSelection();
-    const ids=new Set((grouped?elements.filter(e=>e.parentId===object.objectId):[element]).map(e=>e.id));
-    const nodes=[...root.querySelectorAll('[data-fusion-element]')].filter(node=>ids.has(node.dataset.fusionElement)).map(node=>({node,css:node.style.cssText,b:elements.find(e=>e.id===node.dataset.fusionElement).bounds}));
+    if(!resize)refreshSelection();
+    const b=g.bounds;
+    const nodes=[...root.querySelectorAll('[data-fusion-element]')].filter(node=>g.ids.has(node.dataset.fusionElement)).map(node=>({node,css:node.style.cssText,b:g.elements.find(e=>e.id===node.dataset.fusionElement).bounds}));
     const overlay=root.querySelector('.fusion-selection');
     if(overlay)nodes.push({node:overlay,css:overlay.style.cssText,b:[...b]});
-    drag={x:ev.clientX,y:ev.clientY,b:[...b],next:[...b],scale,objectId:grouped?object.objectId:null,resize:!!resize,nodes,selection:{...selected},pointerId:ev.pointerId,capture:ev.target,moved:false};
+    const others=[...g.elements.filter(e=>!g.ids.has(e.id)).map(e=>e.bounds),...(g.slide.objects||[]).filter(o=>o.objectId!==g.object?.objectId).map(o=>o.bounds)];
+    drag={x:ev.clientX,y:ev.clientY,b:[...b],next:[...b],scale,root,targets:snapTargets(others),objectId:g.object?.objectId??null,handle:resize?.dataset.fusionResize||null,nodes,selection:{...selected},pointerId:ev.pointerId,capture:ev.target,moved:false};
     ev.target.setPointerCapture?.(ev.pointerId);
     ev.preventDefault();ev.stopPropagation();
   },true);
+  const drawGuides = (d, guides) => {
+    clearGuides();
+    const w = Math.max(1, 1 / d.scale);
+    for (const [axis, values] of Object.entries(guides)) for (const v of values) {
+      const line = document.createElement('div');
+      line.className = 'fusion-guide';line.dataset.editableSkip = 'true';
+      line.style.cssText = axis === 'x'
+        ? `position:absolute;left:${v - w / 2}px;top:0;width:${w}px;height:1080px;background:#e5487a;pointer-events:none;z-index:10001`
+        : `position:absolute;top:${v - w / 2}px;left:0;height:${w}px;width:1920px;background:#e5487a;pointer-events:none;z-index:10001`;
+      d.root.append(line);
+    }
+  };
   const previewDrag = ev => {
     if(!drag || ev.pointerId!==drag.pointerId)return;
     const d=drag,dx=(ev.clientX-d.x)/d.scale,dy=(ev.clientY-d.y)/d.scale;
     if(!d.moved && Math.hypot(ev.clientX-d.x,ev.clientY-d.y)<3)return;
     d.moved=true;
-    d.next=d.resize?[d.b[0],d.b[1],Math.max(20,d.b[2]+dx),Math.max(20,d.b[3]+dy)]:[d.b[0]+dx,d.b[1]+dy,d.b[2],d.b[3]];
+    // Shift keeps the aspect ratio while resizing; Alt turns snapping off.
+    let next=d.handle?resizeBounds(d.b,d.handle,dx,dy,{keepRatio:ev.shiftKey}):[d.b[0]+dx,d.b[1]+dy,d.b[2],d.b[3]];
+    let guides={x:[],y:[]};
+    if(!ev.altKey&&!(d.handle&&ev.shiftKey))({bounds:next,guides}=snapBounds(next,d.targets,{handle:d.handle,threshold:6/d.scale}));
+    d.next=next;
+    drawGuides(d,guides);
     for(const {node,b} of d.nodes){
       const sx=d.next[2]/d.b[2],sy=d.next[3]/d.b[3];
       Object.assign(node.style,{left:(d.next[0]+(b[0]-d.b[0])*sx)+'px',top:(d.next[1]+(b[1]-d.b[1])*sy)+'px',width:b[2]*sx+'px',height:b[3]*sy+'px'});
@@ -520,20 +561,48 @@ if (seed) {
   document.addEventListener('pointerup',ev=>{
     if(!drag || ev.pointerId!==drag.pointerId)return;
     previewDrag(ev);
-    const d=drag;drag=null;restorePreview(d);
+    const d=drag;drag=null;restorePreview(d);clearGuides();
     if(d.capture.hasPointerCapture?.(d.pointerId))d.capture.releasePointerCapture(d.pointerId);
     if(!d.moved)return;
     suppressClick=true;
     setTimeout(()=>{suppressClick=false;},0);
-    apply({...d.selection,type:d.objectId?'object-geometry':'geometry',objectId:d.objectId,bounds:d.next});
+    apply({...d.selection,type:d.objectId?'object-geometry':'geometry',objectId:d.objectId,bounds:d.next.map(v=>Math.round(v*100)/100)});
   });
   document.addEventListener('pointercancel',cancelDrag);
+  // Double-click enters text editing, with the caret where the user clicked.
+  document.addEventListener('dblclick',ev=>{
+    const node=ev.target.closest?.('#deck [data-fusion-element][data-element-type="text"]');
+    if(!node||cropEditor||!window.__canEditDeck?.()||isEditingText(node))return;
+    const editable=node.isContentEditable?node:node.querySelector('[contenteditable="true"],[contenteditable="plaintext-only"]');
+    if(!editable)return;
+    editable.focus();
+    const range=document.caretRangeFromPoint?.(ev.clientX,ev.clientY);
+    if(range&&editable.contains(range.startContainer)){const sel=getSelection();sel.removeAllRanges();sel.addRange(range);}
+  });
+  const typing = target => target.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"],[role="textbox"]');
   document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&drag){cancelDrag();ev.preventDefault();ev.stopImmediatePropagation();}},true);
   document.addEventListener('keydown',ev=>{
     if(ev.key!=='Escape'||!selected||drag||cropEditor||ev.defaultPrevented)return;
-    if(ev.target.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"]'))return;
+    // Esc first leaves text editing (keeping the selection), then clears the selection.
+    const editing=ev.target.closest?.('#deck [data-fusion-element]');
+    if(editing&&isEditingText(editing)){document.activeElement.blur();ev.preventDefault();return;}
+    if(typing(ev.target))return;
     clearSelection();
   });
+  const ARROWS={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+  document.addEventListener('keydown',ev=>{
+    const step=ARROWS[ev.key];
+    if(!step||!selected||drag||cropEditor||ev.metaKey||ev.ctrlKey||ev.altKey||typing(ev.target)||!window.__canEditDeck?.())return;
+    const active=document.querySelector('#deck > .fusion-slide.active');
+    if(active?.dataset.vmSlideId!==selected.slideId)return;
+    // Arrows nudge the selection instead of turning the page.
+    ev.preventDefault();ev.stopImmediatePropagation();
+    const g=selectionGeometry(sync(),selected);
+    if(!g)return;
+    const n=ev.shiftKey?10:1,b=g.bounds;
+    apply({...selected,type:g.object?'object-geometry':'geometry',objectId:g.object?.objectId,bounds:[b[0]+step[0]*n,b[1]+step[1]*n,b[2],b[3]]},
+      {mergeKey:'nudge:'+selected.slideId+'/'+(g.object?.objectId||selected.elementId)});
+  },true);
   addEventListener('blur',cancelDrag);
   addEventListener("swiss-slide-change", () => {
     cropEditor?.cancel();

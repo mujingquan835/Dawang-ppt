@@ -49,6 +49,56 @@ try {
  await page.mouse.click(root.x+root.width-4,root.y+root.height-4);
  assert.equal(await selection.count(),0);
 
+ const read=()=>page.evaluate(()=>window.__fusionEditor.getProject().slides[0].elements);
+ const boundsOf=async id=>(await read()).find(e=>e.id===id).bounds;
+ const scale=root.width/1920;
+
+ // Text drags on a single click without entering edit mode, and snaps to the slide edge with a guide.
+ let cb=await claim.boundingBox();
+ await page.mouse.move(cb.x+cb.width/2,cb.y+cb.height/2);await page.mouse.down();
+ await page.mouse.move(cb.x+cb.width/2-117*scale,cb.y+cb.height/2,{steps:6});
+ assert(await page.locator('#deck .fusion-guide').count()>0,'snapping must show a guide');
+ await page.mouse.up();
+ assert.equal(await page.locator('#deck .fusion-guide').count(),0);
+ assert.equal((await boundsOf('claim'))[0],0);
+ assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.fusionElement||null),null);
+ assert.equal(await selection.count(),1);
+ assert.equal(await page.locator('#deck .fusion-selection [data-fusion-resize]').count(),8);
+
+ // Arrow keys nudge (Shift = 10) and a burst of nudges is one undo step.
+ const start=await boundsOf('claim');
+ for(let i=0;i<3;i++)await page.keyboard.press('ArrowRight');
+ await page.keyboard.press('Shift+ArrowDown');
+ assert.deepEqual((await boundsOf('claim')).slice(0,2),[start[0]+3,start[1]+10]);
+ assert.equal(await page.evaluate(()=>window.__currentSlideIndex||0),0);
+ await page.locator('#fusion-undo').click();
+ assert.deepEqual(await boundsOf('claim'),start);
+
+ // Numeric geometry fields.
+ const x=page.getByLabel('X',{exact:true});await x.fill('300');await x.press('Enter');
+ assert.equal((await boundsOf('claim'))[0],300);
+
+ // Double-click edits text; Esc leaves editing but keeps the selection, a second Esc deselects.
+ cb=await claim.boundingBox();
+ await page.mouse.dblclick(cb.x+20,cb.y+cb.height/2);
+ assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.fusionElement),'claim');
+ await page.keyboard.press('Escape');
+ assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.fusionElement||null),null);
+ assert.equal(await selection.count(),1);
+ await page.keyboard.press('Escape');
+ assert.equal(await selection.count(),0);
+
+ // Shift keeps the aspect ratio on a corner handle.
+ await page.locator('#deck > .active [data-fusion-element="image"]').click();
+ const handle=await page.locator('#deck .fusion-selection [data-fusion-resize="se"]').boundingBox();
+ await page.keyboard.down('Shift');
+ await page.mouse.move(handle.x+handle.width/2,handle.y+handle.height/2);await page.mouse.down();
+ await page.mouse.move(handle.x+handle.width/2+40,handle.y+handle.height/2+10,{steps:4});await page.mouse.up();
+ await page.keyboard.up('Shift');
+ const img=await boundsOf('image');
+ assert(img[2]>200,'resize must grow the image');assert(Math.abs(img[2]-img[3])<0.05,'Shift must keep the 1:1 ratio');
+ assert.deepEqual(img.slice(0,2),[1450,120]);
+
  // Conflicts read as sentences, never raw JSON.
  await page.evaluate(()=>window.__fusionEditor.apply({slideId:'one',elementId:'missing',type:'text',text:'整段替换'}));
  const message=await page.locator('#fusion-status').innerText();
