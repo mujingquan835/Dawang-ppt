@@ -1,0 +1,16 @@
+{
+  "sample": "dawang-ppt-editable-showcase.html",
+  "bytes": 6138515,
+  "sha256": "b73159989243846247da302c790961a0602f37c449e1e56ef55d6233b2449d6e",
+  "synthetic": true,
+  "qa": {
+    "pages": 4,
+    "issues": 0,
+    "warnings": 0
+  },
+  "offlineEditReopen": true,
+  "undoRedo": true,
+  "screenshotSource": "actual current editor",
+  "ruleAndRuntimeChanges": false,
+  "scope": "Public documentation and synthetic examples only."
+}
