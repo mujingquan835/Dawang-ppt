@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {renderPalettePreview,validatePaletteOptions} from '../../skills/dawang-ppt/scripts/palette-preview.mjs';
+const option=(id='blue')=>({id,name:'清晰蓝',reason:'便于核对数据和状态',source:'测试用自主配色',palette:{bg:'#F3F6FB',ink:'#1D2E4A',accent:'#285EA8',muted:'#58677D',line:'#DFE8F5'}});
+test('preview applies each candidate palette to headline, copy and structural areas',()=>{
+ const html=renderPalettePreview({title:'汇报配色选择',options:[option(),{...option('dark'),name:'墨金',palette:{bg:'#1B1D1A',ink:'#F4F1E8',accent:'#E8BC60',muted:'#AFB2A7',line:'#30332D'}}]});
+ assert.match(html,/data-palette-id="blue"/);assert.match(html,/data-palette-id="dark"/);assert.match(html,/#F3F6FB/);assert.match(html,/#E8BC60/);assert.match(html,/便于核对数据和状态/);assert.match(html,/测试用自主配色/);
+});
+test('all display strings are escaped, including names, reason and source',()=>{
+ const v=option();v.name='<script>alert(1)</script>';v.reason='a < b';v.source='<img onerror=bad>';
+ const html=renderPalettePreview({title:'<unsafe>',options:[v]});assert.ok(!html.includes('<script>'));assert.ok(!html.includes('<img onerror'));assert.match(html,/&lt;unsafe&gt;/);assert.match(html,/a &lt; b/);
+});
+test('unsafe paint values and incomplete recommendations fail before rendering',()=>{
+ assert.throws(()=>renderPalettePreview({options:[{...option(),palette:{...option().palette,bg:'url(https://bad)'}}]}),/palette.bg/);
+ assert.throws(()=>renderPalettePreview({options:[{...option(),reason:''}]}),/reason/);
+});
+test('stable option IDs are required and unique',()=>{
+ assert.throws(()=>validatePaletteOptions({options:[option(),option()]}),/duplicate/);
+ assert.throws(()=>validatePaletteOptions({options:[{...option(),id:'" onclick="bad'}]}),/id/);
+});
+test('short hexadecimal paints normalize and optional surface has a real fallback',()=>{
+ const a=validatePaletteOptions({options:[{...option(),palette:{...option().palette,bg:'#fff'}}]});assert.equal(a.options[0].palette.bg,'#FFFFFF');assert.equal(a.options[0].palette.surface,'#FFFFFF');
+});

@@ -1,16 +1,16 @@
 # Dawang-PPT
 
-以原 dashi-PPT 操作台为制作、编辑基座，融入 Kimi 的材料理解、叙事、图片组织与关系排版规则。旧模板页与新组合页共用目录、画布、侧栏、保存和可编辑PPTX导出。
+以原 dashi-PPT 操作台为制作、编辑基座，融入 Kimi 的材料理解、叙事、图片组织与关系排版规则。默认交付一个可离线编辑保存的HTML，PPTX、PDF和图片按需导出。
 
-**当前分支为 0.2.0-dev。S1 八页真实稿于2026-10-20获用户确认可用；S2 统一日常制作入口，尚未合 main 或正式发布。**
+**当前为 0.2.0-dev。本地主skill统一了内容策划、自主设计、标题与图文方法，以及配色推荐和用户选择。日常安装、用户效果认可与正式发布分别记录。**
 
-## 本分支接续开发
+## 当前整合
 
-`codex/kimi-web-editor` 已交付整合方案v4的W0—W4工程检查点，W5候选入口开发检查已通过；最终视觉认可与可比成本门槛仍待完成。换电脑继续请先看 [换机接续说明](docs/kimi-web/continue-on-another-computer.md) 与 [W4验收记录](docs/kimi-web/acceptance.md)。本分支候选`build`现走直接制作；日常安装启用单独核对，详见 [W5入口与回退](docs/kimi-web/w5-entry-and-rollback.md)。
+本轮视觉方法与配色交互整合见[整合记录](docs/kimi-web/visual-main-integration-20261101.md)，实际安装状态用 `doctor` 核对。历史工程检查点见 [W4验收记录](docs/kimi-web/acceptance.md)；换机与历史入口资料不代替当前安装回执。
 
 ## 日常流程
 
-材料 → 读取原Kimi规则 → 智能体逐页直接设计 → 原编辑器调整保存 → 同版本导出。候选`build`等价`render:authored`，自主外观用`authored/custom`，不要求从六种外观或九宫格选择。历史brief显式用`render:brief`，已有工程用`render:project`；原样模板保留`templates`/`render:goal`。
+材料 → 读取适用原规则 → 简短大纲与配色确认 → 内容策划与逐页自主设计 → 原编辑器调整保存 → 内容与看图复核 → 单HTML交付。未指定配色且未委托时，按用途与受众推荐实际配色预览，用户选定后继续；已指定、已确认、明确委托或旧稿局部修改按条件直接执行。颜色参考覆盖完整主题库，不固定为四组或六种外观，选色不绑定模板版式。新建用 `make`，已有工程局部改动用 `patch:project` 后 `publish:html`；历史brief显式用 `render:brief`，原样模板保留 `templates` / `render:goal`。
 
 沿用 [V3.1规划](docs/开发规划-v3.1.md)，实时执行状态见 [S2记录](docs/S2-执行记录.md)。原17主题与原编辑器保留，0.1 runtime及旧家族构图仅用于兼容恢复。
 
@@ -23,10 +23,10 @@
 ```sh
 git clone https://github.com/mujingquan835/Dawang-ppt.git
 cd Dawang-ppt
-git switch codex/kimi-web-editor
+git switch main
 npm ci --prefix skills/dawang-ppt/project
 node skills/dawang-ppt/scripts/dawang.mjs doctor
-node skills/dawang-ppt/scripts/dawang.mjs styles
+node skills/dawang-ppt/scripts/dawang.mjs templates
 ```
 
 [技能入口](skills/dawang-ppt/SKILL.md) · [命令与工程契约](skills/dawang-ppt/references/contracts.md)。开发版可在当前仓库直接调用；不需要覆盖原技能。安装入口仍由`node skills/dawang-ppt/scripts/install.mjs`创建独立符号链接，已有不同安装时拒绝覆盖。测试安装使用`--target <临时目录>/dawang-ppt`，不修改日常安装。
