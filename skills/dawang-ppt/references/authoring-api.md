@@ -51,6 +51,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `flow({steps:[{title,detail}]})`：编号圆点、箭头连线，标题与说明从节点左缘起排；编号固定 28px 粗体，节点不小于 48px。
 - `numberedList({items:[{title,detail}]})`、`table({columns:[{key,label,width,size,weight,color}],rows})`、`panel({bounds,fill,radius})`、`textBlock`。
 - `imageRow` / `imageGrid({images:[{src,file?,size?,caption}],perRow:'auto'})`：同行等高、按原始比例分宽，不把图片放大到原始像素 2 倍以上；`auto` 会在分行与“左侧高图、右侧堆叠”拼贴中取图片面积最大且放得下的一种。真实图片用文件路径作 `src`，`imageSize(file)` 读取原始尺寸（make 会登记到图片台账）。
+- `imageFill({x,y,width,height,images})`：用一行或“左高右叠”拼贴铺满整个方框，每张图围绕 `focal`（默认 `50% 40%`）轻度裁切，形状改变不超过 1.45 倍；做不到时返回 null。
 - `fitImage({id,src,size,box})`：按原始比例放进方框并居中，不超过原始像素 2 倍；`shiftX(elements,dx)` 整体平移一组元素。
 - `estimateLines` / `textHeight`：中文按 1 字宽、西文按 0.55 字宽估算行数与高度。
 
@@ -61,8 +62,8 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 | `pageHeader({eyebrow,title,focus,subtitle,page,total,source})` | 所有页的页头页脚；`focus` 是标题中要强调的一段，以 runs 着强调色 |
 | `tableWithFlows({header,table,flows,note})` | 分工表加下方色带中的一到两条流程 |
 | `metricsWithEvidence({header,hero,secondary,flow,notes,image})` | 主指标、次级指标行、机制流程，右侧证据图 |
-| `itemsWithPhotos({header,items:[{title,detail,photo}],metrics,note,highlight})` | 每项资源一栏、对应照片在正下方，底部结果指标与复盘；资源与照片一一对应时优先用它 |
-| `listWithPhotos({header,items,metrics,photos,note})` | 编号资源与复盘，右侧结果指标与照片；照片不与单项对应时用（照片网格在区域内居中） |
+| `listWithPhotos({header,items,metrics,photos,note})` | 默认的图文资源页：左侧编号资源、结果指标与复盘，右侧照片铺满整栏（轻度裁切填满，裁切过多时退回不裁切的居中排列） |
+| `itemsWithPhotos({header,items:[{title,detail,photo:{src,caption,focal}}],metrics,note,highlight})` | 每项资源一栏、照片在正下方；照片形状接近（都是横图）时才裁切填满，竖图会整张放在浅色底上，适合照片比例一致的场景 |
 | `tableWithPanel({header,table,panel:{title,chains}})` | 明细表加深色侧栏应用链 |
 | `twoLaneFlow({header,lanes,conclusion})` | 两条并列流程 |
 

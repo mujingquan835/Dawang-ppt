@@ -112,3 +112,15 @@ test('a zone with a large empty block is reported as sparse', () => {
   const w = reviewVisualDecisions(project).warnings.find((x) => x.kind === 'visual-zone-sparse');
   assert(w && w.zone === 'main' && w.emptyShare > 0.5);
 });
+
+test('imageFill covers the whole box with mild crops, or declines when crops would be heavy', async () => {
+  const { imageFill } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
+  const imgs = [{ src: 'a', size: { width: 360, height: 480 } }, { src: 'b', size: { width: 384, height: 256 } }, { src: 'c', size: { width: 384, height: 256 } }];
+  const f = imageFill({ id: 'p', x: 0, y: 0, width: 1000, height: 650, images: imgs, theme });
+  const boxes = f.elements.filter((e) => e.type === 'image');
+  assert(f.crop <= 1.45);
+  assert.equal(Math.max(...boxes.map((b) => b.bounds[0] + b.bounds[2])), 1000);
+  assert.equal(Math.max(...boxes.map((b) => b.bounds[1] + b.bounds[3])), 650);
+  assert(boxes.every((b) => b.fit === 'cover'));
+  assert.equal(imageFill({ id: 'p', x: 0, y: 0, width: 1800, height: 200, images: imgs.slice(0, 1), theme }), null);
+});

@@ -171,6 +171,39 @@ export function imageGrid({ id, x, y, width, images, perRow = 'auto', rowGap = 2
   return { elements, height: used, width: usedW };
 }
 
+// Fill a whole box with photos by cropping each one a little (fit 'cover' around its focal point) instead of shrinking
+// the group and leaving a gap. Tries one justified row and a mosaic (most portrait photo tall on the left, the rest
+// stacked on the right, the left width searched), and keeps the arrangement whose worst crop is smallest. Returns
+// null when every arrangement would crop more than maxCrop (box shape vs photo shape), or enlarge a photo beyond
+// maxUpscale, so the caller can fall back to the uncropped grid.
+export function imageFill({ id, x, y, width, height, images, theme, gap = 24, captionSize = 20, maxCrop = 1.45, maxUpscale = 2.2 }) {
+  const sized = images.map((img) => ({ ...img, size: img.size || imageSize(img.file || img.src) }));
+  const ratio = (img) => img.size.width / img.size.height, cap = sized.some((i) => i.caption) ? Math.ceil(captionSize * 1.35) + 10 : 0;
+  const cost = (boxes) => Math.max(...boxes.map(({ img, w, h }) => Math.max((w / h) / ratio(img), ratio(img) / (w / h))));
+  const tooBig = (boxes) => boxes.some(({ img, w, h }) => w > img.size.width * maxUpscale || h > img.size.height * maxUpscale);
+  const options = [];
+  // One row: shared height, widths in proportion to the photos, stretched to the full width.
+  { const h = height - cap, k = (width - gap * (sized.length - 1)) / sized.reduce((a, i) => a + ratio(i), 0);
+    let cx = x; options.push(sized.map((img) => { const w = k * ratio(img); const b = { img, x: cx, y, w, h }; cx += w + gap; return b; })); }
+  // Mosaic: tall photo left, the others stacked right with equal heights.
+  if (sized.length >= 3) {
+    const order = [...sized].sort((a, b) => ratio(a) - ratio(b)), [tall, ...rest] = order, n = rest.length;
+    const rh = (height - cap * n - gap * (n - 1)) / n;
+    for (let f = 0.25; f <= 0.6; f += 0.01) {
+      const w0 = (width - gap) * f, w2 = width - gap - w0;
+      options.push([{ img: tall, x, y, w: w0, h: height - cap }, ...rest.map((img, i) => ({ img, x: x + w0 + gap, y: y + i * (rh + cap + gap), w: w2, h: rh }))]);
+    }
+  }
+  const viable = options.filter((o) => !tooBig(o) && cost(o) <= maxCrop).sort((a, b) => cost(a) - cost(b));
+  if (!viable.length) return null;
+  const elements = [];
+  viable[0].forEach(({ img, x: bx, y: by, w, h }, i) => {
+    elements.push(imageElement({ id: `${id}-img-${i + 1}`, src: img.src, bounds: [Math.round(bx), Math.round(by), Math.round(w), Math.round(h)], fit: 'cover', focal: img.focal || '50% 40%', naturalSize: [img.size.width, img.size.height], ...(img.alt ? { alt: img.alt } : {}) }));
+    if (img.caption) elements.push(textElement({ id: `${id}-caption-${i + 1}`, text: img.caption, bounds: [Math.round(bx), Math.round(by + h + 10), Math.round(w), cap - 10], style: theme.font(captionSize, { color: theme.palette.muted, lineHeight: 1.35 }) }));
+  });
+  return { elements, height, width, crop: +cost(viable[0]).toFixed(2) };
+}
+
 // Move a block sideways, e.g. to centre a photo grid that is narrower than its zone.
 export const shiftX = (elements, dx) => (dx ? elements.map((e) => ({ ...e, bounds: [e.bounds[0] + Math.round(dx), ...e.bounds.slice(1)] })) : elements);
 

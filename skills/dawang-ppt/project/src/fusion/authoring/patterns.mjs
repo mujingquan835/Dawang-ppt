@@ -1,5 +1,5 @@
 import { textElement, lineElement } from './elements.mjs';
-import { textHeight, textBlock, panel, metricRow, flow, numberedList, imageRow, imageGrid, table, shiftX, fitImage } from './layout-kit.mjs';
+import { textHeight, textBlock, panel, metricRow, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage } from './layout-kit.mjs';
 
 // Page patterns built on the layout kit. Each returns elements on the 12-column grid plus a visualDecision that
 // can go straight into contentPlan. A pattern is a starting point: change its parameters, add or drop elements,
@@ -69,29 +69,32 @@ export function metricsWithEvidence({ theme, grid, header, hero, secondary = [],
   return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧主指标放大承担主视觉，次级指标同基线成行，下接机制流程；右侧色面完整展示证据图', [['metrics', 'focus', [lx, top, lw, y - top]], ['evidence', 'evidence', [rx, top, rw, ph + 50]]]) };
 }
 
-// Numbered resources and a review note on the left; result metrics over a photo grid on the right.
+// Numbered resources, result metrics and a review note on the left; the photos get the whole right zone and fill it
+// (cropped a little where needed), so the evidence reads large without an empty side.
 export function listWithPhotos({ theme, grid, header, items, metrics = [], photos, note, perRow = 'auto' }) {
   const p = theme.palette, top = header.bottom + 44, [lx, lw] = grid.span(0, 5), [rx, rw] = grid.span(5, 7), elements = [];
-  const list = numberedList({ id: 'items', x: lx, y: top, width: lw, items, theme }); elements.push(...list.elements);
-  let leftBottom = top + list.height;
+  const list = numberedList({ id: 'items', x: lx, y: top, width: lw, items, theme, gap: 28, titleSize: 32, detailSize: 22 }); elements.push(...list.elements);
+  let y = top + list.height;
+  if (metrics.length) { y += 28; const m = metricRow({ id: 'result', x: lx, y, width: lw, items: metrics, size: 64, gap: 40, theme }); elements.push(...m.elements); y += m.height; }
   if (note) {
-    const ny = top + list.height + 48, b = textBlock({ id: 'note', x: lx + 32, y: ny + 64, width: lw - 64, text: note.text, size: 24, theme });
-    leftBottom = ny + b.height + 96;
-    elements.push(panel({ id: 'note-panel', bounds: [lx, ny, lw, b.height + 96], radius: 10, theme }));
-    elements.push(textElement({ id: 'note-label', text: note.label || '复盘判断', bounds: [lx + 32, ny + 20, lw - 64, 40], style: theme.font(28, { fontWeight: 700, color: p.accent }) }));
+    const ny = y + 24, b = textBlock({ id: 'note', x: lx + 28, y: ny + 58, width: lw - 56, text: note.text, size: 23, theme });
+    elements.push(panel({ id: 'note-panel', bounds: [lx, ny, lw, b.height + 78], radius: 10, theme }));
+    elements.push(textElement({ id: 'note-label', text: note.label || '复盘判断', bounds: [lx + 28, ny + 16, lw - 56, 40], style: theme.font(28, { fontWeight: 700, color: p.accent }) }));
     elements.push(...b.elements);
+    y = ny + b.height + 78;
   }
-  let y = top;
-  if (metrics.length) { const m = metricRow({ id: 'result', x: rx, y, width: rw, items: metrics, size: 80, gap: 32, theme }); elements.push(...m.elements); y += m.height + 40; }
-  const g = imageGrid({ id: 'photos', x: rx, y, width: rw, images: photos, perRow, theme, maxHeight: FOOTER_TOP - y - 60 });
-  // A height-limited arrangement is narrower than the zone: centre it instead of leaving one empty side.
-  elements.push(...shiftX(g.elements, (rw - g.width) / 2));
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧编号资源与复盘判断，右上结果指标，右下照片同行等高对应资源', [['items', 'support', [lx, top, lw, leftBottom - top + 8]], ['results', 'evidence', [rx, top, rw, Math.max(y + g.height, top + 200) - top + 8]]]) };
+  if (y > FOOTER_TOP) throw new Error(`listWithPhotos left column overflows by ${Math.round(y - FOOTER_TOP)}px: shorten details or the note`);
+  const photoH = FOOTER_TOP - top - 50;
+  // If filling would crop too much, fall back to the uncropped grid centred in the zone.
+  const fill = perRow === 'auto' ? imageFill({ id: 'photos', x: rx, y: top, width: rw, height: photoH, images: photos, theme }) : null;
+  const g = fill || imageGrid({ id: 'photos', x: rx, y: top, width: rw, images: photos, perRow, theme, maxHeight: photoH });
+  elements.push(...(fill ? fill.elements : shiftX(g.elements, (rw - g.width) / 2)));
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧编号资源、结果指标与复盘判断，右侧照片铺满整栏作为证据', [['items', 'support', [lx, top, lw, y - top + 8]], ['photos', 'evidence', [rx, top, rw, (fill ? photoH : g.height) + 8]]]) };
 }
 
 // One column per item: numbered heading and detail on top, that item's own photo directly below, so each photo
 // visibly belongs to its item. Result metrics and a review line run across the bottom. highlight marks one column.
-export function itemsWithPhotos({ theme, grid, header, items, metrics = [], note, highlight = 0, gap = 32 }) {
+export function itemsWithPhotos({ theme, grid, header, items, metrics = [], note, highlight = 0, gap = 32, maxCrop = 1.45 }) {
   const p = theme.palette, top = header.bottom + 40, n = items.length, colW = Math.floor((grid.width - gap * (n - 1)) / n), elements = [];
   if (n < 2 || n > 4) throw new Error('itemsWithPhotos takes 2–4 items');
   const pad = 28, textW = colW - pad * 2;
@@ -109,8 +112,12 @@ export function itemsWithPhotos({ theme, grid, header, items, metrics = [], note
     elements.push(textElement({ id: `item-${i + 1}-title`, text: it.title, bounds: [x + pad + 60, top + pad, textW - 60, textHeight(it.title, 32, textW - 60, 1.3)], style: theme.font(32, { fontWeight: 700, lineHeight: 1.3, color: ink }) }));
     if (it.detail) elements.push(textElement({ id: `item-${i + 1}-detail`, text: it.detail, bounds: [x + pad, top + pad + 56, textW, textHeight(it.detail, 23, textW)], style: theme.font(23, { color: ink }) }));
     if (it.photo) {
-      elements.push(panel({ id: `item-${i + 1}-photo-panel`, bounds: [x, boxY, colW, boxH], theme }));
-      elements.push(fitImage({ id: `item-${i + 1}-photo`, src: it.photo.src, size: it.photo.size, box: [x + 12, boxY + 12, colW - 24, boxH - 24], alt: it.photo.alt }));
+      // The photo fills its column box (cropped around its focal point) when that changes its shape by at most
+      // maxCrop; a photo of very different shape (a portrait in a wide box) is shown whole on a panel instead of
+      // losing heads or key text.
+      const size = it.photo.size || imageSize(it.photo.src), r = size.width / size.height, box = colW / boxH;
+      if (Math.max(r / box, box / r) <= maxCrop) elements.push({ type: 'image', id: `item-${i + 1}-photo`, src: it.photo.src, bounds: [x, boxY, colW, boxH], fit: 'cover', focal: it.photo.focal || '50% 40%', naturalSize: [size.width, size.height], ...(it.photo.alt ? { alt: it.photo.alt } : {}) });
+      else { elements.push(panel({ id: `item-${i + 1}-photo-panel`, bounds: [x, boxY, colW, boxH], theme })); elements.push(fitImage({ id: `item-${i + 1}-photo`, src: it.photo.src, size, box: [x + 12, boxY + 12, colW - 24, boxH - 24], alt: it.photo.alt })); }
       if (it.photo.caption) elements.push(textElement({ id: `item-${i + 1}-caption`, text: it.photo.caption, bounds: [x, boxY + boxH + 8, colW, 30], style: theme.font(19, { color: p.muted, textAlign: 'center' }) }));
     }
   });
