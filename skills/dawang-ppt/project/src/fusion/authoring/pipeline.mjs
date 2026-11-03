@@ -3,7 +3,7 @@ import {workspacePath,withRunDirectory,recordRun} from './workspace.mjs';
 import {createAuthoredProject} from './create-project.mjs';import {stageMedia} from './media.mjs';
 import {loadProject,saveProject} from '../project/store.mjs';import {renderProject} from '../scene/render-project.jsx';
 import {createFusionServer} from '../../../scripts/fusion-preview.jsx';import {measureProject} from '../qa/measure.mjs';
-import {validatePortableHtml} from '../portable/html.mjs';import {reviewKeyLines} from '../qa/key-lines.mjs';import {reviewVisualDecisions} from '../qa/visual-decisions.mjs';import {reviewRuleChecklist} from '../qa/rule-checklist.mjs';import {reviewGate} from '../qa/kimi-review.mjs';
+import {validatePortableHtml} from '../portable/html.mjs';import {reviewKeyLines} from '../qa/key-lines.mjs';import {reviewVisualDecisions} from '../qa/visual-decisions.mjs';import {reviewRuleChecklist} from '../qa/rule-checklist.mjs';import {reviewGate} from '../qa/rules-review.mjs';
 const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 async function run({workspaceDir,outFile,slideIds,screenshots}){
  const start=performance.now(),phases={};const project=loadProject(path.join(workspaceDir,'deck-project.json'));

@@ -20,7 +20,7 @@ node skills/dawang-ppt/scripts/dawang.mjs export:pdf output/demo output/demo/rev
 
 兼容低层 `build` 默认等价 `render:authored`，由智能体整理authored输入，不要求用户写JSON。旧brief/goal输入会明确提示使用render:brief/render:goal；已保存ProjectV2必须render:project，不静默回落或覆盖编辑。
 
-输入包含requirements、sources.entries、media.entries、contentPlan.nodes/slides、designChoice与slides。每页包含稳定slideId、styleId、elements；程序写入mode:composition与authoring.engine:kimi-authored-v1。直接元素指定id、type、bounds及style，可用contentRef/mediaRef关联事实和媒体。文字可有runs:[{text,style}]；vector使用正尺寸bounds、四数值viewBox、受控path/style，不接收任意HTML/SVG脚本。
+输入包含requirements、sources.entries、media.entries、contentPlan.nodes/slides、designChoice与slides。每页包含稳定slideId、styleId、elements；程序写入mode:composition与authoring.engine:dawang-authored-v1。直接元素指定id、type、bounds及style，可用contentRef/mediaRef关联事实和媒体。文字可有runs:[{text,style}]；vector使用正尺寸bounds、四数值viewBox、受控path/style，不接收任意HTML/SVG脚本。
 
 自主外观使用styleId:authored/custom及appearance.palette（全稿默认写在designChoice.appearance，单页覆盖写在该页appearance，见authoring-api.md）、元素字体/字号；这是中性绘制默认值，不选择旧模板或限制六种外观。仅明确的authored页可使用该默认值，不能据此宣称原17主题全部已适配组合页。沿用已支持绘制风格仍可显式指定legacy/theme09等；新稿构图由直接元素决定，不经旧规划器。完整字段校验见project/schema.mjs、authoring/create-project.mjs；缺材料不编造。
 
@@ -64,7 +64,7 @@ process 的 data.presentation=inline-sequence 表示开放文字序列，不生�
 - 未显式指定 layout 时，比较顺序阅读、相邻关系组并列等不同布局树；显式 layout 保持锁定。候选不再给更大字号加分。slide.planning 记录 layoutId、formDecisions 和实测结果。
 - process 默认 numbered-sequence；comparison 默认 open-comparison；可明确指定 staged-sequence 或 inline-sequence。流程节点保留稳定编辑锚点，inline-sequence 不生成节点框。
 - timeline 已接入多区域实测：nodes 描述阶段；可有 lanes=[{laneId,label,contentRef,events:[{nodeId,text,contentRef}]}]。未提供 lanes 时按 date/label/detail 分别显示；不推断日期。laneHeading/laneHeadingRef 可保留业务列表头。普通标签与详细说明保持独立编辑路径。
-- 本次按八页真实稿接入所需对象；不把此实现描述为所有旧组件或 Kimi 自动构图能力已迁移。
+- 本次按八页真实稿接入所需对象；不把此实现描述为所有旧组件或全部自动构图能力已迁移。
 
 - 区域 `attachedTo=regionId` 将说明文字绑定到对应主区域，同栏参与自动构图；关系链宽度按全部节点的实际文字测量预算，纵向组合取最大宽度需求。
 - 深底表头默认使用 palette.onHeader（缺省白色），浅底表头按语义角色着色。语义规则不得把深底表头统一刷成灰字。

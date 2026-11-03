@@ -1,0 +1,87 @@
+{
+  "status": "PASS",
+  "baselineCommit": "379a84c",
+  "referenceBundleSha256": "788e1fc1498576ec6a858124b834121478d235f64a8a8d69a8c0ac7f59d27f9c",
+  "referenceFiles": 73,
+  "sourceReaderByteIdentical": true,
+  "sourceDispositionTableByteIdentical": true,
+  "runtimeFilesUnchangedSincePreviousPreview": 458,
+  "comparedProfiles": 78,
+  "comparedSections": 3331,
+  "brandOnlySections": 307,
+  "scenarios": [
+    {
+      "id": "analysis-decision",
+      "sections": 31,
+      "decisions": {
+        "replaced": 8,
+        "apply": 16,
+        "adapt": 7
+      },
+      "characters": 20529
+    },
+    {
+      "id": "business-plan",
+      "sections": 33,
+      "decisions": {
+        "replaced": 8,
+        "apply": 18,
+        "adapt": 7
+      },
+      "characters": 20980
+    },
+    {
+      "id": "management-report",
+      "sections": 32,
+      "decisions": {
+        "replaced": 8,
+        "apply": 18,
+        "adapt": 6
+      },
+      "characters": 20207
+    },
+    {
+      "id": "academic-research",
+      "sections": 36,
+      "decisions": {
+        "replaced": 8,
+        "apply": 22,
+        "adapt": 6
+      },
+      "characters": 29935
+    },
+    {
+      "id": "education-training",
+      "sections": 55,
+      "decisions": {
+        "replaced": 8,
+        "apply": 40,
+        "adapt": 7
+      },
+      "characters": 39215
+    },
+    {
+      "id": "tech-engineering",
+      "sections": 52,
+      "decisions": {
+        "replaced": 8,
+        "apply": 38,
+        "adapt": 6
+      },
+      "characters": 33288
+    },
+    {
+      "id": "brand-creative",
+      "sections": 37,
+      "decisions": {
+        "replaced": 8,
+        "apply": 22,
+        "adapt": 7
+      },
+      "characters": 29416
+    }
+  ],
+  "optionalDocuments": 64,
+  "comparison": "All source hashes, document lists, section boundaries, text (apart from explicit presentation-name replacements), adaptation decisions, replacement targets, omitted sections and review states match the full baseline.",
+  "limits": "This verifies rule and runtime preservation; it does not assert identical stochastic model output or user visual acceptance."
+}

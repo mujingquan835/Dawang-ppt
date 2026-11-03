@@ -4,7 +4,7 @@ import {chromium} from '../../skills/dawang-ppt/project/node_modules/playwright-
 import {measureProject} from '../../skills/dawang-ppt/project/src/fusion/qa/measure.mjs';
 import {resolveSlideStyle} from '../../skills/dawang-ppt/project/src/fusion/styles/registry.mjs';
 
-const authoredSlide=extra=>({slideId:'s',styleId:'authored/custom',authoring:{engine:'kimi-authored-v1'},...extra});
+const authoredSlide=extra=>({slideId:'s',styleId:'authored/custom',authoring:{engine:'dawang-authored-v1'},...extra});
 test('deck palette is the default for authored slides and a slide palette wins per key',()=>{
  const project={designChoice:{styleId:'authored/custom',appearance:{palette:{bg:'#161618',ink:'#F2F0EB'}}}};
  assert.equal(resolveSlideStyle(authoredSlide({}),project).palette.bg,'#161618');
@@ -33,7 +33,7 @@ async function measure(t,engine){
 }
 
 test('low contrast blocks authored decks using the fills actually beneath the text',async t=>{
- const report=await measure(t,'kimi-authored-v1'),page=report.pages[0];
+ const report=await measure(t,'dawang-authored-v1'),page=report.pages[0];
  const issue=id=>page.issues.find(i=>i.kind==='low-contrast'&&i.id===id);
  assert.equal(issue('invisible').ratio,1.14);assert.equal(issue('invisible').background,'#ffffff');
  assert.equal(issue('on-panel'),undefined);

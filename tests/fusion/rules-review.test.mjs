@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createAuthoredProject } from '../../skills/dawang-ppt/project/src/fusion/authoring/create-project.mjs';
-import { buildReviewPacket, normalizeVerdict, writeReview, reviewGate, REVIEW_FILE } from '../../skills/dawang-ppt/project/src/fusion/qa/kimi-review.mjs';
+import { buildReviewPacket, normalizeVerdict, writeReview, reviewGate, REVIEW_FILE } from '../../skills/dawang-ppt/project/src/fusion/qa/rules-review.mjs';
 import { resolveReviewer } from '../../skills/dawang-ppt/project/src/fusion/authoring/independent-review.mjs';
 
 // Synthetic rules and deck; the real upstream rule text is never copied into tests.
@@ -18,7 +18,7 @@ const rules = {
   ]
 };
 const project = () => createAuthoredProject({
-  requirements: { projectId: 'kimi-review-test', title: '合成测试' },
+  requirements: { projectId: 'rules-review-test', title: '合成测试' },
   sources: { entries: [{ sourceId: 'fixture', kind: 'synthetic' }] }, media: { entries: [] },
   designChoice: { styleId: 'authored/custom' },
   contentPlan: { nodes: {}, slides: [], ruleChecklist: { scenario: 'management-report', items: {
@@ -28,7 +28,7 @@ const project = () => createAuthoredProject({
   } } },
   slides: [{ slideId: 's', elements: [{ id: 'bar', type: 'text', text: '画面稳定效果 42 条', bounds: [100, 100, 800, 60], style: { fontSize: 32 } }, { id: 'line', type: 'line', bounds: [100, 1000, 1700, 1] }] }]
 });
-const workspace = (t) => { const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kimi-review-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true })); return dir; };
+const workspace = (t) => { const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rules-review-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true })); return dir; };
 const kinds = (r) => r.issues.map((i) => i.kind);
 
 test('the packet carries rule text, claims and an element map, but no author reasoning beyond the claim', () => {
@@ -48,7 +48,7 @@ test('a verdict that skips a claim is rejected instead of passing it', () => {
 
 test('publishing needs a current review with no failed claim', (t) => {
   const dir = workspace(t), p = project();
-  assert.deepEqual(kinds(reviewGate(p, dir)), ['kimi-review-missing']);
+  assert.deepEqual(kinds(reviewGate(p, dir)), ['rules-review-missing']);
   const items = [
     { id: 'scenario#Visual#1', verdict: 'fail', reason: '条形图不是结构图', status: 'applied' },
     { id: 'scenario#Visual#2', verdict: 'pass', reason: '各页可见同一细线', status: 'applied' },
@@ -56,12 +56,12 @@ test('publishing needs a current review with no failed claim', (t) => {
   ];
   writeReview(dir, p, { reviewer: 'fake', items });
   const failed = reviewGate(p, dir);
-  assert.deepEqual(kinds(failed), ['kimi-review-failed']);
+  assert.deepEqual(kinds(failed), ['rules-review-failed']);
   assert.deepEqual(failed.issues[0].items.map((i) => i.id), ['scenario#Visual#1']);
   writeReview(dir, p, { reviewer: 'fake', items: items.map((i) => ({ ...i, verdict: 'pass' })) });
   assert.deepEqual(reviewGate(p, dir).issues, []);
   // Any later edit makes the review stale.
-  assert.deepEqual(kinds(reviewGate({ ...p, revision: 'later' }, dir)), ['kimi-review-stale']);
+  assert.deepEqual(kinds(reviewGate({ ...p, revision: 'later' }, dir)), ['rules-review-stale']);
   const record = JSON.parse(fs.readFileSync(path.join(dir, REVIEW_FILE), 'utf8'));
   assert.equal(record.reviewer, 'fake');
 });
@@ -71,6 +71,6 @@ test('older projects only warn, and a custom reviewer command takes priority', (
   delete p.requirements.ruleContract;
   const r = reviewGate(p, workspace(t));
   assert.deepEqual(r.issues, []);
-  assert.equal(r.warnings[0].kind, 'kimi-review-missing');
+  assert.equal(r.warnings[0].kind, 'rules-review-missing');
   assert.equal(resolveReviewer({ DAWANG_REVIEWER_CMD: 'claude -p x', PATH: '' }).kind, 'command');
 });

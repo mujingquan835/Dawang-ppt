@@ -37,7 +37,7 @@ export {
 // their existing schema contract; unsupported new content must not vanish.
 function validateAuthoredSlide(slide, project) {
   const issues = [], prefix = `${slide.slideId}: authored`;
-  if (slide.authoring.engine !== 'kimi-authored-v1') issues.push(`${prefix} unknown authoring engine`);
+  if (!['dawang-authored-v1','kimi-authored-v1'].includes(slide.authoring.engine)) issues.push(`${prefix} unknown authoring engine`);
   if (slide.mode !== 'composition') issues.push(`${prefix} requires composition mode`);
   if (!slide.styleId) issues.push(`${prefix} requires explicit styleId drawing defaults`);
   if (!Array.isArray(slide.elements) || !slide.elements.length) {

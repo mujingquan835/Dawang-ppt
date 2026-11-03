@@ -2,13 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { materializeElements } from '../scene/model.mjs';
-import { RULE_CONTRACT } from './rule-checklist.mjs';
+import { isRuleContract } from './rule-checklist.mjs';
 
-// Independent review of the Kimi rule checklist. The author fills the checklist; a reviewer with a fresh context
+// Independent review of the production rule checklist. The author fills the checklist; a reviewer with a fresh context
 // sees only the page screenshots, an element map, the rule text and the claims, and judges each claim. Publishing
 // a new deck needs a review of the current revision with no failed claim. The reviewer never sees the author's
 // reasoning, so a stretched mapping (a bar chart offered as a structural diagram) has to survive on the pages alone.
-export const REVIEW_FILE = 'kimi-review.json';
+export const REVIEW_FILE = 'rules-review.json';
 const VERDICTS = new Set(['pass', 'fail']);
 export const checklistHash = (project) => createHash('sha256').update(JSON.stringify(project.contentPlan?.ruleChecklist ?? null)).digest('hex');
 
@@ -38,7 +38,7 @@ export function buildReviewPacket({ project, rules, pages }) {
   });
   const prompt = [
     '你是独立复核者，没有参与这份演示文稿的制作，也看不到制作者的思考过程。',
-    `随附 ${pages.length} 张页面截图（按顺序为第 1…${pages.length} 页，画布 1920×1080）。下面给出每页元素表、Kimi 制作规则（场景：${rules.scenario}）以及制作者对每条规则的声明。`,
+    `随附 ${pages.length} 张页面截图（按顺序为第 1…${pages.length} 页，画布 1920×1080）。下面给出每页元素表、完整制作规则（场景：${rules.scenario}）以及制作者对每条规则的声明。`,
     '逐条判断声明是否成立，只以截图上实际看得到的效果为准：',
     '- status=applied：证据页面是否真正满足这条规则的原意。勉强对应判 fail，例如用普通条形图或表格充当“结构图”、用页脚细线或页码充当“视觉母题”、用一句泛泛的工作描述充当封面“关键状态句”、标题只是动作罗列却声称“标题陈述状态或结论”。规则要求的效果在页面上看不出来，也判 fail。',
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
@@ -69,18 +69,18 @@ export function writeReview(workspaceDir, project, { reviewer, items }) {
 }
 
 export function reviewGate(project, workspaceDir) {
-  const strict = project.requirements?.ruleContract === RULE_CONTRACT, issues = [], warnings = [];
+  const strict = isRuleContract(project), issues = [], warnings = [];
   const report = (record) => (strict ? issues : warnings).push(record);
   if (!project.contentPlan?.ruleChecklist) return { issues, warnings, review: null, strict };
   const file = workspaceDir && path.join(workspaceDir, REVIEW_FILE);
-  const hint = 'review:kimi <工程目录> 运行独立复核后再 publish:html';
-  if (!file || !fs.existsSync(file)) { report({ kind: 'kimi-review-missing', hint }); return { issues, warnings, review: null, strict }; }
+  const hint = 'review:rules <工程目录> 运行独立复核后再 publish:html';
+  if (!file || !fs.existsSync(file)) { report({ kind: 'rules-review-missing', hint }); return { issues, warnings, review: null, strict }; }
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (record.revision !== project.revision || record.checklistHash !== checklistHash(project)) {
-    report({ kind: 'kimi-review-stale', reviewedRevision: record.revision, revision: project.revision, hint });
+    report({ kind: 'rules-review-stale', reviewedRevision: record.revision, revision: project.revision, hint });
     return { issues, warnings, review: null, strict };
   }
   const failed = record.items.filter((i) => i.verdict === 'fail');
-  if (failed.length) report({ kind: 'kimi-review-failed', count: failed.length, items: failed.map(({ id, status, reason }) => ({ id, status, reason })) });
+  if (failed.length) report({ kind: 'rules-review-failed', count: failed.length, items: failed.map(({ id, status, reason }) => ({ id, status, reason })) });
   return { issues, warnings, review: { reviewer: record.reviewer, at: record.at, passed: record.items.length - failed.length, failed: failed.length }, strict };
 }

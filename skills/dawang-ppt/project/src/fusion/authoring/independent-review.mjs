@@ -3,8 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { loadProject } from '../project/store.mjs';
-import { kimiRuleItems } from '../kimi/rule-items.mjs';
-import { buildReviewPacket, normalizeVerdict, writeReview } from '../qa/kimi-review.mjs';
+import { ruleItems } from '../rules/items.mjs';
+import { buildReviewPacket, normalizeVerdict, writeReview } from '../qa/rules-review.mjs';
 
 const CODEX_CANDIDATES = ['/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex', '/Applications/Codex.app/Contents/Resources/codex'];
 const onPath = (name) => (process.env.PATH || '').split(path.delimiter).map((dir) => path.join(dir, name)).find((file) => fs.existsSync(file));
@@ -30,12 +30,12 @@ function runReviewer(reviewer, packetDir, packet) {
   return JSON.parse(fs.readFileSync(verdictFile, 'utf8'));
 }
 
-export async function reviewKimiChecklist({ workspaceDir, reviewer = resolveReviewer(), keepPacket }) {
+export async function reviewRulesIndependently({ workspaceDir, reviewer = resolveReviewer(), keepPacket }) {
   if (!reviewer) throw new Error('未找到可用的独立复核者：安装 Codex CLI，或设置 DAWANG_REVIEWER_CMD（命令读取 $PACKET_DIR 并写出 verdict.json）');
   const project = loadProject(path.join(workspaceDir, 'deck-project.json'));
   const checklist = project.contentPlan?.ruleChecklist;
   if (!checklist) throw new Error('工程没有 contentPlan.ruleChecklist；先按 rules:checklist 填写');
-  const rules = kimiRuleItems(checklist.scenario);
+  const rules = ruleItems(checklist.scenario);
   const packetDir = keepPacket ? (fs.mkdirSync(keepPacket, { recursive: true }), keepPacket) : fs.mkdtempSync(path.join(os.tmpdir(), 'dawang-review-'));
   try {
     // Loaded lazily: the pipeline pulls in the JSX renderer, which plain node cannot import.

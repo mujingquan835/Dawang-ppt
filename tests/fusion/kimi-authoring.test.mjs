@@ -45,7 +45,7 @@ test('same content retains two distinct authored compositions and stable IDs wit
   assert.deepEqual(validateProject(p), []);
   for (let i = 0; i < 2; i++) {
     assert.equal(p.slides[i].mode, 'composition');
-    assert.equal(p.slides[i].authoring.engine, 'kimi-authored-v1');
+    assert.equal(p.slides[i].authoring.engine, 'dawang-authored-v1');
     assert.deepEqual(p.slides[i].elements, source.slides[i].elements);
     assert.deepEqual(p.slides[i].appearance, source.slides[i].appearance);
     assert.deepEqual(materializeElements(p.slides[i], p).map(e => e.bounds), source.slides[i].elements.map(e => e.bounds));
@@ -94,7 +94,7 @@ test('manual geometry and text survive save/reopen without returning to initial 
   assert.equal(saveProject(file, edited.project, null).ok, true);
   const loaded = loadProject(file);
   assert.deepEqual(loaded.slides[0].elements[0].bounds, [100, 120, 1300, 260]);
-  assert.equal(loaded.slides[0].authoring.engine, 'kimi-authored-v1');
+  assert.equal(loaded.slides[0].authoring.engine, 'dawang-authored-v1');
   assert.equal(loaded.slides[0].elements[0].text, p.slides[0].elements[0].text);
 });
 

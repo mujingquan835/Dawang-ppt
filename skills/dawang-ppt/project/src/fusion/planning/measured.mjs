@@ -4,7 +4,7 @@ import {planMultiRegion} from './multi-region.mjs';
 import {generateLayoutCandidates} from './candidates.mjs';
 import {deriveSlideElements} from '../objects/index.mjs';
 import {assignElementRoles} from '../project/roles.mjs';
-import {lintSlide} from '../kimi/design-lint.mjs';
+import {lintSlide} from '../qa/design-lint.mjs';
 
 async function fitTable(object,style,measurer) {
   if(object.data.typographyPolicy==='semantic'){await fitSemanticTable(object,style,measurer);return;}

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {prepareMaterial} from '../src/fusion/authoring/prepare.mjs';
 import {patchProject} from '../src/fusion/project/patch.mjs';
-import {readAuthoringRules,writeRulesLock,SCENARIOS} from '../src/fusion/kimi/reference-index.mjs';
+import {readAuthoringRules,writeRulesLock,SCENARIOS} from '../src/fusion/rules/index.mjs';
 import {importPortableHtml} from "../src/fusion/portable/import.mjs";
 import {stageMedia} from "../src/fusion/authoring/media.mjs";
 import {makeHtml,publishHtml,checkProject} from "../src/fusion/authoring/pipeline.mjs";
@@ -18,7 +18,7 @@ import { loadProject, saveProject, hashFile } from "../src/fusion/project/store.
 import { resolveSlideStyle } from "../src/fusion/styles/registry.mjs";
 import { planContentSlide } from "../src/fusion/planning/plan-slide.mjs";
 import { createLayoutMeasurer } from "../src/fusion/planning/measure-layout.mjs";
-import { listAppearances, buildStyleOptions } from "../src/fusion/kimi/style-options.mjs";
+import { listAppearances, buildStyleOptions } from "../src/fusion/styles/options.mjs";
 import { renderAppearanceGrid } from "../src/fusion/styles/appearance-grid.mjs";
 import { renderProject } from "../src/fusion/scene/render-project.jsx";
 import { createFusionServer } from "./fusion-preview.jsx";
@@ -26,8 +26,8 @@ import { measureProject } from "../src/fusion/qa/measure.mjs";
 import { reviewKeyLines } from "../src/fusion/qa/key-lines.mjs";
 import { reviewVisualDecisions } from "../src/fusion/qa/visual-decisions.mjs";
 import { reviewRuleChecklist } from "../src/fusion/qa/rule-checklist.mjs";
-import { kimiRuleItems } from "../src/fusion/kimi/rule-items.mjs";
-import { reviewKimiChecklist } from "../src/fusion/authoring/independent-review.mjs";
+import { ruleItems } from "../src/fusion/rules/items.mjs";
+import { reviewRulesIndependently } from "../src/fusion/authoring/independent-review.mjs";
 const caller = process.env.INIT_CWD || process.cwd();
 const absolute = (file) => path.resolve(caller, file);
 function resolveBriefContents(brief, style) {
@@ -104,8 +104,8 @@ async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
 }
 async function main(args = process.argv.slice(2)) {
   const [mode, input, output] = args;
-  if(mode==='rules:checklist'){const r=kimiRuleItems(input);console.log(JSON.stringify({...r,skeleton:{scenario:input,items:Object.fromEntries(r.items.map(i=>[i.id,{status:'',how:'',evidence:[{slideId:'',elementIds:[]}],reason:''}]))},note:'填入 contentPlan.ruleChecklist。applied 逐条写 how 与 evidence（指向实际 slideId/elementIds）；not-applicable/user-override 写 reason，整章不适用时可用章节 id 一次记录。'},null,2));return;}
-  if(mode==='review:kimi'){if(!input)throw Error('review:kimi <workspaceDir> [--keep-packet <dir>]');const i=args.indexOf('--keep-packet');const r=await reviewKimiChecklist({workspaceDir:absolute(input),keepPacket:i<0?undefined:absolute(args[i+1])});console.log(JSON.stringify(r,null,2));if(!r.ok)process.exitCode=1;return;}
+  if(mode==='rules:checklist'){const r=ruleItems(input);console.log(JSON.stringify({...r,skeleton:{scenario:input,items:Object.fromEntries(r.items.map(i=>[i.id,{status:'',how:'',evidence:[{slideId:'',elementIds:[]}],reason:''}]))},note:'填入 contentPlan.ruleChecklist。applied 逐条写 how 与 evidence（指向实际 slideId/elementIds）；not-applicable/user-override 写 reason，整章不适用时可用章节 id 一次记录。'},null,2));return;}
+  if(mode==='review:rules'||mode==='review:kimi'){if(!input)throw Error('review:rules <workspaceDir> [--keep-packet <dir>]');const i=args.indexOf('--keep-packet');const r=await reviewRulesIndependently({workspaceDir:absolute(input),keepPacket:i<0?undefined:absolute(args[i+1])});console.log(JSON.stringify(r,null,2));if(!r.ok)process.exitCode=1;return;}
   if(mode==='rules:list'){console.log(JSON.stringify(SCENARIOS.map(({id,zh})=>({id,name:zh})),null,2));return;}
   if(mode==='prepare'){if(!input||!output)throw Error('prepare <material.html|json|md|txt> <new-directory> [--scenario id]');const i=args.indexOf('--scenario');console.log(JSON.stringify(prepareMaterial({inputFile:absolute(input),outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]}),null,2));return;}
   if(['make','publish:html','check'].includes(mode)){

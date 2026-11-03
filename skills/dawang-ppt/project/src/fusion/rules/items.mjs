@@ -1,6 +1,6 @@
-import { readAuthoringRules, SCENARIOS } from './reference-index.mjs';
+import { readAuthoringRules, SCENARIOS } from './index.mjs';
 
-// Checkable items of the pinned Kimi rules for one scenario: every numbered or top-level bullet item of the
+// Checkable items of the pinned production rules for one scenario: every numbered or top-level bullet item of the
 // scenario document's apply/adapt sections, plus the general Requirements list. Ids are built from headings
 // and item numbers; item text is read from the user's local installation at run time and never stored here
 // (the independent reviewer receives it in its prompt, not in any repository file).
@@ -21,7 +21,7 @@ function splitItems(text) {
 
 const label = (text) => text.replace(ITEM_START, '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim().slice(0, 90);
 
-export function kimiRuleItems(scenarioId, options = {}) {
+export function ruleItems(scenarioId, options = {}) {
   if (!SCENARIOS.some((s) => s.id === scenarioId)) throw new Error('Unknown scenario ' + scenarioId + '. Valid scenarios: ' + SCENARIOS.map((s) => s.id).join(', '));
   const rules = readAuthoringRules({ scenarioId, ...options });
   const items = [], sections = [];

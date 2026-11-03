@@ -21,7 +21,7 @@ async function createLayoutMeasurer({chrome='/Applications/Google Chrome.app/Con
     const page=await browser.newPage({viewport:{width:1920,height:1080}});
     await page.goto(pathToFileURL(file).href);
     return {
-      async texts(specs,style=resolveSlideStyle({styleId:'authored/custom',authoring:{engine:'kimi-authored-v1'}})) {
+      async texts(specs,style=resolveSlideStyle({styleId:'authored/custom',authoring:{engine:'dawang-authored-v1'}})) {
         const normalized=specs.map(e=>({...e,runs:e.runs?.map(r=>({...r,style:{...r.style,...(r.style?.fontFamily?{fontFamily:cssFontStack(r.style.fontFamily)}:{})}})),fontFamily:cssFontStack(e.style?.fontFamily || ((e.role==='title'||e.id==='title')?style.typography.heading:style.typography.body)),fontSize:e.style?.fontSize||style.typography.sizes.body}));
         return page.evaluate(async specs=>{
           const root=document.getElementById('measure');root.replaceChildren();

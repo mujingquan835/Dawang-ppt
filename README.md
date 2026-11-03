@@ -1,58 +1,102 @@
 # Dawang-PPT
 
-以原 dashi-PPT 操作台为制作、编辑基座，融入 Kimi 的材料理解、叙事、图片组织与关系排版规则。默认交付一个可离线编辑保存的HTML，PPTX、PDF和图片按需导出。
+**先讲清内容，再设计页面；交付后，仍能继续编辑。**
 
-**当前为 0.2.0-dev。本地主skill统一了内容策划、自主设计、标题与图文方法，以及配色推荐和用户选择。日常安装、用户效果认可与正式发布分别记录。**
+把原文、数据、截图和需求交给 AI，经过材料理解、文案提炼、逐页设计和复核，得到一个可离线打开、编辑、保存的 HTML 演示文稿。需要时再导出 PPTX、PDF 或图片。
 
-## 当前整合
+[下载可编辑示例](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261027.1/dawang-ppt-editable-showcase.html) · [安装与第一份稿件](docs/USAGE.md) · [完整图片示例](docs/SHOWCASE.md) · [制作思路](docs/APPROACH.md)
 
-本轮视觉方法与配色交互整合见[整合记录](docs/kimi-web/visual-main-integration-20261101.md)，实际安装状态用 `doctor` 核对。历史工程检查点见 [W4验收记录](docs/kimi-web/acceptance.md)；换机与历史入口资料不代替当前安装回执。
+![Dawang-PPT 当前引擎实际生成的四页合成示例：封面、数量比较、分支流程和行动时间线](docs/images/showcase-overview.png)
 
-## 日常流程
+> 上图是当前引擎的实际成稿截图。内容与数字均为公开合成材料，用于展示表达和编辑能力，不代表真实业务结果。每一页的文字、图形和线条可继续编辑；这只是一个视觉实例，制作时仍按材料自主设计。
 
-材料 → 读取适用原规则 → 简短大纲与配色确认 → 内容策划与逐页自主设计 → 原编辑器调整保存 → 内容与看图复核 → 单HTML交付。未指定配色且未委托时，按用途与受众推荐实际配色预览，用户选定后继续；已指定、已确认、明确委托或旧稿局部修改按条件直接执行。颜色参考覆盖完整主题库，不固定为四组或六种外观，选色不绑定模板版式。新建用 `make`，已有工程局部改动用 `patch:project` 后 `publish:html`；历史brief显式用 `render:brief`，原样模板保留 `templates` / `render:goal`。
+## 先选一条上手路径
 
-沿用 [V3.1规划](docs/开发规划-v3.1.md)，实时执行状态见 [S2记录](docs/S2-执行记录.md)。原17主题与原编辑器保留，0.1 runtime及旧家族构图仅用于兼容恢复。
-
-当前处于本地开发及个人使用阶段，不代表所有风格与场景已通过效果验收。Kimi 原始参考资料仅从本机路径读取，不随公开代码再分发；缺少资料时明确报告。设置 `KIMI_PPT_SKILL_DIR` 可指定本机资料目录，或使用 `~/.dawang-ppt/kimi-reference/`。
-
-## 运行
-
-要求Node.js 22+、Chrome；完整实测环境为macOS。LibreOffice与pdftoppm用于独立渲染验证。
-
-```sh
-git clone https://github.com/mujingquan835/Dawang-ppt.git
-cd Dawang-ppt
-git switch main
-npm ci --prefix skills/dawang-ppt/project
-node skills/dawang-ppt/scripts/dawang.mjs doctor
-node skills/dawang-ppt/scripts/dawang.mjs templates
-```
-
-[技能入口](skills/dawang-ppt/SKILL.md) · [命令与工程契约](skills/dawang-ppt/references/contracts.md)。开发版可在当前仓库直接调用；不需要覆盖原技能。安装入口仍由`node skills/dawang-ppt/scripts/install.mjs`创建独立符号链接，已有不同安装时拒绝覆盖。测试安装使用`--target <临时目录>/dawang-ppt`，不修改日常安装。
-
-## 第一版范围
-
-| 能力 | 当前实现与边界 |
+| 你现在想做什么 | 从这里开始 |
 |---|---|
-| 原编辑器与模板 | 保留17主题、18项本地扩展及原编辑操作；新组合控件挂在原侧栏 |
-| 原风格使用新对象 | theme13钴蓝经营、theme09深蓝杂志、theme16奶油蓝图，以及 theme14、theme06、theme17；数据化适配待真实稿件效果验收 |
-| Kimi规则与历史工程 | 方法与检查进入统一流程；历史三个家族仅保留工程恢复，不作为新建候选 |
-| 新对象 | 图片组合、时间轴、表格、流程/层级/循环/矩阵/比较/因果关系、条形/折线 |
-| 编辑与保存 | 节点、行列、连接、组与子对象、撤销重做、媒体引用、浏览器草稿、修订冲突保护 |
-| 导出 | 独立PptxGenJS适配器；文字/图片/形状/线条可编辑，PDF按截图生成 |
-| 全库迁移 | 60份源资料有哈希与批次，3份适配中，57份待后续批次；索引不是完成迁移 |
+| 先看效果，手动改一页试试 | [下载示例 HTML](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261027.1/dawang-ppt-editable-showcase.html)，用 Chrome / Edge 打开。无需 Node.js、AI 账号或 skill 安装 |
+| 让 AI 根据自己的材料制作 | 先准备 Node.js 22+、本地 AI 客户端和**匹配的完整规则资料**，再按[安装说明](docs/USAGE.md)配置 |
+| 理解怎么提需求、怎么把稿件做好 | 阅读[制作思路](docs/APPROACH.md)与[案例拆解](docs/SHOWCASE.md) |
 
-表格/图表/关系图不要求原生数据表、图表或SmartArt。不支持任意PPTX模板导入。字体与复杂旧模板装饰的跨客户端效果需逐项复核，不能把文件生成成功当作通过。
+**安装前先知道：**公开 skill ZIP 不附未获再分发许可的完整规则原文。AI 新稿制作须另外合法取得并配置匹配资料，`doctor` 显示 `ready: true` 才算就绪。没有资料时可以先体验示例 HTML 的查看和手动编辑；[资料结构与配置步骤在这里](docs/USAGE.md#4-配置完整规则资料并检查)。
 
-## 验证与维护
+## 它适合怎样的工作
+
+| 场景 | 可以提供的材料 | 页面重点 |
+|---|---|---|
+| 经营汇报、项目复盘 | 原始记录、数据、问题、下一步 | 讲清状态、证据、差距和行动，保留单位与时期 |
+| 产品介绍、方案提案 | 产品说明、真实截图、适用范围 | 讲清谁如何使用、具体价值及其依据 |
+| 技术方案、流程说明 | 架构、机制、条件、测试示例 | 画清依赖与分支，区分已实现、已验证和计划 |
+| 培训与知识分享 | 教程、步骤、案例、常见错误 | 帮读者理解、记住并正确操作 |
+
+Dawang-PPT 是 AI 客户端中的本地制作 skill。模型、账号与权限由你使用的客户端提供；内容策划和设计由制作智能体完成，程序负责可编辑工程、渲染、检查、保存与导出。
+
+## 我们怎么做一份稿件
+
+![制作方法示意：理解材料、形成上屏文案、自主设计、编辑复核，最后交付单HTML](docs/images/workflow.svg)
+
+- **从读者任务开始。** 先确定谁看、看完需要理解或决定什么，再组织主线和逐页重点。
+- **先写能上屏的文案。** 保留有力原句，把零散材料提炼成具体主张；事实、数字、条件与待核状态跟着表达走。
+- **让内容关系决定构图。** 数量适合比较，步骤需要流程，计划可以用时间线；截图保留必须辨认的区域，布局不锁死在一种模板里。
+- **交付后还能改。** HTML 保留可移交工程和资源；同事可以继续改字、移动对象、调整样式并保存。
+- **程序检查与实际看图一起做。** 不只检查文件生成成功，还要看重点是否清楚、图文是否可读、证据和限定是否保留。
+
+[展开看：内容编辑、素材取舍和复核方法 →](docs/APPROACH.md)
+
+## 看看实际编辑器
+
+![实际网页编辑器：左侧页目录、中间画布、右侧文字属性，顶部为保存与撤销重做](docs/images/editor-overview.png)
+
+| 位置或动作 | 用法 |
+|---|---|
+| 左侧目录 | 切换页面，查看全稿结构 |
+| 画布上的文字或图形 | 单击选择、拖动移动，用控制点缩放；双击文字进入编辑 |
+| 右侧属性栏 | 调整所选对象的字体、字号、颜色等属性 |
+| 顶部撤销 / 重做 | 回退修改或恢复操作 |
+| 顶部保存 | 第一次选择当前已经存在的原 HTML 并授权，之后写回同一文件 |
+
+保存前确认选的是当前原文件；只有成功写入后才显示已保存。浏览器草稿和“导出 HTML 副本”不等同于原文件保存。重开、换浏览器或移动文件后，可能需要再次关联。
+
+[查看改字、保存和导出的分步图片 →](docs/SHOWCASE.md#实际操作图解)
+
+## 从第一份材料开始
+
+当前 skill 分享版是 [`v0.2.0-preview.20261027.1`](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261027.1)，属于预发布。下载该页的专用 skill ZIP，解压到长期保留的位置；以下命令在解压后的 `dawang-ppt` 文件夹中执行：
 
 ```sh
-npm ci
-npm test
-npm run test:fusion
+npm ci --prefix project
+node scripts/install.mjs
+export DAWANG_PPT_RULES_DIR="/你的实际路径/完整规则目录"
+node scripts/dawang.mjs doctor
 ```
 
-浏览器回归使用公开合成夹具；真实图片、原稿对照、生成稿留在本地output，不进入公开Git。新增改动先在开发分支提交，真实效果验收通过后才合入main并发布0.2.0。恢复点为`v0.1.0-recovery`。
+确认 `runtime: true`、`rules.status: "pinned"`、`ready: true`。桌面客户端不一定继承终端环境变量，具体配置及其他客户端入口见[详细说明](docs/USAGE.md)。主要实测环境为 macOS + Chrome；Windows / Linux 完整制作链路仍需分别验证。
 
-[当前验收](docs/acceptance-v0.2.md) · [架构](docs/architecture.md) · [迁移台账](docs/style-migration-v2.json) · [来源与许可](NOTICE.md)。
+新开 AI 会话，附上材料，然后这样说：
+
+> 使用 dawang-ppt，将附件制作成 6 页管理汇报，面向部门负责人。先提炼每页主张和可上屏文案，再自主设计。保留数据单位、时期、来源和待核状态，不补造事实。逐页看图复核，默认交付一个可离线编辑、保存的 HTML。
+
+已有稿件可以这样改：
+
+> 使用 dawang-ppt，基于这份保存后的 HTML，放大第 3 页流程图并调整标题，其余文案和布局保持不变，保留已有人工编辑。
+
+## 一个 HTML，按需选择其他格式
+
+![实际导出菜单：HTML离线包、当前页PNG、截图型PDF和可编辑PPTX](docs/images/editor-export.png)
+
+| 格式 | 适合什么 | 需要知道 |
+|---|---|---|
+| HTML | 离线演示、手动编辑、继续交接 | 默认交付，内嵌工程和必要资源 |
+| PPTX | 在 PowerPoint 等工具中继续编辑 | 文字、图片、基础形状等保持对应编辑能力；字体不嵌入，目标客户端需复核 |
+| PDF | 固定版面发送、打印 | 截图型 PDF，正文不可按普通文本选择 |
+| PNG | 单页预览、群聊或插入文档 | 静态图片 |
+
+不承诺原生数据图表、SmartArt、任意 PPTX 模板或网页无损导入、跨客户端像素一致。内容质量受材料与模型判断影响；实际稿件仍需内容和视觉复核，不承诺固定制作时长。
+
+## 继续了解
+
+[详细安装与排错](docs/USAGE.md) · [四页示例与可复用源材料](docs/SHOWCASE.md) · [制作思路](docs/APPROACH.md) · [规则完整性对照](docs/RULES-PARITY.md) · [版本记录](docs/RELEASE-20261027.md) · [English](README.en.md)
+
+源码维护者可运行 `npm ci`、`npm ci --prefix skills/dawang-ppt/project` 和 `npm test`。案例的重新生成与截图方法见 [examples/showcase](examples/showcase/README.md)。公开示例只使用合成材料，完整规则、历史源码与必要许可各按原边界维护。
+
+[许可证](LICENSE) · [版权与来源](NOTICE.md)

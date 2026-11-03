@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import * as rules from '../../skills/dawang-ppt/project/src/fusion/kimi/reference-index.mjs';
-import { kimiRuleItems } from '../../skills/dawang-ppt/project/src/fusion/kimi/rule-items.mjs';
+import { ruleItems } from '../../skills/dawang-ppt/project/src/fusion/rules/items.mjs';
 import { createAuthoredProject } from '../../skills/dawang-ppt/project/src/fusion/authoring/create-project.mjs';
 import { reviewRuleChecklist } from '../../skills/dawang-ppt/project/src/fusion/qa/rule-checklist.mjs';
 
@@ -20,7 +20,7 @@ function fixture(t) {
   const lockFile = path.join(root, 'lock.json');
   rules.writeRulesLock({ root, file: lockFile, label: 'fixture' });
   const lock = rules.readRulesLock(lockFile);
-  return (scenario) => kimiRuleItems(scenario, { root, lock });
+  return (scenario) => ruleItems(scenario, { root, lock });
 }
 
 test('items come from numbered/bullet lines of applicable sections; forbidden and workflow sections are not listed', (t) => {
@@ -68,10 +68,10 @@ test('a complete checklist passes and reports what was not applied', (t) => {
 
 test('missing checklist, unrecorded items and unsupported claims are blocked', (t) => {
   const itemsFor = fixture(t);
-  assert.deepEqual(kinds(reviewRuleChecklist(deck(), { itemsFor })), ['kimi-checklist-missing']);
+  assert.deepEqual(kinds(reviewRuleChecklist(deck(), { itemsFor })), ['rules-checklist-missing']);
   const { 'scenario#Visual References#2': _motif, ...partial } = complete;
   const unrecorded = reviewRuleChecklist(deck({ scenario: 'management-report', items: partial }), { itemsFor }).issues[0];
-  assert.equal(unrecorded.kind, 'kimi-rules-unrecorded');
+  assert.equal(unrecorded.kind, 'rules-unrecorded');
   assert.deepEqual(unrecorded.ids, ['scenario#Visual References#2']);
   const weak = reviewRuleChecklist(deck({ scenario: 'management-report', items: {
     ...complete,
@@ -79,22 +79,22 @@ test('missing checklist, unrecorded items and unsupported claims are blocked', (
     'scenario#Clear content#2': applied('封面放完成率', ['cover', 'nope']),
     'scenario#Visual References#1': { status: 'not-applicable' }
   } }), { itemsFor });
-  assert.deepEqual(kinds(weak), ['kimi-rule-evidence-missing', 'kimi-rule-evidence-broken', 'kimi-rule-reason-missing']);
+  assert.deepEqual(kinds(weak), ['rule-evidence-missing', 'rule-evidence-broken', 'rule-reason-missing']);
 });
 
 test('a whole section can be dismissed but not claimed as applied', (t) => {
   const itemsFor = fixture(t);
   const { 'scenario#Visual References#1': _a, 'scenario#Visual References#2': _b, ...rest } = complete;
   const r = reviewRuleChecklist(deck({ scenario: 'management-report', items: { ...rest, 'scenario#Visual References': applied('都做了', ['body', 'motif']) } }), { itemsFor });
-  assert.deepEqual(kinds(r), ['kimi-rule-section-applied', 'kimi-rules-unrecorded']);
+  assert.deepEqual(kinds(r), ['rule-section-applied', 'rules-unrecorded']);
 });
 
 test('unknown scenario or missing rules block; older projects only warn', (t) => {
   const itemsFor = fixture(t);
-  assert.deepEqual(kinds(reviewRuleChecklist(deck({ scenario: 'nope', items: {} }), { itemsFor })), ['kimi-rules-unavailable']);
+  assert.deepEqual(kinds(reviewRuleChecklist(deck({ scenario: 'nope', items: {} }), { itemsFor })), ['rules-unavailable']);
   const old = deck();
   delete old.requirements.ruleContract;
   const r = reviewRuleChecklist(old, { itemsFor });
   assert.deepEqual(r.issues, []);
-  assert.equal(r.warnings[0].kind, 'kimi-checklist-missing');
+  assert.equal(r.warnings[0].kind, 'rules-checklist-missing');
 });
