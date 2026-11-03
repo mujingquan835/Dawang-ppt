@@ -42,6 +42,7 @@ export function buildReviewPacket({ project, rules, pages }) {
     '逐条判断声明是否成立，只以截图上实际看得到的效果为准：',
     '- status=applied：证据页面是否真正满足这条规则的原意。勉强对应判 fail，例如用普通条形图或表格充当“结构图”、用页脚细线或页码充当“视觉母题”、用一句泛泛的工作描述充当封面“关键状态句”、标题只是动作罗列却声称“标题陈述状态或结论”。规则要求的效果在页面上看不出来，也判 fail。',
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
+    '- 原材料本身没有提供的信息（如统计时间、口径、来源）不能要求制作者补造：页面如实标注“待补/未提供”，或以“材料未提供”记为 not-applicable，均判 pass；只有页面把缺失信息写成确定事实，或明明材料里有却没用，才判 fail。',
     'reason 用中文一句话，写出你在截图上看到的依据；fail 时写明缺什么。必须对每条声明各给一条结果，id 原样返回，只输出符合 schema 的 JSON。',
     '',
     '## 页面元素表',
@@ -63,8 +64,14 @@ export function normalizeVerdict(verdict, claims) {
 }
 
 export function writeReview(workspaceDir, project, { reviewer, items }) {
-  const record = { revision: project.revision, checklistHash: checklistHash(project), reviewer, at: new Date().toISOString(), items };
-  fs.writeFileSync(path.join(workspaceDir, REVIEW_FILE), JSON.stringify(record, null, 2));
+  const file = path.join(workspaceDir, REVIEW_FILE);
+  // Rounds count consecutive reviews of this workspace; a pass resets the count for later edits.
+  let previous = null;
+  try { previous = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* first review */ }
+  const passedBefore = previous && previous.items?.every((i) => i.verdict === 'pass');
+  const round = previous && !passedBefore ? (previous.round || 1) + 1 : 1;
+  const record = { revision: project.revision, checklistHash: checklistHash(project), reviewer, at: new Date().toISOString(), round, items };
+  fs.writeFileSync(file, JSON.stringify(record, null, 2));
   return record;
 }
 
@@ -73,7 +80,7 @@ export function reviewGate(project, workspaceDir) {
   const report = (record) => (strict ? issues : warnings).push(record);
   if (!project.contentPlan?.ruleChecklist) return { issues, warnings, review: null, strict };
   const file = workspaceDir && path.join(workspaceDir, REVIEW_FILE);
-  const hint = 'review:rules <工程目录> 运行独立复核后再 publish:html';
+  const hint = '正常步骤，不是失败：同一轮内运行 review:rules <工程目录>，通过后 publish:html，不要先向用户汇报';
   if (!file || !fs.existsSync(file)) { report({ kind: 'rules-review-missing', hint }); return { issues, warnings, review: null, strict }; }
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (record.revision !== project.revision || record.checklistHash !== checklistHash(project)) {
@@ -81,6 +88,6 @@ export function reviewGate(project, workspaceDir) {
     return { issues, warnings, review: null, strict };
   }
   const failed = record.items.filter((i) => i.verdict === 'fail');
-  if (failed.length) report({ kind: 'rules-review-failed', count: failed.length, items: failed.map(({ id, status, reason }) => ({ id, status, reason })) });
+  if (failed.length) report({ kind: 'rules-review-failed', count: failed.length, round: record.round ?? 1, items: failed.map(({ id, status, reason }) => ({ id, status, reason })), hint: '按 reason 改页面后重新 review:rules，同一轮内继续；3 轮仍失败再向用户说明' });
   return { issues, warnings, review: { reviewer: record.reviewer, at: record.at, passed: record.items.length - failed.length, failed: failed.length }, strict };
 }

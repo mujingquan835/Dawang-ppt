@@ -24,7 +24,7 @@ description: 制作、编辑和返工中文演示文稿。以完整制作规则�
 5. **文案与提纲：** 按场景规则对标题、内容的要求和 [文案编辑](references/fusion/content-editing.md) 主动改写，先形成可上屏文案再排版。记录全稿定位句 `contentPlan.throughLine`、逐页重点句 `slides[i].keyLine`（来源 quoted/distilled/created）、只给作者看的 `authorNotes`；字段见 [工程编写速查](references/authoring-api.md)。
 6. **排版（原规则 step3）：** 依据清单与场景规则视觉要求逐页设计，写 authored 工程（`styleId:"authored/custom"`，1920×1080 逻辑画布）。每页写 `visualDecision`（见“视觉执行检查点”）。原规则未覆盖的细节（数字与单位成组、对齐、图文对应等）可查 [Dawang补充做法](references/fusion/visual-authoring.md)。
 7. **生成与检查（原规则 step4）：** `make <authored.json> <用户命名.html> --screenshots <临时目录> --summary`。逐页实际看图，按原规则的 7 项看图清单和 [复核清单](references/fusion/visual-review.md) 修正（局部修改用 `patch:project`）。新稿首次 `make` 会以 `rules-review-missing` 停下，然后进入独立复核。
-8. **独立复核：** `review:rules <workspaceDir>`，fail 项按理由改页面后重新复核，直到通过，再 `publish:html <workspaceDir> <交付.html>`（见“独立复核”）。
+8. **独立复核（同一轮内闭环）：** `review:rules <workspaceDir>`。有 fail 时不结束本轮、不向用户汇报“未通过/还不能交付”：直接按理由改页面（`patch:project`），重新 `review:rules`，最多 3 轮，通过后 `publish:html <workspaceDir> <交付.html>`（见“独立复核”）。
 9. **交付（原规则 step5 由 Dawang 替代）：** 只交付一个 HTML（见“交付与保存”）。回复列出 contentReview（定位句、每页重点句及来源，created 句请用户确认）、visualReview 每页视觉重点、ruleReview 未采用的规则及理由、复核轮次与 fail→修正。用户效果认可单独记录。未经要求不加演讲者备注。
 
 ## 规则清单
@@ -43,6 +43,8 @@ description: 制作、编辑和返工中文演示文稿。以完整制作规则�
 - `review:rules` 截图全稿，把截图、元素表、原规则和清单声明交给一个全新上下文的复核者（默认本机 Codex CLI，只读、不留会话；`DAWANG_REVIEWER_CMD` 可换成其他命令，`DAWANG_REVIEWER_MODEL` 指定模型），逐条判 pass/fail，写入工程的 `rules-review.json`。
 - 复核者看不到制作者的思考。用条形图充当结构图、页脚线充当母题、泛泛描述充当封面状态句、动作罗列充当结论标题等勉强对应会被判 fail。
 - `publish:html` 只接受当前修订、当前清单且无 fail 的复核；之后任何修改都需重新复核。按 fail 理由改页面；确实不适用时改为 not-applicable 并写理由（同样会被复核）。不得编辑或伪造 `rules-review.json`。找不到复核者时告知用户，不跳过。
+- 只有两种情况停下来找用户：fail 的原因是材料缺失（具体问缺哪项数据，同时说明页面已如何标注）；3 轮后仍有 fail（附截图、剩余 fail 理由和可选方案）。停下来时如实说明已完成到哪一步、产物在哪里、需要用户做什么。
+- 回复必须与实际状态一致：本轮结束就是停止，不写“我会继续/接下来我会/你不需要操作”而不做。要继续就在本轮继续执行；做不到就明确说已停止、停在哪里。
 
 ## 视觉执行检查点
 

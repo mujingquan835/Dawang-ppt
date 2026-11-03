@@ -30,6 +30,14 @@ function runReviewer(reviewer, packetDir, packet) {
   return JSON.parse(fs.readFileSync(verdictFile, 'utf8'));
 }
 
+// The result says what to do next, so a failed review continues inside the same turn instead of being reported.
+export const MAX_REVIEW_ROUNDS = 3;
+export function nextStep(failed, round) {
+  if (!failed) return '复核通过：运行 publish:html <workspaceDir> <交付.html>。';
+  if (round >= MAX_REVIEW_ROUNDS) return `已复核 ${round} 轮仍有 fail：停止，向用户说明剩余 fail 理由，附截图与可选方案。`;
+  return '本轮继续，不要结束或向用户汇报未通过：按 failed[].reason 修改页面（patch:project）后再运行 review:rules。原材料缺失导致的 fail：页面如实标注待补，清单改为 not-applicable 并写明材料未提供。';
+}
+
 export async function reviewRulesIndependently({ workspaceDir, reviewer = resolveReviewer(), keepPacket }) {
   if (!reviewer) throw new Error('未找到可用的独立复核者：安装 Codex CLI，或设置 DAWANG_REVIEWER_CMD（命令读取 $PACKET_DIR 并写出 verdict.json）');
   const project = loadProject(path.join(workspaceDir, 'deck-project.json'));
@@ -52,7 +60,7 @@ export async function reviewRulesIndependently({ workspaceDir, reviewer = resolv
     const items = normalizeVerdict(runReviewer(reviewer, packetDir, packet), packet.claims);
     const record = writeReview(workspaceDir, project, { reviewer: reviewer.name, items });
     const failed = items.filter((i) => i.verdict === 'fail');
-    return { ok: !failed.length, reviewer: reviewer.name, revision: record.revision, passed: items.length - failed.length, failed };
+    return { ok: !failed.length, reviewer: reviewer.name, revision: record.revision, round: record.round, passed: items.length - failed.length, failed, next: nextStep(failed.length, record.round) };
   } finally {
     if (!keepPacket) fs.rmSync(packetDir, { recursive: true, force: true });
   }

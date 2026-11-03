@@ -74,3 +74,22 @@ test('older projects only warn, and a custom reviewer command takes priority', (
   assert.equal(r.warnings[0].kind, 'rules-review-missing');
   assert.equal(resolveReviewer({ DAWANG_REVIEWER_CMD: 'claude -p x', PATH: '' }).kind, 'command');
 });
+
+test('failed reviews count rounds and tell the author to keep fixing until the limit', async (t) => {
+  const { nextStep, MAX_REVIEW_ROUNDS } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/independent-review.mjs');
+  const dir = workspace(t), p = project();
+  const fail = [{ id: 'scenario#Visual#1', verdict: 'fail', reason: '缺结构图', status: 'applied' }];
+  assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 1);
+  assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 2);
+  assert.equal(reviewGate(p, dir).issues[0].round, 2);
+  assert.match(nextStep(1, 2), /本轮继续/);
+  assert.match(nextStep(1, MAX_REVIEW_ROUNDS), /停止/);
+  assert.match(nextStep(0, 2), /publish:html/);
+  writeReview(dir, p, { reviewer: 'fake', items: fail.map((i) => ({ ...i, verdict: 'pass' })) });
+  assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 1);
+});
+
+test('the reviewer is told not to fail claims for information the material never had', () => {
+  const packet = buildReviewPacket({ project: project(), rules, pages: [{ slideId: 's', image: 'x' }] });
+  assert.match(packet.prompt, /原材料本身没有提供的信息/);
+});
