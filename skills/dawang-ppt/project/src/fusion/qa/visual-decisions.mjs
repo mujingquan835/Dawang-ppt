@@ -1,5 +1,6 @@
 import { materializeElements } from '../scene/model.mjs';
 import { resolveSlideStyle } from '../styles/registry.mjs';
+import { lintLayout } from './layout-lint.mjs';
 
 // Visual decisions record the design the agent committed to before laying out a page: which words carry the
 // page (focus), and how the main visual and evidence share the space (layout). The check only proves the record
@@ -56,6 +57,7 @@ export function reviewVisualDecisions(project) {
   for (const slide of slides) {
     const where = { slideId: slide.slideId }, decision = plan.slides?.find((s) => s.slideId === slide.slideId)?.visualDecision;
     const all = materializeElements(slide, project);
+    for (const w of lintLayout(all)) warnings.push({ ...w, ...where });
     for (const e of all) {
       if (e.type === 'image' && typeof e.src === 'string' && e.src.startsWith('data:') && e.src.length > INLINE_LIMIT) {
         report({ kind: 'image-inline-src', ...where, elementId: e.id, kb: Math.round(e.src.length / 1024), need: 'media.entries 登记 {mediaId,src}，元素写 mediaRef' });

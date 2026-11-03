@@ -18,7 +18,7 @@
 - 元素 `bounds` 为逻辑 CSS px `[x,y,width,height]`；画布 1920×1080，CSS64px 在PPTX中为32pt。字号、间距使用逻辑 px，lineHeight 为倍数；不自动缩字。
 - `text:measure <specs.json>` 批量接受文字元素字段，返回真实字体高度/宽度/自然宽度/字体可用性；缺字体报 `font-unavailable`，关闭临时浏览器。样例可任意更改构图，直接 elements 与自定义样式始终可用。
 - patch 为 `{expectedRevision,commands:[{type:'text',slideId,elementId,text}]}`；commands 与编辑器一致，富文本清空必须显式 `resetRuns:true`。整批失败不写盘，冲突保留双方。
-- `check <工程目录> [--slides id1,id2] [--screenshots <目录>]`。最终发布全稿检查，内容判断与实际看图检查仍需执行；仅显式 screenshots 才长期保留截图。检查按文字下方实际铺色（先前绘制的纯色形状，再到页面背景）计算对比度：低于 3:1 为 `low-contrast` 错误（新制作阻断）；常规字号低于 4.5:1 列入 `warnings`。压在图片、渐变或 vector 上的文字不计算，需看图确认。重点句检查（新制作为错误，旧工程仅警告）：缺 keyLine/throughLine、依据缺失、keyLine 字号不在本页前两级、定位句不在首末页、authorNotes 内容出现在页面（按字符相似度，改写措辞同样命中）；重点句过长仅警告。结果的 `contentReview` 列出定位句、每页重点句及 created 句。视觉决定检查（新制作为错误）：缺失、未结构化、缺 layout、重点元素不存在、重点未与引导语区分或不是本页第一阅读层级；重点词在后续改字后找不到仅警告 `visual-focus-text-stale`；两页以上且每页重点都是整块标题为错误 `visual-focus-all-titles`；超过 64KB 的 data URI 图片为错误 `image-inline-src`（登记到 media.entries 后用 mediaRef）；页面只有文字与细线警告 `visual-text-only`；三页以上焦点位置与主体区域完全相同警告 `visual-layout-repeated`，过半页 waived 警告 `visual-decisions-mostly-waived`。结果的 `visualReview` 列出每页重点与构图说明。程序只证明决定落到了元素上，不评价美观。规则清单检查（新制作为错误）：缺 `ruleChecklist`、场景无效或原规则不可用/与锁定不一致、有条目未记录（`rules-unrecorded` 列出 id）、applied 缺 how 或 evidence、evidence 指向不存在的元素、整章记为 applied、未采用缺 reason；过半未采用警告。结果的 `ruleReview` 给出条目数、各状态计数与 notApplied。独立复核：`review:rules <工程目录> [--keep-packet <目录>]` 截图后调用复核者（默认 Codex CLI `exec --ephemeral -s read-only`，附截图与 `--output-schema`；`DAWANG_REVIEWER_CMD` 命令在 `$PACKET_DIR` 读取 prompt.txt/schema.json/claims.json/images 并写出 verdict.json），结果写入 `rules-review.json`（绑定 revision 与清单哈希）。发布检查：缺复核 `rules-review-missing`、修订或清单已变 `rules-review-stale`、有 fail `rules-review-failed`（列出 id 与理由）；结果的 `independentReview` 给出复核者与通过/失败数。
+- `check <工程目录> [--slides id1,id2] [--screenshots <目录>]`。最终发布全稿检查，内容判断与实际看图检查仍需执行；仅显式 screenshots 才长期保留截图。检查按文字下方实际铺色（先前绘制的纯色形状，再到页面背景）计算对比度：低于 3:1 为 `low-contrast` 错误（新制作阻断）；常规字号低于 4.5:1 列入 `warnings`。压在图片、渐变或 vector 上的文字不计算，需看图确认。重点句检查（新制作为错误，旧工程仅警告）：缺 keyLine/throughLine、依据缺失、keyLine 字号不在本页前两级、定位句不在首末页、authorNotes 内容出现在页面（按字符相似度，改写措辞同样命中）；重点句过长仅警告。结果的 `contentReview` 列出定位句、每页重点句及 created 句。视觉决定检查（新制作为错误）：缺失、未结构化、缺 layout、重点元素不存在、重点未与引导语区分或不是本页第一阅读层级；重点词在后续改字后找不到仅警告 `visual-focus-text-stale`；两页以上且每页重点都是整块标题为错误 `visual-focus-all-titles`；超过 64KB 的 data URI 图片为错误 `image-inline-src`（改用文件路径作 src，或登记到 media.entries 后用 mediaRef）；几何检查警告：同行图片不等高 `image-row-uneven`、数字与单位分成两个元素且距离过远 `metric-unit-detached`、相邻文字左缘差 2–10px `near-misaligned`、图片显示超过原始像素 2 倍 `image-upscaled`；页面只有文字与细线警告 `visual-text-only`；三页以上焦点位置与主体区域完全相同警告 `visual-layout-repeated`，过半页 waived 警告 `visual-decisions-mostly-waived`。结果的 `visualReview` 列出每页重点与构图说明。程序只证明决定落到了元素上，不评价美观。规则清单检查（新制作为错误）：缺 `ruleChecklist`、场景无效或原规则不可用/与锁定不一致、有条目未记录（`rules-unrecorded` 列出 id）、applied 缺 how 或 evidence、evidence 指向不存在的元素、整章记为 applied、未采用缺 reason；过半未采用警告。结果的 `ruleReview` 给出条目数、各状态计数与 notApplied。独立复核：`review:rules <工程目录> [--keep-packet <目录>]` 截图后调用复核者（默认 Codex CLI `exec --ephemeral -s read-only`，附截图与 `--output-schema`；`DAWANG_REVIEWER_CMD` 命令在 `$PACKET_DIR` 读取 prompt.txt/schema.json/claims.json/images 并写出 verdict.json），结果写入 `rules-review.json`（绑定 revision 与清单哈希）。发布检查：缺复核 `rules-review-missing`、修订或清单已变 `rules-review-stale`、有 fail `rules-review-failed`（列出 id 与理由）；结果的 `independentReview` 给出复核者与通过/失败数。
 
 ## 交付与保存
 
@@ -40,5 +40,29 @@
 const text = createTextAuthor({baseStyle:{fontFamily:'PingFang SC'},roles:{title:{fontSize:72},body:{fontSize:36}}});
 const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:[120,140,1500,120]});
 ```
+
+## 排版工具与页型
+
+排版用 `project/src/fusion/authoring/layout-kit.mjs` 与 `patterns.mjs`，不手算对齐坐标。每个工具返回 `{elements,height}`，按返回高度往下堆叠。完整用法见 `examples/layout-patterns.mjs`（合成示例，每个页型一页）。
+
+- `createTheme({palette:{bg,ink,accent,muted,line,pale,inverse},fontFamily})`、`createGrid({margin:96,columns:12,gutter:32})`：`grid.span(起始栏,栏数)` 返回 `[x,width]`。
+- `metricGroup` / `metricRow({items:[{value,unit,label}],size})`：数值与单位在同一文字元素的 runs 内，名称紧贴其下；并列指标等宽同基线。
+- `flow({steps:[{title,detail}]})`：编号圆点、箭头连线，标题与说明从节点左缘起排；编号固定 28px 粗体，节点不小于 48px。
+- `numberedList({items:[{title,detail}]})`、`table({columns:[{key,label,width,size,weight,color}],rows})`、`panel({bounds,fill,radius})`、`textBlock`。
+- `imageRow` / `imageGrid({images:[{src,file?,size?,caption}],perRow:'auto'})`：同行等高、按原始比例分宽，不把图片放大到原始像素 2 倍以上；`auto` 会在分行与“左侧高图、右侧堆叠”拼贴中取图片面积最大且放得下的一种。真实图片用文件路径作 `src`，`imageSize(file)` 读取原始尺寸（make 会登记到图片台账）。
+- `estimateLines` / `textHeight`：中文按 1 字宽、西文按 0.55 字宽估算行数与高度。
+
+页型返回 `{elements,visualDecision}`，可把 `visualDecision` 直接写入 `contentPlan.slides[i]`：
+
+| 页型 | 适用 |
+|---|---|
+| `pageHeader({eyebrow,title,focus,subtitle,page,total,source})` | 所有页的页头页脚；`focus` 是标题中要强调的一段，以 runs 着强调色 |
+| `tableWithFlows({header,table,flows,note})` | 分工表加下方色带中的一到两条流程 |
+| `metricsWithEvidence({header,hero,secondary,flow,notes,image})` | 主指标、次级指标行、机制流程，右侧证据图 |
+| `listWithPhotos({header,items,metrics,photos,note})` | 编号资源与复盘，右侧结果指标与照片 |
+| `tableWithPanel({header,table,panel:{title,chains}})` | 明细表加深色侧栏应用链 |
+| `twoLaneFlow({header,lanes,conclusion})` | 两条并列流程 |
+
+页型是起点，不是模板：可改参数、增删元素，或不用页型自行设计；内容放不下时页型会报错，按提示精简或换页型，不要缩小字号硬塞。
 
 运行记录的浏览器就绪、渲染、QA等是程序计时，不包含完整模型制作成本。`runs.jsonl`保留多轮程序记录，不自动测量模型/平台等待。
