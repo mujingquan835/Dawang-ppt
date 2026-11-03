@@ -48,11 +48,28 @@ test('a focus left inside one uniform title box is caught', () => {
   assert.deepEqual(kinds(r), ['visual-focus-not-distinct', 'visual-focus-not-leading']);
 });
 
-test('identical compositions across the deck are flagged for a second look', () => {
+test('the same title-bar page repeated across the deck is blocked and flagged', () => {
   const same = [0, 1, 2].map((i) => [text(`t${i}`, `第${i}页结论`, 76, [100, 100, 1700, 100]), text(`b${i}`, '正文', 28, [100, 300, 1700, 600])]);
   const r = reviewVisualDecisions(createAuthoredProject(input(same.map((_, i) => ({ focus: { elementId: `t${i}` }, layout: '顶栏+正文' })), same)));
-  assert.deepEqual(r.issues, []);
+  // Every page "chose" its whole title, which is the largest text anyway: no page made a focus decision.
+  assert.deepEqual(kinds(r), ['visual-focus-all-titles']);
   assert(r.warnings.some((w) => w.kind === 'visual-layout-repeated'));
+  assert.equal(r.warnings.filter((w) => w.kind === 'visual-text-only').length, 3);
+});
+
+test('a page with a shape or image is not text-only, and large inline photos are blocked', () => {
+  const photo = 'data:image/png;base64,' + 'A'.repeat(70 * 1024), icon = 'data:image/svg+xml;base64,' + 'A'.repeat(200);
+  const pages = [
+    [...titled[0], { id: 'bar', type: 'shape', bounds: [96, 900, 600, 40], style: { fill: '#123B2F' } }],
+    [...titled[1], { id: 'p', type: 'image', src: photo, bounds: [1000, 600, 400, 300] }],
+    [...titled[2], { id: 'i', type: 'image', src: icon, bounds: [1600, 100, 100, 100] }]
+  ];
+  const r = reviewVisualDecisions(createAuthoredProject(input([
+    { focus: { elementId: 't', text: '画面跟随' }, layout: '错位文字' }, { focus: { elementId: 'big' }, layout: '大数字' }, { waived: '结束页' }
+  ], pages)));
+  assert.deepEqual(kinds(r), ['image-inline-src']);
+  assert.equal(r.issues[0].elementId, 'p');
+  assert.deepEqual(r.warnings.filter((w) => w.kind === 'visual-text-only'), []);
 });
 
 test('projects made before the contract only get warnings', () => {

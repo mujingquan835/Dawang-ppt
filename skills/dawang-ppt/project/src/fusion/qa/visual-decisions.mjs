@@ -34,6 +34,15 @@ function signature(slide, project, focusId) {
   return JSON.stringify([focus?.bounds?.slice(0, 3).map(grid), large]);
 }
 
+// The page title: the topmost of the large texts. A whole-title focus on every page means no page chose its own focus.
+function titleOf(texts, style) {
+  const top = Math.max(...texts.map((e) => sizeOf(e, style)));
+  return texts.filter((e) => sizeOf(e, style) >= top * 0.6).sort((a, b) => (a.bounds?.[1] ?? 0) - (b.bounds?.[1] ?? 0))[0];
+}
+// Photos embedded as data URIs bypass the media ledger and are copied into every revision; small inline icons are fine.
+const INLINE_LIMIT = 64 * 1024;
+const PLAIN = new Set(['text', 'line']);
+
 export function reviewVisualDecisions(project) {
   const strict = project.requirements?.visualContract === VISUAL_CONTRACT, issues = [], warnings = [];
   // New authored decks are blocked; older projects only see warnings, so existing work keeps publishing.
@@ -42,10 +51,18 @@ export function reviewVisualDecisions(project) {
   const hidden = new Set([...(state.deletedSlides || []), ...(state.skippedSlides || [])]);
   const slides = (state.slideOrder || project.slides.map((s) => s.slideId)).map((id) => project.slides.find((s) => s.slideId === id))
     .filter((s) => s && !hidden.has(s.slideId) && s.mode === 'composition' && s.authoring);
-  const review = { slides: [] }, signatures = [];
+  const review = { slides: [] }, signatures = [], titleFocus = [];
 
   for (const slide of slides) {
     const where = { slideId: slide.slideId }, decision = plan.slides?.find((s) => s.slideId === slide.slideId)?.visualDecision;
+    const all = materializeElements(slide, project);
+    for (const e of all) {
+      if (e.type === 'image' && typeof e.src === 'string' && e.src.startsWith('data:') && e.src.length > INLINE_LIMIT) {
+        report({ kind: 'image-inline-src', ...where, elementId: e.id, kb: Math.round(e.src.length / 1024), need: 'media.entries 登记 {mediaId,src}，元素写 mediaRef' });
+      }
+    }
+    // Only text and hairlines: hierarchy has nothing but type size to work with. Warned, not blocked; some pages are text by nature.
+    if (all.length && all.every((e) => PLAIN.has(e.type)) && !decision?.waived) warnings.push({ kind: 'visual-text-only', ...where, hint: '只有文字和细线：考虑尺度对比、结构图、证据画面、视觉母题或色面分区（见 Dawang补充做法）' });
     if (!decision) { report({ kind: 'visual-decision-missing', ...where }); continue; }
     if (typeof decision === 'string') { report({ kind: 'visual-decision-unstructured', ...where, need: 'focus.elementId, layout' }); continue; }
     if (nonempty(decision.waived)) { review.slides.push({ ...where, waived: decision.waived }); continue; }
@@ -63,11 +80,16 @@ export function reviewVisualDecisions(project) {
       // Focus is its own element: it should be the first thing read on the page.
       const style = resolveSlideStyle(slide, project), top = Math.max(...texts.map((e) => sizeOf(e, style)));
       if (sizeOf(element, style) < top) report({ kind: 'visual-focus-not-leading', ...where, elementId: element.id, fontSize: sizeOf(element, style), topSize: top });
+      if (titleOf(texts, style)?.id === element.id) titleFocus.push(slide.slideId);
     }
     review.slides.push({ ...where, focus: focusText, layout: decision.layout });
     signatures.push({ slideId: slide.slideId, sig: signature(slide, project, element.id) });
   }
 
+  const decided = review.slides.filter((s) => !s.waived).length;
+  if (decided >= 2 && titleFocus.length === decided) {
+    report({ kind: 'visual-focus-all-titles', slideIds: titleFocus, need: '至少一页选标题以外的重点（大数字、关键词、结构图节点），或用 focus.text 指定标题中用 runs 区分的一段' });
+  }
   const waived = review.slides.filter((s) => s.waived).length;
   if (slides.length >= 3 && waived * 2 > slides.length) warnings.push({ kind: 'visual-decisions-mostly-waived', waived, total: slides.length });
   if (signatures.length >= 3 && new Set(signatures.map((s) => s.sig)).size === 1) {

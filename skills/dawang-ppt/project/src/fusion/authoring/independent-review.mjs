@@ -35,7 +35,7 @@ export const MAX_REVIEW_ROUNDS = 3;
 export function nextStep(failed, round) {
   if (!failed) return '复核通过：运行 publish:html <workspaceDir> <交付.html>。';
   if (round >= MAX_REVIEW_ROUNDS) return `已复核 ${round} 轮仍有 fail：停止，向用户说明剩余 fail 理由，附截图与可选方案。`;
-  return '本轮继续，不要结束或向用户汇报未通过：按 failed[].reason 修改页面（patch:project）后再运行 review:rules。原材料缺失导致的 fail：页面如实标注待补，清单改为 not-applicable 并写明材料未提供。';
+  return '本轮继续，不要结束或向用户汇报未通过：按 failed[].reason 修改页面（patch:project）后再运行 review:rules。版式、精致度、结构图、视觉母题类 fail 要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。原材料缺失导致的 fail：页面如实标注待补，清单改为 not-applicable 并写明材料未提供。';
 }
 
 export async function reviewRulesIndependently({ workspaceDir, reviewer = resolveReviewer(), keepPacket }) {
