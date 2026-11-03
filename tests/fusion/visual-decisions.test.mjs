@@ -6,12 +6,14 @@ import { reviewVisualDecisions } from '../../skills/dawang-ppt/project/src/fusio
 // Synthetic three-page deck; wording and geometry are test material, not a template.
 const text = (id, value, fontSize, bounds, extra = {}) => ({ id, type: 'text', text: value, bounds, style: { fontSize, fontWeight: 400, color: '#222222' }, ...extra });
 const runs = (id, parts, bounds) => text(id, parts.map((p) => p[0]).join(''), 64, bounds, { runs: parts.map(([t, style]) => ({ text: t, style })) });
+// Zones are checked in their own test; elsewhere a decision gets one full-page zone unless it brings its own.
+const withZone = (d) => (d && typeof d === 'object' && !d.waived && !('zones' in d) ? { ...d, zones: [{ id: 'page', role: 'support', bounds: [0, 0, 1920, 1080] }] } : d);
 function input(decisions, slides) {
   return {
     requirements: { projectId: 'visual-decisions-test', title: '合成测试' },
     sources: { entries: [{ sourceId: 'fixture', kind: 'synthetic' }] }, media: { entries: [] },
     designChoice: { styleId: 'authored/custom' },
-    contentPlan: { nodes: {}, slides: decisions.map((visualDecision, i) => ({ slideId: `s${i}`, visualDecision })) },
+    contentPlan: { nodes: {}, slides: decisions.map((visualDecision, i) => ({ slideId: `s${i}`, visualDecision: withZone(visualDecision) })) },
     slides: slides.map((elements, i) => ({ slideId: `s${i}`, elements }))
   };
 }
@@ -78,4 +80,17 @@ test('projects made before the contract only get warnings', () => {
   const r = reviewVisualDecisions(project);
   assert.deepEqual(r.issues, []);
   assert.equal(r.warnings.filter((w) => w.kind === 'visual-decision-missing').length, 3);
+});
+
+test('v2 decks need zones that do not overlap and hold the page content', () => {
+  const z = (id, role, bounds) => ({ id, role, bounds });
+  const run = (zones) => kinds(reviewVisualDecisions(createAuthoredProject(input([
+    { focus: { elementId: 't', text: '画面跟随' }, layout: '错位文字', zones }, { waived: '略' }, { waived: '略' }
+  ], titled))));
+  assert.deepEqual(run(undefined).filter((k) => k.startsWith('visual-zone')), ['visual-zones-missing']);
+  assert.deepEqual(run([z('a', 'focus', [0, 250, 1920, 300]), z('b', 'support', [0, 560, 1920, 200])]), []);
+  assert.deepEqual(run([z('a', 'focus', [0, 250, 1920, 300]), z('b', 'support', [0, 400, 1920, 400])]), ['visual-zones-overlap']);
+  assert.deepEqual(run([z('a', 'focus', [0, 250, 1920, 300]), z('b', 'nope', [0, 600, 100, 100])]), ['visual-zone-invalid']);
+  // The body text (y 600–660) sits between the zones' top and bottom but inside neither.
+  assert.deepEqual(run([z('a', 'focus', [0, 250, 1920, 300]), z('b', 'support', [1500, 560, 400, 200])]), ['visual-element-outside-zones']);
 });

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { loadProject } from '../project/store.mjs';
 import { ruleItems } from '../rules/items.mjs';
-import { buildReviewPacket, normalizeVerdict, writeReview } from '../qa/rules-review.mjs';
+import { buildReviewPacket, normalizeVerdict, writeReview, checklistHash, REVIEW_FILE } from '../qa/rules-review.mjs';
 
 const CODEX_CANDIDATES = ['/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex', '/Applications/Codex.app/Contents/Resources/codex'];
 const onPath = (name) => (process.env.PATH || '').split(path.delimiter).map((dir) => path.join(dir, name)).find((file) => fs.existsSync(file));
@@ -38,7 +38,17 @@ export function nextStep(failed, round) {
   return '本轮继续，不要结束或向用户汇报未通过：按 failed[].reason 修改页面（patch:project）后再运行 review:rules。版式、精致度、结构图、视觉母题类 fail 要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。原材料缺失导致的 fail：页面如实标注待补，清单改为 not-applicable 并写明材料未提供。';
 }
 
-export async function reviewRulesIndependently({ workspaceDir, reviewer = resolveReviewer(), keepPacket }) {
+// A follow-up round re-judges only the previous fails (same checklist) and carries the passes, which keeps later
+// rounds short. full: true judges everything again.
+export function previousRound(workspaceDir, project) {
+  try {
+    const record = JSON.parse(fs.readFileSync(path.join(workspaceDir, REVIEW_FILE), 'utf8'));
+    if (record.checklistHash !== checklistHash(project) || !record.items?.some((i) => i.verdict === 'fail')) return null;
+    return record;
+  } catch { return null; }
+}
+
+export async function reviewRulesIndependently({ workspaceDir, reviewer = resolveReviewer(), keepPacket, full = false }) {
   if (!reviewer) throw new Error('未找到可用的独立复核者：安装 Codex CLI，或设置 DAWANG_REVIEWER_CMD（命令读取 $PACKET_DIR 并写出 verdict.json）');
   const project = loadProject(path.join(workspaceDir, 'deck-project.json'));
   const checklist = project.contentPlan?.ruleChecklist;
@@ -53,14 +63,18 @@ export async function reviewRulesIndependently({ workspaceDir, reviewer = resolv
     if (!check.qa?.pages?.length) throw new Error('无法截图复核：' + JSON.stringify(check.issues || []).slice(0, 400));
     const files = fs.readdirSync(shots).filter((f) => f.endsWith('.png')).sort();
     const pages = check.qa.pages.map((page, i) => ({ slideId: page.slideId, image: path.join(shots, files[i]) }));
-    const packet = buildReviewPacket({ project, rules, pages });
+    const previous = full ? null : previousRound(workspaceDir, project);
+    const only = previous && new Set(previous.items.filter((i) => i.verdict === 'fail').map((i) => i.id));
+    const packet = buildReviewPacket({ project, rules, pages, only });
     fs.writeFileSync(path.join(packetDir, 'prompt.txt'), packet.prompt);
     fs.writeFileSync(path.join(packetDir, 'schema.json'), JSON.stringify(packet.schema));
     fs.writeFileSync(path.join(packetDir, 'claims.json'), JSON.stringify(packet.claims, null, 2));
-    const items = normalizeVerdict(runReviewer(reviewer, packetDir, packet), packet.claims);
+    const judged = normalizeVerdict(runReviewer(reviewer, packetDir, packet), packet.claims);
+    const carried = previous ? previous.items.filter((i) => i.verdict === 'pass' && packet.all.some((c) => c.id === i.id)).map((i) => ({ ...i, carried: true })) : [];
+    const items = [...carried, ...judged];
     const record = writeReview(workspaceDir, project, { reviewer: reviewer.name, items });
     const failed = items.filter((i) => i.verdict === 'fail');
-    return { ok: !failed.length, reviewer: reviewer.name, revision: record.revision, round: record.round, passed: items.length - failed.length, failed, next: nextStep(failed.length, record.round) };
+    return { ok: !failed.length, reviewer: reviewer.name, revision: record.revision, round: record.round, judged: judged.length, carried: carried.length, passed: items.length - failed.length, failed, next: nextStep(failed.length, record.round) };
   } finally {
     if (!keepPacket) fs.rmSync(packetDir, { recursive: true, force: true });
   }

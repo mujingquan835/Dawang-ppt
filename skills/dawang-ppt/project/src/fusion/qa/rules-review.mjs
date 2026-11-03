@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { materializeElements } from '../scene/model.mjs';
-import { isRuleContract } from './rule-checklist.mjs';
+import { isRuleContract, isSectionChecklist } from './rule-checklist.mjs';
 
 // Independent review of the production rule checklist. The author fills the checklist; a reviewer with a fresh context
 // sees only the page screenshots, an element map, the rule text and the claims, and judges each claim. Publishing
@@ -29,8 +29,18 @@ export function reviewClaims(project, rules) {
   });
 }
 
-export function buildReviewPacket({ project, rules, pages }) {
-  const claims = reviewClaims(project, rules);
+// Concrete visual criteria judged with the rules on new decks. Their fails name a page and a defect the author can fix,
+// unlike a general "not polished enough".
+export const VISUAL_CLAIMS = [
+  { id: 'visual#alignment', rule: '同组元素共用对齐线；流程节点与下方说明逐一对应；同一行图片等高；数字与单位成组，不被拉开' },
+  { id: 'visual#hierarchy', rule: '每页第一眼读到的是本页重点；主次在实际尺寸上看得出，不是等大文字堆叠，也不是每页同一个结构' },
+  { id: 'visual#images', rule: '图片关键区域看得清、比例未变形、裁切没有切掉主体；图片与旁边的说明对应；页面没有大块无意义空白' }
+].map((c) => ({ ...c, status: 'visual' }));
+
+// only: claim ids to judge this round (a follow-up round re-checks the previous fails).
+export function buildReviewPacket({ project, rules, pages, only }) {
+  const all = [...reviewClaims(project, rules), ...(isSectionChecklist(project) ? VISUAL_CLAIMS : [])];
+  const claims = only ? all.filter((c) => only.has(c.id)) : all;
   const slides = pages.map(({ slideId }, index) => {
     const slide = project.slides.find((s) => s.slideId === slideId);
     const elements = materializeElements(slide, project).map((e) => ({ id: e.id, type: e.type, ...(e.text ? { text: String(e.text).slice(0, 80) } : {}), bounds: (e.bounds || []).map(Math.round) }));
@@ -42,6 +52,7 @@ export function buildReviewPacket({ project, rules, pages }) {
     '逐条判断声明是否成立，只以截图上实际看得到的效果为准：',
     '- status=applied：证据页面是否真正满足这条规则的原意。勉强对应判 fail，例如用普通条形图或表格充当“结构图”、用页脚细线或页码充当“视觉母题”、用一句泛泛的工作描述充当封面“关键状态句”、标题只是动作罗列却声称“标题陈述状态或结论”。规则要求的效果在页面上看不出来，也判 fail。',
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
+    '- status=visual：按给出的视觉标准逐页看图，任一页明显不符判 fail；reason 写出页码和具体问题（例如“第2页：流程说明与节点错位”）。',
     '- 原材料本身没有提供的信息（如统计时间、口径、来源）不能要求制作者补造：页面如实标注“待补/未提供”，或以“材料未提供”记为 not-applicable，均判 pass；只有页面把缺失信息写成确定事实，或明明材料里有却没用，才判 fail。',
     'reason 用中文一句话，写出你在截图上看到的依据；fail 时写明缺什么。必须对每条声明各给一条结果，id 原样返回，只输出符合 schema 的 JSON。',
     '',
@@ -51,7 +62,7 @@ export function buildReviewPacket({ project, rules, pages }) {
     '## 规则与声明',
     JSON.stringify(claims)
   ].join('\n');
-  return { prompt, claims, images: pages.map((p) => p.image), schema: VERDICT_SCHEMA };
+  return { prompt, claims, all, images: pages.map((p) => p.image), schema: VERDICT_SCHEMA };
 }
 
 // Missing or duplicated verdicts make the review unusable rather than silently passing those claims.

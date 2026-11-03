@@ -6,7 +6,33 @@ import { lintLayout } from './layout-lint.mjs';
 // page (focus), and how the main visual and evidence share the space (layout). The check only proves the record
 // reached the slide — the focus is visibly set apart from its lead-in — and never scores taste. Reading the
 // visual rules is not evidence they were applied; this is the hook that makes a skipped decision visible.
-export const VISUAL_CONTRACT = 'visual-decisions-v1';
+export const VISUAL_CONTRACT = 'visual-decisions-v2';
+// v2 adds zones: the page is divided before elements are placed. v1 decks keep the v1 checks.
+const STRICT_CONTRACTS = new Set(['visual-decisions-v1', VISUAL_CONTRACT]);
+const ZONE_ROLES = new Set(['focus', 'evidence', 'support', 'flow', 'data', 'note', 'media']);
+const area = ([, , w, h]) => w * h;
+const overlap = (a, b) => Math.max(0, Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0])) * Math.max(0, Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]));
+const validBounds = (b) => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0 && b[0] >= 0 && b[1] >= 0 && b[0] + b[2] <= 1920 && b[1] + b[3] <= 1080;
+
+// Zones must be valid, must not overlap, and every text or image between the first zone's top and the last zone's
+// bottom must sit (by its centre) in some zone. Header and footer above or below all zones are page chrome.
+function checkZones(zones, elements, where, report) {
+  if (!Array.isArray(zones) || !zones.length) { report({ kind: 'visual-zones-missing', ...where, need: 'visualDecision.zones:[{id,role,bounds}]' }); return; }
+  const bad = zones.filter((z) => !z?.id || !ZONE_ROLES.has(z.role) || !validBounds(z.bounds));
+  if (bad.length) { report({ kind: 'visual-zone-invalid', ...where, zones: bad.map((z) => z?.id ?? null), roles: [...ZONE_ROLES] }); return; }
+  for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
+    const o = overlap(zones[i].bounds, zones[j].bounds);
+    if (o > 0.01 * Math.min(area(zones[i].bounds), area(zones[j].bounds))) report({ kind: 'visual-zones-overlap', ...where, zones: [zones[i].id, zones[j].id] });
+  }
+  const top = Math.min(...zones.map((z) => z.bounds[1])), bottom = Math.max(...zones.map((z) => z.bounds[1] + z.bounds[3]));
+  const outside = elements.filter((e) => (e.type === 'text' || e.type === 'image') && Array.isArray(e.bounds)).filter((e) => {
+    const [x, y, w, h] = e.bounds;
+    if (y + h <= top + 4 || y >= bottom - 4) return false;
+    const cx = x + w / 2, cy = y + h / 2;
+    return !zones.some(({ bounds: [zx, zy, zw, zh] }) => cx >= zx && cx <= zx + zw && cy >= zy && cy <= zy + zh);
+  });
+  if (outside.length) report({ kind: 'visual-element-outside-zones', ...where, elementIds: outside.slice(0, 12).map((e) => e.id), count: outside.length });
+}
 const nonempty = (value) => typeof value === 'string' && value.trim().length > 0;
 const STYLE_KEYS = ['fontSize', 'fontWeight', 'color', 'fontFamily'];
 const look = (style, base) => STYLE_KEYS.map((key) => String(style?.[key] ?? base?.[key] ?? '').toLowerCase()).join('|');
@@ -45,7 +71,7 @@ const INLINE_LIMIT = 64 * 1024;
 const PLAIN = new Set(['text', 'line']);
 
 export function reviewVisualDecisions(project) {
-  const strict = project.requirements?.visualContract === VISUAL_CONTRACT, issues = [], warnings = [];
+  const contract = project.requirements?.visualContract, strict = STRICT_CONTRACTS.has(contract), zonesRequired = contract === VISUAL_CONTRACT, issues = [], warnings = [];
   // New authored decks are blocked; older projects only see warnings, so existing work keeps publishing.
   const report = (record) => (strict ? issues : warnings).push(record);
   const plan = project.contentPlan || {}, state = project.editorState || {};
@@ -84,7 +110,8 @@ export function reviewVisualDecisions(project) {
       if (sizeOf(element, style) < top) report({ kind: 'visual-focus-not-leading', ...where, elementId: element.id, fontSize: sizeOf(element, style), topSize: top });
       if (titleOf(texts, style)?.id === element.id) titleFocus.push(slide.slideId);
     }
-    review.slides.push({ ...where, focus: focusText, layout: decision.layout });
+    if (zonesRequired) checkZones(decision.zones, all, where, report);
+    review.slides.push({ ...where, focus: focusText, layout: decision.layout, ...(decision.zones ? { zones: decision.zones.map((z) => `${z.id}:${z.role}`) } : {}) });
     signatures.push({ slideId: slide.slideId, sig: signature(slide, project, element.id) });
   }
 

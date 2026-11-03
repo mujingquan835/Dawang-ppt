@@ -24,7 +24,8 @@ export function pageHeader({ theme, grid, eyebrow, title, focus, subtitle, page,
   return { elements, bottom: Math.round(bottom), focus: { elementId: 'title', ...(at < 0 ? {} : { text: focus }) } };
 }
 
-const decision = (header, layout) => ({ focus: header.focus, layout });
+// zones: [id, role, [x, y, w, h]] for the page's regions; the visual check keeps elements inside them.
+const decision = (header, layout, zones) => ({ focus: header.focus, layout, zones: zones.map(([id, role, b]) => ({ id, role, bounds: b.map(Math.round) })) });
 
 // Work-split table on top, one or two flows on a full-width colour band below.
 export function tableWithFlows({ theme, grid, header, table: t, flows, note }) {
@@ -39,7 +40,7 @@ export function tableWithFlows({ theme, grid, header, table: t, flows, note }) {
     elements.push(...flow({ id: `flow-${i + 1}`, x: lx, y: bandY + 108, width: laneW, steps: f.steps, theme }).elements);
   });
   if (note) elements.push(textElement({ id: 'flow-note', text: note, bounds: [grid.left, FOOTER_TOP - 76, grid.width, 36], style: theme.font(24, { fontWeight: 700, color: p.ink }) }));
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '上方分工表按支持层级排列，下方色带承载共用流程，节点与说明对齐') };
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '上方分工表按支持层级排列，下方色带承载共用流程，节点与说明对齐', [['table', 'data', [grid.left, top, grid.width, tb.height + 24]], ['flows', 'flow', [grid.left, bandY + 20, grid.width, FOOTER_TOP - bandY - 40]]]) };
 }
 
 // One or two hero numbers, a secondary metric row (same 40px gap, so its columns land on the hero columns), a mechanism flow and notes on the left; evidence image right.
@@ -65,7 +66,7 @@ export function metricsWithEvidence({ theme, grid, header, hero, secondary = [],
   elements.push(panel({ id: 'evidence-panel', bounds: [rx, top, rw, ph], radius: 12, theme }));
   elements.push({ type: 'image', id: 'evidence', src: image.src, bounds: [rx + 24, top + 24, rw - 48, ph - 48], fit: 'contain', ...(image.alt ? { alt: image.alt } : {}) });
   if (image.caption) elements.push(textElement({ id: 'evidence-caption', text: image.caption, bounds: [rx, top + ph + 12, rw, 30], style: theme.font(19, { color: p.muted }) }));
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧主指标放大承担主视觉，次级指标同基线成行，下接机制流程；右侧色面完整展示证据图') };
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧主指标放大承担主视觉，次级指标同基线成行，下接机制流程；右侧色面完整展示证据图', [['metrics', 'focus', [lx, top, lw, y - top]], ['evidence', 'evidence', [rx, top, rw, ph + 50]]]) };
 }
 
 // Numbered resources and a review note on the left; result metrics over a photo grid on the right.
@@ -82,7 +83,7 @@ export function listWithPhotos({ theme, grid, header, items, metrics = [], photo
   if (metrics.length) { const m = metricRow({ id: 'result', x: rx, y, width: rw, items: metrics, size: 80, gap: 32, theme }); elements.push(...m.elements); y += m.height + 40; }
   const g = imageGrid({ id: 'photos', x: rx, y, width: rw, images: photos, perRow, theme, maxHeight: FOOTER_TOP - y - 60 });
   elements.push(...g.elements);
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧编号资源与复盘判断，右上结果指标，右下照片同行等高对应资源') };
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧编号资源与复盘判断，右上结果指标，右下照片同行等高对应资源', [['items', 'support', [lx, top, lw, FOOTER_TOP - top - 20]], ['results', 'evidence', [rx, top, rw, FOOTER_TOP - top - 20]]]) };
 }
 
 // Detail table on the left; a dark side panel carries chains or key points.
@@ -103,7 +104,7 @@ export function tableWithPanel({ theme, grid, header, table: t, panel: side }) {
     });
     y += 28;
   });
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧逐行明细表，右侧深色侧栏用节点链说明应用路径') };
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧逐行明细表，右侧深色侧栏用节点链说明应用路径', [['table', 'data', [lx, top, rx - lx - grid.gutter, ph]], ['panel', 'flow', [rx, top, rw, ph]]]) };
 }
 
 // Two parallel flows, each with its title in the left columns, and a conclusion line.
@@ -117,5 +118,5 @@ export function twoLaneFlow({ theme, grid, header, lanes, conclusion }) {
     if (i < lanes.length - 1) elements.push(lineElement({ id: `lane-rule-${i + 1}`, from: [grid.left, y - 28], to: [grid.right, y - 28], style: { stroke: p.line, strokeWidth: 1 } }));
   });
   if (conclusion) elements.push(textElement({ id: 'conclusion', text: conclusion, bounds: [fx, y + 8, fw, 40], style: theme.font(26, { fontWeight: 700, color: p.accent }) }));
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '两条流程上下并列，标题在左，节点与说明逐一对齐') };
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '两条流程上下并列，标题在左，节点与说明逐一对齐', [['lanes', 'flow', [grid.left, top, grid.width, Math.min(FOOTER_TOP - 20, y + 60) - top]]]) };
 }

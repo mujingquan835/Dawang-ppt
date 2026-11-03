@@ -28,6 +28,7 @@ import { reviewVisualDecisions } from "../src/fusion/qa/visual-decisions.mjs";
 import { reviewRuleChecklist } from "../src/fusion/qa/rule-checklist.mjs";
 import { ruleItems } from "../src/fusion/rules/items.mjs";
 import { reviewRulesIndependently } from "../src/fusion/authoring/independent-review.mjs";
+import { writeWireframes } from "../src/fusion/qa/wireframe.mjs";
 const caller = process.env.INIT_CWD || process.cwd();
 const absolute = (file) => path.resolve(caller, file);
 function resolveBriefContents(brief, style) {
@@ -104,8 +105,9 @@ async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
 }
 async function main(args = process.argv.slice(2)) {
   const [mode, input, output] = args;
-  if(mode==='rules:checklist'){const r=ruleItems(input);console.log(JSON.stringify({...r,skeleton:{scenario:input,items:Object.fromEntries(r.items.map(i=>[i.id,{status:'',how:'',evidence:[{slideId:'',elementIds:[]}],reason:''}]))},note:'填入 contentPlan.ruleChecklist。applied 逐条写 how 与 evidence（指向实际 slideId/elementIds）；not-applicable/user-override 写 reason，整章不适用时可用章节 id 一次记录。'},null,2));return;}
-  if(mode==='review:rules'||mode==='review:kimi'){if(!input)throw Error('review:rules <workspaceDir> [--keep-packet <dir>]');const i=args.indexOf('--keep-packet');const r=await reviewRulesIndependently({workspaceDir:absolute(input),keepPacket:i<0?undefined:absolute(args[i+1])});console.log(JSON.stringify(r,null,2));if(!r.ok)process.exitCode=1;return;}
+  if(mode==='rules:checklist'){const r=ruleItems(input);const perItem=args.includes('--items');const units=perItem?r.items.map(i=>i.id):r.sections.map(x=>x.id);console.log(JSON.stringify({...r,sections:r.sections.map(x=>({...x,rules:r.items.filter(i=>i.section===x.id).map(i=>i.text)})),items:undefined,skeleton:{scenario:input,items:Object.fromEntries(units.map(id=>[id,{status:'',how:'',evidence:[{slideId:'',elementIds:[]}],reason:''}]))},note:perItem?'旧版逐条清单（v1 工程）。':'填入 contentPlan.ruleChecklist：每个章节一条。applied 写 how（这一章的要求在本稿怎么落实）与 evidence（指向实际 slideId/elementIds）；not-applicable/user-override 写 reason。sections[].rules 是该章原文要点，逐条读完再写。'},null,2));return;}
+  if(mode==='wireframe'){if(!input||!output)throw Error('wireframe <authored.json|workspaceDir> <outDir>');const src=absolute(input);const project=fs.statSync(src).isDirectory()?loadProject(path.join(src,'deck-project.json')):createAuthoredProject(JSON.parse(fs.readFileSync(src,'utf8')));console.log(JSON.stringify({pages:await writeWireframes(project,absolute(output))},null,2));return;}
+  if(mode==='review:rules'||mode==='review:kimi'){if(!input)throw Error('review:rules <workspaceDir> [--keep-packet <dir>]');const i=args.indexOf('--keep-packet');const r=await reviewRulesIndependently({workspaceDir:absolute(input),keepPacket:i<0?undefined:absolute(args[i+1]),full:args.includes('--full')});console.log(JSON.stringify(r,null,2));if(!r.ok)process.exitCode=1;return;}
   if(mode==='rules:list'){console.log(JSON.stringify(SCENARIOS.map(({id,zh})=>({id,name:zh})),null,2));return;}
   if(mode==='prepare'){if(!input||!output)throw Error('prepare <material.html|json|md|txt> <new-directory> [--scenario id]');const i=args.indexOf('--scenario');console.log(JSON.stringify(prepareMaterial({inputFile:absolute(input),outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]}),null,2));return;}
   if(['make','publish:html','check'].includes(mode)){

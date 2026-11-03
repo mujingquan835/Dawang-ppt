@@ -17,7 +17,7 @@ const rules = {
     { id: 'scenario#Directions#1', section: 'scenario#Directions', text: '1. Borrowable grid' }
   ]
 };
-const project = () => createAuthoredProject({
+const project = () => { const p = createAuthoredProject({
   requirements: { projectId: 'rules-review-test', title: '合成测试' },
   sources: { entries: [{ sourceId: 'fixture', kind: 'synthetic' }] }, media: { entries: [] },
   designChoice: { styleId: 'authored/custom' },
@@ -27,7 +27,7 @@ const project = () => createAuthoredProject({
     'scenario#Directions': { status: 'not-applicable', reason: '参考方向' }
   } } },
   slides: [{ slideId: 's', elements: [{ id: 'bar', type: 'text', text: '画面稳定效果 42 条', bounds: [100, 100, 800, 60], style: { fontSize: 32 } }, { id: 'line', type: 'line', bounds: [100, 1000, 1700, 1] }] }]
-});
+}); p.requirements.ruleContract = 'rules-checklist-v1'; return p; };
 const workspace = (t) => { const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rules-review-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true })); return dir; };
 const kinds = (r) => r.issues.map((i) => i.kind);
 
@@ -92,4 +92,27 @@ test('failed reviews count rounds and tell the author to keep fixing until the l
 test('the reviewer is told not to fail claims for information the material never had', () => {
   const packet = buildReviewPacket({ project: project(), rules, pages: [{ slideId: 's', image: 'x' }] });
   assert.match(packet.prompt, /原材料本身没有提供的信息/);
+});
+
+test('v2 decks add concrete visual claims to the packet', () => {
+  const p = project(); p.requirements.ruleContract = 'rules-checklist-v2';
+  p.contentPlan.ruleChecklist.items = { 'scenario#Visual': { status: 'applied', how: '条形图与细线', evidence: [{ slideId: 's', elementIds: ['bar'] }] }, 'scenario#Directions': { status: 'not-applicable', reason: '参考方向' } };
+  const packet = buildReviewPacket({ project: p, rules, pages: [{ slideId: 's', image: 'x' }] });
+  assert.deepEqual(packet.claims.map((c) => c.id), ['scenario#Visual', 'scenario#Directions', 'visual#alignment', 'visual#hierarchy', 'visual#images']);
+  assert.match(packet.prompt, /status=visual/);
+  const followUp = buildReviewPacket({ project: p, rules, pages: [{ slideId: 's', image: 'x' }], only: new Set(['visual#images']) });
+  assert.deepEqual(followUp.claims.map((c) => c.id), ['visual#images']);
+  assert.equal(followUp.all.length, 5);
+});
+
+test('a follow-up round starts only from a failed review of the same checklist', async (t) => {
+  const { previousRound } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/independent-review.mjs');
+  const dir = workspace(t), p = project();
+  assert.equal(previousRound(dir, p), null);
+  writeReview(dir, p, { reviewer: 'fake', items: [{ id: 'scenario#Visual#1', verdict: 'fail', reason: 'x', status: 'applied' }, { id: 'scenario#Visual#2', verdict: 'pass', reason: 'y', status: 'applied' }] });
+  assert.deepEqual(previousRound(dir, { ...p, revision: 'later' }).items.map((i) => i.verdict), ['fail', 'pass']);
+  const changed = structuredClone(p); changed.contentPlan.ruleChecklist.items['scenario#Directions'].reason = '改了理由';
+  assert.equal(previousRound(dir, changed), null);
+  writeReview(dir, p, { reviewer: 'fake', items: [{ id: 'scenario#Visual#1', verdict: 'pass', reason: 'x', status: 'applied' }] });
+  assert.equal(previousRound(dir, p), null);
 });

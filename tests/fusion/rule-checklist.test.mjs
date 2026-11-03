@@ -35,7 +35,8 @@ test('items come from numbered/bullet lines of applicable sections; forbidden an
   assert.equal(r.pin.status, 'pinned');
 });
 
-const deck = (ruleChecklist) => createAuthoredProject({
+const v1 = (project) => { project.requirements.ruleContract = 'rules-checklist-v1'; return project; };
+const deck = (ruleChecklist) => v1(createAuthoredProject({
   requirements: { projectId: 'rule-checklist-test', title: '合成测试' },
   sources: { entries: [{ sourceId: 'fixture', kind: 'synthetic' }] }, media: { entries: [] },
   designChoice: { styleId: 'authored/custom' },
@@ -44,7 +45,7 @@ const deck = (ruleChecklist) => createAuthoredProject({
     { slideId: 'cover', elements: [{ id: 'title', type: 'text', text: '本季度完成率 92%', bounds: [100, 100, 1400, 120], style: { fontSize: 80 } }] },
     { slideId: 'body', elements: [{ id: 'motif', type: 'line', bounds: [100, 300, 1600, 1] }, { id: 'claim', type: 'text', text: '结论', bounds: [100, 100, 1400, 100], style: { fontSize: 64 } }] }
   ]
-});
+}));
 const applied = (how, ...evidence) => ({ status: 'applied', how, evidence: evidence.map(([slideId, ...elementIds]) => ({ slideId, elementIds })) });
 const complete = {
   'general#Requirements#1': applied('每页标题写读者要得出的结论', ['cover', 'title'], ['body', 'claim']),
@@ -97,4 +98,22 @@ test('unknown scenario or missing rules block; older projects only warn', (t) =>
   const r = reviewRuleChecklist(old, { itemsFor });
   assert.deepEqual(r.issues, []);
   assert.equal(r.warnings[0].kind, 'rules-checklist-missing');
+});
+
+test('v2 checklists record one decision per section and may apply a whole section', (t) => {
+  const itemsFor = fixture(t);
+  const project = deck({ scenario: 'management-report', items: {
+    'general#Requirements': applied('每页标题写读者结论，页面节奏交替', ['cover', 'title'], ['body', 'claim']),
+    'scenario#Clear content': applied('标题即状态，封面放完成率', ['cover', 'title']),
+    'scenario#Visual References': { status: 'user-override', reason: '用户指定单一字体' },
+    'scenario#Direction A / B#1': applied('逐条记录在 v2 中被忽略', ['body', 'motif'])
+  } });
+  delete project.requirements.ruleContract;
+  project.requirements.ruleContract = 'rules-checklist-v2';
+  const r = reviewRuleChecklist(project, { itemsFor });
+  assert.deepEqual(kinds(r), ['rules-unrecorded']);
+  assert.deepEqual(r.issues[0].ids, ['scenario#Direction A / B']);
+  assert(r.warnings.some((w) => w.kind === 'rule-item-entry-ignored'));
+  assert.equal(r.review.unit, 'section');
+  assert.deepEqual(r.review.counts, { applied: 2, 'not-applicable': 0, 'user-override': 1 });
 });
