@@ -1,5 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
 import {renderPalettePreview,validatePaletteOptions} from '../../skills/dawang-ppt/scripts/palette-preview.mjs';
 const option=(id='blue')=>({id,name:'清晰蓝',reason:'便于核对数据和状态',source:'测试用自主配色',palette:{bg:'#F3F6FB',ink:'#1D2E4A',accent:'#285EA8',muted:'#58677D',line:'#DFE8F5'}});
 test('preview applies each candidate palette to headline, copy and structural areas',()=>{
@@ -20,4 +25,18 @@ test('stable option IDs are required and unique',()=>{
 });
 test('short hexadecimal paints normalize and optional surface has a real fallback',()=>{
  const a=validatePaletteOptions({options:[{...option(),palette:{...option().palette,bg:'#fff'}}]});assert.equal(a.options[0].palette.bg,'#FFFFFF');assert.equal(a.options[0].palette.surface,'#FFFFFF');
+});
+for(const viaLink of [false,true])test(`CLI writes the requested preview through ${viaLink?'a linked skill directory':'the direct skill directory'}`,()=>{
+ const dir=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'dawang-palette-cli-')));
+ try{
+  const skill=fileURLToPath(new URL('../../skills/dawang-ppt/',import.meta.url));
+  const linked=path.join(dir,'installed-skill');
+  if(viaLink)fs.symlinkSync(skill,linked,'dir');
+  fs.writeFileSync(path.join(dir,'options.json'),JSON.stringify({options:[option()]}));
+  const run=spawnSync(process.execPath,[path.join(viaLink?linked:skill,'scripts/palette-preview.mjs'),'options.json','preview.html'],{cwd:dir,encoding:'utf8'});
+  assert.equal(run.status,0,run.stderr);
+  assert.ok(fs.existsSync(path.join(dir,'preview.html')),'successful invocation must create the requested preview');
+  assert.match(fs.readFileSync(path.join(dir,'preview.html'),'utf8'),/data-palette-id="blue"/);
+  assert.equal(JSON.parse(run.stdout).html,path.join(dir,'preview.html'));
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
