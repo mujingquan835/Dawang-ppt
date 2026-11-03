@@ -1,8 +1,20 @@
 import {validateProject} from '../project/schema.mjs';
 const safeJson=value=>JSON.stringify(value).replaceAll('<','\\u003c');
+// Undo history repeats whole slides, so inlining media in the project grew the file by every image on each edit.
+// The embedded project keeps short tokens instead; each image is stored once in #portable-assets and expanded by the
+// two readers of #fusion-project (the editor boot and extractPortableProject). The page DOM and #deck-view-model,
+// read directly by the dashi runtime, keep their inline images.
+const MEDIA_KEYS=new Set(['src','image','images','imageSrc','imageUrl','heroImage','coverImage']),ASSET_PREFIX='portable-asset:';
+const mapStrings=(value,fn,key='')=>Array.isArray(value)?value.map(v=>mapStrings(v,fn,key)):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,mapStrings(v,fn,k)])):typeof value==='string'&&MEDIA_KEYS.has(key)?fn(value):value;
+export function poolProjectMedia(project){
+ const pool={},tokens=new Map(),token=v=>{if(!v.startsWith('data:'))return v;if(!tokens.has(v)){const t=ASSET_PREFIX+(tokens.size+1);tokens.set(v,t);pool[t]=v;}return tokens.get(v);};
+ return {project:mapStrings(project,token),pool};
+}
+export function inflatePortableAssets(project,pool){return pool&&Object.keys(pool).length?mapStrings(project,v=>v.startsWith(ASSET_PREFIX)&&pool[v]?pool[v]:v):project;}
+function optionalBlock(html,id){try{return block(html,id);}catch{return null;}}
 function block(html,id){const match=new RegExp('<script\\b(?=[^>]*\\bid=["\\\']'+id+'["\\\'])(?=[^>]*\\btype=["\\\']application/json["\\\'])[^>]*>([\\s\\S]*?)</script>','i').exec(html);if(!match)throw Error('Supported portable snapshot missing: '+id);return JSON.parse(match[1]);}
 export function extractPortableMeta(html){const meta=block(html,'portable-project-meta');if(meta.version!==1||!['projectId','baseRevision','snapshotRevision','runtimeFingerprint'].every(k=>typeof meta[k]==='string'&&meta[k]))throw Error('Unsupported portable metadata');return meta;}
-export function extractPortableProject(html){const meta=extractPortableMeta(html),project=block(html,'fusion-project'),issues=validateProject(project);if(issues.length||!project.slides?.length||meta.projectId!==project.requirements.projectId||meta.snapshotRevision!==project.revision)throw Error('Invalid portable snapshot: '+issues.join(', '));return project;}
+export function extractPortableProject(html){const meta=extractPortableMeta(html),project=inflatePortableAssets(block(html,'fusion-project'),optionalBlock(html,'portable-assets')),issues=validateProject(project);if(issues.length||!project.slides?.length||meta.projectId!==project.requirements.projectId||meta.snapshotRevision!==project.revision)throw Error('Invalid portable snapshot: '+issues.join(', '));return project;}
 export function validatePortableHtml(html){
  const markup=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,(whole)=>whole.slice(0,whole.indexOf('>')+1)+'</script>').replace(/<!--[\s\S]*?-->/g,'');
  const unresolvedResources=[];
@@ -36,10 +48,14 @@ export async function serializePortableHtml({document:doc,project,resolveAsset,b
   })());return cache.get(url);
  };
  const css=async text=>{const matches=[...text.matchAll(/url\(\s*(['"]?)([^)'"\s]+)\1\s*\)/gi)];for(const m of matches)text=text.replace(m[0],'url("'+await resource(m[2])+'")');return text;};
- const mediaKeys=new Set(['src','image','images','imageSrc','imageUrl','heroImage','coverImage']);
+ const mediaKeys=MEDIA_KEYS;
  const mapMedia=async(value,key='')=>{if(Array.isArray(value))return Promise.all(value.map(v=>mapMedia(v,key)));if(value&&typeof value==='object')return Object.fromEntries(await Promise.all(Object.entries(value).map(async([k,v])=>[k,await mapMedia(v,k)])));if(typeof value==='string'&&value&&mediaKeys.has(key))return resource(value);return value;};
  const p=await mapMedia(structuredClone(project));
  clone.querySelectorAll('.fusion-selection,.fusion-guide,.fusion-crop-editor,.deck-export-overlay,.page-transition-stage,#fusion-save-controls,#fusion-history-controls,#fusion-status').forEach(n=>n.remove());
+ // The runtime rebuilds the slide rail (with its image thumbnails) and appends a new context menu on every load;
+ // saving them made each save cycle carry extra image copies and one more empty menu.
+ clone.querySelectorAll('.rail-context-menu').forEach(n=>n.remove());
+ clone.querySelector('#slide-rail-list')?.replaceChildren();
  clone.querySelector('body')?.classList.remove('exporting-deck');
  // Include lazy dependencies now. No network is needed when the user later clicks export.
  for(const src of ['assets/vendor/html-to-image.js','assets/vendor/pdf-lib.min.js','assets/vendor/pptxgen.bundle.js']){
@@ -53,7 +69,9 @@ export async function serializePortableHtml({document:doc,project,resolveAsset,b
  for(const node of clone.querySelectorAll('[src]'))node.setAttribute('src',await resource(node.getAttribute('src')));
  for(const node of clone.querySelectorAll('a[href^="assets/"],link[href]'))node.setAttribute('href',await resource(node.getAttribute('href')));
  const put=(id,value)=>{let node=clone.querySelector('#'+id);if(!node){node=clone.ownerDocument.createElement('script');node.id=id;node.type='application/json';clone.querySelector('head').append(node);}node.textContent=safeJson(value);};
- put('fusion-project',p);
+ const pooled=poolProjectMedia(p);
+ put('portable-assets',pooled.pool);
+ put('fusion-project',pooled.project);
  // VM composition props must agree with the embedded ProjectV2, including hidden slides.
  // The project itself lives once in #fusion-project; per-slide copies multiplied every embedded image by the page count.
  const vmNode=clone.querySelector('#deck-view-model');if(vmNode){const vm=await mapMedia(JSON.parse(vmNode.textContent));vm.state=structuredClone(p.editorState.legacy);for(const slide of vm.slides||[]){const s=p.slides.find(s=>s.slideId===slide.id);if(s?.mode==='composition'){const {fusionProject,...props}=slide.props||{};slide.props={...props,fusionSlide:s};}}put('deck-view-model',vm);}

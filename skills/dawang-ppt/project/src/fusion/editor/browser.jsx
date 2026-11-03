@@ -2,7 +2,7 @@ import {mountSaveControls} from './save-controls.mjs';
 import {describeConflicts} from './messages.mjs';
 import {HANDLES,HANDLE_CURSORS,resizeBounds,snapBounds,snapTargets} from './geometry.mjs';
 import {inspectReadinessInDom} from '../qa/readiness.mjs';
-import {serializePortableHtml,collectUsedFontFamilies,extractPortableProject} from '../portable/html.mjs';
+import {serializePortableHtml,collectUsedFontFamilies,extractPortableProject,inflatePortableAssets} from '../portable/html.mjs';
 import {mountImageCrop} from './image-crop.jsx';
 import { readRunsFromDom, runsToHtml } from '../authoring/text-runs.mjs';
 import { openDraftStore, draftDecision } from "./drafts.mjs";
@@ -188,7 +188,7 @@ if (seed) {
     if (field && panel && !panel.children.length) field.classList.add("is-hidden");
   }
   let cropEditor = null, exportBusy=false, lastMerge = null;
-  let project = JSON.parse(seed.textContent), savedRevision = project.revision, selected = null, selectionMode = "group", redoSnapshots = [], restoring = false, saveQueue = Promise.resolve();
+  let project = inflatePortableAssets(JSON.parse(seed.textContent), JSON.parse(document.getElementById('portable-assets')?.textContent || '{}')), savedRevision = project.revision, selected = null, selectionMode = "group", redoSnapshots = [], restoring = false, saveQueue = Promise.resolve();
   const roots = /* @__PURE__ */ new Map();
   let draftStore = null, draftTimer = null, draftQueue = Promise.resolve(), ready = Promise.resolve();
   const projectId = project.requirements.projectId || "legacy:" + project.sources.entries.map((s) => s.sha256 || s.sourceId).join(":") + ":" + project.slides.map((s) => s.slideId).join(":");
