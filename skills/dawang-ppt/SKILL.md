@@ -1,36 +1,65 @@
 ---
 name: dawang-ppt
-description: 制作、编辑和返工中文演示文稿。依据Kimi原始制作规则理解材料与自主设计，在原dashi网页工作台编辑保存，默认只交付一个可离线编辑、下载保存的HTML，PPTX、PDF和图片由用户按需导出。
+description: 制作、编辑和返工中文演示文稿。以Kimi原始制作规范为唯一设计依据，在原dashi网页工作台编辑保存，经规则清单与独立复核后，默认只交付一个可离线编辑、下载保存的HTML，PPTX、PDF和图片由用户按需导出。
 ---
 # Dawang-PPT
 
+## 分工
+
+- **设计依据：** Kimi 原始制作规范（制作步骤、通用规则、场景文档，用户指定时加设计系统）。由 `rules:read` 读取本机锁定版本的原文，每节标注 apply（照做）/ adapt（按 note 的边界执行）/ replaced（由 Dawang 引擎替代，多为 PPTD 格式与导出）。这些标注就是 Dawang 对 Kimi 的全部改动。
+- **Dawang 提供：** dashi 网页工作台（编辑、保存、导出）、authored 工程格式、规则锁定、程序检查与独立复核，以及用户确认过的几项交互（配色确认、重点句、单 HTML 交付）。
+- **优先级：** 用户明确要求 > Kimi 原文（apply/adapt）> Dawang 补充做法。Dawang 补充只填 Kimi 未覆盖的细节，与 Kimi 冲突时按 Kimi。引擎做不到的效果明确报告，不静默降级。
+
+用户用自然语言提交材料；工程 JSON 和 CLI 都由制作智能体完成。保留原规则阅读、逐页设计与看图，不降低模型思考档位。
+
 ## 默认制作流程
 
-**理解材料 → 按需读原规则 → 简短大纲与配色确认 → 内容策划与取舍 → 逐页自主设计 → 网页编辑保存 → 内容与看图复核 → 单HTML交付。** 用户用自然语言提交材料；下述工程输入和CLI由制作智能体完成，不要求用户编写JSON。
+按 Kimi 的制作步骤执行，Dawang 只在对应步骤插入引擎操作。
 
-先运行 `node <skill>/scripts/dawang.mjs doctor`，核对实际skill/project路径、defaultAuthoringCommand、defaultDeliverable、defaultBuild和installations。开发源码与日常安装可能不同；不得据仓库改动宣称全局安装已切换。首次检出运行 `npm ci --prefix skills/dawang-ppt/project`；不运行旧自动更新器。
+0. **环境：** `node <skill>/scripts/dawang.mjs doctor`，核对 skill/project 路径、installations 与 kimiRules（应为 pinned）。开发源码与日常安装可能不同，不据仓库改动宣称已安装。首次检出 `npm ci --prefix skills/dawang-ppt/project`。
+1. **读材料（Kimi step1）：** `prepare <材料> <新目录> --scenario <id>` 提取正文、原图台账与该场景规则；实际阅读 material.json、rules.json 并查看必需图片。完整读取用户材料，不擅自联网扩充，不补造数据。
+2. **理解需求（Kimi step2）：** 按原文判断用途、设计方向、输入类型、页数；`rules:list` 查场景 ID，选一个主场景（必要时一个辅场景）。需要澄清时按原文“Clarification”提问。
+3. **读规则，先列清单：** 实际阅读 `rules:read <主场景>` 返回的 apply/adapt 原文（本会话已读过同场景同指纹可复用）。原文与锁定版本不一致时停止并告知用户。随后运行 `rules:checklist <主场景>`，在排版前逐条写下打算怎么做、落在哪页，或为何不适用（见“Kimi规则清单”）。设计从这份清单出发，不是排完再补记。
+4. **配色：** 简短大纲后按 [配色推荐与确认](references/fusion/palette-selection.md) 处理：未指定且未委托时展示预览并等待选择，候选优先取 Kimi 场景文档的配色参考；已指定、已委托或旧稿局部修改直接继续。
+5. **文案与提纲：** 按 Kimi 场景对标题、内容的要求和 [文案编辑](references/fusion/content-editing.md) 主动改写，先形成可上屏文案再排版。记录全稿定位句 `contentPlan.throughLine`、逐页重点句 `slides[i].keyLine`（来源 quoted/distilled/created）、只给作者看的 `authorNotes`；字段见 [工程编写速查](references/authoring-api.md)。
+6. **排版（Kimi step3）：** 依据清单与 Kimi 场景视觉要求逐页设计，写 authored 工程（`styleId:"authored/custom"`，1920×1080 逻辑画布）。每页写 `visualDecision`（见“视觉执行检查点”）。Kimi 未覆盖的细节（数字与单位成组、对齐、图文对应等）可查 [Dawang补充做法](references/fusion/visual-authoring.md)。
+7. **生成与检查（Kimi step4）：** `make <authored.json> <用户命名.html> --screenshots <临时目录> --summary`。逐页实际看图，按 Kimi 原文的 7 项看图清单和 [复核清单](references/fusion/visual-review.md) 修正（局部修改用 `patch:project`）。新稿首次 `make` 会以 `kimi-review-missing` 停下，然后进入独立复核。
+8. **独立复核：** `review:kimi <workspaceDir>`，fail 项按理由改页面后重新复核，直到通过，再 `publish:html <workspaceDir> <交付.html>`（见“独立复核”）。
+9. **交付（Kimi step5 由 Dawang 替代）：** 只交付一个 HTML（见“交付与保存”）。回复列出 contentReview（定位句、每页重点句及来源，created 句请用户确认）、visualReview 每页视觉重点、ruleReview 未采用的 Kimi 规则及理由、复核轮次与 fail→修正。用户效果认可单独记录。未经要求不加演讲者备注。
 
-1. 已有可移交HTML、authored/ProjectV2 JSON或Markdown/text材料，优先 `prepare <材料> <新准备目录> [--scenario <id>]` 提取正文与原图台账；实际阅读返回的 material.json、完整适用 rules.json 并查看必需图片，不直接cat含嵌入资源的整份HTML。不支持的HTML明确失败，其他文档按对应格式读取。完整读取用户材料，区分新建、局部修改、重构和原样模板。记录受众、用途、主场景、页数、来源时期、单位、必需图片和不可改内容。不补造业绩、目标或因果，不擅自联网扩充原材料。
-2. 用 `rules:list` 查看有效场景ID，依据材料选主场景（产品介绍可评估business-plan；不假设存在product-introduction）。按 [制作规则](references/fusion/production.md) 定位并实际读取Kimi原始制作步骤、通用场景、一个主场景，必要时一个辅场景、用户指定设计系统及相关格式文档。来源可在 `KIMI_PPT_SKILL_DIR`、`~/.dawang-ppt/kimi-reference/` 或本机open-kimi-ppt安装中，版本由 `references/kimi-rules.lock.json` 固定（`doctor` 的 kimiRules 显示状态）。`rules:read` 按章节返回原文并标注 apply/adapt/replaced：apply照做，adapt按note边界执行，replaced按by指向的Dawang规则执行（默认不返回其原文）。若prepare已返回且本会话完整读过同场景、相同指纹的适用原文，复用该次读取，不重复rules:read；场景或指纹变化时重新读取。原规则与锁定版本不一致时停止并告知用户，不自行 `--allow-drift` 或重新锁定。缺必读原文明确报告；不以本文件摘要或少量关键词替代原文，不把全部风格库一次载入。
-3. 按 [内容策划与取舍](references/fusion/production.md#内容策划与取舍) 确定全稿要回答的问题。需求与简短大纲明确后，按[配色推荐与确认](references/fusion/palette-selection.md)处理本次配色：未指定且未委托时展示适配预览并等待选择；已指定、已有确认方向、明确委托或旧稿局部修改按该文条件直接继续，可与大纲确认合并。用户选定后沿用颜色职责，配色选择不绑定原模板；Kimi制作规范与自主排版继续执行。新建、重构或文案优化时，实际读取并执行 [文案编辑](references/fusion/content-editing.md)：默认主动提炼、改写和组织表达，先形成可直接上屏的文案，再排版；仅改排版或指定原文不改时缩小编辑范围。保留原稿强表达，逐页短提纲记录读者任务、主张、支撑事实/机制、证据作用与必要限定。排版前定下全稿定位句 `contentPlan.throughLine` 与逐页重点句 `contentPlan.slides[i].keyLine`：各指向页面上实际的文字元素，标明来源 quoted/distilled/created 及依据；目录等确无重点的页写 `waived` 理由。只给作者看的材料（配图说明、宣传建议、示意说明等）列入 `contentPlan.authorNotes`，不上屏。`prepare` 返回的 authorNoteCandidates/keyLineCandidates 只是候选，逐条确认或舍弃。字段与检查见 [工程编写速查](references/authoring-api.md)。精简不能让主要价值或核心动作只留在截图、图注或附件里。素材与构图时按[内容与媒体判断](references/fusion/production.md#内容与媒体判断)记录关键图片的证据用途、必保留区域和取舍理由；产品介绍可评估沿用产品视觉语言，技术页可参考同文的“机制与对应实例”案例，均不作为固定版式。视觉设计按[制作规则中的视觉策划](references/fusion/production.md#视觉策划)执行。之后确定信息关系、图片取景和文字层级，按材料直接设计，不经过旧模板选页、`planContentSlide` 或 `REGION_PRESETS`。自主设计不受六种已适配外观限制，也不强制先选九宫格；已确认视觉方向沿用。用户指定dashi原样模板才走下方兼容入口。
-4. 按 [工程契约](references/contracts.md) 生成authored工程，使用稳定元素ID、内容引用与媒体台账。自主外观采用 `styleId:"authored/custom"`，明确页面palette、文字字体/字号和元素bounds；也可沿用已支持绘制默认值，但不将其作为强制模板。逻辑画布1920×1080，CSS字号/2转pt，不能直接照搬PPTD单位。
-5. 内部工程记录规则清单，逐页记录原规则来源SHA、适用/不适用/用户覆盖/不支持、理由和实际证据路径。程序只校验清单结构与指纹，不能替代智能体判断。用文字、runs、图片、基础形状、线条和受控vector表达信息；不支持项明确报告，不静默改成整页图片。
-6. 工程重复样式可用 `createTextAuthor` 与 `distributeBounds`（见工程编写速查），保留自主构图与任意坐标。新建推荐 `node <skill>/scripts/dawang.mjs make <authored.json> <用户命名.html>`；内部工程自动管理于 `~/.dawang-ppt/workspaces/<projectId>/`（可用 DAWANG_WORKSPACE_ROOT 或 --workspace 覆盖）。局部修改使用 `patch:project`，之后 `publish:html`，保留已有稳定ID和历史。低层 `build` 继续等价 `render:authored`，用于兼容/开发；严禁删除工程重建覆盖人工修改。字段、单位、错误与完整样例见 [工程编写速查](references/authoring-api.md)。
-7. `preview:start <make返回的workspaceDir> [端口]`（默认自动分配空闲端口；交付HTML目录不是内部工程目录） 后在原dashi目录、画布和侧栏中编辑；保留手工位置、裁切、字号及runs，核对撤销重做、保存重开。跨run整段替换需明确保留格式或重置，不静默摊平。冲突保留两份，不能清空编辑状态。
-8. `make`/`publish:html`可加`--screenshots <临时目录> --summary`，一次运行全稿QA与原尺寸截图；读取简明结果，失败按需读run.json，不反复输出全工程。逐页实际看图、集中修正，修改后仍全稿检查。按 [内容与视觉复核](references/fusion/visual-review.md) 对照原材料检查主要观点、支撑证据、使用意义和状态限定，核对强表达是否在精简中被削弱、重点句是否具体且突出，再在浏览器查看全稿与可疑页，或使用临时原尺寸截图。先改构图再解决溢出，不删必需事实或无限缩字。QA检查readiness、有限几何、缺图、溢出、覆盖；不以关键词或几何通过代替内容表达充分及用户效果认可。
-9. 默认交付目录只有一个用户命名HTML，不附源目录、截图、总览、ZIP或报告。HTML内含可移交ProjectV2快照与资源；离线HTML顶部常驻“保存”和状态，⌘S/Ctrl+S与侧栏保存执行同一逻辑：首次用打开文件选择框关联已经存在的原HTML，检查文件名及projectId，获得写入权限后直接覆盖该文件，后续复用关联。关联句柄按当前页面URL保存在IndexedDB，重开后尝试恢复；浏览器可能要求重新授权，草稿/句柄存储不可用时明确提示重开需重新关联。保存绝不静默下载副本；浏览器不支持文件写入时提示换用Chrome/Edge。下载HTML副本仅由显式导出触发，导出副本不清除源文件未保存状态。取消、无权限、校验错误和写入失败都保留修改，不显示已保存；写入并关闭成功后才提示已保存，保存期间的新修改仍提示未保存。浏览器草稿不等于源文件保存。用户自行选择导出PPTX/PDF/当前页图片；任务明确要求时可主动生成所需格式。PDF截图型、PPTX字体未嵌入与目标电脑字体边界在导出帮助中说明。完整引擎回归和Office检查属于版本验收，不在每份稿件上重复导出。交付回复中列出运行结果的 contentReview：全稿定位句、每页重点句及来源；AI 新写（created）的句子单独列出，请用户确认。用户效果认可单独记录。未经用户要求不添加演讲者备注。
+## Kimi规则清单
+
+`rules:checklist <场景>` 把主场景文档与通用 Requirements 拆成逐条 id（`scenario#章节#序号`、`general#Requirements#序号`），附原文摘要与待填骨架。写入 `contentPlan.ruleChecklist:{scenario,items}`：
+
+- `applied`：逐条写 `how` 与 `evidence:[{slideId,elementIds}]`，指向实际承担该规则的元素；整章不能一次记为 applied。
+- `not-applicable` / `user-override`：写 `reason`（如大纲指定配色属于 user-override）。整章确实不适用可用章节 id 一次记录。
+
+任一条未记录，`make`/`publish:html` 失败；过半未采用会警告。
+
+## 独立复核
+
+程序只能证明每条都有记录、证据指向真实元素；是否真的做到，由复核者判定：
+
+- `review:kimi` 截图全稿，把截图、元素表、Kimi 原文和清单声明交给一个全新上下文的复核者（默认本机 Codex CLI，只读、不留会话；`DAWANG_REVIEWER_CMD` 可换成其他命令，`DAWANG_REVIEWER_MODEL` 指定模型），逐条判 pass/fail，写入工程的 `kimi-review.json`。
+- 复核者看不到制作者的思考。用条形图充当结构图、页脚线充当母题、泛泛描述充当封面状态句、动作罗列充当结论标题等勉强对应会被判 fail。
+- `publish:html` 只接受当前修订、当前清单且无 fail 的复核；之后任何修改都需重新复核。按 fail 理由改页面；确实不适用时改为 not-applicable 并写理由（同样会被复核）。不得编辑或伪造 `kimi-review.json`。找不到复核者时告知用户，不跳过。
+
+## 视觉执行检查点
+
+每页 `visualDecision:{focus:{elementId,text?},layout}`，`make` 会检查：
+
+1. 先按 Kimi 场景要求定标题（如管理汇报要求标题陈述状态或结论），再在其中选出重点：最值得记住的结论、状态或数值，不是动作罗列。
+2. 重点是句中一段时，用同一文字元素的 runs 让它在字号/字重/颜色/字体上区别于引导语；重点自成元素时让它成为本页最大字号。`layout` 写主视觉、证据与重点的空间关系。目录、过渡页等写 `{waived:'理由'}`。
+3. 出现 `visual-layout-repeated` 时回到构图重新分配区域，或说明内容为何要求同构。
+
+## 交付与保存
+
+默认交付目录只有一个用户命名的 HTML，内含可移交 ProjectV2 快照与资源，不附源目录、截图、ZIP 或报告；内部工程在 `~/.dawang-ppt/workspaces/<projectId>/`。`preview:start <workspaceDir>` 在原 dashi 工作台编辑，保留手工位置、裁切、字号及 runs。离线 HTML 顶部常驻“保存”，⌘S/Ctrl+S 与侧栏保存同一逻辑：首次关联原 HTML 并校验 projectId，之后直接覆盖；保存绝不静默下载副本，失败保留修改且不显示已保存；浏览器草稿不等于源文件保存。用户自行导出 PPTX/PDF/当前页图片，任务明确要求时可主动生成。保存与导出细节见 [工程编写速查](references/authoring-api.md)。
 
 ## 已有工程与历史输入
 
-- ProjectV2：`render:project <deck-project.json> <index.html>`，保留旧外观、布局、人工编辑与媒体。
-- 历史contentSlides brief：显式 `render:brief <brief.json> <index.html>`，保留原实测规划器；`build`不再静默消费旧brief。
-- 用户指定原样模板：`templates`查看17主题，`render:goal <goal.json> <index.html>`；原模板契约保持。已有HTML导入仅走已支持的兼容契约，不承诺任意HTML/PPTX无损导入。
-- `styles`、`styles:grid` 是旧规划路径的已适配外观工具，不代表自主设计可用风格总数，不是新稿前置门槛。
+- 局部修改：`patch:project` 后 `publish:html`，保留稳定 ID 与历史；严禁删除工程重建覆盖人工修改。
+- ProjectV2：`render:project <deck-project.json> <index.html>`；历史 brief：`render:brief`；用户指定 dashi 原样模板：`templates` / `render:goal`（见 [旧主题与返工](references/legacy-and-revision.md)）。不承诺任意 HTML/PPTX 无损导入。
+- 不支持原生数据图表、SmartArt、任意 SVG/动画；用文字、runs、图片、形状、线条和受控 vector 构建，不静默改成整页图片。
 
-不承诺原生数据图表、SmartArt、任意SVG/动画或跨客户端像素一致。开发入口、日常安装、真实效果验收和正式发布分别记录；本轮阶段记录见仓库 `docs/kimi-web/acceptance.md`，W5切换与回退见 `docs/kimi-web/w5-entry-and-rollback.md`。
-
-## 提效与耗时记录
-
-保留原规则阅读、主动文案编辑、自主构图及逐页看图，不降低模型思考档位。用确定的正文/媒体提取、样式帮助器与批量操作减少工程往返，不用固定模板替代设计判断。
-
-`run.json`保存最新完整诊断，`runs.jsonl`追加程序阶段计时（渲染、浏览器就绪、QA、序列化）。这只测程序流水线；首次制作、模型等待、内容编辑、设计、返工与用户等待需要按真实时间另记。无法区分模型处理和平台等待时标未知，不推断思考时长，不用程序秒数承诺整稿速度。已有`benchmark-authoring.mjs`可汇总实际阶段记录。
+`run.json` 记最新诊断，`runs.jsonl` 追加程序阶段计时；模型思考、平台等待与返工另记，无法区分时标未知。

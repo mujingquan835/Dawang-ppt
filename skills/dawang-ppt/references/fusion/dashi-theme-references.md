@@ -1,6 +1,6 @@
 # dashi主题参考索引
 
-候选配色的询问与确认由[配色推荐与确认](palette-selection.md)维护。本页在需要寻找原版主题参照时读取；使用边界统一见[参考资料的职责与边界](visual-authoring.md#参考资料的职责与边界)。此处列出本轮核对的17个主题，供快速定位；实际范围由 `node <skill>/scripts/dawang.mjs templates` 返回的当前登记主题决定，后续新增主题也可纳入。`templates`返回的template标记说明原样模板入口，不限制从这些主题研究配色。
+候选配色的询问与确认由[配色推荐与确认](palette-selection.md)维护。本页在需要寻找原版主题参照时读取；使用边界统一见[dashi 参考附录](visual-authoring.md#dashi-参考附录)。此处列出本轮核对的17个主题，供快速定位；实际范围由 `node <skill>/scripts/dawang.mjs templates` 返回的当前登记主题决定，后续新增主题也可纳入。`templates`返回的template标记说明原样模板入口，不限制从这些主题研究配色。
 
 ## 当前主题方向
 
