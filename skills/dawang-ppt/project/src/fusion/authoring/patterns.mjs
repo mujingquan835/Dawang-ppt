@@ -1,5 +1,5 @@
 import { textElement, lineElement } from './elements.mjs';
-import { textHeight, textBlock, panel, metricRow, flow, numberedList, imageRow, imageGrid, table } from './layout-kit.mjs';
+import { textHeight, textBlock, panel, metricRow, flow, numberedList, imageRow, imageGrid, table, shiftX, fitImage } from './layout-kit.mjs';
 
 // Page patterns built on the layout kit. Each returns elements on the 12-column grid plus a visualDecision that
 // can go straight into contentPlan. A pattern is a starting point: change its parameters, add or drop elements,
@@ -73,8 +73,10 @@ export function metricsWithEvidence({ theme, grid, header, hero, secondary = [],
 export function listWithPhotos({ theme, grid, header, items, metrics = [], photos, note, perRow = 'auto' }) {
   const p = theme.palette, top = header.bottom + 44, [lx, lw] = grid.span(0, 5), [rx, rw] = grid.span(5, 7), elements = [];
   const list = numberedList({ id: 'items', x: lx, y: top, width: lw, items, theme }); elements.push(...list.elements);
+  let leftBottom = top + list.height;
   if (note) {
     const ny = top + list.height + 48, b = textBlock({ id: 'note', x: lx + 32, y: ny + 64, width: lw - 64, text: note.text, size: 24, theme });
+    leftBottom = ny + b.height + 96;
     elements.push(panel({ id: 'note-panel', bounds: [lx, ny, lw, b.height + 96], radius: 10, theme }));
     elements.push(textElement({ id: 'note-label', text: note.label || '复盘判断', bounds: [lx + 32, ny + 20, lw - 64, 40], style: theme.font(28, { fontWeight: 700, color: p.accent }) }));
     elements.push(...b.elements);
@@ -82,14 +84,49 @@ export function listWithPhotos({ theme, grid, header, items, metrics = [], photo
   let y = top;
   if (metrics.length) { const m = metricRow({ id: 'result', x: rx, y, width: rw, items: metrics, size: 80, gap: 32, theme }); elements.push(...m.elements); y += m.height + 40; }
   const g = imageGrid({ id: 'photos', x: rx, y, width: rw, images: photos, perRow, theme, maxHeight: FOOTER_TOP - y - 60 });
-  elements.push(...g.elements);
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧编号资源与复盘判断，右上结果指标，右下照片同行等高对应资源', [['items', 'support', [lx, top, lw, FOOTER_TOP - top - 20]], ['results', 'evidence', [rx, top, rw, FOOTER_TOP - top - 20]]]) };
+  // A height-limited arrangement is narrower than the zone: centre it instead of leaving one empty side.
+  elements.push(...shiftX(g.elements, (rw - g.width) / 2));
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧编号资源与复盘判断，右上结果指标，右下照片同行等高对应资源', [['items', 'support', [lx, top, lw, leftBottom - top + 8]], ['results', 'evidence', [rx, top, rw, Math.max(y + g.height, top + 200) - top + 8]]]) };
+}
+
+// One column per item: numbered heading and detail on top, that item's own photo directly below, so each photo
+// visibly belongs to its item. Result metrics and a review line run across the bottom. highlight marks one column.
+export function itemsWithPhotos({ theme, grid, header, items, metrics = [], note, highlight = 0, gap = 32 }) {
+  const p = theme.palette, top = header.bottom + 40, n = items.length, colW = Math.floor((grid.width - gap * (n - 1)) / n), elements = [];
+  if (n < 2 || n > 4) throw new Error('itemsWithPhotos takes 2–4 items');
+  const pad = 28, textW = colW - pad * 2;
+  const heads = items.map((it) => 44 + textHeight(it.title, 32, textW - 60, 1.3) + (it.detail ? 12 + textHeight(it.detail, 23, textW) : 0));
+  const headH = Math.max(...heads) + pad * 2;
+  // The bottom block is measured first so the photos get every pixel the metrics and note do not need.
+  const metricsH = metrics.length ? metricRow({ id: 'probe', x: 0, y: 0, width: grid.width, items: metrics, size: 60, gap, theme }).height + 16 : 0;
+  const reserve = metricsH + (note ? 44 : 0) + 20, capH = items.some((it) => it.photo?.caption) ? 40 : 0;
+  const boxY = top + headH + 16, boxH = FOOTER_TOP - 10 - reserve - capH - boxY;
+  if (boxH < 200) throw new Error(`itemsWithPhotos leaves only ${Math.round(boxH)}px for photos: shorten details, drop metrics or the note`);
+  items.forEach((it, i) => {
+    const x = grid.left + i * (colW + gap), on = i === highlight, ink = on ? p.inverse : p.ink;
+    elements.push(panel({ id: `item-${i + 1}-panel`, bounds: [x, top, colW, headH], fill: on ? p.ink : p.pale, radius: 10, theme }));
+    elements.push(textElement({ id: `item-${i + 1}-num`, text: String(i + 1).padStart(2, '0'), bounds: [x + pad, top + pad, 56, 42], style: theme.font(28, { fontWeight: 700, color: on ? p.pale : p.accent }) }));
+    elements.push(textElement({ id: `item-${i + 1}-title`, text: it.title, bounds: [x + pad + 60, top + pad, textW - 60, textHeight(it.title, 32, textW - 60, 1.3)], style: theme.font(32, { fontWeight: 700, lineHeight: 1.3, color: ink }) }));
+    if (it.detail) elements.push(textElement({ id: `item-${i + 1}-detail`, text: it.detail, bounds: [x + pad, top + pad + 56, textW, textHeight(it.detail, 23, textW)], style: theme.font(23, { color: ink }) }));
+    if (it.photo) {
+      elements.push(panel({ id: `item-${i + 1}-photo-panel`, bounds: [x, boxY, colW, boxH], theme }));
+      elements.push(fitImage({ id: `item-${i + 1}-photo`, src: it.photo.src, size: it.photo.size, box: [x + 12, boxY + 12, colW - 24, boxH - 24], alt: it.photo.alt }));
+      if (it.photo.caption) elements.push(textElement({ id: `item-${i + 1}-caption`, text: it.photo.caption, bounds: [x, boxY + boxH + 8, colW, 30], style: theme.font(19, { color: p.muted, textAlign: 'center' }) }));
+    }
+  });
+  let y = boxY + boxH + capH + 20;
+  if (metrics.length) { const m = metricRow({ id: 'result', x: grid.left, y, width: grid.width, items: metrics, size: 60, gap, theme }); elements.push(...m.elements); y += m.height + 16; }
+  if (note) {
+    elements.push({ type: 'shape', id: 'note-mark', bounds: [grid.left, y + 4, 6, 30], style: { fill: p.accent } });
+    elements.push(textElement({ id: 'note', text: note, bounds: [grid.left + 20, y, grid.width - 20, 40], style: theme.font(24, { fontWeight: 700 }) }));
+  }
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '每项资源一栏，标题与说明在上、对应照片正下方，底部结果指标与复盘', [['items', 'support', [grid.left, top, grid.width, headH]], ['photos', 'evidence', [grid.left, boxY, grid.width, boxH + capH]], ['results', 'data', [grid.left, boxY + boxH + capH + 10, grid.width, FOOTER_TOP - (boxY + boxH + capH + 10)]]]) };
 }
 
 // Detail table on the left; a dark side panel carries chains or key points.
 export function tableWithPanel({ theme, grid, header, table: t, panel: side }) {
   const p = theme.palette, top = header.bottom + 44, [lx] = grid.span(0, 8), [rx, rw] = grid.span(8, 4), elements = [];
-  elements.push(...table({ id: 'table', x: lx, y: top, theme, ...t }).elements);
+  const tb = table({ id: 'table', x: lx, y: top, theme, ...t }); elements.push(...tb.elements);
   const ph = FOOTER_TOP - top - 20;
   elements.push(panel({ id: 'side-panel', bounds: [rx, top, rw, ph], fill: p.ink, radius: 12, theme }));
   elements.push(textElement({ id: 'side-title', text: side.title, bounds: [rx + 40, top + 36, rw - 80, 44], style: theme.font(30, { fontWeight: 700, color: p.inverse }) }));
@@ -104,7 +141,7 @@ export function tableWithPanel({ theme, grid, header, table: t, panel: side }) {
     });
     y += 28;
   });
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧逐行明细表，右侧深色侧栏用节点链说明应用路径', [['table', 'data', [lx, top, rx - lx - grid.gutter, ph]], ['panel', 'flow', [rx, top, rw, ph]]]) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧逐行明细表，右侧深色侧栏用节点链说明应用路径', [['table', 'data', [lx, top, rx - lx - grid.gutter, tb.height + 8]], ['panel', 'flow', [rx, top, rw, ph]]]) };
 }
 
 // Two parallel flows, each with its title in the left columns, and a conclusion line.

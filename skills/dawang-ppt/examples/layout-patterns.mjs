@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import { createTheme, createGrid } from '../project/src/fusion/authoring/layout-kit.mjs';
-import { pageHeader, tableWithFlows, metricsWithEvidence, listWithPhotos, tableWithPanel, twoLaneFlow } from '../project/src/fusion/authoring/patterns.mjs';
+import { pageHeader, tableWithFlows, metricsWithEvidence, listWithPhotos, itemsWithPhotos, tableWithPanel, twoLaneFlow } from '../project/src/fusion/authoring/patterns.mjs';
 // Synthetic material showing each page pattern once. Wording and numbers are invented test content. Patterns are
 // starting points: adjust parameters, add elements, or design freely. Real images use file paths plus imageSize().
 const theme = createTheme({ palette: { bg: '#FFFFFF', ink: '#14213D', accent: '#E8590C' } }), grid = createGrid();
 const swatch = (w, h, fill) => ({ src: 'data:image/svg+xml;base64,' + Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`).toString('base64'), size: { width: w, height: h } });
 const source = '示例材料：合成数据，仅用于展示页型';
-const head = (page, title, focus, subtitle) => pageHeader({ theme, grid, eyebrow: '合成示例 · 页型', title, focus, subtitle, page, total: 5, source });
+const head = (page, title, focus, subtitle) => pageHeader({ theme, grid, eyebrow: '合成示例 · 页型', title, focus, subtitle, page, total: 6, source });
 
 const pages = [
   tableWithFlows({ theme, grid, header: head(1, '甲线重点投入，三线共用流程', '甲线重点投入', '甲线重点、乙线持续、丙线按需，共用一套流程'),
@@ -32,7 +32,13 @@ const pages = [
     panel: { title: '两条应用链', chains: [{ label: '链一', steps: ['展会／商圈资源', '门店客情与拓客', '大促准备'] }, { label: '链二', steps: ['品牌礼品资源', '直播与传播', '持续业务支持'] }] } }),
   twoLaneFlow({ theme, grid, header: head(5, '先排序、再分工，结果按节点回收', '先排序、再分工'),
     lanes: [{ title: '需求进入', steps: [{ title: '汇入', detail: '多线需求' }, { title: '排序', detail: '价值 · 节点 · 条件' }, { title: '分工', detail: '明确负责人' }] }, { title: '结果回收', steps: [{ title: '执行', detail: '按节点推进' }, { title: '回收', detail: '数据与案例' }, { title: '复用', detail: '进入资料库' }] }],
-    conclusion: '同一套流程承接三条业务线' })
+    conclusion: '同一套流程承接三条业务线' }),
+  itemsWithPhotos({ theme, grid, header: head(6, '三类资源各有对应现场，维护 80 家门店', '维护 80 家门店', '每项资源与它的现场照片放在同一栏'),
+    items: [{ title: '展会门票', detail: '春季 800 张、秋季 400 张，用于门店拓客', photo: { ...swatch(360, 480, '#C9B79C'), caption: '门票发放' } },
+      { title: '广告大屏', detail: '商场大屏曝光；新增广告位 1 个', photo: { ...swatch(384, 256, '#9BB0C8'), caption: '中厅大屏' } },
+      { title: '商圈场地', detail: '商场中厅，用于现场咨询', photo: { ...swatch(384, 256, '#A9C3A0'), caption: '外立面大屏' } }],
+    metrics: [{ value: '800', unit: '张', label: '春季门票' }, { value: '80', unit: '家', label: '门店客情维护' }, { value: '置换', unit: '', label: '资源获取方式' }],
+    note: '复盘：围绕客户需求组合资源，明确每项资源的使用场景。' })
 ];
 
 export const authored = {

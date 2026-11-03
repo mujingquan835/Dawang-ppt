@@ -16,7 +16,7 @@ const validBounds = (b) => Array.isArray(b) && b.length === 4 && b.every(Number.
 
 // Zones must be valid, must not overlap, and every text or image between the first zone's top and the last zone's
 // bottom must sit (by its centre) in some zone. Header and footer above or below all zones are page chrome.
-function checkZones(zones, elements, where, report) {
+function checkZones(zones, elements, where, report, warn) {
   if (!Array.isArray(zones) || !zones.length) { report({ kind: 'visual-zones-missing', ...where, need: 'visualDecision.zones:[{id,role,bounds}]' }); return; }
   const bad = zones.filter((z) => !z?.id || !ZONE_ROLES.has(z.role) || !validBounds(z.bounds));
   if (bad.length) { report({ kind: 'visual-zone-invalid', ...where, zones: bad.map((z) => z?.id ?? null), roles: [...ZONE_ROLES] }); return; }
@@ -32,6 +32,25 @@ function checkZones(zones, elements, where, report) {
     return !zones.some(({ bounds: [zx, zy, zw, zh] }) => cx >= zx && cx <= zx + zw && cy >= zy && cy <= zy + zh);
   });
   if (outside.length) report({ kind: 'visual-element-outside-zones', ...where, elementIds: outside.slice(0, 12).map((e) => e.id), count: outside.length });
+  // A large empty block inside a zone reads as a hole in the page (a wireframe shows it; this says it). The zone is
+  // cut into a 16×10 grid; cells touched by text or images (with a 24px margin) are filled; background panels do
+  // not count; zones under 300px tall are skipped. If the biggest all-empty rectangle of cells covers over 15% of the zone, warn.
+  for (const z of zones) {
+    const [zx, zy, zw, zh] = z.bounds, C = 16, R = 10, cw = zw / C, ch = zh / R;
+    // Thin bands (headings, metric rows) are uneven by nature; only a hole in a large area reads as missing content.
+    if (zh < 300) continue;
+    const content = elements.filter((e) => (e.type === 'text' || e.type === 'image') && Array.isArray(e.bounds));
+    const filled = Array.from({ length: R }, (_, r) => Array.from({ length: C }, (_, c) => content.some(({ bounds: [x, y, w, h] }) =>
+      x - 24 < zx + (c + 1) * cw && x + w + 24 > zx + c * cw && y - 24 < zy + (r + 1) * ch && y + h + 24 > zy + r * ch)));
+    let best = 0;
+    for (let r0 = 0; r0 < R; r0++) for (let c0 = 0; c0 < C; c0++) for (let r1 = r0; r1 < R; r1++) for (let c1 = c0; c1 < C; c1++) {
+      if ((r1 - r0 + 1) * (c1 - c0 + 1) <= best) continue;
+      let empty = true;
+      for (let r = r0; r <= r1 && empty; r++) for (let c = c0; c <= c1 && empty; c++) if (filled[r][c]) empty = false;
+      if (empty) best = (r1 - r0 + 1) * (c1 - c0 + 1);
+    }
+    if (best / (C * R) > 0.15) warn({ kind: 'visual-zone-sparse', ...where, zone: z.id, emptyShare: +(best / (C * R)).toFixed(2), hint: '区域内有大块空白：放大主体、收窄区域或重新分配版面' });
+  }
 }
 const nonempty = (value) => typeof value === 'string' && value.trim().length > 0;
 const STYLE_KEYS = ['fontSize', 'fontWeight', 'color', 'fontFamily'];
@@ -110,7 +129,7 @@ export function reviewVisualDecisions(project) {
       if (sizeOf(element, style) < top) report({ kind: 'visual-focus-not-leading', ...where, elementId: element.id, fontSize: sizeOf(element, style), topSize: top });
       if (titleOf(texts, style)?.id === element.id) titleFocus.push(slide.slideId);
     }
-    if (zonesRequired) checkZones(decision.zones, all, where, report);
+    if (zonesRequired) checkZones(decision.zones, all, where, report, (w) => warnings.push(w));
     review.slides.push({ ...where, focus: focusText, layout: decision.layout, ...(decision.zones ? { zones: decision.zones.map((z) => `${z.id}:${z.role}`) } : {}) });
     signatures.push({ slideId: slide.slideId, sig: signature(slide, project, element.id) });
   }

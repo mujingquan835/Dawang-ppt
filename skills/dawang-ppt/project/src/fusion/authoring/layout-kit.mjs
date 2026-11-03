@@ -148,7 +148,7 @@ export function imageMosaic({ id, x, y, width, images, theme, gap = 24, maxHeigh
   place(1, x, y, W0, H); caption(1, x, Math.round(y + H + 10), W0, sized[0].caption);
   let cy = y;
   rest.forEach((r, i) => { const h = W2 / r, rx = x + W0 + gap; place(i + 2, rx, cy, W2, h); caption(i + 2, Math.round(rx), Math.round(cy + h + 10), Math.round(W2), sized[i + 1].caption); cy += h + vgap; });
-  return { elements, height: Math.round(Math.max(H + cap, cy - vgap + cap - y)) };
+  return { elements, height: Math.round(Math.max(H + cap, cy - vgap + cap - y)), width: Math.round(W0 + gap + W2) };
 }
 
 // Several rows stacked; images are split into rows of `perRow`. perRow 'auto' tries every split (and the mosaic
@@ -163,12 +163,23 @@ export function imageGrid({ id, x, y, width, images, perRow = 'auto', rowGap = 2
   }
   const rows = Math.ceil(images.length / perRow), rowMax = (maxHeight - rowGap * (rows - 1)) / rows - 40;
   const elements = [];
-  let cy = y, used = 0;
+  let cy = y, used = 0, usedW = 0;
   for (let r = 0; r * perRow < images.length; r++) {
     const row = imageRow({ id: `${id}-r${r + 1}`, x, y: cy, width, images: images.slice(r * perRow, r * perRow + perRow), maxHeight: rowMax, ...rest });
-    elements.push(...row.elements); cy += row.height + rowGap; used = cy - rowGap - y;
+    elements.push(...row.elements); cy += row.height + rowGap; used = cy - rowGap - y; usedW = Math.max(usedW, row.width);
   }
-  return { elements, height: used };
+  return { elements, height: used, width: usedW };
+}
+
+// Move a block sideways, e.g. to centre a photo grid that is narrower than its zone.
+export const shiftX = (elements, dx) => (dx ? elements.map((e) => ({ ...e, bounds: [e.bounds[0] + Math.round(dx), ...e.bounds.slice(1)] })) : elements);
+
+// An image sized to fit a box at its own aspect ratio (never above maxUpscale × its pixels), centred in the box.
+export function fitImage({ id, src, size, box: [bx, by, bw, bh], maxUpscale = 2, alt }) {
+  const s = size || imageSize(src), r = s.width / s.height;
+  let w = Math.min(bw, bh * r, s.width * maxUpscale), h = w / r;
+  if (h > bh) { h = bh; w = h * r; }
+  return imageElement({ id, src, bounds: [Math.round(bx + (bw - w) / 2), Math.round(by + (bh - h) / 2), Math.round(w), Math.round(h)], fit: 'contain', naturalSize: [s.width, s.height], ...(alt ? { alt } : {}) });
 }
 
 // columns: [{key, label, width, size?, weight?, color?}]; row height follows the tallest estimated cell.

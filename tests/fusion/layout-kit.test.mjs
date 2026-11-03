@@ -92,3 +92,23 @@ test('every pattern page in the example is valid, inside the canvas, lint-clean 
   assert.deepEqual(r.issues, []);
   assert.deepEqual(r.warnings.filter((w) => w.kind !== 'visual-layout-repeated'), []);
 });
+
+test('items with photos keep each photo inside its own item column, sized to its pixels', async () => {
+  const slide = authored.slides.find((s) => s.slideId === 'p6');
+  for (const i of [1, 2, 3]) {
+    const panel = slide.elements.find((e) => e.id === `item-${i}-panel`), photo = slide.elements.find((e) => e.id === `item-${i}-photo`);
+    assert(photo.bounds[0] >= panel.bounds[0] && photo.bounds[0] + photo.bounds[2] <= panel.bounds[0] + panel.bounds[2], `photo ${i} leaves its column`);
+    assert(photo.bounds[2] <= photo.naturalSize[0] * 2 + 1);
+  }
+});
+
+test('a zone with a large empty block is reported as sparse', () => {
+  const project = createAuthoredProject({
+    requirements: { projectId: 'sparse', title: '合成' }, sources: { entries: [{ sourceId: 's', kind: 'synthetic' }] }, media: { entries: [] },
+    designChoice: { styleId: 'authored/custom' },
+    contentPlan: { nodes: {}, slides: [{ slideId: 'a', visualDecision: { focus: { elementId: 'big' }, layout: '左上大字', zones: [{ id: 'main', role: 'focus', bounds: [96, 200, 1728, 760] }] } }] },
+    slides: [{ slideId: 'a', elements: [{ id: 'big', type: 'text', text: '42%', bounds: [96, 200, 500, 200], style: { fontSize: 160 } }] }]
+  });
+  const w = reviewVisualDecisions(project).warnings.find((x) => x.kind === 'visual-zone-sparse');
+  assert(w && w.zone === 'main' && w.emptyShare > 0.5);
+});
