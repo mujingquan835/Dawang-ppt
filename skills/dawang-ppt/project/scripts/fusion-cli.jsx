@@ -24,6 +24,10 @@ import { renderProject } from "../src/fusion/scene/render-project.jsx";
 import { createFusionServer } from "./fusion-preview.jsx";
 import { measureProject } from "../src/fusion/qa/measure.mjs";
 import { reviewKeyLines } from "../src/fusion/qa/key-lines.mjs";
+import { reviewVisualDecisions } from "../src/fusion/qa/visual-decisions.mjs";
+import { reviewRuleChecklist } from "../src/fusion/qa/rule-checklist.mjs";
+import { kimiRuleItems } from "../src/fusion/kimi/rule-items.mjs";
+import { reviewKimiChecklist } from "../src/fusion/authoring/independent-review.mjs";
 const caller = process.env.INIT_CWD || process.cwd();
 const absolute = (file) => path.resolve(caller, file);
 function resolveBriefContents(brief, style) {
@@ -100,6 +104,8 @@ async function createPlannedProjectFromBrief(brief,{sourceDir=caller}={}) {
 }
 async function main(args = process.argv.slice(2)) {
   const [mode, input, output] = args;
+  if(mode==='rules:checklist'){const r=kimiRuleItems(input);console.log(JSON.stringify({...r,skeleton:{scenario:input,items:Object.fromEntries(r.items.map(i=>[i.id,{status:'',how:'',evidence:[{slideId:'',elementIds:[]}],reason:''}]))},note:'填入 contentPlan.ruleChecklist。applied 逐条写 how 与 evidence（指向实际 slideId/elementIds）；not-applicable/user-override 写 reason，整章不适用时可用章节 id 一次记录。'},null,2));return;}
+  if(mode==='review:kimi'){if(!input)throw Error('review:kimi <workspaceDir> [--keep-packet <dir>]');const i=args.indexOf('--keep-packet');const r=await reviewKimiChecklist({workspaceDir:absolute(input),keepPacket:i<0?undefined:absolute(args[i+1])});console.log(JSON.stringify(r,null,2));if(!r.ok)process.exitCode=1;return;}
   if(mode==='rules:list'){console.log(JSON.stringify(SCENARIOS.map(({id,zh})=>({id,name:zh})),null,2));return;}
   if(mode==='prepare'){if(!input||!output)throw Error('prepare <material.html|json|md|txt> <new-directory> [--scenario id]');const i=args.indexOf('--scenario');console.log(JSON.stringify(prepareMaterial({inputFile:absolute(input),outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]}),null,2));return;}
   if(['make','publish:html','check'].includes(mode)){
@@ -108,7 +114,7 @@ async function main(args = process.argv.slice(2)) {
    let r;if(mode==='make'){if(!output)throw Error('make requires output.html');r=await makeHtml({inputFile:absolute(input),outFile:absolute(output),workspaceDir:flag('--workspace')&&absolute(flag('--workspace')),screenshots});}
    else if(mode==='publish:html'){if(!output)throw Error('publish:html requires output.html');r=await publishHtml({workspaceDir:absolute(input),outFile:absolute(output),screenshots});}
    else r=await checkProject({workspaceDir:absolute(input),slideIds:flag('--slides')?.split(','),screenshots:flag('--screenshots')&&absolute(flag('--screenshots'))});
-   console.log(JSON.stringify(args.includes('--summary')?{ok:r.ok,issues:r.issues,warnings:r.warnings,contentReview:r.contentReview,workspaceDir:r.workspaceDir,outFile:r.outFile,revision:r.revision,phases:r.phases,durationMs:r.durationMs,reportFile:path.join(r.workspaceDir,'run.json'),screenshots}:r));if(!r.ok)process.exitCode=1;return;
+   console.log(JSON.stringify(args.includes('--summary')?{ok:r.ok,issues:r.issues,warnings:r.warnings,contentReview:r.contentReview,visualReview:r.visualReview,ruleReview:r.ruleReview,independentReview:r.independentReview,workspaceDir:r.workspaceDir,outFile:r.outFile,revision:r.revision,phases:r.phases,durationMs:r.durationMs,reportFile:path.join(r.workspaceDir,'run.json'),screenshots}:r));if(!r.ok)process.exitCode=1;return;
   }
   if(mode==='import:html'){const i=args.indexOf('--expected-revision'),r=importPortableHtml(absolute(input),absolute(output),{expectedRevision:i<0?undefined:args[i+1]});console.log(JSON.stringify(r));if(!r.ok)process.exitCode=1;return;}
   if(mode==='patch:project'){const result=patchProject(absolute(input),JSON.parse(fs.readFileSync(absolute(output),'utf8')));console.log(JSON.stringify(result));if(!result.ok)process.exitCode=1;return;}
@@ -184,11 +190,13 @@ async function main(args = process.argv.slice(2)) {
   try {
     const origin = `http://127.0.0.1:${server.address().port}`;
     if (mode === "qa:project") {
-      const qa = await measureProject(origin + "/index.html", p), content = reviewKeyLines(p);
-      if (content.issues.length) qa.ok = false;
+      const qa = await measureProject(origin + "/index.html", p), content = reviewKeyLines(p), visual = reviewVisualDecisions(p), rules = reviewRuleChecklist(p);
+      if (content.issues.length || visual.issues.length || rules.issues.length) qa.ok = false;
       qa.contentReview = content.review;
+      qa.visualReview = visual.review;
+      qa.ruleReview = rules.review;
       fs.writeFileSync(path.join(dir, "qa-report.json"), JSON.stringify(qa, null, 2));
-      console.log(JSON.stringify({ ok: qa.ok, pages: qa.pages.length, issues: [...qa.pages.flatMap((p2) => p2.issues), ...content.issues], warnings: [...qa.pages.flatMap((p2) => (p2.warnings || []).map((w) => ({ slideId: p2.slideId, ...w }))), ...content.warnings], contentReview: content.review, aestheticAcceptance: qa.aestheticAcceptance }));
+      console.log(JSON.stringify({ ok: qa.ok, pages: qa.pages.length, issues: [...qa.pages.flatMap((p2) => p2.issues), ...content.issues, ...visual.issues, ...rules.issues], warnings: [...qa.pages.flatMap((p2) => (p2.warnings || []).map((w) => ({ slideId: p2.slideId, ...w }))), ...content.warnings, ...visual.warnings, ...rules.warnings], contentReview: content.review, visualReview: visual.review, ruleReview: rules.review, aestheticAcceptance: qa.aestheticAcceptance }));
       if (!qa.ok) process.exitCode = 1;
     } else if (["export:pptx", "export:pdf"].includes(mode)) {
       const response = await fetch(origin + (mode === "export:pdf" ? "/api/export-pdf" : "/api/export-editable-pptx"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: p.revision }) });

@@ -2,6 +2,8 @@ import { clone, revision, validateProject } from '../project/schema.mjs';
 import { resolveSlideStyle } from '../styles/registry.mjs';
 import { syncCompositionTextState } from '../scene/model.mjs';
 import { CONTENT_CONTRACT } from '../qa/key-lines.mjs';
+import { VISUAL_CONTRACT } from '../qa/visual-decisions.mjs';
+import { RULE_CONTRACT } from '../qa/rule-checklist.mjs';
 
 // Direct elements are the design. Never select a preset or re-plan their geometry.
 export function createAuthoredProject(input) {
@@ -21,8 +23,8 @@ export function createAuthoredProject(input) {
   const legacy = { slideOrder: [...slideOrder], text: {}, props: {}, media: {}, skippedSlides: [], deletedSlides: [], duplicatedSlides: [], typography: { mode: 'global', headingFont: 'theme', bodyFont: 'theme', monoFont: 'theme' } };
   const project = {
     version: 2,
-    // New authored decks must record their key lines; older projects without this stamp only get warnings.
-    requirements: { projectId: revision(), ...source.requirements, contentContract: CONTENT_CONTRACT },
+    // New authored decks must record their key lines, visual decisions and Kimi rule checklist; older projects without these stamps only get warnings.
+    requirements: { projectId: revision(), ...source.requirements, contentContract: CONTENT_CONTRACT, visualContract: VISUAL_CONTRACT, ruleContract: RULE_CONTRACT },
     sources: { userEdits: [], ...source.sources },
     media: source.media,
     contentPlan: source.contentPlan,
