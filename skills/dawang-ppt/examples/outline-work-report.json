@@ -1,0 +1,18 @@
+{
+  "kind": "report",
+  "title": "华东区第三季度工作汇报（合成示例）",
+  "audience": "区域管理层",
+  "period": "2026年第三季度",
+  "owner": "华东市场部",
+  "pages": [
+    { "id": "p1", "role": "summary", "keyLine": { "text": "第三季度签约 48 单，完成季度目标的 96%", "source": "distilled" },
+      "data": [ { "label": "季度签约", "value": "48", "unit": "单" }, { "label": "目标完成率", "value": "96", "unit": "%" } ] },
+    { "id": "p2", "role": "results", "keyLine": { "text": "活动带来 20 单新签、30 单续费", "source": "distilled" },
+      "data": [ { "label": "新签", "value": "20", "unit": "单" }, { "label": "续费", "value": "30", "unit": "单" }, { "label": "新签金额", "value": "10", "unit": "万元" } ],
+      "items": [ { "title": "案例传播", "detail": "每周两次成交案例推送" } ] },
+    { "id": "p3", "role": "issues", "keyLine": { "text": "差 2 单未达标，问题集中在新客转化", "source": "distilled" },
+      "items": [ { "title": "新客转化偏低", "detail": "到店后跟进不足" } ] },
+    { "id": "p4", "role": "plan", "keyLine": { "text": "第四季度补齐新客跟进，目标 55 单", "source": "created" },
+      "items": [ { "title": "10 月", "detail": "建立到店 48 小时回访" }, { "title": "11 月", "detail": "大促前集中邀约" } ] }
+  ]
+}

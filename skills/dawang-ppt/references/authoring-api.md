@@ -42,6 +42,24 @@ const text = createTextAuthor({baseStyle:{fontFamily:'PingFang SC'},roles:{title
 const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:[120,140,1500,120]});
 ```
 
+## 内容大纲
+
+新建稿件先把用户材料整理成 `outline.json`，运行 `outline:check <outline.json>` 后再与用户确认、再排版。合成示例见 `examples/outline-work-report.json`。
+
+```json
+{ "kind": "report", "title": "…", "audience": "业务管理层", "period": "2026年Q3", "owner": "…",
+  "pages": [ { "id": "p1", "role": "summary", "keyLine": { "text": "…", "source": "distilled" },
+    "data": [ { "label": "辅助新签", "value": "20", "unit": "单" } ],
+    "items": [ { "title": "…", "detail": "…" } ], "flows": [ { "title": "…", "steps": ["…"] } ], "chains": [ { "title": "…", "steps": ["…"] } ],
+    "table": { "columns": ["…"], "rows": [["…"]] }, "photos": [ { "src": "附件图/x.jpg", "caption": "…" } ] } ] }
+```
+
+- `kind`：`report`（工作汇报、复盘、阶段总结）或 `review`（述职）。
+- `role`：summary 整体结论 / results 成果数据 / actions 关键动作 / resources 资源支持 / issues 问题差距 / causes 原因复盘 / plan 下一步 / asks 需支持或决策 / duties 职责定位（述职）/ other。
+- `flows` 是流程步骤（建议表格加流程色带），`chains` 是应用路径（建议表格加深色侧栏）。
+- 照片路径相对大纲文件所在目录。
+- 输出：`gaps`（缺口：缺什么 `ask`、缺了会怎样 `impact`）、`warnings`（单位缺失、重点句只是动作罗列、照片不存在、可选内容缺失）、`suggestions`（每页建议页型及理由：数据多用色块，数据少照片多才用照片拼板）、`decision`（下一步该问用户什么）。工作汇报要求整体结论、成果数据、问题差距、下一步，需支持事项为可选；述职要求职责定位、个人业绩、不足反思、下一阶段计划。
+
 ## 排版工具与页型
 
 排版用 `project/src/fusion/authoring/layout-kit.mjs` 与 `patterns.mjs`，不手算对齐坐标。每个工具返回 `{elements,height}`，按返回高度往下堆叠。完整用法见 `examples/layout-patterns.mjs`（合成示例，每个页型一页）。
