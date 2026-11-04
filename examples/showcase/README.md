@@ -2,7 +2,7 @@
 
 这个目录保存可复用的原材料和authored输入。4页分别展示封面、数量比较、带分支流程和行动时间线；它们只是一个实例，不是固定布局库。
 
-[下载已生成的离线HTML](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261027.1/dawang-ppt-editable-showcase.html) · [逐页图片及操作图解](../../docs/SHOWCASE.md)
+[下载已生成的离线HTML](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261104/dawang-ppt-editable-showcase.html) · [逐页图片及操作图解](../../docs/SHOWCASE.md)
 
 - `material.md`：公开虚构材料。34项、27项、7项及一周计划均为合成设定，不代表真实业务效果。
 - `deck.mjs`：材料经内容提炼后的逐页元素与重点句来源，所有文字和主要图形可编辑。

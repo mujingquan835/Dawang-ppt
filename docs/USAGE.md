@@ -1,10 +1,10 @@
 # Dawang-PPT 详细使用说明
 
-适用版本：`v0.2.0-preview.20261027.1`。终端命令用于一次性安装和排错，日常制作直接给 AI 材料和需求。
+适用版本：`v0.2.0-preview.20261104`。终端命令用于一次性安装和排错，日常制作直接给 AI 材料和需求。
 
 ## 先看成稿和实际操作
 
-[下载4页可编辑合成示例](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261027.1/dawang-ppt-editable-showcase.html)后用Chrome/Edge打开，可以先查看、改字和保存，不需要安装skill。示例中的业务内容与数字均为合成。
+[下载4页可编辑合成示例](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261104/dawang-ppt-editable-showcase.html)后用Chrome/Edge打开，可以先查看、改字和保存，不需要安装skill。示例中的业务内容与数字均为合成。
 
 ![当前引擎实际成稿的4页概览](images/showcase-overview.png)
 
@@ -41,8 +41,8 @@ Windows 的符号链接权限、CLI 启动器和字体可能需要适配，不�
 
 ### 推荐：独立分享包
 
-1. 打开 [本次下载页](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261027.1)。
-2. 选择 `dawang-ppt-v0.2.0-preview.20261027.1.zip` 附件。Source code 是完整仓库，包含历史维护文件。
+1. 打开 [本次下载页](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261104)。
+2. 选择 `dawang-ppt-v0.2.0-preview.20261104.zip` 附件。Source code 是完整仓库，包含历史维护文件。
 3. 解压得到 `dawang-ppt`，移至长期保留的位置，例如 `~/AI-Skills/dawang-ppt`。安装后不要移动或删除它。
 4. 终端进入该文件夹运行：
 
@@ -75,7 +75,7 @@ node scripts/install.mjs --target "$HOME/.claude/skills/dawang-ppt"
 仓库路径比独立 ZIP 多一层 `skills/dawang-ppt`：
 
 ```sh
-git clone --branch v0.2.0-preview.20261027.1 --single-branch https://github.com/mujingquan835/Dawang-ppt.git
+git clone --branch v0.2.0-preview.20261104 --single-branch https://github.com/mujingquan835/Dawang-ppt.git
 cd Dawang-ppt
 npm ci --prefix skills/dawang-ppt/project
 node skills/dawang-ppt/scripts/install.mjs
@@ -252,12 +252,12 @@ node scripts/install.mjs --uninstall
 
 ## 11. 修正版与旧下载的区别
 
-`v0.2.0-preview.20261027` 曾错误地以短规则替代完整读取，不能视为原能力等价版。请使用本说明对应的 `.1` 修正版；不要用旧版 ZIP 继续传播“无需资料即可完整制作”的说法。
+`v0.2.0-preview.20261027` 曾错误地以短规则替代完整读取，不能视为原能力等价版。请使用 `.1` 修正版或之后的预览版（本说明对应 `v0.2.0-preview.20261104`）；不要用旧版 ZIP 继续传播“无需资料即可完整制作”的说法。
 
 修正版恢复了逐节 apply / adapt / replaced / unreviewed 状态、可选设计与格式资料、完整原文 --full 查看、版本漂移阻断及既有用户覆盖边界。公开说明统一产品表述，技术路径、出处与必要版权信息不伪造。程序通过和模型输出相同是两件事；规则对照证据见 [完整规则对照](RULES-PARITY.md)。
 
 ## 12. 校验下载与反馈
 
-下载页提供 SHA256SUMS.txt。macOS 可运行 `shasum -a 256 dawang-ppt-v0.2.0-preview.20261027.1.zip`，与清单比较；Linux 用 sha256sum，Windows PowerShell 用 Get-FileHash。包内 PACKAGE-MANIFEST.json 列出各文件哈希。
+下载页提供 SHA256SUMS.txt。macOS 可运行 `shasum -a 256 dawang-ppt-v0.2.0-preview.20261104.zip`，与清单比较；Linux 用 sha256sum，Windows PowerShell 用 Get-FileHash。包内 PACKAGE-MANIFEST.json 列出各文件哈希。
 
 反馈时提供版本、系统、Node.js / 浏览器版本、doctor 状态、步骤与报错；可使用脱敏合成材料复现。不要上传业务原稿、隐私、凭据或完整本机路径日志。程序测试、实际视觉认可、客户端加载和目标 Office 验证分别记录。

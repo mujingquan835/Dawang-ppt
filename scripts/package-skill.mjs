@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const version='v0.2.0-preview.20261027.1';
+const version='v0.2.0-preview.20261104';
 const out=path.resolve(root,process.argv[2]||'output/releases/'+version);
 const zip=new JSZip(),prefix='skills/dawang-ppt/';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -26,7 +26,7 @@ for(const file of files){
 }
 let readme=fs.readFileSync(path.join(root,'README.md'),'utf8').replaceAll('skills/dawang-ppt/SKILL.md','SKILL.md');
 contents.set('README.md',Buffer.from(readme));
-for(const file of ['LICENSE','docs/USAGE.md','docs/RELEASE-20261027.md','docs/RULES-PARITY.md','docs/production-rules-parity.json'])contents.set(file,fs.readFileSync(path.join(root,file)));
+for(const file of ['LICENSE','docs/USAGE.md','docs/RELEASE-20261027.md','docs/RELEASE-20261104.md','docs/RULES-PARITY.md','docs/production-rules-parity.json'])contents.set(file,fs.readFileSync(path.join(root,file)));
 contents.set('NOTICE.md',Buffer.from(fs.readFileSync(path.join(root,'docs/SHARE-NOTICE.md'),'utf8')));
 for(const [file,bytes] of contents){
  if(file==='SKILL.md'||file.startsWith('references/')||file==='README.md'||file==='docs/USAGE.md'){
@@ -35,7 +35,7 @@ for(const [file,bytes] of contents){
 }
 const manifest={version,layout:'dawang-ppt/SKILL.md',files:Object.fromEntries([...contents].sort(([a],[b])=>a.localeCompare(b)).map(([file,bytes])=>[file,{bytes:bytes.length,sha256:sha(bytes)}]))};
 contents.set('PACKAGE-MANIFEST.json',Buffer.from(JSON.stringify(manifest,null,2)+'\n'));
-for(const [file,bytes] of contents)zip.file('dawang-ppt/'+file,bytes,{date:new Date('2026-10-27T00:00:00Z'),unixPermissions:0o100644});
+for(const [file,bytes] of contents)zip.file('dawang-ppt/'+file,bytes,{date:new Date('2026-11-04T00:00:00Z'),unixPermissions:0o100644});
 const bytes=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE',compressionOptions:{level:9},platform:'UNIX'});
 // Read the produced archive back; every recorded file must survive with identical bytes.
 const check=await JSZip.loadAsync(bytes,{checkCRC32:true});

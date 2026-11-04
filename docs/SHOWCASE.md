@@ -1,6 +1,6 @@
 # 四页可编辑示例与操作图解
 
-[下载示例 HTML](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261027.1/dawang-ppt-editable-showcase.html) · [源材料](../examples/showcase/material.md) · [可复用工程输入](../examples/showcase/deck.mjs) · [重新生成](../examples/showcase/README.md)
+[下载示例 HTML](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261104/dawang-ppt-editable-showcase.html) · [源材料](../examples/showcase/material.md) · [可复用工程输入](../examples/showcase/deck.mjs) · [重新生成](../examples/showcase/README.md)
 
 示例主题为“跨团队交接试点”。全部业务内容与数字均为合成，仅展示表达、布局及编辑方式，不代表真实组织或产品带来的改善。页面和编辑器截图由当前发布代码实际生成；没有使用图片代替可编辑页面。
 

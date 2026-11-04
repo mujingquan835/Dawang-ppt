@@ -2,15 +2,15 @@
 
 ![Actual four-slide synthetic example generated with the current engine](docs/images/showcase-overview.png)
 
-[Download the editable HTML sample](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261027.1/dawang-ppt-editable-showcase.html) · [Illustrated walkthrough](docs/SHOWCASE.md) · [Authoring approach](docs/APPROACH.md)
+[Download the editable HTML sample](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261104/dawang-ppt-editable-showcase.html) · [Illustrated walkthrough](docs/SHOWCASE.md) · [Authoring approach](docs/APPROACH.md)
 
 The sample contains fictional material and numbers. Open it with Chrome/Edge to view and edit manually; no skill or AI account is needed for this path. AI authoring from your own materials requires the complete setup described below.
 
 A Chinese presentation skill that turns source material into a single offline-editable HTML file. The authoring agent plans the content, edits screen-ready copy, designs each slide and reviews the result. PPTX, PDF and images are optional exports.
 
-The sharing build is `v0.2.0-preview.20261027.1`, a **prerelease**, primarily tested on macOS with Node.js 22+ and Chrome. The complete original production-rule reading and section adaptation workflow is restored. Version-matched reference documents must be supplied separately; they are not redistributed in this ZIP, and summaries never substitute for them.
+The sharing build is `v0.2.0-preview.20261104`, a **prerelease**, primarily tested on macOS with Node.js 22+ and Chrome. The complete original production-rule reading and section adaptation workflow is restored. Version-matched reference documents must be supplied separately; they are not redistributed in this ZIP, and summaries never substitute for them.
 
-Download the dedicated skill ZIP from the [release page](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261027.1), extract to a permanent location, open the `dawang-ppt` folder and run:
+Download the dedicated skill ZIP from the [release page](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261104), extract to a permanent location, open the `dawang-ppt` folder and run:
 
 ```sh
 npm ci --prefix project

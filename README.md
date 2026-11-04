@@ -4,7 +4,7 @@
 
 把原文、数据、截图和需求交给 AI，经过材料理解、文案提炼、逐页设计和复核，得到一个可离线打开、编辑、保存的 HTML 演示文稿。需要时再导出 PPTX、PDF 或图片。
 
-[下载可编辑示例](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261027.1/dawang-ppt-editable-showcase.html) · [安装与第一份稿件](docs/USAGE.md) · [完整图片示例](docs/SHOWCASE.md) · [制作思路](docs/APPROACH.md)
+[下载可编辑示例](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261104/dawang-ppt-editable-showcase.html) · [安装与第一份稿件](docs/USAGE.md) · [完整图片示例](docs/SHOWCASE.md) · [制作思路](docs/APPROACH.md)
 
 ![Dawang-PPT 当前引擎实际生成的四页合成示例：封面、数量比较、分支流程和行动时间线](docs/images/showcase-overview.png)
 
@@ -14,7 +14,7 @@
 
 | 你现在想做什么 | 从这里开始 |
 |---|---|
-| 先看效果，手动改一页试试 | [下载示例 HTML](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261027.1/dawang-ppt-editable-showcase.html)，用 Chrome / Edge 打开。无需 Node.js、AI 账号或 skill 安装 |
+| 先看效果，手动改一页试试 | [下载示例 HTML](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261104/dawang-ppt-editable-showcase.html)，用 Chrome / Edge 打开。无需 Node.js、AI 账号或 skill 安装 |
 | 让 AI 根据自己的材料制作 | 先准备 Node.js 22+、本地 AI 客户端和**匹配的完整规则资料**，再按[安装说明](docs/USAGE.md)配置 |
 | 理解怎么提需求、怎么把稿件做好 | 阅读[制作思路](docs/APPROACH.md)与[案例拆解](docs/SHOWCASE.md) |
 
@@ -61,7 +61,7 @@ Dawang-PPT 是 AI 客户端中的本地制作 skill。模型、账号与权限�
 
 ## 从第一份材料开始
 
-当前 skill 分享版是 [`v0.2.0-preview.20261027.1`](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261027.1)，属于预发布。下载该页的专用 skill ZIP，解压到长期保留的位置；以下命令在解压后的 `dawang-ppt` 文件夹中执行：
+当前 skill 分享版是 [`v0.2.0-preview.20261104`](https://github.com/mujingquan835/Dawang-ppt/releases/tag/v0.2.0-preview.20261104)，属于预发布。下载该页的专用 skill ZIP，解压到长期保留的位置；以下命令在解压后的 `dawang-ppt` 文件夹中执行：
 
 ```sh
 npm ci --prefix project
