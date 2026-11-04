@@ -123,3 +123,8 @@ test('the reviewer is told the confirmed house style outranks no-card clauses', 
   assert.match(packet.prompt, /数字色块/);
   assert.match(packet.prompt, /不得仅因/);
 });
+
+test('the Codex reviewer can run at a chosen reasoning effort', () => {
+  const r = resolveReviewer({ DAWANG_REVIEWER_EFFORT: 'low', PATH: '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin' });
+  if (r?.kind === 'codex') { assert.equal(r.effort, 'low'); assert.match(r.name, /\/low$/); }
+});

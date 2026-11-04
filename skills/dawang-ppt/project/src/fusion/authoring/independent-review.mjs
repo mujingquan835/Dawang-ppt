@@ -10,11 +10,12 @@ const CODEX_CANDIDATES = ['/Applications/ChatGPT.app/Contents/Resources/codex-cl
 const onPath = (name) => (process.env.PATH || '').split(path.delimiter).map((dir) => path.join(dir, name)).find((file) => fs.existsSync(file));
 
 // DAWANG_REVIEWER_CMD runs any reviewer: it gets PACKET_DIR (prompt.txt, schema.json, claims.json, images/NN.png) and must write
-// PACKET_DIR/verdict.json. Without it, a local Codex CLI is used in a fresh, read-only, ephemeral session.
+// PACKET_DIR/verdict.json. Without it, a local Codex CLI is used in a fresh, read-only, ephemeral session;
+// DAWANG_REVIEWER_MODEL and DAWANG_REVIEWER_EFFORT (minimal/low/medium/high) pick its model and reasoning effort.
 export function resolveReviewer(env = process.env) {
   if (env.DAWANG_REVIEWER_CMD) return { kind: 'command', command: env.DAWANG_REVIEWER_CMD, name: 'command:' + env.DAWANG_REVIEWER_CMD.split(/\s+/)[0] };
   const codex = onPath('codex') || CODEX_CANDIDATES.find((file) => fs.existsSync(file));
-  if (codex) return { kind: 'codex', command: codex, model: env.DAWANG_REVIEWER_MODEL, name: 'codex' + (env.DAWANG_REVIEWER_MODEL ? ':' + env.DAWANG_REVIEWER_MODEL : '') };
+  if (codex) return { kind: 'codex', command: codex, model: env.DAWANG_REVIEWER_MODEL, effort: env.DAWANG_REVIEWER_EFFORT, name: 'codex' + (env.DAWANG_REVIEWER_MODEL ? ':' + env.DAWANG_REVIEWER_MODEL : '') + (env.DAWANG_REVIEWER_EFFORT ? '/' + env.DAWANG_REVIEWER_EFFORT : '') };
   return null;
 }
 
@@ -23,7 +24,7 @@ function runReviewer(reviewer, packetDir, packet) {
   const run = reviewer.kind === 'command'
     ? spawnSync(reviewer.command, { shell: true, cwd: packetDir, env: { ...process.env, PACKET_DIR: packetDir }, encoding: 'utf8', timeout: 900000 })
     : spawnSync(reviewer.command, ['exec', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', packetDir,
-      ...(reviewer.model ? ['-m', reviewer.model] : []), '--output-schema', path.join(packetDir, 'schema.json'), '-o', verdictFile,
+      ...(reviewer.model ? ['-m', reviewer.model] : []), ...(reviewer.effort ? ['-c', 'model_reasoning_effort=' + reviewer.effort] : []), '--output-schema', path.join(packetDir, 'schema.json'), '-o', verdictFile,
       ...packet.images.map((file) => '--image=' + file), '-'], { input: packet.prompt, encoding: 'utf8', timeout: 900000 });
   if (run.error) throw run.error;
   if (!fs.existsSync(verdictFile)) throw new Error('复核者未写出 verdict.json（退出码 ' + run.status + '）：' + String(run.stderr || '').slice(-600));
