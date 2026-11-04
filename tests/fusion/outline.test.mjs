@@ -55,3 +55,15 @@ test('a partial job (the default) checks only its own pages and asks nothing whe
   // A page with no key line is still worth one question.
   assert.deepEqual(checkOutline({ kind: 'report', pages: [{ id: 'c', role: 'results', data: [{ label: 'x', value: '1', unit: '单' }] }] }).gaps.map((g) => g.item), ['keyLine']);
 });
+
+test('targets, comparisons and photos without items are pointed out so the report page types can be suggested', () => {
+  const page = (extra) => ({ kind: 'report', pages: [{ id: 'p1', role: 'results', keyLine: { text: '到店 12,860 人' }, data: [{ label: '到店人数', value: '12860', unit: '人' }], ...extra }] });
+  const items = (o) => checkOutline(o, '/').warnings.map((w) => w.item);
+  assert(items(page({ data: [{ label: '到店人数｜目标10,000人', value: '12860', unit: '人' }] })).includes('target'));
+  assert(!items(page({ data: [{ label: '到店人数', value: '12860', unit: '人', target: '10000' }] })).includes('target'));
+  assert(items(page({ keyLine: { text: '到店人数同比增长 56%' } })).includes('compare'));
+  const photo = { src: 'x.jpg' };
+  assert(items(page({ photos: [photo, photo, photo] })).includes('items'));
+  const acts = [1, 2, 3].map((i) => ({ title: `动作${i}`, detail: '活动前3天直播3场；核销到店2,310人' }));
+  assert.equal(suggestPattern({ items: acts, photos: [photo, photo, photo], data: [{}] }), 'itemsWithPhotos');
+});

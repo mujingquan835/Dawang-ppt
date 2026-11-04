@@ -53,3 +53,69 @@ test('list items lined up with spaces in one text box are flagged; the side pane
   assert.equal(detail.bounds[0], item.bounds[0]);
   assert.throws(() => sidePanel({ id: 'x', bounds: [0, 0, 400, 200], theme, list: { items: Array.from({ length: 6 }, () => ({ title: '一项很长的工作内容需要换行' })) } }), /does not fit/);
 });
+
+test('a framed photo later shown whole or shrunk inside its frame is flagged', async () => {
+  const f = imageFrames({ id: 'p', x: 900, y: 370, width: 924, height: 420, images: [{ src: 'a', size: { width: 1600, height: 1200 } }], theme });
+  const img = f.elements.find((e) => e.type === 'image');
+  assert.deepEqual(img.frame, img.bounds);
+  assert.deepEqual(kinds([{ ...img, fit: 'contain' }]), ['image-frame-broken']);
+  assert.deepEqual(kinds([{ ...img, bounds: [1000, 470, 355, 200] }]), ['image-frame-broken']);
+  // Moving the crop is the fix, and it passes.
+  assert.deepEqual(kinds([{ ...img, focal: '50% 20%' }]), []);
+});
+
+test('a whole photo in a box of another shape leaves empty bands and is flagged', () => {
+  assert.deepEqual(kinds([{ type: 'image', id: 'i', src: 'x', bounds: [900, 370, 924, 420], fit: 'contain', naturalSize: [1600, 1200] }]), ['image-letterbox']);
+  assert.deepEqual(kinds([{ type: 'image', id: 'i', src: 'x', bounds: [900, 370, 560, 420], fit: 'contain', naturalSize: [1600, 1200] }]), []);
+});
+
+test('a lone takeaway sentence is flagged; on a conclusion bar it is not', async () => {
+  const { noteBar } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
+  const lone = { type: 'text', id: 'closing', text: '客流显著增长，下一次重点提升成交效率。', bounds: [96, 790, 760, 100], style: { fontSize: 32, fontWeight: 600 } };
+  const tile = { type: 'shape', id: 'tile', bounds: [96, 560, 760, 180], style: { fill: '#FFFFFF', radius: 12 } };
+  assert.deepEqual(kinds([tile, lone]), ['text-orphan']);
+  const bar = noteBar({ id: 'closing', x: 96, y: 790, width: 760, text: lone.text, theme });
+  assert.deepEqual(kinds([tile, ...bar.elements]), []);
+  // A line that is part of a text group (a column of facts) is not an orphan.
+  assert.deepEqual(kinds([{ ...lone, id: 'a', bounds: [96, 700, 760, 50] }, { ...lone, id: 'b', bounds: [96, 780, 760, 50] }]), []);
+});
+
+test('a list split across columns keeps counting, and a narrow conclusion bar stacks its label and can match a neighbour', async () => {
+  const { numberedList, noteBar } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
+  const l = numberedList({ id: 'a', x: 0, y: 0, width: 500, items: [{ title: '门店快闪布景' }], theme, start: 2 });
+  assert.equal(l.elements.find((e) => e.id === 'a-num-1').text, '02');
+  const bar = noteBar({ id: 'n', x: 96, y: 758, width: 760, text: '客流显著增长，下一次重点提升成交效率。', theme, height: 196 });
+  const label = bar.elements.find((e) => e.id === 'n-label'), text = bar.elements.find((e) => e.id === 'n-text');
+  assert.equal(bar.height, 196);
+  assert(label.bounds[1] < text.bounds[1] && label.bounds[0] === text.bounds[0], 'label sits above the sentence');
+});
+
+test('report components fit any region, take words as values, and pass the composition checks', async () => {
+  const { answerBlock, comparePair, contrastPair, periodBand } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/report-kit.mjs');
+  const a = answerBlock({ id: 'a', x: 96, y: 200, width: 700, label: '整体判断', value: '超额完成', note: '成交转化仍偏低', theme });
+  assert.equal(a.elements[0].component, 'answerBlock');
+  assert.equal(a.elements.find((e) => e.id === 'a-value').text, '超额完成');
+  const c = comparePair({ id: 'c', x: 900, y: 200, width: 900, before: { label: '之前', value: '人工排期' }, after: { label: '之后', value: '自动排期' }, theme });
+  assert(c.elements.some((e) => e.component === 'comparePair'));
+  // Sides need not pair: three points against one.
+  const k = contrastPair({ id: 'k', x: 96, y: 500, width: 1728, left: { title: '现状', points: ['一', '二', '三'] }, right: { title: '改进', points: ['统一流程'] }, theme });
+  const s1 = k.elements.find((e) => e.id === 'k-side-1'), s2 = k.elements.find((e) => e.id === 'k-side-2');
+  assert.equal(s1.bounds[3], s2.bounds[3]);
+  const b = periodBand({ id: 'b', x: 96, y: 900, width: 1728, periods: ['11 月', '12 月'], theme });
+  assert.equal(b.columns.length, 2);
+  assert.deepEqual(kinds([...a.elements, ...c.elements]), []);
+  assert.deepEqual(kinds(k.elements), []);
+  const { metricTiles: tiles } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
+  const t = tiles({ id: 't', x: 96, y: 200, width: 1728, theme, highlight: 1, highlightStyle: 'solid', items: [{ label: '甲', value: '1' }, { label: '乙', value: '2' }, { label: '丙', value: '3' }] });
+  const on = t.elements.find((e) => e.id === 't-tile-2');
+  assert.equal(on.component, 'highlightTile');
+  assert.equal(on.style.fill, theme.palette.primary);
+  assert.equal(t.elements.find((e) => e.id === 't-value-2').runs[0].style.color, theme.palette.inverse);
+});
+
+test('a block running into the footer band is flagged', () => {
+  const source = { type: 'text', id: 'source', text: '演示用 · 数据均为虚构', bounds: [96, 1028, 900, 28], style: { fontSize: 17 } };
+  const bar = { type: 'shape', id: 'bar', bounds: [96, 912, 760, 131], style: { fill: '#EFE5DA', radius: 12 } };
+  assert(kinds([source, bar]).includes('block-into-footer'));
+  assert(!kinds([source, { ...bar, bounds: [96, 870, 760, 130] }]).includes('block-into-footer'));
+});

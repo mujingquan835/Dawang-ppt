@@ -75,7 +75,13 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
       const file = path.resolve(baseDir, ph.src || '');
       if (!ph.src || !fs.existsSync(file)) warnings.push({ ...where, item: 'photo', ask: `照片文件不存在：${ph.src}` });
     }
-    suggestions.push({ ...where, pattern: suggestPattern(p), why: suggestReason(p) });
+    // Report structure hiding in labels: targets and year-on-year pairs belong in their own fields, so the
+    // report page types (target vs actual, side-by-side comparison) can be suggested.
+    const said = [p.keyLine?.text, ...(p.data || []).flatMap((d) => [d.label, d.note]), ...(p.items || []).flatMap((it) => [it.title, it.detail])].filter(Boolean).join(' ');
+    if (p.role !== 'plan' && /目标|计划(值|完成|指标)|预期/.test(said) && !(p.data || []).some((d) => d.target != null)) warnings.push({ ...where, item: 'target', ask: '材料提到目标/计划：把目标值写进 data[].target（与实际值成对），可用 targetVsActual 页型', impact: '目标与实际分散在文字里，读者要自己对比' });
+    if (/去年|上期|同比|环比|上半年|对比/.test(said) && !p.compare && !p.table?.rows?.length && !(p.data || []).some((d) => d.target != null)) warnings.push({ ...where, item: 'compare', ask: '材料有今年/去年或前后对照：成对内容写进 compare:{left,right}，数字对比写进 data[].target 或表格', impact: '对照关系没有结构，页面只能平铺' });
+    if ((p.photos || []).length >= 2 && !(p.items || []).length) warnings.push({ ...where, item: 'items', ask: '这页有多张照片但没写事项：把每张照片对应的动作/资源写进 items（与 photos 同序、同数量），页型会把照片放在对应事项下', impact: '照片和内容对不上，读者分不清哪张图说明哪件事' });
+    suggestions.push({ ...where, pattern: suggestPattern(p), why: suggestReason(p), components: suggestComponents(p) });
   });
   const blocking = gaps.length > 0;
   return { ok: !blocking, kind, scope: full ? 'full' : 'part', gaps, warnings, suggestions,
@@ -91,6 +97,10 @@ export function suggestPattern(p) {
   if (nData >= 2 && (p.data || []).filter((d) => d.target != null).length >= 2) return 'targetVsActual';
   if (p.compare?.left?.length && p.compare.left.length === p.compare.right?.length) return 'contrastColumns';
   if ((p.periods || []).length >= 3) return 'periodColumns';
+  // Photos that each belong to one item go under that item, so the reader matches 1, 2, 3 to their pictures.
+  // Little text and almost no data keeps the confirmed photo panels; items with details or figures get a column each.
+  const brief = (p.items || []).every((it) => String(it.detail || '').length <= 30 && !/\d/.test(String(it.detail || '')));
+  if (nPhotos >= 2 && nItems === nPhotos) return nData <= 1 && brief ? 'photoPanels' : 'itemsWithPhotos';
   if (nData >= 2 && nPhotos >= 2) return 'listWithPhotos';
   if (nData >= 2 && nPhotos === 1) return 'metricsWithEvidence';
   if (nData >= 2) return 'metricTiles';
@@ -102,6 +112,7 @@ function suggestReason(p) {
   const nData = (p.data || []).length, nPhotos = (p.photos || []).length;
   if (suggestPattern(p) === 'targetVsActual') return '有目标值：计划与实际同列对照，深色块给出整体完成度';
   if (suggestPattern(p) === 'contrastColumns') return '两侧逐项成对（亮点/待改进、问题/改进）：左右对照、中间编号连起每一对';
+  if (suggestPattern(p) === 'itemsWithPhotos') return '每项一张对应照片：每项一栏，照片在该项正下方，编号与照片一一对应';
   if (suggestPattern(p) === 'periodColumns') return '按时期展开：箭头色带分段，每期一栏，底部汇总';
   if (nData >= 2 && nPhotos) return `${nData} 个数字优先进色块，${nPhotos} 张照片作证据`;
   if (nData >= 2) return `${nData} 个数字用色块并列`;
@@ -110,4 +121,48 @@ function suggestReason(p) {
   if (p.table?.rows?.length && (p.chains || []).length) return '明细表加深色侧栏应用链';
   if (p.table?.rows?.length) return '逐行明细用表格';
   return '按内容自由组合排版工具';
+}
+
+// Report components by page role and the relationships the words describe (target vs actual, before vs after, a time
+// sequence), never by how many figures there are: the template these come from only shows layout logic, its numbers
+// are placeholders. Each page should be carried by at least one of them; see references/fusion/report-layout-logic.md.
+const TIME = /[0-9一二三四五六七八九十]+月|季度|Q[1-4]|阶段|周[一二三四五六日]?|上半年|下半年|节点|前后|之前|之后|启动|落地/;
+const BEFORE_AFTER = /去年|上期|上年|同比|环比|对比|此前|之前|提升|下降|增长|降至|升至|→/;
+const TARGET = /目标|计划(值|完成|指标)|预期|达成|完成率/;
+export function suggestComponents(p) {
+  const said = [p.keyLine?.text, ...(p.data || []).flatMap((d) => [d.label, d.note, d.period]), ...(p.items || []).flatMap((it) => [it.title, it.detail]), ...(p.periods || []).map((x) => x.label)].filter(Boolean).join(' ');
+  const out = [], add = (name, why) => { if (!out.some((c) => c.name === name)) out.push({ name, why }); };
+  const photos = (p.photos || []).length, timeline = TIME.test(said) || (p.periods || []).length > 0;
+  switch (p.role) {
+    case 'summary':
+      add('answerBlock', '整体结论页用一块实心主色装本页答案');
+      if (TARGET.test(said) || (p.data || []).some((d) => d.target != null)) add('comparePair', '目标 → 实际，放在答案块旁');
+      else if (BEFORE_AFTER.test(said)) add('comparePair', '去年/之前 → 今年/之后');
+      break;
+    case 'results':
+      add('kpiStrip', '成果指标带：整体数字进左端实心块，其余指标并排');
+      if (TARGET.test(said) || (p.data || []).some((d) => d.target != null)) add('targetVsActual', '目标与实际同列对照');
+      if (BEFORE_AFTER.test(said)) add('comparePair', '本期对上期');
+      break;
+    case 'actions': case 'resources':
+      if (photos >= 2) add('itemsWithPhotos', '每项一栏，照片在该项正下方');
+      if (timeline) add('periodBand', '按时间推进：时期色带分段，每段下写动作');
+      add('highlightTile', '并列几项时，只把最关键的一项整块反白（metricTiles highlightStyle:solid）');
+      break;
+    case 'issues': case 'causes':
+      add('contrastPair', p.role === 'causes' ? '问题 vs 原因（或做法 vs 结果）左右对照' : '现状/问题 vs 改进左右对照');
+      break;
+    case 'plan':
+      add(timeline ? 'periodColumns' : 'answerBlock', timeline ? '按时期展开：箭头色带，每期一栏' : '下一阶段的核心目标放进答案块');
+      break;
+    case 'asks':
+      add('sidePanel', '需审批/支持事项放深色侧栏：关键数字＋编号事项');
+      break;
+    case 'duties':
+      add('answerBlock', '岗位定位放答案块，职责用编号列表');
+      break;
+    default:
+      add('answerBlock', '用一块实心主色装本页答案');
+  }
+  return out;
 }

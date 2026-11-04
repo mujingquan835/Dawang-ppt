@@ -7,7 +7,8 @@ import { reviewVisualDecisions } from '../../skills/dawang-ppt/project/src/fusio
 const text = (id, value, fontSize, bounds, extra = {}) => ({ id, type: 'text', text: value, bounds, style: { fontSize, fontWeight: 400, color: '#222222' }, ...extra });
 const runs = (id, parts, bounds) => text(id, parts.map((p) => p[0]).join(''), 64, bounds, { runs: parts.map(([t, style]) => ({ text: t, style })) });
 // Zones are checked in their own test; elsewhere a decision gets one full-page zone unless it brings its own.
-const withZone = (d) => (d && typeof d === 'object' && !d.waived && !('zones' in d) ? { ...d, zones: [{ id: 'page', role: 'support', bounds: [0, 0, 1920, 1080] }] } : d);
+// Fixtures record a page type (free, with its reason) and one page zone unless a test sets its own.
+const withZone = (d) => (d && typeof d === 'object' && !d.waived ? { pattern: 'free：合成测试页', componentsWaived: '合成测试页只验证当前规则', ...d, ...('zones' in d ? {} : { zones: [{ id: 'page', role: 'support', bounds: [0, 0, 1920, 1080] }] }) } : d);
 function input(decisions, slides) {
   return {
     requirements: { projectId: 'visual-decisions-test', title: '合成测试' },
@@ -69,8 +70,9 @@ test('a page with a shape or image is not text-only, and large inline photos are
   const r = reviewVisualDecisions(createAuthoredProject(input([
     { focus: { elementId: 't', text: '画面跟随' }, layout: '错位文字' }, { focus: { elementId: 'big' }, layout: '大数字' }, { waived: '结束页' }
   ], pages)));
-  assert.deepEqual(kinds(r), ['image-inline-src']);
-  assert.equal(r.issues[0].elementId, 'p');
+  // The fixture's whole-page zone also makes the photo small for its zone; this test is about the inline source.
+  assert.deepEqual(kinds(r).filter((k) => k !== 'image-small-in-zone'), ['image-inline-src']);
+  assert.equal(r.issues.find((i) => i.kind === 'image-inline-src').elementId, 'p');
   assert.deepEqual(r.warnings.filter((w) => w.kind === 'visual-text-only'), []);
 });
 
@@ -93,4 +95,18 @@ test('v2 decks need zones that do not overlap and hold the page content', () => 
   assert.deepEqual(run([z('a', 'focus', [0, 250, 1920, 300]), z('b', 'nope', [0, 600, 100, 100])]), ['visual-zone-invalid']);
   // The body text (y 600–660) sits between the zones' top and bottom but inside neither.
   assert.deepEqual(run([z('a', 'focus', [0, 250, 1920, 300]), z('b', 'support', [1500, 560, 400, 200])]), ['visual-element-outside-zones']);
+});
+
+test('v2 decks record the page type each page started from', () => {
+  const r = reviewVisualDecisions(createAuthoredProject(input([{ pattern: '', focus: { elementId: 'big' }, layout: '大数字' }], [[{ type: 'text', id: 'big', text: '42%', bounds: [96, 300, 600, 200], style: { fontSize: 160 } }]])));
+  assert(r.issues.some((i) => i.kind === 'visual-pattern-missing'));
+});
+
+test('a freely composed page needs a report component or a stated reason', () => {
+  const page = [[{ type: 'text', id: 'big', text: '42%', bounds: [96, 300, 600, 200], style: { fontSize: 160 } }]];
+  const bare = reviewVisualDecisions(createAuthoredProject(input([{ pattern: 'free：自由组合', componentsWaived: '', focus: { elementId: 'big' }, layout: '大数字' }], page)));
+  assert(bare.issues.some((i) => i.kind === 'report-component-missing'));
+  const withBlock = [[...page[0], { type: 'shape', id: 'a', component: 'answerBlock', bounds: [96, 560, 600, 200], style: { fill: '#23338B' } }]];
+  const ok = reviewVisualDecisions(createAuthoredProject(input([{ pattern: 'free：自由组合', componentsWaived: '', focus: { elementId: 'big' }, layout: '大数字' }], withBlock)));
+  assert(!ok.issues.some((i) => i.kind === 'report-component-missing'));
 });

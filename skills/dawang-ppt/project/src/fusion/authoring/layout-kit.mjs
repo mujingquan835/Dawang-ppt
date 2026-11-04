@@ -84,12 +84,13 @@ export function flow({ id, x, y, width, steps, theme, node: requested = 52, titl
   return { elements, height: h };
 }
 
-export function numberedList({ id, x, y, width, items, theme, badge = 56, titleSize = 34, detailSize = 24, gap = 40, color }) {
+// start: the first number, so one list split across columns keeps counting (01, 02, 03 instead of 01, 01, 01).
+export function numberedList({ id, x, y, width, items, theme, badge = 56, titleSize = 34, detailSize = 24, gap = 40, color, start = 1 }) {
   const p = theme.palette, textX = x + badge + 28, textW = width - badge - 28, elements = [];
   let cy = y;
   items.forEach((it, i) => {
     elements.push({ type: 'shape', id: `${id}-badge-${i + 1}`, bounds: [x, cy, badge, badge], style: { fill: color || p.accent, radius: 6 } });
-    elements.push(textElement({ id: `${id}-num-${i + 1}`, text: String(i + 1).padStart(2, '0'), bounds: [x, cy + Math.round((badge - Math.max(28, badge * 0.5) * 1.3) / 2), badge, Math.round(Math.max(28, badge * 0.5) * 1.3)], style: theme.font(Math.max(28, Math.round(badge * 0.5)), { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.3 }) }));
+    elements.push(textElement({ id: `${id}-num-${i + 1}`, text: String(start + i).padStart(2, '0'), bounds: [x, cy + Math.round((badge - Math.max(28, badge * 0.5) * 1.3) / 2), badge, Math.round(Math.max(28, badge * 0.5) * 1.3)], style: theme.font(Math.max(28, Math.round(badge * 0.5)), { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.3 }) }));
     const th = textHeight(it.title, titleSize, textW, 1.3);
     elements.push(textElement({ id: `${id}-title-${i + 1}`, text: it.title, bounds: [textX, cy + Math.max(0, Math.round((badge - titleSize * 1.3) / 2)), textW, th], style: theme.font(titleSize, { fontWeight: 700, lineHeight: 1.3 }) }));
     let used = Math.max(badge, th);
@@ -211,7 +212,9 @@ export function imageFill({ id, x, y, width, height, images, theme, gap = 24, ca
   if (!viable.length) return null;
   const elements = [];
   viable[0].forEach(({ img, x: bx, y: by, w, h }, i) => {
-    elements.push(imageElement({ id: `${id}-img-${i + 1}`, src: img.src, bounds: [Math.round(bx), Math.round(by), Math.round(w), Math.round(h)], fit: 'cover', focal: img.focal || '50% 40%', naturalSize: [img.size.width, img.size.height], style: { radius: theme.radius ?? 0 }, ...(img.alt ? { alt: img.alt } : {}) }));
+    const b = [Math.round(bx), Math.round(by), Math.round(w), Math.round(h)];
+    // A framed photo remembers its frame: later edits may move the crop (focal), not shrink it or show it whole.
+    elements.push(imageElement({ id: `${id}-img-${i + 1}`, src: img.src, bounds: b, fit: 'cover', focal: img.focal || '50% 40%', naturalSize: [img.size.width, img.size.height], style: { radius: theme.radius ?? 0 }, ...(always ? { frame: b } : {}), ...(img.alt ? { alt: img.alt } : {}) }));
     if (img.caption) elements.push(textElement({ id: `${id}-caption-${i + 1}`, text: img.caption, bounds: [Math.round(bx), Math.round(by + h + 10), Math.round(w), cap - 10], style: theme.font(captionSize, { color: theme.palette.muted, lineHeight: 1.35 }) }));
   });
   return { elements, height, width, crop: +cost(viable[0]).toFixed(2) };
@@ -245,7 +248,7 @@ const centredValue = ({ id, x, y, width, value, unit, size, color, theme }) => {
 export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, anchorWidth, size = 56, color, labelPosition = 'below' }) {
   const p = theme.palette, r = colorRoles(p), aw = anchor ? anchorWidth || Math.round(width * 0.17) : 0, elements = [];
   const n = items.length, colW = (width - aw) / n, labelSize = 22, valueH = Math.round(size * 1.25), labelH = Math.round(labelSize * 1.4);
-  elements.push({ type: 'shape', id: `${id}-band`, bounds: [x + aw, y, width - aw, height], style: { fill: r.band } });
+  elements.push({ type: 'shape', id: `${id}-band`, component: 'kpiStrip', bounds: [x + aw, y, width - aw, height], style: { fill: r.band } });
   if (anchor) {
     elements.push({ type: 'shape', id: `${id}-anchor`, bounds: [x, y, aw, height], style: { fill: r.primary } });
     const block = labelH + 6 + valueH, ay = y + Math.round((height - block) / 2);
@@ -269,7 +272,9 @@ export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, 
 // an accent bar and accent number. When a tile's content leaves a wide empty strip on the right, a line icon chosen
 // from the label fills it (item.icon names a different one); a tile that is already full gets none. There is no
 // switch to leave a wide empty strip bare.
-export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill, icons = 'auto' }) {
+// highlightStyle 'solid' turns the highlighted tile into a solid primary block with white text (the one inverted
+// column among peers); 'bar' (default) keeps the accent bar and accent number.
+export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill, icons = 'auto', highlightStyle = 'bar' }) {
   const p = theme.palette, cols = columns || items.length, tileW = Math.floor((width - gap * (cols - 1)) / cols);
   const tileFill = fill || p.tile || (String(p.bg).toUpperCase() === '#FFFFFF' ? p.pale : '#FFFFFF');
   const labelSize = Math.max(20, Math.round(size * 0.3)), tileH = 24 + Math.round(labelSize * 1.4) + 8 + Math.round(size * 1.32) + 18, elements = [];
@@ -281,16 +286,17 @@ export function metricTiles({ id, x, y, width, items, theme, size = 72, columns,
   const fits = items.map((it) => Math.round(Math.min(180, tileH - 36, tileW - 28 - 16 - contentOf(it) - 24)));
   const iconS = Math.min(...fits.filter((v) => v >= 56), 180);
   items.forEach((it, i) => {
-    const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), on = i === highlight;
-    elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, bounds: [tx, ty, tileW, tileH], style: { fill: tileFill, radius: theme.radius ?? 14 } });
-    if (on) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
-    elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: p.muted }) }));
-    const runs = [{ text: String(it.value), style: { fontSize: size, fontWeight: 700, color: on ? p.accent : p.ink } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 700, color: p.muted } }] : [])];
+    const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), on = i === highlight, solid = on && highlightStyle === 'solid';
+    const roles = colorRoles(p), ink = solid ? p.inverse : null;
+    elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, component: solid ? 'highlightTile' : 'metricTiles', bounds: [tx, ty, tileW, tileH], style: { fill: solid ? roles.primary : tileFill, radius: theme.radius ?? 14 } });
+    if (on && !solid) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
+    elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: ink || p.muted }) }));
+    const runs = [{ text: String(it.value), style: { fontSize: size, fontWeight: 700, color: ink || (on ? p.accent : p.ink) } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 700, color: ink || p.muted } }] : [])];
     const name = (typeof it.icon === 'string' && it.icon) || pickIcon(`${it.label || ''}${it.unit || ''}`);
     const withIcon = name && fits[i] >= 56;
     const textW = withIcon ? tileW - 44 - iconS - 16 : tileW - 44;
-    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + 24 + Math.round(labelSize * 1.4) + 4, textW, Math.round(size * 1.32)], style: theme.font(size, { fontWeight: 700, lineHeight: 1.15, color: on ? p.accent : p.ink }) }));
-    if (withIcon) elements.push(...iconElements({ id: `${id}-tile-${i + 1}`, name, bounds: [tx + tileW - iconS - 20, ty + Math.round((tileH - iconS) / 2), iconS], color: on ? p.accent : p.muted, disc: rgba(on ? p.accent : p.ink, on ? 0.12 : 0.06) }));
+    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + 24 + Math.round(labelSize * 1.4) + 4, textW, Math.round(size * 1.32)], style: theme.font(size, { fontWeight: 700, lineHeight: 1.15, color: ink || (on ? p.accent : p.ink) }) }));
+    if (withIcon) elements.push(...iconElements({ id: `${id}-tile-${i + 1}`, name, bounds: [tx + tileW - iconS - 20, ty + Math.round((tileH - iconS) / 2), iconS], color: ink || (on ? p.accent : p.muted), disc: solid ? 'rgba(255, 255, 255, 0.16)' : rgba(on ? p.accent : p.ink, on ? 0.12 : 0.06) }));
   });
   const rows = Math.ceil(items.length / cols);
   return { elements, height: rows * tileH + (rows - 1) * gap };
@@ -390,8 +396,40 @@ export function sidePanel({ id, bounds: [x, y, w, h], theme, figure, list, fill 
   const used = blocks.reduce((a, b) => a + b.h, 0), gaps = blocks.slice(1).map((b) => (b.tight ? 0.25 : 1)), weight = gaps.reduce((a, b) => a + b, 0);
   const spare = h - pad * 2 - used, unit = weight ? Math.min(96, spare / weight) : 0;
   if (unit < 16) throw new Error(`sidePanel content does not fit by ${Math.round(16 * weight - spare)}px: shorten items or widen the panel`);
-  const elements = [{ type: 'shape', id: `${id}-panel`, bounds: [x, y, w, h], style: { fill: fill || r.primary, radius: theme.radius ?? 0 } }];
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'sidePanel', bounds: [x, y, w, h], style: { fill: fill || r.primary, radius: theme.radius ?? 0 } }];
   let cy = y + pad + Math.max(0, Math.round((spare - unit * weight) / 2));
   blocks.forEach((b, i) => { if (i) cy += Math.round(unit * gaps[i - 1]); elements.push(...b.draw(Math.round(cy))); cy += b.h; });
   return { elements, height: h };
+}
+
+// Conclusion bar: the page's takeaway sentence on a tinted band with an accent mark and a short label (复盘判断,
+// 结论, 下一步). A lone sentence floating in empty space reads as leftover; give it this bar, attach it to the data it
+// concludes, or move it into the header subtitle. Height follows the text.
+export function noteBar({ id, x, y, width, text, label = '复盘判断', theme, size = 30, fill, height }) {
+  // height: stretch the bar to end level with a neighbouring block. A bar too narrow to keep the sentence on one line
+  // beside its label puts the label above the sentence instead, so the sentence does not break into a stray word.
+  const p = theme.palette, r = colorRoles(p), lw = label ? Math.round(textWidth(label, 24) + 40) : 0;
+  const stacked = !!label && textWidth(text, size) > (width - 56 - lw) * 0.95, tw = stacked ? width - 56 : width - 56 - lw;
+  const th = textHeight(text, size, tw, 1.4), need = (stacked ? 34 + 10 : 0) + th + 44, h = Math.max(88, need, height || 0), elements = [];
+  elements.push({ type: 'shape', id: `${id}-bar`, component: 'noteBar', bounds: [x, y, width, h], style: { fill: fill || r.band, radius: theme.radius ?? 0 } });
+  elements.push({ type: 'shape', id: `${id}-mark`, bounds: [x, y + 16, 8, h - 32], style: { fill: p.accent, radius: 4 } });
+  const top = y + Math.round((h - (need - 44)) / 2);
+  if (label) elements.push(textElement({ id: `${id}-label`, text: label, bounds: stacked ? [x + 32, top, width - 56, 34] : [x + 32, y + Math.round((h - 34) / 2), lw - 16, 34], style: theme.font(24, { fontWeight: 700, color: p.accent }) }));
+  elements.push(textElement({ id: `${id}-text`, text, bounds: stacked ? [x + 32, top + 44, tw, th] : [x + 32 + lw, y + Math.round((h - th) / 2), tw, th], style: theme.font(size, { fontWeight: 700, lineHeight: 1.4 }) }));
+  return { elements, height: h };
+}
+
+// Bullet points with a hanging indent: each point is its own text box after a small dot, so wrapped lines start
+// under the text, not under the dot.
+export const indentOf = (size) => Math.round(size * 0.9), pointGap = (size) => Math.round(size * 0.3);
+export const pointsHeight = (points = [], size, width, lh) => points.reduce((h, s, i) => h + textHeight(s, size, width - indentOf(size), lh) + (i ? pointGap(size) : 0), 0);
+export function pointList({ id, x, y, width, points = [], size, color, theme, lh }) {
+  const elements = [], d = Math.max(6, Math.round(size * 0.26));
+  points.forEach((s, i) => {
+    const h = textHeight(s, size, width - indentOf(size), lh);
+    elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x, y + Math.round((size * lh - d) / 2), d, d], style: { fill: color, radius: d / 2 } });
+    elements.push(textElement({ id: `${id}-${i + 1}`, text: s, bounds: [x + indentOf(size), y, width - indentOf(size), h], style: theme.font(size, { color, lineHeight: lh }) }));
+    y += h + pointGap(size);
+  });
+  return elements;
 }

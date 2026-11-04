@@ -7,7 +7,7 @@
   "owner": "华东市场部",
   "pages": [
     { "id": "p1", "role": "summary", "keyLine": { "text": "第三季度签约 48 单，完成季度目标的 96%", "source": "distilled" },
-      "data": [ { "label": "季度签约", "value": "48", "unit": "单" }, { "label": "目标完成率", "value": "96", "unit": "%" } ] },
+      "data": [ { "label": "季度签约", "value": "48", "unit": "单", "target": "50" }, { "label": "目标完成率", "value": "96", "unit": "%" } ] },
     { "id": "p2", "role": "results", "keyLine": { "text": "活动带来 20 单新签、30 单续费", "source": "distilled" },
       "data": [ { "label": "新签", "value": "20", "unit": "单" }, { "label": "续费", "value": "30", "unit": "单" }, { "label": "新签金额", "value": "10", "unit": "万元" } ],
       "items": [ { "title": "案例传播", "detail": "每周两次成交案例推送" } ] },

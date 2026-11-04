@@ -34,7 +34,7 @@ export function reviewClaims(project, rules) {
 export const VISUAL_CLAIMS = [
   { id: 'visual#alignment', rule: '同组元素共用对齐线；流程节点与下方说明逐一对应；同一行图片等高；数字与单位成组，不被拉开' },
   { id: 'visual#hierarchy', rule: '每页第一眼读到的是本页重点；主次在实际尺寸上看得出，不是等大文字堆叠，也不是每页同一个结构' },
-  { id: 'visual#images', rule: '图片关键区域看得清、比例未变形、裁切没有切掉主体；图片与旁边的说明对应；页面没有大块无意义空白' }
+  { id: 'visual#images', rule: '照片先按版面画框、再裁切嵌入是用户确认的做法：照片填满框、与相邻内容上下对齐，比例未变形；裁切掉部分画面不算问题，只有人脸或页面依赖的关键文字被切掉才判 fail，修正写“调整 focal 或换图”，不得要求改成完整显示或缩小；照片缩小后框内留空、与相邻栏不对齐判 fail；图片与旁边的说明逐项对应；页面没有大块无意义空白' }
 ].map((c) => ({ ...c, status: 'visual' }));
 
 // The user's confirmed house style. It takes precedence over original-rule clauses that forbid cards or rectangles

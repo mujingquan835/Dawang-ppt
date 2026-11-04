@@ -58,6 +58,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `scope`：`part`（默认，用户只要一部分页面或某一块）只检查所做页面；`full`（用户明确要完整汇报/述职）才检查整体结论、问题差距、下一步等整稿结构。authored 工程的 `requirements.scope` 同步填写，复核据此判断。没有缺口时不向用户提问。
 - `role`：summary 整体结论 / results 成果数据 / actions 关键动作 / resources 资源支持 / issues 问题差距 / causes 原因复盘 / plan 下一步 / asks 需支持或决策 / duties 职责定位（述职）/ other。
 - `flows` 是流程步骤（建议表格加流程色带），`chains` 是应用路径（建议表格加深色侧栏）。
+- 照片各对应一项时，事项写进 `items`（与 `photos` 同序同数量）：有说明或数字时建议 `itemsWithPhotos`（每项一栏、照片在正下方），文字很少、几乎无数据时建议 `photoPanels`。`outline:check` 会提醒：标签或重点句提到目标却没写 `target`、提到去年/同比却没有对照结构、有多张照片却没写事项。
 - `data[].target` 写目标值（两项以上时建议 `targetVsActual`）；`compare:{left:[…],right:[…]}` 写逐项成对的两侧（建议 `contrastColumns`）；`periods:[{label,title,points}]` 写按时期展开的工作（3 个以上时建议 `periodColumns`）。
 - 照片路径相对大纲文件所在目录。
 - 输出：`gaps`（缺口：缺什么 `ask`、缺了会怎样 `impact`）、`warnings`（单位缺失、重点句只是动作罗列、照片不存在、可选内容缺失）、`suggestions`（每页建议页型及理由：数据多用色块，数据少照片多才用照片拼板）、`decision`（下一步该问用户什么）。工作汇报要求整体结论、成果数据、问题差距、下一步，需支持事项为可选；述职要求职责定位、个人业绩、不足反思、下一阶段计划。
@@ -71,24 +72,26 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `flow({steps:[{title,detail}]})`：编号圆点、箭头连线，标题与说明从节点左缘起排；编号固定 28px 粗体，节点不小于 48px。
 - `metricTiles({items:[{value,unit,label}],size,columns,highlight})`：每个数字一个圆角色块，标签在上、数字在下，高亮项带强调色竖条与强调色数字；色块右侧空余较大时自动加一个线性图标（按标签选：喜报→文档、新签→笔、续费→循环、金额→硬币、门票、门店、大屏、场地等；大小随空余缩放，最大 180px，不足 36px 不加），空间刚好时不加；图标不能关闭，`item.icon` 只用来指定换哪个图标。图标集见 `authoring/icons.mjs`。页型默认用色块（`metricStyle:'plain'` 退回无底色数字）。
 - `photoPanel({bounds,photo,title,lines,color,textSide})`：深色色块写标题、强调色短线与一到三行要点，从色块向照片渐隐过渡（`textSide:'left'` 文左图右，`'top'` 文上图下）。
-- `numberedList({items:[{title,detail}]})`、`table({columns:[{key,label,width,size,weight,color}],rows})`、`panel({bounds,fill,radius})`、`textBlock`。
+- `numberedList({items:[{title,detail}],start})`（一组事项分到多栏时用 `start` 接着编号 01、02、03）、`table({columns:[{key,label,width,size,weight,color}],rows})`、`panel({bounds,fill,radius})`、`textBlock`。
 - `imageRow` / `imageGrid({images:[{src,file?,size?,caption}],perRow:'auto'})`：同行等高、按原始比例分宽，不把图片放大到原始像素 2 倍以上；`auto` 会在分行与“左侧高图、右侧堆叠”拼贴中取图片面积最大且放得下的一种。真实图片用文件路径作 `src`，`imageSize(file)` 读取原始尺寸（make 会登记到图片台账）。
 - `imageFill({x,y,width,height,images})`：用一行或“左高右叠”拼贴铺满整个方框，每张图围绕 `focal`（默认 `50% 40%`）轻度裁切，形状改变不超过 1.45 倍；做不到时返回 null。
 - `imageFrames({x,y,width,height,images,tall})`：先画框再嵌图。方框由版面决定（与左侧内容的上下边界对齐），框一定铺满，每张图裁切嵌入，自动选裁切最少的排法（一行、左高右叠或 `tall:'right'` 镜像、一列、2×2）；用 `focal` 保住人脸和关键文字。多张照片一律用它。
+- `noteBar({id,x,y,width,text,label,height})`：一句收尾结论放在浅主色条上，左侧强调色竖条和短标签（默认“复盘判断”）；宽度不够一行时标签移到句子上方，`height` 让它与相邻区块底边对齐；单独悬在空白里的结论句会被 `text-orphan` 拦下。
 - `sidePanel({id,bounds,figure:{label,value,unit,note},list:{title,items:[{title,detail}]}})`：深色侧栏，标题、关键数字和编号事项按面板高度铺开，编号圆标加悬挂缩进；放不下时报错。
 - `fitImage({id,src,size,box})`：按原始比例放进方框并居中，不超过原始像素 2 倍；只用于单张必须完整显示的图（截图、证书），不用于照片组；`shiftX(elements,dx)` 整体平移一组元素。
 - `estimateLines` / `textHeight`：中文按 1 字宽、西文按 0.55 字宽估算行数与高度。
+- 汇报组件（`authoring/report-kit.mjs`，放进任何区域，值可以是数字或短语）：`answerBlock({id,x,y,width,height,label,value,unit,note})` 实心主色答案块；`comparePair({before:{label,value,unit},after:{…},note})` 目标/之前 → 实际/之后；`contrastPair({left:{title,points},right:{title,points},badge})` 两侧对照，条数可不同；`periodBand({periods,bleed})` 时期箭头色带，返回 `columns` 供下方内容对齐。`metricTiles` 的 `highlightStyle:'solid'` 把高亮项整块反白。用法与默认场景见 [汇报版式逻辑](fusion/report-layout-logic.md#7-使用方式拆成组件默认使用)。
 - `kpiStrip({anchor:{label,value,unit},items:[{value,unit,label|note}],height,size})`：左端实心主色锚定块装整体数字，其余指标在浅主色带上等分、细竖线分隔，返回 `columns` 供下方内容对齐到各列。
 - `colorRoles(palette)`：汇报配色职责 primary / secondary / pop / band / soft；九组汇报配色在 `authoring/report-palettes.mjs`（`reportPalette('blue-gold')`），说明见 [汇报版式逻辑](fusion/report-layout-logic.md)。
 
-页型返回 `{elements,visualDecision}`，可把 `visualDecision` 直接写入 `contentPlan.slides[i]`：
+页型返回 `{elements,visualDecision}`，可把 `visualDecision` 直接写入 `contentPlan.slides[i]`；其中 `pattern` 已写好页型名。自行组合的页面写 `pattern:'free：为什么不用建议页型'`：
 
 | 页型 | 适用 |
 |---|---|
 | `pageHeader({eyebrow,tag,title,focus,subtitle,page,total,source})` | 所有页的页头页脚；`focus` 是标题中要强调的一段，以 runs 着强调色；给 `tag`（如“成果数据 \| 02”）时改为左侧实心主色标签＋同行标题＋贯穿细线 |
-| `targetVsActual({header,period,overall,items:[{label,target,actual,note,rate,detail}],analysis})` | 计划目标行与实际结果带同列对照，左端深色块给整体完成度，下方各列完成率进度条与说明（未达标用辅色） |
-| `contrastColumns({header,left:{title,items},right:{title,items},badge})` | 亮点/待改进、问题/改进、今年/去年逐行成对；两侧行数必须相同，否则报错 |
-| `periodColumns({header,periods:[{label,title,rate,points}],summary:{overall,items}})` | 3–6 个时期的箭头色带，每期一栏写重点与要点，底部汇总指标带 |
+| `targetVsActual({header,period,overall,items:[{label,target,actual,note,rate,detail}],analysis})` | 1–5 项；计划目标行与实际结果带同列对照，左端深色块给整体完成度，下方各列完成率进度条与说明（未达标用辅色） |
+| `contrastColumns({header,left:{title,items},right:{title,items},badge})` | 亮点/待改进、问题/改进、今年/去年逐行对照；两侧行数不同时空出的行留白 |
+| `periodColumns({header,periods:[{label,title,rate,points}],summary:{overall,items}})` | 2–6 个时期的箭头色带，每期一栏写重点与要点，底部汇总指标带 |
 | `tableWithFlows({header,table,flows,note})` | 分工表加下方色带中的一到两条流程 |
 | `metricsWithEvidence({header,hero,secondary,flow,notes,image})` | 主指标、次级指标行、机制流程，右侧证据图 |
 | `listWithPhotos({header,items,metrics,photos,note})` | 默认的图文资源页：左侧编号资源、结果指标与复盘，右侧照片铺满整栏（先画框再裁切嵌入，任何比例都不留空隙） |

@@ -1,5 +1,5 @@
 import { textElement, lineElement } from './elements.mjs';
-import { textHeight, textWidth, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage, colorRoles, kpiStrip, lighten, imageFrames } from './layout-kit.mjs';
+import { textHeight, textWidth, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage, colorRoles, kpiStrip, lighten, imageFrames, pointList, pointsHeight } from './layout-kit.mjs';
 
 // Page patterns built on the layout kit. Each returns elements on the 12-column grid plus a visualDecision that
 // can go straight into contentPlan. A pattern is a starting point: change its parameters, add or drop elements,
@@ -43,7 +43,7 @@ export function pageHeader({ theme, grid, eyebrow, tag, title, focus, subtitle, 
 }
 
 // zones: [id, role, [x, y, w, h]] for the page's regions; the visual check keeps elements inside them.
-const decision = (header, layout, zones) => ({ focus: header.focus, layout, zones: zones.map(([id, role, b]) => ({ id, role, bounds: b.map(Math.round) })) });
+const decision = (pattern, header, layout, zones) => ({ pattern, focus: header.focus, layout, zones: zones.map(([id, role, b]) => ({ id, role, bounds: b.map(Math.round) })) });
 
 // Work-split table on top, one or two flows on a full-width colour band below.
 export function tableWithFlows({ theme, grid, header, table: t, flows, note }) {
@@ -58,7 +58,7 @@ export function tableWithFlows({ theme, grid, header, table: t, flows, note }) {
     elements.push(...flow({ id: `flow-${i + 1}`, x: lx, y: bandY + 108, width: laneW, steps: f.steps, theme }).elements);
   });
   if (note) elements.push(textElement({ id: 'flow-note', text: note, bounds: [grid.left, FOOTER_TOP - 76, grid.width, 36], style: theme.font(24, { fontWeight: 700, color: p.ink }) }));
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '上方分工表按支持层级排列，下方色带承载共用流程，节点与说明对齐', [['table', 'data', [grid.left, top, grid.width, tb.height + 24]], ['flows', 'flow', [grid.left, bandY + 20, grid.width, FOOTER_TOP - bandY - 40]]]) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('tableWithFlows', header, '上方分工表按支持层级排列，下方色带承载共用流程，节点与说明对齐', [['table', 'data', [grid.left, top, grid.width, tb.height + 24]], ['flows', 'flow', [grid.left, bandY + 20, grid.width, FOOTER_TOP - bandY - 40]]]) };
 }
 
 // One or two hero numbers, a secondary metric row (same 40px gap, so its columns land on the hero columns), a mechanism flow and notes on the left; evidence image right.
@@ -84,7 +84,7 @@ export function metricsWithEvidence({ theme, grid, header, hero, secondary = [],
   elements.push(panel({ id: 'evidence-panel', bounds: [rx, top, rw, ph], radius: theme.radius, theme }));
   elements.push({ type: 'image', id: 'evidence', src: image.src, bounds: [rx + 24, top + 24, rw - 48, ph - 48], fit: 'contain', style: { radius: theme.radius }, ...(image.alt ? { alt: image.alt } : {}) });
   if (image.caption) elements.push(textElement({ id: 'evidence-caption', text: image.caption, bounds: [rx, top + ph + 12, rw, 30], style: theme.font(19, { color: p.muted }) }));
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧主指标放大承担主视觉，次级指标同基线成行，下接机制流程；右侧色面完整展示证据图', [['metrics', 'focus', [lx, top, lw, y - top]], ['evidence', 'evidence', [rx, top, rw, ph + 50]]]) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('metricsWithEvidence', header, '左侧主指标放大承担主视觉，次级指标同基线成行，下接机制流程；右侧色面完整展示证据图', [['metrics', 'focus', [lx, top, lw, y - top]], ['evidence', 'evidence', [rx, top, rw, ph + 50]]]) };
 }
 
 // Numbered resources, result metrics and a review note on the left; the photos get the whole right zone and fill it
@@ -108,7 +108,7 @@ export function listWithPhotos({ theme, grid, header, items, metrics: results = 
   const fill = perRow === 'auto' ? imageFrames({ id: 'photos', x: rx, y: top, width: rw, height: photoH, images: photos, theme }) : null;
   const g = fill || imageGrid({ id: 'photos', x: rx, y: top, width: rw, images: photos, perRow, theme, maxHeight: photoH });
   elements.push(...(fill ? fill.elements : shiftX(g.elements, (rw - g.width) / 2)));
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧编号资源、结果指标与复盘判断，右侧照片铺满整栏作为证据', [['items', 'support', [lx, top, lw, y - top + 8]], ['photos', 'evidence', [rx, top, rw, (fill ? photoH : g.height) + 8]]]) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('listWithPhotos', header, '左侧编号资源、结果指标与复盘判断，右侧照片铺满整栏作为证据', [['items', 'support', [lx, top, lw, y - top + 8]], ['photos', 'evidence', [rx, top, rw, (fill ? photoH : g.height) + 8]]]) };
 }
 
 // One column per item: numbered heading and detail on top, that item's own photo directly below, so each photo
@@ -135,7 +135,7 @@ export function itemsWithPhotos({ theme, grid, header, items, metrics: results =
       // Frames first: every photo fills its column box, cropped around its focal point, so the photo row stays one
       // even band under the columns. A portrait in a wide box loses more; set focal to keep faces and key text.
       const size = it.photo.size || imageSize(it.photo.src);
-      elements.push({ type: 'image', id: `item-${i + 1}-photo`, src: it.photo.src, bounds: [x, boxY, colW, boxH], fit: 'cover', focal: it.photo.focal || '50% 40%', naturalSize: [size.width, size.height], style: { radius: theme.radius }, ...(it.photo.alt ? { alt: it.photo.alt } : {}) });
+      elements.push({ type: 'image', id: `item-${i + 1}-photo`, src: it.photo.src, bounds: [x, boxY, colW, boxH], frame: [x, boxY, colW, boxH], fit: 'cover', focal: it.photo.focal || '50% 40%', naturalSize: [size.width, size.height], style: { radius: theme.radius }, ...(it.photo.alt ? { alt: it.photo.alt } : {}) });
       if (it.photo.caption) elements.push(textElement({ id: `item-${i + 1}-caption`, text: it.photo.caption, bounds: [x, boxY + boxH + 8, colW, 30], style: theme.font(19, { color: p.muted, textAlign: 'center' }) }));
     }
   });
@@ -147,7 +147,7 @@ export function itemsWithPhotos({ theme, grid, header, items, metrics: results =
     const nx = grid.left + (metricStyle === 'plain' ? 20 : 28);
     elements.push(textElement({ id: 'note', text: note, bounds: [nx, y, grid.right - nx, 40], style: theme.font(24, { fontWeight: 700 }) }));
   }
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '每项资源一栏，标题与说明在上、对应照片正下方，底部结果指标与复盘', [['items', 'support', [grid.left, top, grid.width, headH]], ['photos', 'evidence', [grid.left, boxY, grid.width, boxH + capH]], ['results', 'data', [grid.left, boxY + boxH + capH + 10, grid.width, FOOTER_TOP - (boxY + boxH + capH + 10)]]]) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('itemsWithPhotos', header, '每项资源一栏，标题与说明在上、对应照片正下方，底部结果指标与复盘', [['items', 'support', [grid.left, top, grid.width, headH]], ['photos', 'evidence', [grid.left, boxY, grid.width, boxH + capH]], ['results', 'data', [grid.left, boxY + boxH + capH + 10, grid.width, FOOTER_TOP - (boxY + boxH + capH + 10)]]]) };
 }
 
 // Photo panels: 2–4 colour blocks, each a short title, accent bar and one to three lines fading into its own photo.
@@ -170,7 +170,7 @@ export function photoPanels({ theme, grid, header, panels, colors, allowData = f
     elements.push(...photoPanel({ id: `panel-${i + 1}`, bounds: b, photo: pn.photo, title: pn.title, lines: pn.lines || [], color: pn.color || palette[i % palette.length], theme, textSide: pn.textSide || side, textShare: side === 'top' ? 0.42 : 0.5 }).elements);
     zones.push([`panel-${i + 1}`, 'media', b]);
   });
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '色块与照片融合：深色一侧写标题和要点，向照片渐隐过渡，每张照片对应一项', zones) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('photoPanels', header, '色块与照片融合：深色一侧写标题和要点，向照片渐隐过渡，每张照片对应一项', zones) };
 }
 
 // Detail table on the left; a dark side panel carries chains or key points.
@@ -191,7 +191,7 @@ export function tableWithPanel({ theme, grid, header, table: t, panel: side }) {
     });
     y += 28;
   });
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧逐行明细表，右侧深色侧栏用节点链说明应用路径', [['table', 'data', [lx, top, rx - lx - grid.gutter, tb.height + 8]], ['panel', 'flow', [rx, top, rw, ph]]]) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('tableWithPanel', header, '左侧逐行明细表，右侧深色侧栏用节点链说明应用路径', [['table', 'data', [lx, top, rx - lx - grid.gutter, tb.height + 8]], ['panel', 'flow', [rx, top, rw, ph]]]) };
 }
 
 // Two parallel flows, each with its title in the left columns, and a conclusion line.
@@ -205,7 +205,7 @@ export function twoLaneFlow({ theme, grid, header, lanes, conclusion }) {
     if (i < lanes.length - 1) elements.push(lineElement({ id: `lane-rule-${i + 1}`, from: [grid.left, y - 28], to: [grid.right, y - 28], style: { stroke: p.line, strokeWidth: 1 } }));
   });
   if (conclusion) elements.push(textElement({ id: 'conclusion', text: conclusion, bounds: [fx, y + 8, fw, 40], style: theme.font(26, { fontWeight: 700, color: p.accent }) }));
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '两条流程上下并列，标题在左，节点与说明逐一对齐', [['lanes', 'flow', [grid.left, top, grid.width, Math.min(FOOTER_TOP - 20, y + 60) - top]]]) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('twoLaneFlow', header, '两条流程上下并列，标题在左，节点与说明逐一对齐', [['lanes', 'flow', [grid.left, top, grid.width, Math.min(FOOTER_TOP - 20, y + 60) - top]]]) };
 }
 
 // ---- Report page types distilled from a 245-page work-report template (see references/fusion/report-layout-logic.md).
@@ -214,27 +214,13 @@ export function twoLaneFlow({ theme, grid, header, lanes, conclusion }) {
 
 // Spread spare height over n gaps (at most `cap` each) so short content does not leave one empty block at the bottom.
 const spread = (spare, n, cap = 56) => (n > 0 ? Math.max(0, Math.min(cap, Math.floor(spare / n))) : 0);
-// Bullet points with a hanging indent: each point is its own text box after a small dot, so wrapped lines start
-// under the text, not under the dot.
-const indentOf = (size) => Math.round(size * 0.9), pointGap = (size) => Math.round(size * 0.3);
-const pointsHeight = (points = [], size, width, lh) => points.reduce((h, s, i) => h + textHeight(s, size, width - indentOf(size), lh) + (i ? pointGap(size) : 0), 0);
-function pointList({ id, x, y, width, points = [], size, color, theme, lh }) {
-  const elements = [], d = Math.max(6, Math.round(size * 0.26));
-  points.forEach((s, i) => {
-    const h = textHeight(s, size, width - indentOf(size), lh);
-    elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x, y + Math.round((size * lh - d) / 2), d, d], style: { fill: color, radius: d / 2 } });
-    elements.push(textElement({ id: `${id}-${i + 1}`, text: s, bounds: [x + indentOf(size), y, width - indentOf(size), h], style: theme.font(size, { color, lineHeight: lh }) }));
-    y += h + pointGap(size);
-  });
-  return elements;
-}
 
 // Target vs actual: a plan row of targets, below it the actual results on a band led by one dark anchor block with the
 // overall figure (整体完成度), then per-metric completion bars and explanations in the same columns.
 // items: [{ label, target: { value, unit }, actual: { value, unit }, note?, rate?, detail? }]; rate is a percent number.
 export function targetVsActual({ theme, grid, header, period = '', overall, items, analysis, metricSize = 56 }) {
   const p = theme.palette, r = colorRoles(p), x = grid.left, w = grid.width, n = items.length, elements = [];
-  if (n < 2 || n > 5) throw new Error('targetVsActual takes 2–5 metrics');
+  if (n < 1 || n > 5) throw new Error('targetVsActual takes 1–5 metrics');
   const aw = Math.round(w * 0.17), colW = (w - aw) / n, cols = items.map((_, i) => [Math.round(x + aw + i * colW), Math.round(colW)]);
   const detailH = Math.max(0, ...items.map((it) => (it.detail ? textHeight(it.detail, 22, Math.round(colW) - 48, 1.5) : 0)));
   const analysisH = analysis ? textHeight(analysis, 24, w - 220, 1.5) : 0, hasRate = items.some((it) => Number.isFinite(it.rate));
@@ -280,22 +266,23 @@ export function targetVsActual({ theme, grid, header, period = '', overall, item
     elements.push(textElement({ id: 'analysis', text: analysis, bounds: [x + 200, y + 24, w - 200, analysisH], style: theme.font(24, { lineHeight: 1.5 }) }));
     zones.push(['analysis', 'note', [x, y, w, analysisH + 40]]);
   }
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '上行计划目标、下行实际结果同列对照，左端深色块给出整体完成度作为第一眼重点，完成率与说明落在各自指标列下', zones) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('targetVsActual', header, '上行计划目标、下行实际结果同列对照，左端深色块给出整体完成度作为第一眼重点，完成率与说明落在各自指标列下', zones) };
 }
 
 // Two sides compared row by row (亮点 vs 待改进, 问题 vs 改进, 去年 vs 今年): the left side in primary, the right in a
 // soft secondary tint, numbered rows in the middle tie each pair together and a VS disc sits on the seam.
 // left/right: { title, items: [{ value?, unit?, title, points: [] }] } with the same number of items (rows must pair).
-export function contrastColumns({ theme, grid, header, left, right, badge = 'VS' }) {
-  const p = theme.palette, r = colorRoles(p), n = left.items.length, elements = [];
-  if (n !== right.items.length) throw new Error('contrastColumns: both sides need the same number of rows; rows that do not pair belong in separate lists');
+export function contrastColumns({ theme, grid, header, left: l, right: rt, badge = 'VS' }) {
+  // Sides may differ in length: the shorter side's missing rows stay empty, so rows that do pair still line up.
+  const n = Math.max(l.items.length, rt.items.length), pad0 = (side) => ({ ...side, items: [...side.items, ...Array.from({ length: n - side.items.length }, () => ({ title: '', points: [] }))] });
+  const left = pad0(l), right = pad0(rt), p = theme.palette, r = colorRoles(p), elements = [];
   if (n < 1 || n > 4) throw new Error('contrastColumns takes 1–4 rows');
   const mid = 120, sideW = Math.round((grid.width - mid) / 2), lx = grid.left, rx = grid.left + sideW + mid, top = header.bottom + 36, capH = 76;
   const sides = [[left, lx, r.primary, r.band, p.inverse, r.primary], [right, rx, lighten(r.secondary, 0.45), r.soft, r.secondaryInk, r.secondaryInk]];
   // Measure every cell: a metric cell (value over title) on the left third, points on the rest; or title above points.
   const cell = (it, cw) => {
     const metric = it.value != null, pw = metric ? cw - 300 : cw, pts = (it.points || []).length > 0;
-    const ph = pts ? pointsHeight(it.points, 22, pw, 1.55) : 0, head = metric ? 0 : textHeight(it.title, 28, cw, 1.3) + 10;
+    const ph = pts ? pointsHeight(it.points, 22, pw, 1.55) : 0, head = metric || !it.title ? 0 : textHeight(it.title, 28, cw, 1.3) + 10;
     return { metric, pw, pts, ph, head, h: Math.max(metric ? 132 : 0, head + ph) };
   };
   const cw = sideW - 64, cells = [left, right].map((s) => s.items.map((it) => cell(it, cw)));
@@ -303,7 +290,8 @@ export function contrastColumns({ theme, grid, header, left, right, badge = 'VS'
   const bodyTop = top + capH, pad = 28 + spread(FOOTER_TOP - 20 - bodyTop - base.reduce((a, b) => a + b, 0) - 56 * n, 2 * n, 36);
   const rowsH = base.map((h) => h + pad * 2), bodyH = rowsH.reduce((a, b) => a + b, 0) + 16;
   sides.forEach(([side, sx, capFill, bodyFill, capInk, ink], k) => {
-    elements.push({ type: 'shape', id: `side-${k + 1}-body`, bounds: [sx, bodyTop - 8, sideW, bodyH + 8], style: { fill: bodyFill, radius: theme.radius } });
+    // The body panel runs under the title cap (the cap sits inside it), so the two read as one column.
+    elements.push({ type: 'shape', id: `side-${k + 1}-body`, ...(k === 0 ? { component: 'contrastPair' } : {}), bounds: [sx, top, sideW, capH + bodyH], style: { fill: bodyFill, radius: theme.radius } });
     elements.push({ type: 'shape', id: `side-${k + 1}-cap`, bounds: [sx, top, sideW, capH], style: { fill: capFill, radius: theme.radius } });
     elements.push(textElement({ id: `side-${k + 1}-title`, text: side.title, bounds: [sx + 32, top + 16, sideW - 64, 44], style: theme.font(32, { fontWeight: 700, color: capInk, textAlign: 'center' }) }));
     let y = bodyTop + 8;
@@ -315,7 +303,7 @@ export function contrastColumns({ theme, grid, header, left, right, badge = 'VS'
         elements.push(textElement({ id: `side-${k + 1}-label-${i + 1}`, text: it.title, bounds: [cx, vy + 84, 260, 34], style: theme.font(22, { fontWeight: 700, color: ink, textAlign: 'center' }) }));
         if (c.pts) elements.push(...pointList({ id: `side-${k + 1}-points-${i + 1}`, x: cx + 300, y: cy + Math.round((base[i] - c.ph) / 2), width: c.pw, points: it.points, size: 22, color: p.ink, theme, lh: 1.55 }));
       } else {
-        elements.push(textElement({ id: `side-${k + 1}-label-${i + 1}`, text: it.title, bounds: [cx, cy, cw, c.head - 10], style: theme.font(28, { fontWeight: 700, color: ink, lineHeight: 1.3 }) }));
+        if (it.title) elements.push(textElement({ id: `side-${k + 1}-label-${i + 1}`, text: it.title, bounds: [cx, cy, cw, c.head - 10], style: theme.font(28, { fontWeight: 700, color: ink, lineHeight: 1.3 }) }));
         if (c.pts) elements.push(...pointList({ id: `side-${k + 1}-points-${i + 1}`, x: cx, y: cy + c.head, width: cw, points: it.points, size: 22, color: p.ink, theme, lh: 1.55 }));
       }
       y += rowsH[i];
@@ -331,7 +319,7 @@ export function contrastColumns({ theme, grid, header, left, right, badge = 'VS'
     elements.push(textElement({ id: 'vs-text', text: badge, bounds: [bx, by + Math.round(d / 2 - 26), d, 52], style: theme.font(40, { fontWeight: 800, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.3 }) }));
   }
   const zh = capH + bodyH;
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左右两侧逐行对照：左侧主色承载已达成或现状，右侧浅辅色承载差距或改进，中间编号把每一对连起来，VS 标在分界处', [['left', 'focus', [lx, top, sideW, zh]], ['pairs', 'support', [lx + sideW, top, mid, zh]], ['right', 'evidence', [rx, top, sideW, zh]]]) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('contrastColumns', header, '左右两侧逐行对照：左侧主色承载已达成或现状，右侧浅辅色承载差距或改进，中间编号把每一对连起来，VS 标在分界处', [['left', 'focus', [lx, top, sideW, zh]], ['pairs', 'support', [lx + sideW, top, mid, zh]], ['right', 'evidence', [rx, top, sideW, zh]]]) };
 }
 
 // Period columns: an arrow band of periods (months, quarters, phases) heads the page and each period owns the column
@@ -339,14 +327,14 @@ export function contrastColumns({ theme, grid, header, left, right, badge = 'VS'
 // periods: [{ label, title, rate?: { value, unit?, label? }, points: [], tone?: 'primary'|'secondary' }] (3–6).
 export function periodColumns({ theme, grid, header, periods, summary }) {
   const p = theme.palette, r = colorRoles(p), n = periods.length, elements = [];
-  if (n < 3 || n > 6) throw new Error('periodColumns takes 3–6 periods');
+  if (n < 2 || n > 6) throw new Error('periodColumns takes 2–6 periods');
   const top = header.bottom + 36, bandH = 64, x = grid.left, w = grid.width, colW = w / n;
   const tone = (pd, i) => (pd.tone || (i % 2 ? 'secondary' : 'primary')) === 'primary';
   // Band: full bleed from the left edge, one segment per column, arrow head past the last column.
   elements.push({ type: 'shape', id: 'band-lead', bounds: [0, top, x, bandH], style: { fill: tone(periods[0], 0) ? r.primary : r.secondary } });
   periods.forEach((pd, i) => {
     const cx = Math.round(x + i * colW), cw = Math.round(colW);
-    elements.push({ type: 'shape', id: `band-${i + 1}`, bounds: [cx, top, cw, bandH], style: { fill: tone(pd, i) ? r.primary : r.secondary } });
+    elements.push({ type: 'shape', id: `band-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [cx, top, cw, bandH], style: { fill: tone(pd, i) ? r.primary : r.secondary } });
     elements.push(textElement({ id: `band-label-${i + 1}`, text: pd.label, bounds: [cx + 8, top + 14, cw - 16, 36], style: theme.font(26, { fontWeight: 700, color: tone(pd, i) ? p.inverse : r.onSecondary, textAlign: 'center' }) }));
   });
   const last = periods[n - 1];
@@ -381,5 +369,5 @@ export function periodColumns({ theme, grid, header, periods, summary }) {
     elements.push(...kpiStrip({ id: 'summary', x, y: sy, width: w, anchor: summary.overall, items: summary.items, theme, height: stripH, size: 48 }).elements);
     zones.push(['summary', 'data', [x, sy, w, stripH]]);
   }
-  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '顶部箭头色带按时期分段，每段下方一栏写该期重点、达成率与要点，主辅色交替区分阶段；底部深色块给出全期汇总', zones) };
+  return { elements: [...header.elements, ...elements], visualDecision: decision('periodColumns', header, '顶部箭头色带按时期分段，每段下方一栏写该期重点、达成率与要点，主辅色交替区分阶段；底部深色块给出全期汇总', zones) };
 }

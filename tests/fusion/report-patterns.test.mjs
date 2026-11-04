@@ -74,10 +74,11 @@ test('target vs actual keeps each target, result, bar and explanation in one col
   assert.equal(byId(els, 'rate-fill-2').bounds[2], Math.round(byId(els, 'rate-track-2').bounds[2] * 0.8));
 });
 
-test('contrast columns pair rows across the seam and refuse sides that do not pair', () => {
+test('contrast columns pair rows across the seam; a shorter side leaves its missing rows blank', () => {
   const theme = createTheme({ palette: reportPalette('blue-gold') }), header = pageHeader({ theme, grid, title: '合成' });
   const side = (n) => ({ title: '侧', items: Array.from({ length: n }, (_, i) => ({ title: `项${i}`, points: ['一点'] })) });
-  assert.throws(() => contrastColumns({ theme, grid, header, left: side(3), right: side(2) }), /same number of rows/);
+  const uneven = contrastColumns({ theme, grid, header, left: side(3), right: side(2) });
+  assert(byId(uneven.elements, 'row-num-3') && byId(uneven.elements, 'side-1-label-3') && !byId(uneven.elements, 'side-2-label-3'));
   const page = contrastColumns({ theme, grid, header, left: side(2), right: side(2) });
   const l = byId(page.elements, 'side-1-rule-1'), r = byId(page.elements, 'side-2-rule-1');
   assert.equal(l.bounds[1], r.bounds[1]);
@@ -94,7 +95,8 @@ test('period columns sit under their band segment and alternate primary and seco
   for (const i of [1, 2, 3]) assert.equal(byId(page.elements, `col-${i}-cap`).bounds[0], byId(page.elements, `band-${i}`).bounds[0] + 4);
   assert.equal(byId(page.elements, 'band-1').style.fill, '#23338B');
   assert.equal(byId(page.elements, 'band-2').style.fill, '#E2B898');
-  assert.throws(() => periodColumns({ theme, grid, header, periods: periods.slice(0, 2) }), /3–6 periods/);
+  assert(periodColumns({ theme, grid, header, periods: periods.slice(0, 2) }));
+  assert.throws(() => periodColumns({ theme, grid, header, periods: periods.slice(0, 1) }), /2–6 periods/);
 });
 
 test('outline suggestions route targets, paired sides and periods to the report page types', () => {

@@ -88,6 +88,7 @@ function titleOf(texts, style) {
 }
 // Photos embedded as data URIs bypass the media ledger and are copied into every revision; small inline icons are fine.
 const INLINE_LIMIT = 64 * 1024;
+const REPORT_COMPONENTS = new Set(['answerBlock', 'comparePair', 'contrastPair', 'periodBand', 'kpiStrip', 'metricTiles', 'highlightTile', 'sidePanel']);
 const PLAIN = new Set(['text', 'line']);
 
 export function reviewVisualDecisions(project) {
@@ -133,7 +134,20 @@ export function reviewVisualDecisions(project) {
       if (titleOf(texts, style)?.id === element.id) titleFocus.push(slide.slideId);
     }
     if (zonesRequired) checkZones(decision.zones, all, where, report, (w) => warnings.push(w));
-    review.slides.push({ ...where, focus: focusText, layout: decision.layout, ...(decision.zones ? { zones: decision.zones.map((z) => `${z.id}:${z.role}`) } : {}) });
+    // A photo much smaller than its zone in both directions was shrunk instead of framed (user rule: frame, then crop).
+    // Judged per zone on the photos together, so a mosaic that fills its zone passes.
+    if (zonesRequired && Array.isArray(decision.zones)) for (const z of decision.zones) {
+      const [zx, zy, zw, zh] = z.bounds, photos = all.filter((x) => x.type === 'image' && x.bounds[2] * x.bounds[3] > 40000 && (() => { const cx = x.bounds[0] + x.bounds[2] / 2, cy = x.bounds[1] + x.bounds[3] / 2; return cx >= zx && cx <= zx + zw && cy >= zy && cy <= zy + zh; })());
+      if (!photos.length) continue;
+      const w = Math.max(...photos.map((x) => x.bounds[0] + x.bounds[2])) - Math.min(...photos.map((x) => x.bounds[0])), h = Math.max(...photos.map((x) => x.bounds[1] + x.bounds[3])) - Math.min(...photos.map((x) => x.bounds[1]));
+      if (w < 0.7 * zw && h < 0.7 * zh) report({ kind: 'image-small-in-zone', ...where, elementIds: photos.map((x) => x.id), zone: z.id, hint: '图片明显小于所在分区：按分区画框，用 imageFrames 裁切填满' });
+    }
+    // The page type the page started from, or free with the reason: the report page types are meant to be used.
+    // A freely composed page is still carried by at least one report component (answer block, compare pair, contrast
+    // pair, period band, KPI strip, metric tiles, side panel), or says why none fits.
+    if (zonesRequired && nonempty(decision.pattern) && /^free/i.test(decision.pattern.trim()) && !all.some((e) => REPORT_COMPONENTS.has(e.component)) && !nonempty(decision.componentsWaived)) report({ kind: 'report-component-missing', ...where, need: '用 answerBlock / comparePair / contrastPair / periodBand / kpiStrip / metricTiles / sidePanel 之一承载本页，或写 visualDecision.componentsWaived 说明为何都不适用' });
+    if (zonesRequired && !nonempty(decision.pattern)) report({ kind: 'visual-pattern-missing', ...where, need: 'visualDecision.pattern：所用页型名（targetVsActual、contrastColumns、listWithPhotos…），或“free：为什么不用 outline:check 建议的页型”' });
+    review.slides.push({ ...where, focus: focusText, layout: decision.layout, ...(decision.pattern ? { pattern: decision.pattern } : {}), ...(decision.zones ? { zones: decision.zones.map((z) => `${z.id}:${z.role}`) } : {}) });
     signatures.push({ slideId: slide.slideId, sig: signature(slide, project, element.id) });
   }
 
