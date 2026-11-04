@@ -152,3 +152,18 @@ test('photo panels refuse data-heavy content, which belongs in metric tiles', as
   const header = pageHeader({ theme, grid, title: '合成' }), photo = { src: 'x', size: { width: 1600, height: 900 } };
   assert.throws(() => photoPanels({ theme, grid, header, panels: [{ title: '门票', lines: ['春季 800 张、秋季 400 张'], photo }, { title: '门店', lines: ['维护 80 家，新增 2 个'], photo }] }), /metric tiles/);
 });
+
+test('tiles add an icon only when there is spare room, sized to it, and pick it from the label', async () => {
+  const { metricTiles } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
+  const { pickIcon } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/icons.mjs');
+  assert.equal(pickIcon('续费金额万元'), 'coin');
+  assert.equal(pickIcon('辅助新签单'), 'pen');
+  assert.equal(pickIcon('门店客情维护家'), 'store');
+  const wide = metricTiles({ id: 'w', x: 0, y: 0, width: 1000, items: [{ value: '20', unit: '单', label: '辅助新签' }], theme });
+  const icon = byId(wide.elements, 'w-tile-1-icon'), tile = byId(wide.elements, 'w-tile-1');
+  assert(icon && icon.type === 'vector' && icon.bounds[0] + icon.bounds[2] <= tile.bounds[0] + tile.bounds[2]);
+  const full = metricTiles({ id: 'f', x: 0, y: 0, width: 300, items: [{ value: '1000000', unit: '万元', label: '一个很长的指标名称' }], theme });
+  assert.equal(byId(full.elements, 'f-tile-1-icon'), undefined);
+  const off = metricTiles({ id: 'o', x: 0, y: 0, width: 1000, items: [{ value: '20', label: '新签' }], theme, icons: false });
+  assert.equal(byId(off.elements, 'o-tile-1-icon'), undefined);
+});

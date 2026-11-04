@@ -49,7 +49,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `createTheme({palette:{bg,ink,accent,muted,line,pale,inverse},fontFamily})`、`createGrid({margin:96,columns:12,gutter:32})`：`grid.span(起始栏,栏数)` 返回 `[x,width]`。
 - `metricGroup` / `metricRow({items:[{value,unit,label}],size})`：数值与单位在同一文字元素的 runs 内，名称紧贴其下；并列指标等宽同基线。
 - `flow({steps:[{title,detail}]})`：编号圆点、箭头连线，标题与说明从节点左缘起排；编号固定 28px 粗体，节点不小于 48px。
-- `metricTiles({items:[{value,unit,label}],size,columns,highlight})`：每个数字一个圆角色块，标签在上、数字在下，高亮项带强调色竖条与强调色数字；页型默认用它（`metricStyle:'plain'` 退回无底色数字）。
+- `metricTiles({items:[{value,unit,label}],size,columns,highlight})`：每个数字一个圆角色块，标签在上、数字在下，高亮项带强调色竖条与强调色数字；色块右侧空余较大时自动加一个线性图标（按标签选：喜报→文档、新签→笔、续费→循环、金额→硬币、门票、门店、大屏、场地等；大小随空余缩放，不足 36px 不加），空间刚好时不加；`icons:false` 关闭，`item.icon` 指定图标名或 false。图标集见 `authoring/icons.mjs`。页型默认用色块（`metricStyle:'plain'` 退回无底色数字）。
 - `photoPanel({bounds,photo,title,lines,color,textSide})`：深色色块写标题、强调色短线与一到三行要点，从色块向照片渐隐过渡（`textSide:'left'` 文左图右，`'top'` 文上图下）。
 - `numberedList({items:[{title,detail}]})`、`table({columns:[{key,label,width,size,weight,color}],rows})`、`panel({bounds,fill,radius})`、`textBlock`。
 - `imageRow` / `imageGrid({images:[{src,file?,size?,caption}],perRow:'auto'})`：同行等高、按原始比例分宽，不把图片放大到原始像素 2 倍以上；`auto` 会在分行与“左侧高图、右侧堆叠”拼贴中取图片面积最大且放得下的一种。真实图片用文件路径作 `src`，`imageSize(file)` 读取原始尺寸（make 会登记到图片台账）。

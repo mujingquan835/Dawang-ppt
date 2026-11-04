@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { textElement, imageElement, lineElement } from './elements.mjs';
+import { pickIcon, iconElements } from './icons.mjs';
 
 // Layout tools for authored pages on the 1920×1080 canvas. Each tool takes content and a position and returns
 // elements plus the height it used, so a page can stack blocks without hand-computed coordinates. Grouping and
@@ -209,8 +210,10 @@ export const rgba = (hex, alpha) => { const h = hex.replace('#', ''); const n = 
 export const darken = (hex, k = 0.35) => '#' + [0, 2, 4].map((i) => Math.round(parseInt(hex.replace('#', '').slice(i, i + 2), 16) * (1 - k)).toString(16).padStart(2, '0')).join('').toUpperCase();
 
 // Metric tiles: each number sits in its own rounded rectangle with the label above it; the highlighted tile carries
-// an accent bar and accent number. Turns a row of bare numbers into a scannable dashboard block.
-export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill }) {
+// an accent bar and accent number. When a tile's content leaves a wide empty strip on the right, a line icon chosen
+// from the label fills it (icons: false turns this off, item.icon names one or false); a tile that is already full
+// gets none.
+export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill, icons = 'auto' }) {
   const p = theme.palette, cols = columns || items.length, tileW = Math.floor((width - gap * (cols - 1)) / cols);
   const tileFill = fill || p.tile || (String(p.bg).toUpperCase() === '#FFFFFF' ? p.pale : '#FFFFFF');
   const labelSize = Math.max(20, Math.round(size * 0.3)), tileH = 24 + Math.round(labelSize * 1.4) + 8 + Math.round(size * 1.25) + 18, elements = [];
@@ -221,7 +224,14 @@ export function metricTiles({ id, x, y, width, items, theme, size = 72, columns,
     elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: p.muted }) }));
     const unitSize = Math.max(20, Math.round(size * 0.32));
     const runs = [{ text: String(it.value), style: { fontSize: size, fontWeight: 700, color: on ? p.accent : p.ink } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 700, color: p.muted } }] : [])];
-    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + 24 + Math.round(labelSize * 1.4) + 4, tileW - 44, Math.round(size * 1.25)], style: theme.font(size, { fontWeight: 700, lineHeight: 1.15, color: on ? p.accent : p.ink }) }));
+    const contentW = Math.max(textWidth(it.label || '', labelSize), textWidth(String(it.value), size) + (it.unit ? textWidth(' ' + it.unit, unitSize) : 0));
+    // The icon grows with the spare room (up to 96px, never taller than the tile allows); under 36px it is left out.
+    const spare = tileW - 28 - 16 - contentW, iconS = Math.round(Math.min(96, tileH - 36, spare - 24));
+    const name = it.icon === false || icons === false ? null : it.icon || pickIcon(`${it.label || ''}${it.unit || ''}`);
+    const withIcon = name && iconS >= 36;
+    const textW = withIcon ? tileW - 44 - iconS - 16 : tileW - 44;
+    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + 24 + Math.round(labelSize * 1.4) + 4, textW, Math.round(size * 1.25)], style: theme.font(size, { fontWeight: 700, lineHeight: 1.15, color: on ? p.accent : p.ink }) }));
+    if (withIcon) elements.push(...iconElements({ id: `${id}-tile-${i + 1}`, name, bounds: [tx + tileW - iconS - 20, ty + Math.round((tileH - iconS) / 2), iconS], color: on ? p.accent : p.muted, disc: rgba(on ? p.accent : p.ink, on ? 0.12 : 0.06) }));
   });
   const rows = Math.ceil(items.length / cols);
   return { elements, height: rows * tileH + (rows - 1) * gap };
