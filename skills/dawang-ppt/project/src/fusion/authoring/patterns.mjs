@@ -65,8 +65,8 @@ export function metricsWithEvidence({ theme, grid, header, hero, secondary = [],
   });
   if (y > FOOTER_TOP) throw new Error(`metricsWithEvidence overflows by ${Math.round(y - FOOTER_TOP)}px: shorten notes or drop the flow`);
   const ph = FOOTER_TOP - top - 50;
-  elements.push(panel({ id: 'evidence-panel', bounds: [rx, top, rw, ph], radius: 12, theme }));
-  elements.push({ type: 'image', id: 'evidence', src: image.src, bounds: [rx + 24, top + 24, rw - 48, ph - 48], fit: 'contain', ...(image.alt ? { alt: image.alt } : {}) });
+  elements.push(panel({ id: 'evidence-panel', bounds: [rx, top, rw, ph], radius: theme.radius, theme }));
+  elements.push({ type: 'image', id: 'evidence', src: image.src, bounds: [rx + 24, top + 24, rw - 48, ph - 48], fit: 'contain', style: { radius: theme.radius }, ...(image.alt ? { alt: image.alt } : {}) });
   if (image.caption) elements.push(textElement({ id: 'evidence-caption', text: image.caption, bounds: [rx, top + ph + 12, rw, 30], style: theme.font(19, { color: p.muted }) }));
   return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧主指标放大承担主视觉，次级指标同基线成行，下接机制流程；右侧色面完整展示证据图', [['metrics', 'focus', [lx, top, lw, y - top]], ['evidence', 'evidence', [rx, top, rw, ph + 50]]]) };
 }
@@ -80,7 +80,7 @@ export function listWithPhotos({ theme, grid, header, items, metrics: results = 
   if (results.length) { y += 28; const m = metrics(metricStyle, { id: 'result', x: lx, y, width: lw, items: results, size: metricStyle === 'plain' ? 64 : 52, gap: metricStyle === 'plain' ? 40 : 20, theme }); elements.push(...m.elements); y += m.height; }
   if (note) {
     const ny = y + 24, b = textBlock({ id: 'note', x: lx + 28, y: ny + 58, width: lw - 56, text: note.text, size: 23, theme });
-    elements.push(panel({ id: 'note-panel', bounds: [lx, ny, lw, b.height + 78], radius: 10, theme }));
+    elements.push(panel({ id: 'note-panel', bounds: [lx, ny, lw, b.height + 78], radius: theme.radius, theme }));
     elements.push(textElement({ id: 'note-label', text: note.label || '复盘判断', bounds: [lx + 28, ny + 16, lw - 56, 40], style: theme.font(28, { fontWeight: 700, color: p.accent }) }));
     elements.push(...b.elements);
     y = ny + b.height + 78;
@@ -110,7 +110,7 @@ export function itemsWithPhotos({ theme, grid, header, items, metrics: results =
   if (boxH < 200) throw new Error(`itemsWithPhotos leaves only ${Math.round(boxH)}px for photos: shorten details, drop metrics or the note`);
   items.forEach((it, i) => {
     const x = grid.left + i * (colW + gap), on = i === highlight, ink = on ? p.inverse : p.ink;
-    elements.push(panel({ id: `item-${i + 1}-panel`, bounds: [x, top, colW, headH], fill: on ? p.ink : p.pale, radius: 10, theme }));
+    elements.push(panel({ id: `item-${i + 1}-panel`, bounds: [x, top, colW, headH], fill: on ? p.ink : p.pale, radius: theme.radius, theme }));
     elements.push(textElement({ id: `item-${i + 1}-num`, text: String(i + 1).padStart(2, '0'), bounds: [x + pad, top + pad, 56, 42], style: theme.font(28, { fontWeight: 700, color: on ? p.pale : p.accent }) }));
     elements.push(textElement({ id: `item-${i + 1}-title`, text: it.title, bounds: [x + pad + 60, top + pad, textW - 60, textHeight(it.title, 32, textW - 60, 1.3)], style: theme.font(32, { fontWeight: 700, lineHeight: 1.3, color: ink }) }));
     if (it.detail) elements.push(textElement({ id: `item-${i + 1}-detail`, text: it.detail, bounds: [x + pad, top + pad + 56, textW, textHeight(it.detail, 23, textW)], style: theme.font(23, { color: ink }) }));
@@ -119,8 +119,8 @@ export function itemsWithPhotos({ theme, grid, header, items, metrics: results =
       // maxCrop; a photo of very different shape (a portrait in a wide box) is shown whole on a panel instead of
       // losing heads or key text.
       const size = it.photo.size || imageSize(it.photo.src), r = size.width / size.height, box = colW / boxH;
-      if (Math.max(r / box, box / r) <= maxCrop) elements.push({ type: 'image', id: `item-${i + 1}-photo`, src: it.photo.src, bounds: [x, boxY, colW, boxH], fit: 'cover', focal: it.photo.focal || '50% 40%', naturalSize: [size.width, size.height], ...(it.photo.alt ? { alt: it.photo.alt } : {}) });
-      else { elements.push(panel({ id: `item-${i + 1}-photo-panel`, bounds: [x, boxY, colW, boxH], theme })); elements.push(fitImage({ id: `item-${i + 1}-photo`, src: it.photo.src, size, box: [x + 12, boxY + 12, colW - 24, boxH - 24], alt: it.photo.alt })); }
+      if (Math.max(r / box, box / r) <= maxCrop) elements.push({ type: 'image', id: `item-${i + 1}-photo`, src: it.photo.src, bounds: [x, boxY, colW, boxH], fit: 'cover', focal: it.photo.focal || '50% 40%', naturalSize: [size.width, size.height], style: { radius: theme.radius }, ...(it.photo.alt ? { alt: it.photo.alt } : {}) });
+      else { elements.push(panel({ id: `item-${i + 1}-photo-panel`, bounds: [x, boxY, colW, boxH], theme })); elements.push(fitImage({ id: `item-${i + 1}-photo`, src: it.photo.src, size, box: [x + 12, boxY + 12, colW - 24, boxH - 24], alt: it.photo.alt, radius: theme.radius })); }
       if (it.photo.caption) elements.push(textElement({ id: `item-${i + 1}-caption`, text: it.photo.caption, bounds: [x, boxY + boxH + 8, colW, 30], style: theme.font(19, { color: p.muted, textAlign: 'center' }) }));
     }
   });
@@ -163,7 +163,7 @@ export function tableWithPanel({ theme, grid, header, table: t, panel: side }) {
   const p = theme.palette, top = header.bottom + 44, [lx] = grid.span(0, 8), [rx, rw] = grid.span(8, 4), elements = [];
   const tb = table({ id: 'table', x: lx, y: top, theme, ...t }); elements.push(...tb.elements);
   const ph = FOOTER_TOP - top - 20;
-  elements.push(panel({ id: 'side-panel', bounds: [rx, top, rw, ph], fill: p.ink, radius: 12, theme }));
+  elements.push(panel({ id: 'side-panel', bounds: [rx, top, rw, ph], fill: p.ink, radius: theme.radius, theme }));
   elements.push(textElement({ id: 'side-title', text: side.title, bounds: [rx + 40, top + 36, rw - 80, 44], style: theme.font(30, { fontWeight: 700, color: p.inverse }) }));
   let y = top + 108;
   side.chains.forEach((c, k) => {

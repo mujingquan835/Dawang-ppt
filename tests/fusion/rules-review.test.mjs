@@ -116,3 +116,10 @@ test('a follow-up round starts only from a failed review of the same checklist',
   writeReview(dir, p, { reviewer: 'fake', items: [{ id: 'scenario#Visual#1', verdict: 'pass', reason: 'x', status: 'applied' }] });
   assert.equal(previousRound(dir, p), null);
 });
+
+test('the reviewer is told the confirmed house style outranks no-card clauses', () => {
+  const packet = buildReviewPacket({ project: project(), rules, pages: [{ slideId: 's', image: 'x' }] });
+  assert.match(packet.prompt, /用户确认的 Dawang 版式/);
+  assert.match(packet.prompt, /数字色块/);
+  assert.match(packet.prompt, /不得仅因/);
+});

@@ -37,6 +37,18 @@ export const VISUAL_CLAIMS = [
   { id: 'visual#images', rule: '图片关键区域看得清、比例未变形、裁切没有切掉主体；图片与旁边的说明对应；页面没有大块无意义空白' }
 ].map((c) => ({ ...c, status: 'visual' }));
 
+// The user's confirmed house style. It takes precedence over original-rule clauses that forbid cards or rectangles
+// (user requests outrank the rules), so the reviewer must not fail these components and the author must not strip them.
+export const HOUSE_STYLE = [
+  '用户确认的 Dawang 版式（优先于原规则中禁止用卡片/矩形建立层级、要求所有矩形统一圆角等条款）：',
+  '- 数字色块：每个数字一个圆角色块，标签在上、数字在下，重点块带强调色竖条，空余处可加线性图标；',
+  '- 数据页的“色块＋照片”：指标色块在一栏，照片铺满另一栏；',
+  '- 深色侧栏：承载应用链或要点的整块深色区域；',
+  '- 照片拼板：色块一侧写字、向照片渐隐过渡（仅用于数据少的页面）；',
+  '- 编号方块、流程圆点等导航标记。',
+  '这些组件出现时，不得仅因“使用了卡片/矩形/圆角”判 fail；清单中以 user-override 并注明“用户确认的 Dawang 版式”记录的条款，只要页面上的矩形确属上述组件，判 pass。用普通卡片包裹大段正文、或每页套同一卡片墙，仍按原规则判 fail。'
+].join('\n');
+
 // only: claim ids to judge this round (a follow-up round re-checks the previous fails).
 export function buildReviewPacket({ project, rules, pages, only }) {
   const all = [...reviewClaims(project, rules), ...(isSectionChecklist(project) ? VISUAL_CLAIMS : [])];
@@ -53,6 +65,7 @@ export function buildReviewPacket({ project, rules, pages, only }) {
     '- status=applied：证据页面是否真正满足这条规则的原意。勉强对应判 fail，例如用普通条形图或表格充当“结构图”、用页脚细线或页码充当“视觉母题”、用一句泛泛的工作描述充当封面“关键状态句”、标题只是动作罗列却声称“标题陈述状态或结论”。规则要求的效果在页面上看不出来，也判 fail。',
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
     '- status=visual：按给出的视觉标准逐页看图，任一页明显不符判 fail；reason 写出页码和具体问题（例如“第2页：流程说明与节点错位”）。',
+    HOUSE_STYLE,
     '- 原材料本身没有提供的信息（如统计时间、口径、来源）不能要求制作者补造：页面如实标注“待补/未提供”，或以“材料未提供”记为 not-applicable，均判 pass；只有页面把缺失信息写成确定事实，或明明材料里有却没用，才判 fail。',
     'reason 用中文一句话，写出你在截图上看到的依据；fail 时写明缺什么。必须对每条声明各给一条结果，id 原样返回，只输出符合 schema 的 JSON。',
     '',

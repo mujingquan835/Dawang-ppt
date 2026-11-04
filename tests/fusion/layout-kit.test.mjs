@@ -167,3 +167,12 @@ test('tiles add an icon only when there is spare room, sized to it, and pick it 
   const off = metricTiles({ id: 'o', x: 0, y: 0, width: 1000, items: [{ value: '20', label: '新签' }], theme, icons: false });
   assert.equal(byId(off.elements, 'o-tile-1-icon'), undefined);
 });
+
+test('tiles, panels and photos share the theme corner radius', async () => {
+  const { imageFill, metricTiles } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
+  const t = createTheme({ radius: 18 });
+  const tile = metricTiles({ id: 'm', x: 0, y: 0, width: 600, items: [{ value: '1', label: '甲' }], theme: t }).elements.find((e) => e.id === 'm-tile-1');
+  const photos = imageFill({ id: 'p', x: 0, y: 0, width: 1000, height: 650, images: [{ src: 'a', size: { width: 360, height: 480 } }, { src: 'b', size: { width: 384, height: 256 } }, { src: 'c', size: { width: 384, height: 256 } }], theme: t }).elements.filter((e) => e.type === 'image');
+  assert.equal(tile.style.radius, 18);
+  assert(photos.every((e) => e.style.radius === 18));
+});

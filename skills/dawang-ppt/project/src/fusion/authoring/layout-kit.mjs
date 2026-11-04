@@ -9,10 +9,11 @@ import { pickIcon, iconElements } from './icons.mjs';
 
 export const CANVAS = { width: 1920, height: 1080 };
 
-export function createTheme({ palette = {}, fontFamily = 'PingFang SC', headingFamily } = {}) {
+// radius: one corner radius shared by tiles, panels and photos, so rounded components read as one family.
+export function createTheme({ palette = {}, fontFamily = 'PingFang SC', headingFamily, radius = 14 } = {}) {
   const p = { bg: '#FFFFFF', ink: '#14213D', accent: '#E8590C', muted: '#5C6B7A', line: '#D9DEE5', pale: '#F2F4F7', inverse: '#FFFFFF', ...palette };
   const font = (size, extra = {}) => ({ fontFamily, fontSize: size, color: p.ink, fontWeight: 400, lineHeight: 1.4, ...extra });
-  return { palette: p, fontFamily, headingFamily: headingFamily || fontFamily, font };
+  return { palette: p, fontFamily, headingFamily: headingFamily || fontFamily, font, radius };
 }
 
 export function createGrid({ margin = 96, columns = 12, gutter = 32, width = CANVAS.width } = {}) {
@@ -125,7 +126,7 @@ export function imageRow({ id, x, y, width, images, theme, gap = 24, maxHeight =
   let cx = x, captionH = 0;
   sized.forEach((img, i) => {
     const w = Math.round(h * ratios[i]);
-    elements.push(imageElement({ id: `${id}-img-${i + 1}`, src: img.src, bounds: [cx, y, w, h], fit, naturalSize: [img.size.width, img.size.height], ...(img.alt ? { alt: img.alt } : {}) }));
+    elements.push(imageElement({ id: `${id}-img-${i + 1}`, src: img.src, bounds: [cx, y, w, h], fit, naturalSize: [img.size.width, img.size.height], style: { radius: theme.radius ?? 0 }, ...(img.alt ? { alt: img.alt } : {}) }));
     if (img.caption) { const ch = textHeight(img.caption, captionSize, w, 1.35); captionH = Math.max(captionH, ch); elements.push(textElement({ id: `${id}-caption-${i + 1}`, text: img.caption, bounds: [cx, y + h + 10, w, ch], style: theme.font(captionSize, { color: theme.palette.muted, lineHeight: 1.35 }) })); }
     cx += w + gap;
   });
@@ -145,7 +146,7 @@ export function imageMosaic({ id, x, y, width, images, theme, gap = 24, maxHeigh
   let W2 = Math.max(1, (H + cap - stackGaps) / inv);
   W2 = Math.min(W2, ...sized.slice(1).map((img, i) => img.size.width * maxUpscale), width - gap - H * ratios[0]);
   const W0 = Math.round(H * ratios[0]), elements = [], caption = (i, bx, by, bw, text) => text && elements.push(textElement({ id: `${id}-caption-${i}`, text, bounds: [bx, by, bw, cap - 10], style: theme.font(captionSize, { color: theme.palette.muted, lineHeight: 1.35 }) }));
-  const place = (i, bx, by, bw, bh) => elements.push(imageElement({ id: `${id}-img-${i}`, src: sized[i - 1].src, bounds: [Math.round(bx), Math.round(by), Math.round(bw), Math.round(bh)], fit, naturalSize: [sized[i - 1].size.width, sized[i - 1].size.height] }));
+  const place = (i, bx, by, bw, bh) => elements.push(imageElement({ id: `${id}-img-${i}`, src: sized[i - 1].src, bounds: [Math.round(bx), Math.round(by), Math.round(bw), Math.round(bh)], fit, naturalSize: [sized[i - 1].size.width, sized[i - 1].size.height], style: { radius: theme.radius ?? 0 } }));
   place(1, x, y, W0, H); caption(1, x, Math.round(y + H + 10), W0, sized[0].caption);
   let cy = y;
   rest.forEach((r, i) => { const h = W2 / r, rx = x + W0 + gap; place(i + 2, rx, cy, W2, h); caption(i + 2, Math.round(rx), Math.round(cy + h + 10), Math.round(W2), sized[i + 1].caption); cy += h + vgap; });
@@ -199,7 +200,7 @@ export function imageFill({ id, x, y, width, height, images, theme, gap = 24, ca
   if (!viable.length) return null;
   const elements = [];
   viable[0].forEach(({ img, x: bx, y: by, w, h }, i) => {
-    elements.push(imageElement({ id: `${id}-img-${i + 1}`, src: img.src, bounds: [Math.round(bx), Math.round(by), Math.round(w), Math.round(h)], fit: 'cover', focal: img.focal || '50% 40%', naturalSize: [img.size.width, img.size.height], ...(img.alt ? { alt: img.alt } : {}) }));
+    elements.push(imageElement({ id: `${id}-img-${i + 1}`, src: img.src, bounds: [Math.round(bx), Math.round(by), Math.round(w), Math.round(h)], fit: 'cover', focal: img.focal || '50% 40%', naturalSize: [img.size.width, img.size.height], style: { radius: theme.radius ?? 0 }, ...(img.alt ? { alt: img.alt } : {}) }));
     if (img.caption) elements.push(textElement({ id: `${id}-caption-${i + 1}`, text: img.caption, bounds: [Math.round(bx), Math.round(by + h + 10), Math.round(w), cap - 10], style: theme.font(captionSize, { color: theme.palette.muted, lineHeight: 1.35 }) }));
   });
   return { elements, height, width, crop: +cost(viable[0]).toFixed(2) };
@@ -219,7 +220,7 @@ export function metricTiles({ id, x, y, width, items, theme, size = 72, columns,
   const labelSize = Math.max(20, Math.round(size * 0.3)), tileH = 24 + Math.round(labelSize * 1.4) + 8 + Math.round(size * 1.25) + 18, elements = [];
   items.forEach((it, i) => {
     const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), on = i === highlight;
-    elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, bounds: [tx, ty, tileW, tileH], style: { fill: tileFill, radius: 14 } });
+    elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, bounds: [tx, ty, tileW, tileH], style: { fill: tileFill, radius: theme.radius ?? 14 } });
     if (on) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
     elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: p.muted }) }));
     const unitSize = Math.max(20, Math.round(size * 0.32));
@@ -270,11 +271,11 @@ export function photoPanel({ id, bounds: [x, y, w, h], photo, title, lines = [],
 export const shiftX = (elements, dx) => (dx ? elements.map((e) => ({ ...e, bounds: [e.bounds[0] + Math.round(dx), ...e.bounds.slice(1)] })) : elements);
 
 // An image sized to fit a box at its own aspect ratio (never above maxUpscale × its pixels), centred in the box.
-export function fitImage({ id, src, size, box: [bx, by, bw, bh], maxUpscale = 2, alt }) {
+export function fitImage({ id, src, size, box: [bx, by, bw, bh], maxUpscale = 2, alt, radius = 0 }) {
   const s = size || imageSize(src), r = s.width / s.height;
   let w = Math.min(bw, bh * r, s.width * maxUpscale), h = w / r;
   if (h > bh) { h = bh; w = h * r; }
-  return imageElement({ id, src, bounds: [Math.round(bx + (bw - w) / 2), Math.round(by + (bh - h) / 2), Math.round(w), Math.round(h)], fit: 'contain', naturalSize: [s.width, s.height], ...(alt ? { alt } : {}) });
+  return imageElement({ id, src, bounds: [Math.round(bx + (bw - w) / 2), Math.round(by + (bh - h) / 2), Math.round(w), Math.round(h)], fit: 'contain', naturalSize: [s.width, s.height], ...(radius ? { style: { radius } } : {}), ...(alt ? { alt } : {}) });
 }
 
 // columns: [{key, label, width, size?, weight?, color?}]; row height follows the tallest estimated cell.
