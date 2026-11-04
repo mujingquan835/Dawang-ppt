@@ -13,7 +13,8 @@ import path from 'node:path';
 //   scope: 'part' | 'full',               // 一部分页面（默认） | 完整汇报/述职
 //   title, audience, period, owner,
 //   pages: [{ id, role, keyLine: { text, source: 'quoted'|'distilled'|'created' },
-//             data: [{ label, value, unit, period?, note? }], items: [{ title, detail }],
+//             data: [{ label, value, unit, period?, note?, target? }], items: [{ title, detail }],
+//             compare: { left: [{ title, detail }], right: [...] } (rows pair up), periods: [{ label, title, points }],
 //             flows: [{ title, steps: [] }] (process steps), chains: [{ title, steps: [] }] (application paths),
 //             table: { columns: [], rows: [[]] }, photos: [{ src, caption }] }]
 // }
@@ -86,6 +87,10 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
 export function suggestPattern(p) {
   const nData = (p.data || []).length, nPhotos = (p.photos || []).length, nItems = (p.items || []).length;
   if (p.table?.rows?.length) return (p.flows || []).length ? 'tableWithFlows' : (p.chains || []).length ? 'tableWithPanel' : 'free';
+  // Report shapes: targets beside results, two sides that pair row by row, work laid out by period.
+  if (nData >= 2 && (p.data || []).filter((d) => d.target != null).length >= 2) return 'targetVsActual';
+  if (p.compare?.left?.length && p.compare.left.length === p.compare.right?.length) return 'contrastColumns';
+  if ((p.periods || []).length >= 3) return 'periodColumns';
   if (nData >= 2 && nPhotos >= 2) return 'listWithPhotos';
   if (nData >= 2 && nPhotos === 1) return 'metricsWithEvidence';
   if (nData >= 2) return 'metricTiles';
@@ -95,6 +100,9 @@ export function suggestPattern(p) {
 }
 function suggestReason(p) {
   const nData = (p.data || []).length, nPhotos = (p.photos || []).length;
+  if (suggestPattern(p) === 'targetVsActual') return '有目标值：计划与实际同列对照，深色块给出整体完成度';
+  if (suggestPattern(p) === 'contrastColumns') return '两侧逐项成对（亮点/待改进、问题/改进）：左右对照、中间编号连起每一对';
+  if (suggestPattern(p) === 'periodColumns') return '按时期展开：箭头色带分段，每期一栏，底部汇总';
   if (nData >= 2 && nPhotos) return `${nData} 个数字优先进色块，${nPhotos} 张照片作证据`;
   if (nData >= 2) return `${nData} 个数字用色块并列`;
   if (nPhotos >= 2) return '数据少、照片多，可用色块与照片渐隐拼板';

@@ -58,12 +58,13 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `scope`：`part`（默认，用户只要一部分页面或某一块）只检查所做页面；`full`（用户明确要完整汇报/述职）才检查整体结论、问题差距、下一步等整稿结构。authored 工程的 `requirements.scope` 同步填写，复核据此判断。没有缺口时不向用户提问。
 - `role`：summary 整体结论 / results 成果数据 / actions 关键动作 / resources 资源支持 / issues 问题差距 / causes 原因复盘 / plan 下一步 / asks 需支持或决策 / duties 职责定位（述职）/ other。
 - `flows` 是流程步骤（建议表格加流程色带），`chains` 是应用路径（建议表格加深色侧栏）。
+- `data[].target` 写目标值（两项以上时建议 `targetVsActual`）；`compare:{left:[…],right:[…]}` 写逐项成对的两侧（建议 `contrastColumns`）；`periods:[{label,title,points}]` 写按时期展开的工作（3 个以上时建议 `periodColumns`）。
 - 照片路径相对大纲文件所在目录。
 - 输出：`gaps`（缺口：缺什么 `ask`、缺了会怎样 `impact`）、`warnings`（单位缺失、重点句只是动作罗列、照片不存在、可选内容缺失）、`suggestions`（每页建议页型及理由：数据多用色块，数据少照片多才用照片拼板）、`decision`（下一步该问用户什么）。工作汇报要求整体结论、成果数据、问题差距、下一步，需支持事项为可选；述职要求职责定位、个人业绩、不足反思、下一阶段计划。
 
 ## 排版工具与页型
 
-排版用 `project/src/fusion/authoring/layout-kit.mjs` 与 `patterns.mjs`，不手算对齐坐标。每个工具返回 `{elements,height}`，按返回高度往下堆叠。完整用法见 `examples/layout-patterns.mjs`（合成示例，每个页型一页）。
+排版用 `project/src/fusion/authoring/layout-kit.mjs` 与 `patterns.mjs`，不手算对齐坐标。每个工具返回 `{elements,height}`，按返回高度往下堆叠。完整用法见 `examples/layout-patterns.mjs` 与 `examples/report-patterns.mjs`（合成示例，每个页型一页）。
 
 - `createTheme({palette:{bg,ink,accent,muted,line,pale,inverse},fontFamily})`、`createGrid({margin:96,columns:12,gutter:32})`：`grid.span(起始栏,栏数)` 返回 `[x,width]`。
 - `metricGroup` / `metricRow({items:[{value,unit,label}],size})`：数值与单位在同一文字元素的 runs 内，名称紧贴其下；并列指标等宽同基线。
@@ -75,12 +76,17 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `imageFill({x,y,width,height,images})`：用一行或“左高右叠”拼贴铺满整个方框，每张图围绕 `focal`（默认 `50% 40%`）轻度裁切，形状改变不超过 1.45 倍；做不到时返回 null。
 - `fitImage({id,src,size,box})`：按原始比例放进方框并居中，不超过原始像素 2 倍；`shiftX(elements,dx)` 整体平移一组元素。
 - `estimateLines` / `textHeight`：中文按 1 字宽、西文按 0.55 字宽估算行数与高度。
+- `kpiStrip({anchor:{label,value,unit},items:[{value,unit,label|note}],height,size})`：左端实心主色锚定块装整体数字，其余指标在浅主色带上等分、细竖线分隔，返回 `columns` 供下方内容对齐到各列。
+- `colorRoles(palette)`：汇报配色职责 primary / secondary / pop / band / soft；九组汇报配色在 `authoring/report-palettes.mjs`（`reportPalette('blue-gold')`），说明见 [汇报版式逻辑](fusion/report-layout-logic.md)。
 
 页型返回 `{elements,visualDecision}`，可把 `visualDecision` 直接写入 `contentPlan.slides[i]`：
 
 | 页型 | 适用 |
 |---|---|
-| `pageHeader({eyebrow,title,focus,subtitle,page,total,source})` | 所有页的页头页脚；`focus` 是标题中要强调的一段，以 runs 着强调色 |
+| `pageHeader({eyebrow,tag,title,focus,subtitle,page,total,source})` | 所有页的页头页脚；`focus` 是标题中要强调的一段，以 runs 着强调色；给 `tag`（如“成果数据 \| 02”）时改为左侧实心主色标签＋同行标题＋贯穿细线 |
+| `targetVsActual({header,period,overall,items:[{label,target,actual,note,rate,detail}],analysis})` | 计划目标行与实际结果带同列对照，左端深色块给整体完成度，下方各列完成率进度条与说明（未达标用辅色） |
+| `contrastColumns({header,left:{title,items},right:{title,items},badge})` | 亮点/待改进、问题/改进、今年/去年逐行成对；两侧行数必须相同，否则报错 |
+| `periodColumns({header,periods:[{label,title,rate,points}],summary:{overall,items}})` | 3–6 个时期的箭头色带，每期一栏写重点与要点，底部汇总指标带 |
 | `tableWithFlows({header,table,flows,note})` | 分工表加下方色带中的一到两条流程 |
 | `metricsWithEvidence({header,hero,secondary,flow,notes,image})` | 主指标、次级指标行、机制流程，右侧证据图 |
 | `listWithPhotos({header,items,metrics,photos,note})` | 默认的图文资源页：左侧编号资源、结果指标与复盘，右侧照片铺满整栏（轻度裁切填满，裁切过多时退回不裁切的居中排列） |

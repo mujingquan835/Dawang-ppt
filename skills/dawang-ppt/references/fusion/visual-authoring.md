@@ -58,3 +58,7 @@
 ## dashi 参考附录
 
 用户要求参考 dashi 或需要具体构图、配色依据时，按需读 [版式案例](layout-cases.md)、[配色参考](palette-cases.md)、[dashi主题索引](dashi-theme-references.md) 和离线 [案例页](visual-casebook.html)。它们是参考，不改变原规则、不自动切换为原样模板，也不作为验收依据。
+
+## 汇报版式逻辑
+
+排汇报、述职、复盘页面时读 [汇报版式逻辑](report-layout-logic.md)：一深一浅一跳的颜色职责与九组汇报配色、锚定块、同列对应、镜像对照、时期色带和反白栏五种结构，以及对应的 `targetVsActual` / `contrastColumns` / `periodColumns` 页型。它是参考，不改变原规则。

@@ -1,5 +1,5 @@
 import { textElement, lineElement } from './elements.mjs';
-import { textHeight, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage } from './layout-kit.mjs';
+import { textHeight, textWidth, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage, colorRoles, kpiStrip, lighten } from './layout-kit.mjs';
 
 // Page patterns built on the layout kit. Each returns elements on the 12-column grid plus a visualDecision that
 // can go straight into contentPlan. A pattern is a starting point: change its parameters, add or drop elements,
@@ -8,7 +8,7 @@ export const FOOTER_TOP = 1010;
 // metricStyle 'tile' (default) puts each number in a rounded rectangle with its label; 'plain' keeps bare numbers.
 const metrics = (style, { highlight = 0, ...args }) => (style === 'plain' ? metricRow(args) : metricTiles({ ...args, highlight }));
 
-export function pageHeader({ theme, grid, eyebrow, title, focus, subtitle, page, total, source, titleSize = 60 }) {
+export function pageHeader({ theme, grid, eyebrow, tag, title, focus, subtitle, page, total, source, titleSize = tag ? 52 : 60 }) {
   const p = theme.palette, x = grid.left, w = grid.width, elements = [];
   if (eyebrow) elements.push(textElement({ id: 'eyebrow', text: eyebrow, bounds: [x, 56, w * 0.7, 32], style: theme.font(22, { color: p.muted, lineHeight: 1.4 }) }));
   // Title focus: the named part keeps the accent colour in its own run, the rest stays ink.
@@ -16,11 +16,27 @@ export function pageHeader({ theme, grid, eyebrow, title, focus, subtitle, page,
   if (focus && at < 0) throw new Error('focus must be part of the title: ' + focus);
   const runs = at < 0 ? undefined : [title.slice(0, at), focus, title.slice(at + focus.length)].filter(Boolean)
     .map((text) => ({ text, style: { fontSize: titleSize, fontWeight: 700, color: text === focus ? p.accent : p.ink } }));
-  const th = textHeight(title, titleSize, w - 24, 1.2) + 8;
-  elements.push({ type: 'shape', id: 'title-mark', bounds: [x, 104, 10, Math.round(titleSize * 1.05)], style: { fill: p.accent } });
-  elements.push(textElement({ id: 'title', text: title, bounds: [x + 32, 98, w - 32, th], style: theme.font(titleSize, { fontWeight: 700, lineHeight: 1.2, fontFamily: theme.headingFamily }), ...(runs ? { runs } : {}) }));
-  let bottom = 98 + th;
-  if (subtitle) { const s = textBlock({ id: 'subtitle', x: x + 32, y: bottom + 8, width: w - 32, text: subtitle, size: 26, theme, style: { color: p.muted } }); elements.push(...s.elements); bottom += 8 + s.height; }
+  let bottom, tx = x + 32;
+  if (tag) {
+    // Report-template header: a filled chip names the section (成果数据 | 02), the title follows on the same line and a
+    // hairline closes the header across the content width. The chip uses the primary colour; eyebrow is not shown.
+    const chipH = Math.round(titleSize * 1.2), chipW = Math.round(textWidth(tag, 26) + 56), primary = p.primary || p.accent;
+    elements.splice(0, elements.length);
+    elements.push({ type: 'shape', id: 'title-tag', bounds: [x, 56, chipW, chipH], style: { fill: primary } });
+    elements.push(textElement({ id: 'title-tag-text', text: tag, bounds: [x, 56 + Math.round((chipH - 36) / 2), chipW, 36], style: theme.font(26, { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.35 }) }));
+    tx = x + chipW + 28;
+    const th = textHeight(title, titleSize, grid.right - tx, 1.2) + 8;
+    elements.push(textElement({ id: 'title', text: title, bounds: [tx, 56, grid.right - tx, th], style: theme.font(titleSize, { fontWeight: 700, lineHeight: 1.2, fontFamily: theme.headingFamily }), ...(runs ? { runs } : {}) }));
+    bottom = 56 + Math.max(chipH, th) + 20;
+    elements.push(lineElement({ id: 'title-rule', from: [x, bottom], to: [grid.right, bottom], style: { stroke: p.ink, strokeWidth: 1 } }));
+    tx = x;
+  } else {
+    const th = textHeight(title, titleSize, w - 24, 1.2) + 8;
+    elements.push({ type: 'shape', id: 'title-mark', bounds: [x, 104, 10, Math.round(titleSize * 1.05)], style: { fill: p.accent } });
+    elements.push(textElement({ id: 'title', text: title, bounds: [x + 32, 98, w - 32, th], style: theme.font(titleSize, { fontWeight: 700, lineHeight: 1.2, fontFamily: theme.headingFamily }), ...(runs ? { runs } : {}) }));
+    bottom = 98 + th;
+  }
+  if (subtitle) { const s = textBlock({ id: 'subtitle', x: tx, y: bottom + (tag ? 16 : 8), width: grid.right - tx, text: subtitle, size: 26, theme, style: { color: p.muted } }); elements.push(...s.elements); bottom += (tag ? 16 : 8) + s.height; }
   if (source) elements.push(textElement({ id: 'source', text: source, bounds: [x, 1028, w - 200, 28], style: theme.font(17, { color: p.muted }) }));
   if (page) elements.push(textElement({ id: 'page-number', text: `${String(page).padStart(2, '0')}${total ? ' / ' + String(total).padStart(2, '0') : ''}`, bounds: [grid.right - 160, 1028, 160, 28], style: theme.font(17, { color: p.muted, textAlign: 'right' }) }));
   return { elements, bottom: Math.round(bottom), focus: { elementId: 'title', ...(at < 0 ? {} : { text: focus }) } };
@@ -191,4 +207,180 @@ export function twoLaneFlow({ theme, grid, header, lanes, conclusion }) {
   });
   if (conclusion) elements.push(textElement({ id: 'conclusion', text: conclusion, bounds: [fx, y + 8, fw, 40], style: theme.font(26, { fontWeight: 700, color: p.accent }) }));
   return { elements: [...header.elements, ...elements], visualDecision: decision(header, '两条流程上下并列，标题在左，节点与说明逐一对齐', [['lanes', 'flow', [grid.left, top, grid.width, Math.min(FOOTER_TOP - 20, y + 60) - top]]]) };
+}
+
+// ---- Report page types distilled from a 245-page work-report template (see references/fusion/report-layout-logic.md).
+// Shared logic: one solid primary block anchors the page's answer; the comparison side is a soft secondary tint;
+// columns that belong together share one x-range from the figure down to its explanation.
+
+// Spread spare height over n gaps (at most `cap` each) so short content does not leave one empty block at the bottom.
+const spread = (spare, n, cap = 56) => (n > 0 ? Math.max(0, Math.min(cap, Math.floor(spare / n))) : 0);
+// Bullet points with a hanging indent: each point is its own text box after a small dot, so wrapped lines start
+// under the text, not under the dot.
+const indentOf = (size) => Math.round(size * 0.9), pointGap = (size) => Math.round(size * 0.3);
+const pointsHeight = (points = [], size, width, lh) => points.reduce((h, s, i) => h + textHeight(s, size, width - indentOf(size), lh) + (i ? pointGap(size) : 0), 0);
+function pointList({ id, x, y, width, points = [], size, color, theme, lh }) {
+  const elements = [], d = Math.max(6, Math.round(size * 0.26));
+  points.forEach((s, i) => {
+    const h = textHeight(s, size, width - indentOf(size), lh);
+    elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x, y + Math.round((size * lh - d) / 2), d, d], style: { fill: color, radius: d / 2 } });
+    elements.push(textElement({ id: `${id}-${i + 1}`, text: s, bounds: [x + indentOf(size), y, width - indentOf(size), h], style: theme.font(size, { color, lineHeight: lh }) }));
+    y += h + pointGap(size);
+  });
+  return elements;
+}
+
+// Target vs actual: a plan row of targets, below it the actual results on a band led by one dark anchor block with the
+// overall figure (整体完成度), then per-metric completion bars and explanations in the same columns.
+// items: [{ label, target: { value, unit }, actual: { value, unit }, note?, rate?, detail? }]; rate is a percent number.
+export function targetVsActual({ theme, grid, header, period = '', overall, items, analysis, metricSize = 56 }) {
+  const p = theme.palette, r = colorRoles(p), x = grid.left, w = grid.width, n = items.length, elements = [];
+  if (n < 2 || n > 5) throw new Error('targetVsActual takes 2–5 metrics');
+  const aw = Math.round(w * 0.17), colW = (w - aw) / n, cols = items.map((_, i) => [Math.round(x + aw + i * colW), Math.round(colW)]);
+  const detailH = Math.max(0, ...items.map((it) => (it.detail ? textHeight(it.detail, 22, Math.round(colW) - 48, 1.5) : 0)));
+  const analysisH = analysis ? textHeight(analysis, 24, w - 220, 1.5) : 0, hasRate = items.some((it) => Number.isFinite(it.rate));
+  const planH = 136, stripH = 160, rateH = hasRate ? 64 : 0;
+  const used = planH + stripH + rateH + (detailH ? detailH + 8 : 0) + (analysisH ? analysisH + 40 : 0);
+  const top = header.bottom + 36, gap = 24 + spread(FOOTER_TOP - 20 - top - used - 24 * 3, 3, 72);
+  // Plan row: period label in the anchor column, targets with label above and value below, thin rules between.
+  elements.push(textElement({ id: 'plan-period', text: `${period}${period ? '\n' : ''}计划目标`, bounds: [x, top + 18, aw - 24, planH - 36], style: theme.font(32, { fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }) }));
+  items.forEach((it, i) => {
+    const [cx, cw] = cols[i];
+    elements.push(textElement({ id: `plan-label-${i + 1}`, text: it.label, bounds: [cx + 12, top + 20, cw - 24, 32], style: theme.font(22, { fontWeight: 700, color: p.muted, textAlign: 'center' }) }));
+    const unitSize = Math.max(20, Math.round(metricSize * 0.36));
+    elements.push(textElement({ id: `plan-value-${i + 1}`, text: `${it.target.value}${it.target.unit ? ' ' + it.target.unit : ''}`, runs: [{ text: String(it.target.value), style: { fontSize: Math.round(metricSize * 0.8), fontWeight: 700, color: p.ink } }, ...(it.target.unit ? [{ text: ' ' + it.target.unit, style: { fontSize: unitSize, fontWeight: 700, color: p.ink } }] : [])], bounds: [cx + 12, top + 62, cw - 24, Math.round(metricSize * 1.05)], style: theme.font(Math.round(metricSize * 0.8), { fontWeight: 700, textAlign: 'center', lineHeight: 1.15 }) }));
+    elements.push(lineElement({ id: `plan-rule-${i + 1}`, from: [cx, top + 24], to: [cx, top + planH - 24], style: { stroke: p.line, strokeWidth: 2 } }));
+  });
+  let y = top + planH + gap;
+  const strip = kpiStrip({ id: 'actual', x, y, width: w, anchor: overall, items: items.map((it) => ({ ...it.actual, note: it.note })), theme, height: stripH, anchorWidth: aw, size: metricSize });
+  elements.push(...strip.elements);
+  y += stripH + gap;
+  const dataBottom = y;
+  if (hasRate) {
+    elements.push(textElement({ id: 'rate-heading', text: '各项完成率', bounds: [x, y, aw - 24, 34], style: theme.font(24, { fontWeight: 700, color: r.primary, textAlign: 'center' }) }));
+    items.forEach((it, i) => {
+      if (!Number.isFinite(it.rate)) return;
+      const [cx, cw] = cols[i], bx = cx + 24, bw = cw - 48, done = it.rate >= 100;
+      elements.push(textElement({ id: `rate-label-${i + 1}`, text: `完成 ${it.rate}%`, bounds: [bx, y, bw, 30], style: theme.font(22, { fontWeight: 700, color: done ? r.primary : r.secondaryInk }) }));
+      elements.push({ type: 'shape', id: `rate-track-${i + 1}`, bounds: [bx, y + 40, bw, 12], style: { fill: r.band, radius: 6 } });
+      elements.push({ type: 'shape', id: `rate-fill-${i + 1}`, bounds: [bx, y + 40, Math.max(12, Math.round(bw * Math.min(100, it.rate) / 100)), 12], style: { fill: done ? r.primary : r.secondary, radius: 6 } });
+    });
+    y += rateH;
+  }
+  if (detailH) {
+    y += 8;
+    items.forEach((it, i) => { if (it.detail) { const [cx, cw] = cols[i]; elements.push(textElement({ id: `detail-${i + 1}`, text: it.detail, bounds: [cx + 24, y, cw - 48, textHeight(it.detail, 22, cw - 48, 1.5)], style: theme.font(22, { color: p.muted, lineHeight: 1.5 }) })); } });
+    y += detailH;
+  }
+  const zones = [['targets', 'data', [x, top, w, dataBottom - top - gap]]];
+  if (rateH || detailH) zones.push(['explain', 'support', [x, dataBottom - 4, w, y - dataBottom + 8]]);
+  if (analysisH) {
+    y += gap;
+    elements.push(lineElement({ id: 'analysis-rule', from: [x, y], to: [grid.right, y], style: { stroke: p.line, strokeWidth: 1 } }));
+    elements.push(textElement({ id: 'analysis-label', text: '分析', bounds: [x, y + 24, 160, 34], style: theme.font(24, { fontWeight: 700, color: r.primary }) }));
+    elements.push(textElement({ id: 'analysis', text: analysis, bounds: [x + 200, y + 24, w - 200, analysisH], style: theme.font(24, { lineHeight: 1.5 }) }));
+    zones.push(['analysis', 'note', [x, y, w, analysisH + 40]]);
+  }
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '上行计划目标、下行实际结果同列对照，左端深色块给出整体完成度作为第一眼重点，完成率与说明落在各自指标列下', zones) };
+}
+
+// Two sides compared row by row (亮点 vs 待改进, 问题 vs 改进, 去年 vs 今年): the left side in primary, the right in a
+// soft secondary tint, numbered rows in the middle tie each pair together and a VS disc sits on the seam.
+// left/right: { title, items: [{ value?, unit?, title, points: [] }] } with the same number of items (rows must pair).
+export function contrastColumns({ theme, grid, header, left, right, badge = 'VS' }) {
+  const p = theme.palette, r = colorRoles(p), n = left.items.length, elements = [];
+  if (n !== right.items.length) throw new Error('contrastColumns: both sides need the same number of rows; rows that do not pair belong in separate lists');
+  if (n < 1 || n > 4) throw new Error('contrastColumns takes 1–4 rows');
+  const mid = 120, sideW = Math.round((grid.width - mid) / 2), lx = grid.left, rx = grid.left + sideW + mid, top = header.bottom + 36, capH = 76;
+  const sides = [[left, lx, r.primary, r.band, p.inverse, r.primary], [right, rx, lighten(r.secondary, 0.45), r.soft, r.secondaryInk, r.secondaryInk]];
+  // Measure every cell: a metric cell (value over title) on the left third, points on the rest; or title above points.
+  const cell = (it, cw) => {
+    const metric = it.value != null, pw = metric ? cw - 300 : cw, pts = (it.points || []).length > 0;
+    const ph = pts ? pointsHeight(it.points, 22, pw, 1.55) : 0, head = metric ? 0 : textHeight(it.title, 28, cw, 1.3) + 10;
+    return { metric, pw, pts, ph, head, h: Math.max(metric ? 132 : 0, head + ph) };
+  };
+  const cw = sideW - 64, cells = [left, right].map((s) => s.items.map((it) => cell(it, cw)));
+  const base = cells[0].map((c, i) => Math.max(c.h, cells[1][i].h));
+  const bodyTop = top + capH, pad = 28 + spread(FOOTER_TOP - 20 - bodyTop - base.reduce((a, b) => a + b, 0) - 56 * n, 2 * n, 36);
+  const rowsH = base.map((h) => h + pad * 2), bodyH = rowsH.reduce((a, b) => a + b, 0) + 16;
+  sides.forEach(([side, sx, capFill, bodyFill, capInk, ink], k) => {
+    elements.push({ type: 'shape', id: `side-${k + 1}-body`, bounds: [sx, bodyTop - 8, sideW, bodyH + 8], style: { fill: bodyFill, radius: theme.radius } });
+    elements.push({ type: 'shape', id: `side-${k + 1}-cap`, bounds: [sx, top, sideW, capH], style: { fill: capFill, radius: theme.radius } });
+    elements.push(textElement({ id: `side-${k + 1}-title`, text: side.title, bounds: [sx + 32, top + 16, sideW - 64, 44], style: theme.font(32, { fontWeight: 700, color: capInk, textAlign: 'center' }) }));
+    let y = bodyTop + 8;
+    side.items.forEach((it, i) => {
+      const c = cells[k][i], cy = y + pad + (c.metric ? 0 : Math.round((base[i] - c.h) / 2)), cx = sx + 32;
+      if (c.metric) {
+        const vs = 60, us = 26, vy = cy + Math.round((base[i] - 132) / 2);
+        elements.push(textElement({ id: `side-${k + 1}-value-${i + 1}`, text: `${it.value}${it.unit ? ' ' + it.unit : ''}`, runs: [{ text: String(it.value), style: { fontSize: vs, fontWeight: 700, color: ink } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: us, fontWeight: 700, color: ink } }] : [])], bounds: [cx, vy, 260, 76], style: theme.font(vs, { fontWeight: 700, color: ink, textAlign: 'center', lineHeight: 1.15 }) }));
+        elements.push(textElement({ id: `side-${k + 1}-label-${i + 1}`, text: it.title, bounds: [cx, vy + 84, 260, 34], style: theme.font(22, { fontWeight: 700, color: ink, textAlign: 'center' }) }));
+        if (c.pts) elements.push(...pointList({ id: `side-${k + 1}-points-${i + 1}`, x: cx + 300, y: cy + Math.round((base[i] - c.ph) / 2), width: c.pw, points: it.points, size: 22, color: p.ink, theme, lh: 1.55 }));
+      } else {
+        elements.push(textElement({ id: `side-${k + 1}-label-${i + 1}`, text: it.title, bounds: [cx, cy, cw, c.head - 10], style: theme.font(28, { fontWeight: 700, color: ink, lineHeight: 1.3 }) }));
+        if (c.pts) elements.push(...pointList({ id: `side-${k + 1}-points-${i + 1}`, x: cx, y: cy + c.head, width: cw, points: it.points, size: 22, color: p.ink, theme, lh: 1.55 }));
+      }
+      y += rowsH[i];
+      if (i < n - 1) elements.push(lineElement({ id: `side-${k + 1}-rule-${i + 1}`, from: [cx, y], to: [sx + sideW - 32, y], style: { stroke: k === 0 ? lighten(r.primary, 0.75) : lighten(r.secondary, 0.4), strokeWidth: 1 } }));
+    });
+  });
+  // Row numbers in the middle column tie each pair; the VS disc sits on the seam between the two titles.
+  let y = bodyTop + 8;
+  rowsH.forEach((h, i) => { elements.push(textElement({ id: `row-num-${i + 1}`, text: String(i + 1).padStart(2, '0'), bounds: [lx + sideW, y + Math.round(h / 2) - 24, mid, 48], style: theme.font(34, { fontWeight: 700, color: p.ink, textAlign: 'center', lineHeight: 1.3 }) })); y += h; });
+  if (badge) {
+    const d = 104, bx = lx + sideW + Math.round((mid - d) / 2), by = top + Math.round(capH / 2 - d / 2);
+    elements.push({ type: 'shape', id: 'vs-disc', bounds: [bx, by, d, d], style: { fill: '#26262B', radius: d / 2 } });
+    elements.push(textElement({ id: 'vs-text', text: badge, bounds: [bx, by + Math.round(d / 2 - 26), d, 52], style: theme.font(40, { fontWeight: 800, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.3 }) }));
+  }
+  const zh = capH + bodyH;
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左右两侧逐行对照：左侧主色承载已达成或现状，右侧浅辅色承载差距或改进，中间编号把每一对连起来，VS 标在分界处', [['left', 'focus', [lx, top, sideW, zh]], ['pairs', 'support', [lx + sideW, top, mid, zh]], ['right', 'evidence', [rx, top, sideW, zh]]]) };
+}
+
+// Period columns: an arrow band of periods (months, quarters, phases) heads the page and each period owns the column
+// beneath it — title, optional rate badge, points — with an optional KPI strip summarising the whole span at the bottom.
+// periods: [{ label, title, rate?: { value, unit?, label? }, points: [], tone?: 'primary'|'secondary' }] (3–6).
+export function periodColumns({ theme, grid, header, periods, summary }) {
+  const p = theme.palette, r = colorRoles(p), n = periods.length, elements = [];
+  if (n < 3 || n > 6) throw new Error('periodColumns takes 3–6 periods');
+  const top = header.bottom + 36, bandH = 64, x = grid.left, w = grid.width, colW = w / n;
+  const tone = (pd, i) => (pd.tone || (i % 2 ? 'secondary' : 'primary')) === 'primary';
+  // Band: full bleed from the left edge, one segment per column, arrow head past the last column.
+  elements.push({ type: 'shape', id: 'band-lead', bounds: [0, top, x, bandH], style: { fill: tone(periods[0], 0) ? r.primary : r.secondary } });
+  periods.forEach((pd, i) => {
+    const cx = Math.round(x + i * colW), cw = Math.round(colW);
+    elements.push({ type: 'shape', id: `band-${i + 1}`, bounds: [cx, top, cw, bandH], style: { fill: tone(pd, i) ? r.primary : r.secondary } });
+    elements.push(textElement({ id: `band-label-${i + 1}`, text: pd.label, bounds: [cx + 8, top + 14, cw - 16, 36], style: theme.font(26, { fontWeight: 700, color: tone(pd, i) ? p.inverse : r.onSecondary, textAlign: 'center' }) }));
+  });
+  const last = periods[n - 1];
+  elements.push({ type: 'vector', id: 'band-arrow', bounds: [grid.right, top - 14, 44, bandH + 28], viewBox: [0, 0, 44, 92], path: 'M0,0 L44,46 L0,92 Z', style: { fill: tone(last, n - 1) ? r.primary : r.secondary, stroke: 'none' } });
+  const stripH = summary ? 150 : 0, colTop = top + bandH + 12;
+  const cw = Math.round(colW) - 56, colBottomMax = FOOTER_TOP - 20 - (summary ? stripH + 28 : 0), room = colBottomMax - colTop - 64;
+  // Larger text when the columns have room: the biggest point size whose tallest column fills at most 80% of it.
+  const measure = (pd, ps) => {
+    const ts = ps + 6, titleW = pd.rate ? cw - 168 : cw, th = textHeight(pd.title, ts, titleW, 1.3), pts = (pd.points || []).length > 0;
+    return { ps, ts, titleW, th, pts, ph: pts ? pointsHeight(pd.points, ps, cw, 1.5) : 0, head: Math.max(th, pd.rate ? 88 : 0) };
+  };
+  const fit = (ps) => periods.map((pd) => measure(pd, ps)), tallest = (ms) => Math.max(...ms.map((m) => m.head + 24 + m.ph));
+  const ms = [28, 26, 24, 22].map(fit).find((m) => tallest(m) <= room * 0.8) || fit(22), content = tallest(ms);
+  if (content > room) throw new Error('periodColumns: column text does not fit; shorten points or use fewer periods');
+  const colH = Math.min(colBottomMax - colTop, content + 64 + spread(room - content, 1, 72));
+  periods.forEach((pd, i) => {
+    const cx = Math.round(x + i * colW), ccw = Math.round(colW), m = ms[i], on = tone(pd, i), tx = cx + 28, ty = colTop + 8 + 28;
+    elements.push({ type: 'shape', id: `col-${i + 1}-cap`, bounds: [cx + 4, colTop, ccw - 8, 8], style: { fill: on ? r.primary : r.secondary } });
+    if (i > 0) elements.push(lineElement({ id: `col-rule-${i}`, from: [cx, colTop + 28], to: [cx, colTop + colH - 16], style: { stroke: p.line, strokeWidth: 1 } }));
+    elements.push(textElement({ id: `col-${i + 1}-title`, text: pd.title, bounds: [tx, ty, m.titleW, m.th], style: theme.font(m.ts, { fontWeight: 700, lineHeight: 1.3 }) }));
+    if (pd.rate) {
+      const bx = cx + ccw - 28 - 148;
+      elements.push({ type: 'shape', id: `col-${i + 1}-rate-box`, bounds: [bx, ty, 148, 88], style: { fill: on ? r.band : r.soft, radius: theme.radius } });
+      elements.push(textElement({ id: `col-${i + 1}-rate`, text: `${pd.rate.value}${pd.rate.unit ?? '%'}`, runs: [{ text: String(pd.rate.value), style: { fontSize: 40, fontWeight: 700, color: on ? r.primary : r.secondaryInk } }, { text: pd.rate.unit ?? '%', style: { fontSize: 22, fontWeight: 700, color: on ? r.primary : r.secondaryInk } }], bounds: [bx, ty + 4, 148, 54], style: theme.font(40, { fontWeight: 700, textAlign: 'center', lineHeight: 1.25 }) }));
+      elements.push(textElement({ id: `col-${i + 1}-rate-label`, text: pd.rate.label || '达成率', bounds: [bx, ty + 58, 148, 26], style: theme.font(18, { color: p.muted, textAlign: 'center' }) }));
+    }
+    if (m.pts) elements.push(...pointList({ id: `col-${i + 1}-points`, x: tx, y: ty + m.head + 24, width: cw, points: pd.points, size: m.ps, color: p.muted, theme, lh: 1.5 }));
+  });
+  const zones = [['periods', 'flow', [0, top, grid.right + 44, colTop + colH - top]]];
+  if (summary) {
+    const sy = colTop + colH + 28 + spread(colBottomMax - colTop - colH, 1, 48);
+    elements.push(...kpiStrip({ id: 'summary', x, y: sy, width: w, anchor: summary.overall, items: summary.items, theme, height: stripH, size: 48 }).elements);
+    zones.push(['summary', 'data', [x, sy, w, stripH]]);
+  }
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '顶部箭头色带按时期分段，每段下方一栏写该期重点、达成率与要点，主辅色交替区分阶段；底部深色块给出全期汇总', zones) };
 }

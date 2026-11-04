@@ -209,6 +209,50 @@ export function imageFill({ id, x, y, width, height, images, theme, gap = 24, ca
 // Colour helpers for tiles and gradient blends.
 export const rgba = (hex, alpha) => { const h = hex.replace('#', ''); const n = (i) => parseInt(h.slice(i, i + 2), 16); return `rgba(${n(0)}, ${n(2)}, ${n(4)}, ${alpha})`; };
 export const darken = (hex, k = 0.35) => '#' + [0, 2, 4].map((i) => Math.round(parseInt(hex.replace('#', '').slice(i, i + 2), 16) * (1 - k)).toString(16).padStart(2, '0')).join('').toUpperCase();
+// Mix toward white: lighten(c, 0.9) is a 10% tint of c.
+export const lighten = (hex, k = 0.85) => '#' + [0, 2, 4].map((i) => Math.round(255 - (255 - parseInt(hex.replace('#', '').slice(i, i + 2), 16)) * (1 - k)).toString(16).padStart(2, '0')).join('').toUpperCase();
+
+// Colour roles for report pages: primary carries "this period / achieved / the answer" and most of the colour on a
+// page; secondary is the soft comparison side (last period, gaps, plans); pop marks the single strongest item. In the
+// reference report template these take roughly 60% / 10% / 3% of all colour uses; the rest stays white and neutral.
+// Palettes without these keys fall back to ink (primary), an accent tint (secondary) and accent (pop).
+export function colorRoles(p) {
+  const primary = p.primary || p.ink, secondary = p.secondary || lighten(p.accent, 0.55);
+  return { primary, secondary, pop: p.pop || p.accent, band: p.band || lighten(primary, 0.94), soft: lighten(secondary, 0.8), secondaryInk: darken(secondary, 0.45), onSecondary: darken(secondary, 0.62) };
+}
+
+// Value with a smaller unit in one text element, centred in its column.
+const centredValue = ({ id, x, y, width, value, unit, size, color, theme }) => {
+  const unitSize = Math.max(20, Math.round(size * 0.42));
+  const runs = [{ text: String(value), style: { fontSize: size, fontWeight: 700, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: unitSize, fontWeight: 700, color } }] : [])];
+  return textElement({ id, text: String(value) + (unit ? ' ' + unit : ''), runs, bounds: [x, y, width, Math.round(size * 1.25)], style: theme.font(size, { fontWeight: 700, color, textAlign: 'center', lineHeight: 1.15 }) });
+};
+
+// KPI strip: one solid anchor block holds the summary figure (整体完成度, 年度合计), its peers follow on a tinted band
+// split by thin rules, each with its label or note below. The anchor is the one place the eye lands first.
+// Returns the column positions so content below can line up with each figure.
+export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, anchorWidth, size = 56, color, labelPosition = 'below' }) {
+  const p = theme.palette, r = colorRoles(p), aw = anchor ? anchorWidth || Math.round(width * 0.17) : 0, elements = [];
+  const n = items.length, colW = (width - aw) / n, labelSize = 22, valueH = Math.round(size * 1.25), labelH = Math.round(labelSize * 1.4);
+  elements.push({ type: 'shape', id: `${id}-band`, bounds: [x + aw, y, width - aw, height], style: { fill: r.band } });
+  if (anchor) {
+    elements.push({ type: 'shape', id: `${id}-anchor`, bounds: [x, y, aw, height], style: { fill: r.primary } });
+    const block = labelH + 6 + valueH, ay = y + Math.round((height - block) / 2);
+    elements.push(textElement({ id: `${id}-anchor-label`, text: anchor.label, bounds: [x + 12, ay, aw - 24, labelH], style: theme.font(labelSize, { color: p.inverse, textAlign: 'center' }) }));
+    elements.push(centredValue({ id: `${id}-anchor-value`, x: x + 12, y: ay + labelH + 6, width: aw - 24, value: anchor.value, unit: anchor.unit, size: Math.round(size * 1.05), color: p.inverse, theme }));
+  }
+  const columns = [];
+  items.forEach((it, i) => {
+    const cx = Math.round(x + aw + i * colW), cw = Math.round(colW), text = it.note ?? it.label ?? '';
+    const block = valueH + (text ? 6 + labelH : 0), top = y + Math.round((height - block) / 2);
+    const vy = labelPosition === 'above' && text ? top + labelH + 6 : top;
+    if (text) elements.push(textElement({ id: `${id}-label-${i + 1}`, text, bounds: [cx + 12, labelPosition === 'above' ? top : top + valueH + 6, cw - 24, labelH], style: theme.font(labelSize, { color: p.muted, textAlign: 'center' }) }));
+    elements.push(centredValue({ id: `${id}-value-${i + 1}`, x: cx + 12, y: vy, width: cw - 24, value: it.value, unit: it.unit, size, color: it.color || color || r.primary, theme }));
+    if (i > 0) elements.push(lineElement({ id: `${id}-rule-${i}`, from: [cx, y + Math.round(height * 0.28)], to: [cx, y + Math.round(height * 0.72)], style: { stroke: p.line, strokeWidth: 2 } }));
+    columns.push([cx, cw]);
+  });
+  return { elements, height, columns };
+}
 
 // Metric tiles: each number sits in its own rounded rectangle with the label above it; the highlighted tile carries
 // an accent bar and accent number. When a tile's content leaves a wide empty strip on the right, a line icon chosen
