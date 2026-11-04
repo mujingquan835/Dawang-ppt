@@ -204,6 +204,58 @@ export function imageFill({ id, x, y, width, height, images, theme, gap = 24, ca
   return { elements, height, width, crop: +cost(viable[0]).toFixed(2) };
 }
 
+// Colour helpers for tiles and gradient blends.
+export const rgba = (hex, alpha) => { const h = hex.replace('#', ''); const n = (i) => parseInt(h.slice(i, i + 2), 16); return `rgba(${n(0)}, ${n(2)}, ${n(4)}, ${alpha})`; };
+export const darken = (hex, k = 0.35) => '#' + [0, 2, 4].map((i) => Math.round(parseInt(hex.replace('#', '').slice(i, i + 2), 16) * (1 - k)).toString(16).padStart(2, '0')).join('').toUpperCase();
+
+// Metric tiles: each number sits in its own rounded rectangle with the label above it; the highlighted tile carries
+// an accent bar and accent number. Turns a row of bare numbers into a scannable dashboard block.
+export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill }) {
+  const p = theme.palette, cols = columns || items.length, tileW = Math.floor((width - gap * (cols - 1)) / cols);
+  const tileFill = fill || p.tile || (String(p.bg).toUpperCase() === '#FFFFFF' ? p.pale : '#FFFFFF');
+  const labelSize = Math.max(20, Math.round(size * 0.3)), tileH = 24 + Math.round(labelSize * 1.4) + 8 + Math.round(size * 1.25) + 18, elements = [];
+  items.forEach((it, i) => {
+    const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), on = i === highlight;
+    elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, bounds: [tx, ty, tileW, tileH], style: { fill: tileFill, radius: 14 } });
+    if (on) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
+    elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: p.muted }) }));
+    const unitSize = Math.max(20, Math.round(size * 0.32));
+    const runs = [{ text: String(it.value), style: { fontSize: size, fontWeight: 700, color: on ? p.accent : p.ink } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 700, color: p.muted } }] : [])];
+    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + 24 + Math.round(labelSize * 1.4) + 4, tileW - 44, Math.round(size * 1.25)], style: theme.font(size, { fontWeight: 700, lineHeight: 1.15, color: on ? p.accent : p.ink }) }));
+  });
+  const rows = Math.ceil(items.length / cols);
+  return { elements, height: rows * tileH + (rows - 1) * gap };
+}
+
+// Photo panel: a solid colour block whose text half fades into a photo (gradient from the panel colour to clear over
+// the photo's inner edge). For pages with little text and photos that each illustrate one point. textSide 'left'
+// puts text left and the photo right; 'top' puts text above a photo that fills the lower part.
+export function photoPanel({ id, bounds: [x, y, w, h], photo, title, lines = [], color, theme, textSide = 'left', textShare = 0.5 }) {
+  const p = theme.palette, c = color || p.ink, size = photo.size || imageSize(photo.src), elements = [];
+  elements.push({ type: 'shape', id: `${id}-base`, bounds: [x, y, w, h], style: { fill: c } });
+  const pad = 40;
+  let img, fade, text;
+  if (textSide === 'top') {
+    const iy = y + Math.round(h * (textShare - 0.12)); img = [x, iy, w, y + h - iy];
+    fade = [x, iy, w, Math.round(img[3] * 0.32)]; text = [x + pad, y + pad, w - pad * 2, Math.round(h * textShare) - pad];
+  } else {
+    const ix = x + Math.round(w * (textShare - 0.15)); img = [ix, y, x + w - ix, h];
+    fade = [ix, y, Math.round(img[2] * 0.55), h]; text = [x + pad, y + pad, Math.round(w * textShare) - pad - 20, h - pad * 2];
+  }
+  // A photo below the text keeps its upper part (faces, screens) clear of the fade.
+  elements.push(imageElement({ id: `${id}-photo`, src: photo.src, bounds: img, fit: 'cover', focal: photo.focal || (textSide === 'top' ? '50% 25%' : '50% 40%'), naturalSize: [size.width, size.height] }));
+  const dir = textSide === 'top' ? '180deg' : '90deg';
+  elements.push({ type: 'shape', id: `${id}-fade`, bounds: fade, style: { fill: `linear-gradient(${dir}, ${rgba(c, 1)} 0%, ${rgba(c, 0.85)} 35%, ${rgba(c, 0)} 100%)` } });
+  const titleSize = Math.min(56, Math.max(36, Math.floor(text[2] / Math.max(4, Math.min(9, String(title).length)))));
+  const th = textHeight(title, titleSize, text[2], 1.2) + Math.round(titleSize * 0.25);
+  elements.push(textElement({ id: `${id}-title`, text: title, bounds: [text[0], text[1], text[2], th], style: theme.font(titleSize, { fontWeight: 800, color: p.inverse, lineHeight: 1.2 }) }));
+  const barW = Math.min(text[2], Math.round(textWidth(String(title).split('\n').pop(), titleSize)));
+  elements.push({ type: 'shape', id: `${id}-bar`, bounds: [text[0], text[1] + th + 10, barW, 6], style: { fill: p.accent } });
+  let ly = text[1] + th + 36;
+  lines.forEach((line, i) => { const lh = textHeight(line, 26, text[2], 1.35); elements.push(textElement({ id: `${id}-line-${i + 1}`, text: line, bounds: [text[0], ly, text[2], lh], style: theme.font(26, { color: p.inverse, lineHeight: 1.35 }) })); ly += lh + 6; });
+  return { elements };
+}
+
 // Move a block sideways, e.g. to centre a photo grid that is narrower than its zone.
 export const shiftX = (elements, dx) => (dx ? elements.map((e) => ({ ...e, bounds: [e.bounds[0] + Math.round(dx), ...e.bounds.slice(1)] })) : elements);
 

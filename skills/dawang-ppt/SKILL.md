@@ -54,9 +54,11 @@ description: 制作、编辑和返工中文演示文稿。以完整制作规则�
 1. 先按场景规则要求定标题（如管理汇报要求标题陈述状态或结论），再在其中选出重点：最值得记住的结论、状态或数值，不是动作罗列。
 2. 重点是句中一段时，用同一文字元素的 runs 让它在字号/字重/颜色/字体上区别于引导语；重点自成元素时让它成为本页最大字号。`layout` 写主视觉、证据与重点的空间关系。目录、过渡页等写 `{waived:'理由'}`。
 3. 不能每页都把整块标题当重点（`visual-focus-all-titles` 会拦下）：至少有页面以大数字、关键词或结构节点为重点，或用 `focus.text` 指定标题中以 runs 区分的一段。
-4. 图文资源页默认用 `listWithPhotos`：照片铺满一整栏、轻度裁切，看得清且不留空。照片都为横图且要逐项对应时可用 `itemsWithPhotos`。裁切围绕主体（`focal`），不切掉人脸和关键文字。出现 `visual-zone-sparse` 时放大主体、收窄区域或换页型，不留大块空白。
-5. `zones` 先把页面分成几个区域（role：focus / evidence / support / flow / data / note / media），区域不重叠，页头页脚以外的文字和图片都落在区域内；`wireframe` 可预览。
-6. 出现 `visual-layout-repeated` 或 `visual-text-only` 时回到构图重新分配区域，或说明内容为何要求如此。
+4. 数字默认放进色块（`metricTiles`，页型已默认）：标签在上、数字在下，重点数字用强调色竖条区分，不把一排裸数字直接摆在页面上。
+5. 数据优先于图片：页面有多个数字时，数字必须进色块（`listWithPhotos` / `metricsWithEvidence` 的指标色块＋照片），不能埋进照片拼板的文字里。只有文字少、几乎没有数据、每张照片对应一项（竞品打法、活动现场）时，才用 `photoPanels`：深色一侧写标题和要点，向照片渐隐过渡。拼板文字里超过 3 个数字时页型会报错。
+6. 图文资源页默认用 `listWithPhotos`：照片铺满一整栏、轻度裁切，看得清且不留空。照片都为横图且要逐项对应时可用 `itemsWithPhotos`。裁切围绕主体（`focal`），不切掉人脸和关键文字。出现 `visual-zone-sparse` 时放大主体、收窄区域或换页型，不留大块空白。
+7. `zones` 先把页面分成几个区域（role：focus / evidence / support / flow / data / note / media），区域不重叠，页头页脚以外的文字和图片都落在区域内；`wireframe` 可预览。
+8. 出现 `visual-layout-repeated` 或 `visual-text-only` 时回到构图重新分配区域，或说明内容为何要求如此。
 
 ## 交付与保存
 

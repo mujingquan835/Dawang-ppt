@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import { createTheme, createGrid } from '../project/src/fusion/authoring/layout-kit.mjs';
-import { pageHeader, tableWithFlows, metricsWithEvidence, listWithPhotos, itemsWithPhotos, tableWithPanel, twoLaneFlow } from '../project/src/fusion/authoring/patterns.mjs';
+import { pageHeader, tableWithFlows, metricsWithEvidence, listWithPhotos, itemsWithPhotos, photoPanels, tableWithPanel, twoLaneFlow } from '../project/src/fusion/authoring/patterns.mjs';
 // Synthetic material showing each page pattern once. Wording and numbers are invented test content. Patterns are
 // starting points: adjust parameters, add elements, or design freely. Real images use file paths plus imageSize().
 const theme = createTheme({ palette: { bg: '#FFFFFF', ink: '#14213D', accent: '#E8590C' } }), grid = createGrid();
 const swatch = (w, h, fill) => ({ src: 'data:image/svg+xml;base64,' + Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`).toString('base64'), size: { width: w, height: h } });
 const source = '示例材料：合成数据，仅用于展示页型';
-const head = (page, title, focus, subtitle) => pageHeader({ theme, grid, eyebrow: '合成示例 · 页型', title, focus, subtitle, page, total: 6, source });
+const head = (page, title, focus, subtitle) => pageHeader({ theme, grid, eyebrow: '合成示例 · 页型', title, focus, subtitle, page, total: 7, source });
 
 const pages = [
   tableWithFlows({ theme, grid, header: head(1, '甲线重点投入，三线共用流程', '甲线重点投入', '甲线重点、乙线持续、丙线按需，共用一套流程'),
@@ -38,7 +38,11 @@ const pages = [
       { title: '广告大屏', detail: '商场大屏曝光；新增广告位 1 个', photo: { ...swatch(384, 256, '#9BB0C8'), caption: '中厅大屏' } },
       { title: '商圈场地', detail: '商场中厅，用于现场咨询', photo: { ...swatch(384, 256, '#A9C3A0'), caption: '外立面大屏' } }],
     metrics: [{ value: '800', unit: '张', label: '春季门票' }, { value: '80', unit: '家', label: '门店客情维护' }, { value: '置换', unit: '', label: '资源获取方式' }],
-    note: '复盘：围绕客户需求组合资源，明确每项资源的使用场景。' })
+    note: '复盘：围绕客户需求组合资源，明确每项资源的使用场景。' }),
+  photoPanels({ theme, grid, header: head(7, '竞品三类打法：夜间看房、媒体造势、软视频', '夜间看房、媒体造势、软视频'),
+    panels: [{ title: '新房夜闪购', lines: ['周末夜间看房，每周 8 个项目', '特惠房源 · 专属优惠'], photo: swatch(900, 1200, '#5B6E9C') },
+      { title: '媒体沟通会', lines: ['邀请自媒体与官方媒体造声势'], photo: swatch(1600, 900, '#7F93B8') },
+      { title: '项目软视频', lines: ['非官方账号为开发商拍摄推广'], photo: swatch(1600, 900, '#9AA77A') }] })
 ];
 
 export const authored = {

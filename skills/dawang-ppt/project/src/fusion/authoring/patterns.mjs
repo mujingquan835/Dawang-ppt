@@ -1,10 +1,12 @@
 import { textElement, lineElement } from './elements.mjs';
-import { textHeight, textBlock, panel, metricRow, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage } from './layout-kit.mjs';
+import { textHeight, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage } from './layout-kit.mjs';
 
 // Page patterns built on the layout kit. Each returns elements on the 12-column grid plus a visualDecision that
 // can go straight into contentPlan. A pattern is a starting point: change its parameters, add or drop elements,
 // or design the page from scratch. Content area runs from the header's `bottom` to FOOTER_TOP.
 export const FOOTER_TOP = 1010;
+// metricStyle 'tile' (default) puts each number in a rounded rectangle with its label; 'plain' keeps bare numbers.
+const metrics = (style, { highlight = 0, ...args }) => (style === 'plain' ? metricRow(args) : metricTiles({ ...args, highlight }));
 
 export function pageHeader({ theme, grid, eyebrow, title, focus, subtitle, page, total, source, titleSize = 60 }) {
   const p = theme.palette, x = grid.left, w = grid.width, elements = [];
@@ -44,13 +46,13 @@ export function tableWithFlows({ theme, grid, header, table: t, flows, note }) {
 }
 
 // One or two hero numbers, a secondary metric row (same 40px gap, so its columns land on the hero columns), a mechanism flow and notes on the left; evidence image right.
-export function metricsWithEvidence({ theme, grid, header, hero, secondary = [], flow: f, notes = [], image }) {
+export function metricsWithEvidence({ theme, grid, header, hero, secondary = [], flow: f, notes = [], image, metricStyle = 'tile' }) {
   const p = theme.palette, top = header.bottom + 40, [lx, lw] = grid.span(0, 7), [rx, rw] = grid.span(7, 5), elements = [];
   let y = top;
-  const h = metricRow({ id: 'hero', x: lx, y, width: lw, items: hero, size: 128, theme }); elements.push(...h.elements); y += h.height + 20;
+  const h = metrics(metricStyle, { id: 'hero', x: lx, y, width: lw, items: hero, size: metricStyle === 'plain' ? 128 : 96, theme }); elements.push(...h.elements); y += h.height + (metricStyle === 'plain' ? 20 : 16);
   if (secondary.length) {
-    elements.push(lineElement({ id: 'hero-rule', from: [lx, y], to: [lx + lw, y], style: { stroke: p.line, strokeWidth: 2 } })); y += 24;
-    const s = metricRow({ id: 'secondary', x: lx, y, width: lw, items: secondary, size: 54, gap: 40, theme, color: p.ink }); elements.push(...s.elements); y += s.height + 28;
+    if (metricStyle === 'plain') { elements.push(lineElement({ id: 'hero-rule', from: [lx, y], to: [lx + lw, y], style: { stroke: p.line, strokeWidth: 2 } })); y += 24; }
+    const s = metrics(metricStyle, { id: 'secondary', x: lx, y, width: lw, items: secondary, size: metricStyle === 'plain' ? 54 : 40, gap: metricStyle === 'plain' ? 40 : 24, theme, color: p.ink, highlight: -1 }); elements.push(...s.elements); y += s.height + 28;
   }
   if (f) {
     elements.push(textElement({ id: 'flow-heading', text: f.title, bounds: [lx, y, lw, 40], style: theme.font(26, { fontWeight: 700 }) })); y += 56;
@@ -71,11 +73,11 @@ export function metricsWithEvidence({ theme, grid, header, hero, secondary = [],
 
 // Numbered resources, result metrics and a review note on the left; the photos get the whole right zone and fill it
 // (cropped a little where needed), so the evidence reads large without an empty side.
-export function listWithPhotos({ theme, grid, header, items, metrics = [], photos, note, perRow = 'auto' }) {
+export function listWithPhotos({ theme, grid, header, items, metrics: results = [], photos, note, perRow = 'auto', metricStyle = 'tile' }) {
   const p = theme.palette, top = header.bottom + 44, [lx, lw] = grid.span(0, 5), [rx, rw] = grid.span(5, 7), elements = [];
   const list = numberedList({ id: 'items', x: lx, y: top, width: lw, items, theme, gap: 28, titleSize: 32, detailSize: 22 }); elements.push(...list.elements);
   let y = top + list.height;
-  if (metrics.length) { y += 28; const m = metricRow({ id: 'result', x: lx, y, width: lw, items: metrics, size: 64, gap: 40, theme }); elements.push(...m.elements); y += m.height; }
+  if (results.length) { y += 28; const m = metrics(metricStyle, { id: 'result', x: lx, y, width: lw, items: results, size: metricStyle === 'plain' ? 64 : 52, gap: metricStyle === 'plain' ? 40 : 20, theme }); elements.push(...m.elements); y += m.height; }
   if (note) {
     const ny = y + 24, b = textBlock({ id: 'note', x: lx + 28, y: ny + 58, width: lw - 56, text: note.text, size: 23, theme });
     elements.push(panel({ id: 'note-panel', bounds: [lx, ny, lw, b.height + 78], radius: 10, theme }));
@@ -94,14 +96,15 @@ export function listWithPhotos({ theme, grid, header, items, metrics = [], photo
 
 // One column per item: numbered heading and detail on top, that item's own photo directly below, so each photo
 // visibly belongs to its item. Result metrics and a review line run across the bottom. highlight marks one column.
-export function itemsWithPhotos({ theme, grid, header, items, metrics = [], note, highlight = 0, gap = 32, maxCrop = 1.45 }) {
+export function itemsWithPhotos({ theme, grid, header, items, metrics: results = [], note, highlight = 0, gap = 32, maxCrop = 1.45, metricStyle = 'tile' }) {
   const p = theme.palette, top = header.bottom + 40, n = items.length, colW = Math.floor((grid.width - gap * (n - 1)) / n), elements = [];
   if (n < 2 || n > 4) throw new Error('itemsWithPhotos takes 2–4 items');
   const pad = 28, textW = colW - pad * 2;
   const heads = items.map((it) => 44 + textHeight(it.title, 32, textW - 60, 1.3) + (it.detail ? 12 + textHeight(it.detail, 23, textW) : 0));
   const headH = Math.max(...heads) + pad * 2;
   // The bottom block is measured first so the photos get every pixel the metrics and note do not need.
-  const metricsH = metrics.length ? metricRow({ id: 'probe', x: 0, y: 0, width: grid.width, items: metrics, size: 60, gap, theme }).height + 16 : 0;
+  const resultArgs = { width: grid.width, items: results, size: metricStyle === 'plain' ? 60 : 44, gap, theme };
+  const metricsH = results.length ? metrics(metricStyle, { id: 'probe', x: 0, y: 0, ...resultArgs }).height + 16 : 0;
   const reserve = metricsH + (note ? 44 : 0) + 20, capH = items.some((it) => it.photo?.caption) ? 40 : 0;
   const boxY = top + headH + 16, boxH = FOOTER_TOP - 10 - reserve - capH - boxY;
   if (boxH < 200) throw new Error(`itemsWithPhotos leaves only ${Math.round(boxH)}px for photos: shorten details, drop metrics or the note`);
@@ -122,12 +125,37 @@ export function itemsWithPhotos({ theme, grid, header, items, metrics = [], note
     }
   });
   let y = boxY + boxH + capH + 20;
-  if (metrics.length) { const m = metricRow({ id: 'result', x: grid.left, y, width: grid.width, items: metrics, size: 60, gap, theme }); elements.push(...m.elements); y += m.height + 16; }
+  if (results.length) { const m = metrics(metricStyle, { id: 'result', x: grid.left, y, ...resultArgs }); elements.push(...m.elements); y += m.height + 16; }
   if (note) {
     elements.push({ type: 'shape', id: 'note-mark', bounds: [grid.left, y + 4, 6, 30], style: { fill: p.accent } });
-    elements.push(textElement({ id: 'note', text: note, bounds: [grid.left + 20, y, grid.width - 20, 40], style: theme.font(24, { fontWeight: 700 }) }));
+    // In tile mode the note text starts where the tile text does (28px in).
+    const nx = grid.left + (metricStyle === 'plain' ? 20 : 28);
+    elements.push(textElement({ id: 'note', text: note, bounds: [nx, y, grid.right - nx, 40], style: theme.font(24, { fontWeight: 700 }) }));
   }
   return { elements: [...header.elements, ...elements], visualDecision: decision(header, '每项资源一栏，标题与说明在上、对应照片正下方，底部结果指标与复盘', [['items', 'support', [grid.left, top, grid.width, headH]], ['photos', 'evidence', [grid.left, boxY, grid.width, boxH + capH]], ['results', 'data', [grid.left, boxY + boxH + capH + 10, grid.width, FOOTER_TOP - (boxY + boxH + capH + 10)]]]) };
+}
+
+// Photo panels: 2–4 colour blocks, each a short title, accent bar and one to three lines fading into its own photo.
+// Only for little text with photos that each illustrate one point; long text or text-only content does not fit.
+// 2 panels sit side by side (text above photo), 3 put the first tall on the left and two stacked right, 4 make a grid.
+export function photoPanels({ theme, grid, header, panels, colors, allowData = false }) {
+  const p = theme.palette, top = header.bottom + 40, H = FOOTER_TOP - top - 20, W = grid.width, g = 20, n = panels.length, elements = [];
+  if (n < 2 || n > 4) throw new Error('photoPanels takes 2–4 panels');
+  // Data comes before pictures: a page carrying several figures needs metric tiles, not numbers buried in panel text.
+  const figures = panels.flatMap((pn) => (pn.lines || []).join(' ').match(/\d+(?:[.,]\d+)?/g) || []).length;
+  if (figures > 3 && !allowData) throw new Error(`photoPanels: the panels carry ${figures} figures; data-heavy pages use metric tiles with photos (listWithPhotos / metricsWithEvidence), photo panels are for little text and no data`);
+  const palette = colors || [p.ink, darken(p.accent, 0.3)];
+  let boxes;
+  if (n === 2) boxes = [[0, 0, (W - g) / 2, H, 'top'], [(W + g) / 2, 0, (W - g) / 2, H, 'top']];
+  else if (n === 3) { const lw = Math.round(W * 0.34); boxes = [[0, 0, lw, H, 'top'], [lw + g, 0, W - lw - g, (H - g) / 2, 'left'], [lw + g, (H + g) / 2, W - lw - g, (H - g) / 2, 'left']]; }
+  else boxes = [0, 1, 2, 3].map((i) => [(i % 2) * ((W + g) / 2), Math.floor(i / 2) * ((H + g) / 2), (W - g) / 2, (H - g) / 2, 'left']);
+  const zones = [];
+  panels.forEach((pn, i) => {
+    const [bx, by, bw, bh, side] = boxes[i], b = [grid.left + bx, top + by, bw, bh].map(Math.round);
+    elements.push(...photoPanel({ id: `panel-${i + 1}`, bounds: b, photo: pn.photo, title: pn.title, lines: pn.lines || [], color: pn.color || palette[i % palette.length], theme, textSide: pn.textSide || side, textShare: side === 'top' ? 0.42 : 0.5 }).elements);
+    zones.push([`panel-${i + 1}`, 'media', b]);
+  });
+  return { elements: [...header.elements, ...elements], visualDecision: decision(header, '色块与照片融合：深色一侧写标题和要点，向照片渐隐过渡，每张照片对应一项', zones) };
 }
 
 // Detail table on the left; a dark side panel carries chains or key points.

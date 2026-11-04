@@ -49,6 +49,8 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `createTheme({palette:{bg,ink,accent,muted,line,pale,inverse},fontFamily})`、`createGrid({margin:96,columns:12,gutter:32})`：`grid.span(起始栏,栏数)` 返回 `[x,width]`。
 - `metricGroup` / `metricRow({items:[{value,unit,label}],size})`：数值与单位在同一文字元素的 runs 内，名称紧贴其下；并列指标等宽同基线。
 - `flow({steps:[{title,detail}]})`：编号圆点、箭头连线，标题与说明从节点左缘起排；编号固定 28px 粗体，节点不小于 48px。
+- `metricTiles({items:[{value,unit,label}],size,columns,highlight})`：每个数字一个圆角色块，标签在上、数字在下，高亮项带强调色竖条与强调色数字；页型默认用它（`metricStyle:'plain'` 退回无底色数字）。
+- `photoPanel({bounds,photo,title,lines,color,textSide})`：深色色块写标题、强调色短线与一到三行要点，从色块向照片渐隐过渡（`textSide:'left'` 文左图右，`'top'` 文上图下）。
 - `numberedList({items:[{title,detail}]})`、`table({columns:[{key,label,width,size,weight,color}],rows})`、`panel({bounds,fill,radius})`、`textBlock`。
 - `imageRow` / `imageGrid({images:[{src,file?,size?,caption}],perRow:'auto'})`：同行等高、按原始比例分宽，不把图片放大到原始像素 2 倍以上；`auto` 会在分行与“左侧高图、右侧堆叠”拼贴中取图片面积最大且放得下的一种。真实图片用文件路径作 `src`，`imageSize(file)` 读取原始尺寸（make 会登记到图片台账）。
 - `imageFill({x,y,width,height,images})`：用一行或“左高右叠”拼贴铺满整个方框，每张图围绕 `focal`（默认 `50% 40%`）轻度裁切，形状改变不超过 1.45 倍；做不到时返回 null。
@@ -64,6 +66,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 | `metricsWithEvidence({header,hero,secondary,flow,notes,image})` | 主指标、次级指标行、机制流程，右侧证据图 |
 | `listWithPhotos({header,items,metrics,photos,note})` | 默认的图文资源页：左侧编号资源、结果指标与复盘，右侧照片铺满整栏（轻度裁切填满，裁切过多时退回不裁切的居中排列） |
 | `itemsWithPhotos({header,items:[{title,detail,photo:{src,caption,focal}}],metrics,note,highlight})` | 每项资源一栏、照片在正下方；照片形状接近（都是横图）时才裁切填满，竖图会整张放在浅色底上，适合照片比例一致的场景 |
+| `photoPanels({header,panels:[{title,lines,photo,color}],colors})` | 2–4 个“色块＋照片渐隐”拼板；只用于文字少、几乎无数据、每张照片对应一项的内容。拼板文字合计超过 3 个数字会报错（数据优先：改用指标色块＋照片的页型） |
 | `tableWithPanel({header,table,panel:{title,chains}})` | 明细表加深色侧栏应用链 |
 | `twoLaneFlow({header,lanes,conclusion})` | 两条并列流程 |
 

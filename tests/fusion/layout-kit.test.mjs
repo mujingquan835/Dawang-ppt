@@ -124,3 +124,31 @@ test('imageFill covers the whole box with mild crops, or declines when crops wou
   assert(boxes.every((b) => b.fit === 'cover'));
   assert.equal(imageFill({ id: 'p', x: 0, y: 0, width: 1800, height: 200, images: imgs.slice(0, 1), theme }), null);
 });
+
+test('metric tiles put each number in a rounded block with its label above; the highlight gets an accent bar', async () => {
+  const { metricTiles } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
+  const t = metricTiles({ id: 'm', x: 0, y: 0, width: 1000, items: [{ value: '20', unit: '单', label: '新签' }, { value: '30', unit: '单', label: '续费' }], theme });
+  const tile = byId(t.elements, 'm-tile-1'), label = byId(t.elements, 'm-label-1'), value = byId(t.elements, 'm-value-1');
+  assert.equal(tile.style.radius, 14);
+  assert(label.bounds[1] < value.bounds[1] && value.bounds[1] + value.bounds[3] <= tile.bounds[1] + tile.bounds[3]);
+  assert(byId(t.elements, 'm-bar-1') && !byId(t.elements, 'm-bar-2'));
+  assert.equal(value.runs[0].style.color, theme.palette.accent);
+});
+
+test('photo panels fade from the panel colour into the photo and keep text on the solid side', () => {
+  const slide = authored.slides.find((s) => s.slideId === 'p7');
+  for (const i of [1, 2, 3]) {
+    const fade = byId(slide.elements, `panel-${i}-fade`), title = byId(slide.elements, `panel-${i}-title`), photo = byId(slide.elements, `panel-${i}-photo`);
+    assert.match(fade.style.fill, /^linear-gradient\(/);
+    assert(/rgba\([^)]*, 0\) 100%/.test(fade.style.fill));
+    assert.equal(photo.fit, 'cover');
+    // Text stays left of (or above) where the photo begins.
+    assert(title.bounds[0] + title.bounds[2] <= photo.bounds[0] + photo.bounds[2]);
+  }
+});
+
+test('photo panels refuse data-heavy content, which belongs in metric tiles', async () => {
+  const { photoPanels, pageHeader } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/patterns.mjs');
+  const header = pageHeader({ theme, grid, title: '合成' }), photo = { src: 'x', size: { width: 1600, height: 900 } };
+  assert.throws(() => photoPanels({ theme, grid, header, panels: [{ title: '门票', lines: ['春季 800 张、秋季 400 张'], photo }, { title: '门店', lines: ['维护 80 家，新增 2 个'], photo }] }), /metric tiles/);
+});
