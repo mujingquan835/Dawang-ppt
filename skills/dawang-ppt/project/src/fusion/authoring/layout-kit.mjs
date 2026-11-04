@@ -178,7 +178,9 @@ export function imageGrid({ id, x, y, width, images, perRow = 'auto', rowGap = 2
 // stacked on the right, the left width searched), and keeps the arrangement whose worst crop is smallest. Returns
 // null when every arrangement would crop more than maxCrop (box shape vs photo shape), or enlarge a photo beyond
 // maxUpscale, so the caller can fall back to the uncropped grid.
-export function imageFill({ id, x, y, width, height, images, theme, gap = 24, captionSize = 20, maxCrop = 1.45, maxUpscale = 2.2 }) {
+// always: true never declines — the frames are fixed first (to mirror the neighbouring column) and every photo is
+// cropped into its frame, choosing the arrangement that crops least. See imageFrames.
+export function imageFill({ id, x, y, width, height, images, theme, gap = 24, captionSize = 20, maxCrop = 1.45, maxUpscale = 2.2, always = false, tall = 'left' }) {
   const sized = images.map((img) => ({ ...img, size: img.size || imageSize(img.file || img.src) }));
   const ratio = (img) => img.size.width / img.size.height, cap = sized.some((i) => i.caption) ? Math.ceil(captionSize * 1.35) + 10 : 0;
   const cost = (boxes) => Math.max(...boxes.map(({ img, w, h }) => Math.max((w / h) / ratio(img), ratio(img) / (w / h))));
@@ -187,16 +189,25 @@ export function imageFill({ id, x, y, width, height, images, theme, gap = 24, ca
   // One row: shared height, widths in proportion to the photos, stretched to the full width.
   { const h = height - cap, k = (width - gap * (sized.length - 1)) / sized.reduce((a, i) => a + ratio(i), 0);
     let cx = x; options.push(sized.map((img) => { const w = k * ratio(img); const b = { img, x: cx, y, w, h }; cx += w + gap; return b; })); }
-  // Mosaic: tall photo left, the others stacked right with equal heights.
+  // Mosaic: tall photo on one side (left by default), the others stacked on the other side with equal heights.
   if (sized.length >= 3) {
-    const order = [...sized].sort((a, b) => ratio(a) - ratio(b)), [tall, ...rest] = order, n = rest.length;
+    const order = [...sized].sort((a, b) => ratio(a) - ratio(b)), [tallImg, ...rest] = order, n = rest.length;
     const rh = (height - cap * n - gap * (n - 1)) / n;
     for (let f = 0.25; f <= 0.6; f += 0.01) {
-      const w0 = (width - gap) * f, w2 = width - gap - w0;
-      options.push([{ img: tall, x, y, w: w0, h: height - cap }, ...rest.map((img, i) => ({ img, x: x + w0 + gap, y: y + i * (rh + cap + gap), w: w2, h: rh }))]);
+      const w0 = (width - gap) * f, w2 = width - gap - w0, tx = tall === 'right' ? x + w2 + gap : x, sx = tall === 'right' ? x : x + w0 + gap;
+      options.push([{ img: tallImg, x: tx, y, w: w0, h: height - cap }, ...rest.map((img, i) => ({ img, x: sx, y: y + i * (rh + cap + gap), w: w2, h: rh }))]);
     }
   }
-  const viable = options.filter((o) => !tooBig(o) && cost(o) <= maxCrop).sort((a, b) => cost(a) - cost(b));
+  // Frames that always fill: one column (a narrow tall box) and, for four photos, a 2 × 2 grid.
+  if (always && sized.length >= 2) {
+    const n = sized.length, rh = (height - cap * n - gap * (n - 1)) / n;
+    options.push(sized.map((img, i) => ({ img, x, y: y + i * (rh + cap + gap), w: width, h: rh })));
+    if (n === 4) { const cw = (width - gap) / 2, ch = (height - cap * 2 - gap) / 2; options.push(sized.map((img, i) => ({ img, x: x + (i % 2) * (cw + gap), y: y + Math.floor(i / 2) * (ch + cap + gap), w: cw, h: ch }))); }
+  }
+  if (always && sized.length === 1) options.push([{ img: sized[0], x, y, w: width, h: height - cap }]);
+  const byCost = (a, b) => cost(a) - cost(b);
+  let viable = options.filter((o) => !tooBig(o) && cost(o) <= maxCrop).sort(byCost);
+  if (!viable.length && always) viable = [...options].sort(byCost);
   if (!viable.length) return null;
   const elements = [];
   viable[0].forEach(({ img, x: bx, y: by, w, h }, i) => {
@@ -256,26 +267,29 @@ export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, 
 
 // Metric tiles: each number sits in its own rounded rectangle with the label above it; the highlighted tile carries
 // an accent bar and accent number. When a tile's content leaves a wide empty strip on the right, a line icon chosen
-// from the label fills it (icons: false turns this off, item.icon names one or false); a tile that is already full
-// gets none.
+// from the label fills it (item.icon names a different one); a tile that is already full gets none. There is no
+// switch to leave a wide empty strip bare.
 export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill, icons = 'auto' }) {
   const p = theme.palette, cols = columns || items.length, tileW = Math.floor((width - gap * (cols - 1)) / cols);
   const tileFill = fill || p.tile || (String(p.bg).toUpperCase() === '#FFFFFF' ? p.pale : '#FFFFFF');
-  const labelSize = Math.max(20, Math.round(size * 0.3)), tileH = 24 + Math.round(labelSize * 1.4) + 8 + Math.round(size * 1.25) + 18, elements = [];
+  const labelSize = Math.max(20, Math.round(size * 0.3)), tileH = 24 + Math.round(labelSize * 1.4) + 8 + Math.round(size * 1.32) + 18, elements = [];
+  const unitSize = Math.max(20, Math.round(size * 0.32));
+  // Icons grow with the spare room (up to 180px, never taller than the tile allows) and cannot be switched off: a tile
+  // with a wide empty strip always gets one (user rule); item.icon picks which. Tiles in one group share one icon
+  // size, and room for less than 56px gets none, so a row never mixes large and tiny icons.
+  const contentOf = (it) => Math.max(textWidth(it.label || '', labelSize), textWidth(String(it.value), size) + (it.unit ? textWidth(' ' + it.unit, unitSize) : 0));
+  const fits = items.map((it) => Math.round(Math.min(180, tileH - 36, tileW - 28 - 16 - contentOf(it) - 24)));
+  const iconS = Math.min(...fits.filter((v) => v >= 56), 180);
   items.forEach((it, i) => {
     const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), on = i === highlight;
     elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, bounds: [tx, ty, tileW, tileH], style: { fill: tileFill, radius: theme.radius ?? 14 } });
     if (on) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
     elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: p.muted }) }));
-    const unitSize = Math.max(20, Math.round(size * 0.32));
     const runs = [{ text: String(it.value), style: { fontSize: size, fontWeight: 700, color: on ? p.accent : p.ink } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 700, color: p.muted } }] : [])];
-    const contentW = Math.max(textWidth(it.label || '', labelSize), textWidth(String(it.value), size) + (it.unit ? textWidth(' ' + it.unit, unitSize) : 0));
-    // The icon grows with the spare room (up to 96px, never taller than the tile allows); under 36px it is left out.
-    const spare = tileW - 28 - 16 - contentW, iconS = Math.round(Math.min(96, tileH - 36, spare - 24));
-    const name = it.icon === false || icons === false ? null : it.icon || pickIcon(`${it.label || ''}${it.unit || ''}`);
-    const withIcon = name && iconS >= 36;
+    const name = (typeof it.icon === 'string' && it.icon) || pickIcon(`${it.label || ''}${it.unit || ''}`);
+    const withIcon = name && fits[i] >= 56;
     const textW = withIcon ? tileW - 44 - iconS - 16 : tileW - 44;
-    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + 24 + Math.round(labelSize * 1.4) + 4, textW, Math.round(size * 1.25)], style: theme.font(size, { fontWeight: 700, lineHeight: 1.15, color: on ? p.accent : p.ink }) }));
+    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + 24 + Math.round(labelSize * 1.4) + 4, textW, Math.round(size * 1.32)], style: theme.font(size, { fontWeight: 700, lineHeight: 1.15, color: on ? p.accent : p.ink }) }));
     if (withIcon) elements.push(...iconElements({ id: `${id}-tile-${i + 1}`, name, bounds: [tx + tileW - iconS - 20, ty + Math.round((tileH - iconS) / 2), iconS], color: on ? p.accent : p.muted, disc: rgba(on ? p.accent : p.ink, on ? 0.12 : 0.06) }));
   });
   const rows = Math.ceil(items.length / cols);
@@ -311,6 +325,11 @@ export function photoPanel({ id, bounds: [x, y, w, h], photo, title, lines = [],
   return { elements };
 }
 
+// Frame-first photo group: the box is decided by the page (mirror the neighbouring column's top and bottom), the
+// frames tile it completely, and each photo is cropped into its frame around its focal point. Unlike imageFill it
+// never shrinks photos to leave gaps; pick focal points so faces and key text stay in frame.
+export const imageFrames = (args) => imageFill({ ...args, always: true });
+
 // Move a block sideways, e.g. to centre a photo grid that is narrower than its zone.
 export const shiftX = (elements, dx) => (dx ? elements.map((e) => ({ ...e, bounds: [e.bounds[0] + Math.round(dx), ...e.bounds.slice(1)] })) : elements);
 
@@ -341,4 +360,38 @@ export function table({ id, x, y, columns, rows, theme, headSize = 20, size = 24
     if (rule) elements.push(lineElement({ id: `${id}-rule-${r + 1}`, from: [x, cy], to: [x + width, cy], style: { stroke: p.line, strokeWidth: 1 } }));
   });
   return { elements, height: cy - y, width };
+}
+
+// Decision side panel (需要审批的支持 / 下一步): a heading, one key figure with its label, then numbered items, on a
+// solid primary panel. The blocks spread over the whole panel height, so it never ends in an empty dark strip;
+// numbers sit in round badges and wrapped lines hang under the item text instead of being lined up with spaces.
+// figure: { label, value, unit, note? }; list: { title?, items: [{ title, detail? }] }. Throws when it cannot fit.
+export function sidePanel({ id, bounds: [x, y, w, h], theme, figure, list, fill }) {
+  const p = theme.palette, r = colorRoles(p), pad = 44, iw = w - pad * 2, badge = 48, textX = x + pad + badge + 20, textW = iw - badge - 20;
+  const soft = 'rgba(255, 255, 255, 0.78)', blocks = [];
+  if (figure) {
+    const size = Math.min(104, Math.floor(iw / Math.max(3, textWidth(String(figure.value), 1) + (figure.unit ? textWidth(' ' + figure.unit, 0.42) : 0)) * 0.9));
+    blocks.push({ h: 40, draw: (cy) => [textElement({ id: `${id}-figure-label`, text: figure.label, bounds: [x + pad, cy, iw, 40], style: theme.font(28, { fontWeight: 700, color: soft }) })] });
+    blocks.push({ h: Math.round(size * 1.35), tight: true, draw: (cy) => [textElement({ id: `${id}-figure-value`, text: `${figure.value}${figure.unit ? ' ' + figure.unit : ''}`, runs: [{ text: String(figure.value), style: { fontSize: size, fontWeight: 800, color: p.inverse } }, ...(figure.unit ? [{ text: ' ' + figure.unit, style: { fontSize: Math.round(size * 0.42), fontWeight: 700, color: p.inverse } }] : [])], bounds: [x + pad, cy, iw, Math.round(size * 1.35)], style: theme.font(size, { fontWeight: 800, color: p.inverse, lineHeight: 1.15 }) })] });
+    if (figure.note) { const nh = textHeight(figure.note, 28, iw, 1.4); blocks.push({ h: nh, tight: true, draw: (cy) => [textElement({ id: `${id}-figure-note`, text: figure.note, bounds: [x + pad, cy, iw, nh], style: theme.font(28, { color: p.inverse }) })] }); }
+  }
+  if (figure && list) blocks.push({ h: 2, draw: (cy) => [lineElement({ id: `${id}-rule`, from: [x + pad, cy], to: [x + w - pad, cy], style: { stroke: 'rgba(255, 255, 255, 0.28)', strokeWidth: 2 } })] });
+  if (list?.title) blocks.push({ h: 44, draw: (cy) => [textElement({ id: `${id}-list-title`, text: list.title, bounds: [x + pad, cy, iw, 44], style: theme.font(30, { fontWeight: 700, color: p.inverse }) })] });
+  (list?.items || []).forEach((it, i) => {
+    const th = textHeight(it.title, 28, textW, 1.35), dh = it.detail ? textHeight(it.detail, 24, textW, 1.45) : 0, ih = Math.max(badge, th + (dh ? 6 + dh : 0));
+    blocks.push({ h: ih, item: true, draw: (cy) => [
+      { type: 'shape', id: `${id}-badge-${i + 1}`, bounds: [x + pad, cy, badge, badge], style: { fill: 'rgba(255, 255, 255, 0.16)', radius: badge / 2 } },
+      textElement({ id: `${id}-num-${i + 1}`, text: String(i + 1).padStart(2, '0'), bounds: [x + pad, cy + Math.round((badge - 36) / 2), badge, 36], style: theme.font(26, { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.35 }) }),
+      textElement({ id: `${id}-item-${i + 1}`, text: it.title, bounds: [textX, cy + Math.max(0, Math.round((badge - 38) / 2)), textW, th], style: theme.font(28, { fontWeight: 700, color: p.inverse, lineHeight: 1.35 }) }),
+      ...(it.detail ? [textElement({ id: `${id}-item-${i + 1}-detail`, text: it.detail, bounds: [textX, cy + Math.max(0, Math.round((badge - 38) / 2)) + th + 6, textW, dh], style: theme.font(24, { color: soft, lineHeight: 1.45 }) })] : [])
+    ] });
+  });
+  // Spare height goes into the gaps between blocks (a tight block hugs the one above it), so content reaches the bottom.
+  const used = blocks.reduce((a, b) => a + b.h, 0), gaps = blocks.slice(1).map((b) => (b.tight ? 0.25 : 1)), weight = gaps.reduce((a, b) => a + b, 0);
+  const spare = h - pad * 2 - used, unit = weight ? Math.min(96, spare / weight) : 0;
+  if (unit < 16) throw new Error(`sidePanel content does not fit by ${Math.round(16 * weight - spare)}px: shorten items or widen the panel`);
+  const elements = [{ type: 'shape', id: `${id}-panel`, bounds: [x, y, w, h], style: { fill: fill || r.primary, radius: theme.radius ?? 0 } }];
+  let cy = y + pad + Math.max(0, Math.round((spare - unit * weight) / 2));
+  blocks.forEach((b, i) => { if (i) cy += Math.round(unit * gaps[i - 1]); elements.push(...b.draw(Math.round(cy))); cy += b.h; });
+  return { elements, height: h };
 }

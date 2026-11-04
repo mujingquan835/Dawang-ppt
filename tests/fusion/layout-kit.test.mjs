@@ -153,7 +153,7 @@ test('photo panels refuse data-heavy content, which belongs in metric tiles', as
   assert.throws(() => photoPanels({ theme, grid, header, panels: [{ title: '门票', lines: ['春季 800 张、秋季 400 张'], photo }, { title: '门店', lines: ['维护 80 家，新增 2 个'], photo }] }), /metric tiles/);
 });
 
-test('tiles add an icon only when there is spare room, sized to it, and pick it from the label', async () => {
+test('tiles add an icon whenever there is spare room, sized to it, and pick it from the label', async () => {
   const { metricTiles } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
   const { pickIcon } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/icons.mjs');
   assert.equal(pickIcon('续费金额万元'), 'coin');
@@ -164,8 +164,9 @@ test('tiles add an icon only when there is spare room, sized to it, and pick it 
   assert(icon && icon.type === 'vector' && icon.bounds[0] + icon.bounds[2] <= tile.bounds[0] + tile.bounds[2]);
   const full = metricTiles({ id: 'f', x: 0, y: 0, width: 300, items: [{ value: '1000000', unit: '万元', label: '一个很长的指标名称' }], theme });
   assert.equal(byId(full.elements, 'f-tile-1-icon'), undefined);
-  const off = metricTiles({ id: 'o', x: 0, y: 0, width: 1000, items: [{ value: '20', label: '新签' }], theme, icons: false });
-  assert.equal(byId(off.elements, 'o-tile-1-icon'), undefined);
+  // A wide empty strip always gets an icon: icons:false and item.icon:false no longer leave it bare (user rule).
+  const off = metricTiles({ id: 'o', x: 0, y: 0, width: 1000, items: [{ value: '20', label: '新签', icon: false }], theme, icons: false });
+  assert(byId(off.elements, 'o-tile-1-icon'));
 });
 
 test('tiles, panels and photos share the theme corner radius', async () => {

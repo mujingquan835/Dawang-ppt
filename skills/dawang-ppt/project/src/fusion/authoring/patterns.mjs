@@ -1,5 +1,5 @@
 import { textElement, lineElement } from './elements.mjs';
-import { textHeight, textWidth, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage, colorRoles, kpiStrip, lighten } from './layout-kit.mjs';
+import { textHeight, textWidth, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage, colorRoles, kpiStrip, lighten, imageFrames } from './layout-kit.mjs';
 
 // Page patterns built on the layout kit. Each returns elements on the 12-column grid plus a visualDecision that
 // can go straight into contentPlan. A pattern is a starting point: change its parameters, add or drop elements,
@@ -103,8 +103,9 @@ export function listWithPhotos({ theme, grid, header, items, metrics: results = 
   }
   if (y > FOOTER_TOP) throw new Error(`listWithPhotos left column overflows by ${Math.round(y - FOOTER_TOP)}px: shorten details or the note`);
   const photoH = FOOTER_TOP - top - 50;
-  // If filling would crop too much, fall back to the uncropped grid centred in the zone.
-  const fill = perRow === 'auto' ? imageFill({ id: 'photos', x: rx, y: top, width: rw, height: photoH, images: photos, theme }) : null;
+  // Frames first: the photo column always fills its box (top and bottom level with the left column's span);
+  // photos are cropped into the frames rather than shrunk with gaps around them.
+  const fill = perRow === 'auto' ? imageFrames({ id: 'photos', x: rx, y: top, width: rw, height: photoH, images: photos, theme }) : null;
   const g = fill || imageGrid({ id: 'photos', x: rx, y: top, width: rw, images: photos, perRow, theme, maxHeight: photoH });
   elements.push(...(fill ? fill.elements : shiftX(g.elements, (rw - g.width) / 2)));
   return { elements: [...header.elements, ...elements], visualDecision: decision(header, '左侧编号资源、结果指标与复盘判断，右侧照片铺满整栏作为证据', [['items', 'support', [lx, top, lw, y - top + 8]], ['photos', 'evidence', [rx, top, rw, (fill ? photoH : g.height) + 8]]]) };
@@ -131,12 +132,10 @@ export function itemsWithPhotos({ theme, grid, header, items, metrics: results =
     elements.push(textElement({ id: `item-${i + 1}-title`, text: it.title, bounds: [x + pad + 60, top + pad, textW - 60, textHeight(it.title, 32, textW - 60, 1.3)], style: theme.font(32, { fontWeight: 700, lineHeight: 1.3, color: ink }) }));
     if (it.detail) elements.push(textElement({ id: `item-${i + 1}-detail`, text: it.detail, bounds: [x + pad, top + pad + 56, textW, textHeight(it.detail, 23, textW)], style: theme.font(23, { color: ink }) }));
     if (it.photo) {
-      // The photo fills its column box (cropped around its focal point) when that changes its shape by at most
-      // maxCrop; a photo of very different shape (a portrait in a wide box) is shown whole on a panel instead of
-      // losing heads or key text.
-      const size = it.photo.size || imageSize(it.photo.src), r = size.width / size.height, box = colW / boxH;
-      if (Math.max(r / box, box / r) <= maxCrop) elements.push({ type: 'image', id: `item-${i + 1}-photo`, src: it.photo.src, bounds: [x, boxY, colW, boxH], fit: 'cover', focal: it.photo.focal || '50% 40%', naturalSize: [size.width, size.height], style: { radius: theme.radius }, ...(it.photo.alt ? { alt: it.photo.alt } : {}) });
-      else { elements.push(panel({ id: `item-${i + 1}-photo-panel`, bounds: [x, boxY, colW, boxH], theme })); elements.push(fitImage({ id: `item-${i + 1}-photo`, src: it.photo.src, size, box: [x + 12, boxY + 12, colW - 24, boxH - 24], alt: it.photo.alt, radius: theme.radius })); }
+      // Frames first: every photo fills its column box, cropped around its focal point, so the photo row stays one
+      // even band under the columns. A portrait in a wide box loses more; set focal to keep faces and key text.
+      const size = it.photo.size || imageSize(it.photo.src);
+      elements.push({ type: 'image', id: `item-${i + 1}-photo`, src: it.photo.src, bounds: [x, boxY, colW, boxH], fit: 'cover', focal: it.photo.focal || '50% 40%', naturalSize: [size.width, size.height], style: { radius: theme.radius }, ...(it.photo.alt ? { alt: it.photo.alt } : {}) });
       if (it.photo.caption) elements.push(textElement({ id: `item-${i + 1}-caption`, text: it.photo.caption, bounds: [x, boxY + boxH + 8, colW, 30], style: theme.font(19, { color: p.muted, textAlign: 'center' }) }));
     }
   });
