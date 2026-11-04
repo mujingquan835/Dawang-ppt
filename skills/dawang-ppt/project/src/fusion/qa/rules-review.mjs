@@ -66,6 +66,10 @@ export function buildReviewPacket({ project, rules, pages, only }) {
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
     '- status=visual：按给出的视觉标准逐页看图，任一页明显不符判 fail；reason 写出页码和具体问题（例如“第2页：流程说明与节点错位”）。',
     HOUSE_STYLE,
+    // A partial job is judged on its own pages: deck-level demands do not apply to a section someone asked AI to make.
+    project.requirements?.scope === 'full'
+      ? '本稿是完整的汇报/述职：整体结论、问题差距、下一步等整稿要求适用。'
+      : '本稿只是汇报中的一部分页面（requirements.scope 不是 full）：整体结论、问题差距、下一步计划、需决策事项等整稿要求不适用，不要因页面缺少这些而判 fail；只按这些页面本身的内容与规则判断。',
     '- 原材料本身没有提供的信息（如统计时间、口径、来源）不能要求制作者补造：页面如实标注“待补/未提供”，或以“材料未提供”记为 not-applicable（尤其理由写明“用户确认按现有材料生成”时），均判 pass；只有页面把缺失信息写成确定事实，或明明材料里有却没用，才判 fail。',
     'reason 用中文一句话，写出你在截图上看到的依据；fail 时写明缺什么。必须对每条声明各给一条结果，id 原样返回，只输出符合 schema 的 JSON。',
     '',

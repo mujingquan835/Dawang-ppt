@@ -47,7 +47,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 新建稿件先把用户材料整理成 `outline.json`，运行 `outline:check <outline.json>` 后再与用户确认、再排版。合成示例见 `examples/outline-work-report.json`。
 
 ```json
-{ "kind": "report", "title": "…", "audience": "业务管理层", "period": "2026年Q3", "owner": "…",
+{ "kind": "report", "scope": "part", "title": "…", "audience": "业务管理层", "period": "2026年Q3", "owner": "…",
   "pages": [ { "id": "p1", "role": "summary", "keyLine": { "text": "…", "source": "distilled" },
     "data": [ { "label": "辅助新签", "value": "20", "unit": "单" } ],
     "items": [ { "title": "…", "detail": "…" } ], "flows": [ { "title": "…", "steps": ["…"] } ], "chains": [ { "title": "…", "steps": ["…"] } ],
@@ -55,6 +55,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 ```
 
 - `kind`：`report`（工作汇报、复盘、阶段总结）或 `review`（述职）。
+- `scope`：`part`（默认，用户只要一部分页面或某一块）只检查所做页面；`full`（用户明确要完整汇报/述职）才检查整体结论、问题差距、下一步等整稿结构。authored 工程的 `requirements.scope` 同步填写，复核据此判断。没有缺口时不向用户提问。
 - `role`：summary 整体结论 / results 成果数据 / actions 关键动作 / resources 资源支持 / issues 问题差距 / causes 原因复盘 / plan 下一步 / asks 需支持或决策 / duties 职责定位（述职）/ other。
 - `flows` 是流程步骤（建议表格加流程色带），`chains` 是应用路径（建议表格加深色侧栏）。
 - 照片路径相对大纲文件所在目录。

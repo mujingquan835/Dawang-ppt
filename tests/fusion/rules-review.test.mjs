@@ -130,3 +130,10 @@ test('the Codex reviewer can run at a chosen reasoning effort', () => {
   const r = resolveReviewer({ DAWANG_REVIEWER_EFFORT: 'low', PATH: '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin' });
   if (r?.kind === 'codex') { assert.equal(r.effort, 'low'); assert.match(r.name, /\/low$/); }
 });
+
+test('partial decks tell the reviewer that deck-level demands do not apply', () => {
+  const part = buildReviewPacket({ project: project(), rules, pages: [{ slideId: 's', image: 'x' }] });
+  assert.match(part.prompt, /只是汇报中的一部分页面/);
+  const p = project(); p.requirements.scope = 'full';
+  assert.match(buildReviewPacket({ project: p, rules, pages: [{ slideId: 's', image: 'x' }] }).prompt, /完整的汇报/);
+});

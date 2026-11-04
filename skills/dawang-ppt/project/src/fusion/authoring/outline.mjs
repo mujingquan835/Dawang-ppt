@@ -4,9 +4,13 @@ import path from 'node:path';
 // Content outline for work reports and performance reviews (工作汇报、述职、复盘、阶段总结). The agent writes it from the
 // user's raw material before any layout; outline:check lists what is missing and what each gap costs, so the user
 // decides whether to supply it or generate with what exists. It never decides that for the user.
+// scope: 'part' (default) is a section or a few pages someone asked AI to make; only page-level gaps count, and a
+// clean check means no question at all. 'full' is a complete report or review deck the user asked for; only then are
+// deck-level pieces (overall verdict, issues, next steps) required.
 //
 // {
 //   kind: 'report' | 'review',            // 工作汇报/复盘 | 述职
+//   scope: 'part' | 'full',               // 一部分页面（默认） | 完整汇报/述职
 //   title, audience, period, owner,
 //   pages: [{ id, role, keyLine: { text, source: 'quoted'|'distilled'|'created' },
 //             data: [{ label, value, unit, period?, note? }], items: [{ title, detail }],
@@ -41,14 +45,16 @@ const hasNumber = (s) => /\d/.test(s || '');
 
 export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
   const gaps = [], warnings = [], suggestions = [];
-  const kind = outline.kind === 'review' ? 'review' : 'report';
+  const kind = outline.kind === 'review' ? 'review' : 'report', full = outline.scope === 'full';
   const pages = Array.isArray(outline.pages) ? outline.pages : [];
   if (!pages.length) gaps.push({ level: 'deck', item: 'pages', ask: '至少一页内容', impact: '无法制作' });
-  if (!outline.period && !pages.some((p) => (p.data || []).some((d) => d.period))) {
-    gaps.push({ level: 'deck', item: 'period', ask: '统计时期（年份、季度或起止日期）', impact: '数字的时间口径不明，领导无法判断是哪个周期的成绩' });
+  const hasData = pages.some((p) => (p.data || []).length);
+  if (hasData && !outline.period && !pages.some((p) => (p.data || []).some((d) => d.period))) {
+    // Only a complete deck asks for the period; a partial job notes it on the page instead of asking.
+    (full ? gaps : warnings).push({ level: 'deck', item: 'period', ask: '统计时期（年份、季度或起止日期）', impact: '数字的时间口径不明，领导无法判断是哪个周期的成绩' });
   }
   const roles = new Set(pages.map((p) => p.role));
-  for (const need of NEEDS[kind]) {
+  for (const need of full ? NEEDS[kind] : []) {
     if (roles.has(need.role)) continue;
     // A summary may live in the first page's key line instead of its own page.
     if (need.role === 'summary' && pages[0]?.keyLine?.text && hasNumber(pages[0].keyLine.text)) continue;
@@ -71,7 +77,9 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
     suggestions.push({ ...where, pattern: suggestPattern(p), why: suggestReason(p) });
   });
   const blocking = gaps.length > 0;
-  return { ok: !blocking, kind, gaps, warnings, suggestions, decision: blocking ? '向用户列出 gaps（缺什么、为什么需要、缺了会怎样），请用户选择：补充材料，或按现有材料生成（页面标注“材料未提供”）。由用户决定。' : '内容完整，可以进入配色与制作。' };
+  return { ok: !blocking, kind, scope: full ? 'full' : 'part', gaps, warnings, suggestions,
+    decision: blocking ? '只问一次：在同一条回复里列出 gaps（缺什么、为什么需要、缺了会怎样），请用户选择补充材料或按现有材料生成（页面标注“材料未提供”）。由用户决定。'
+      : '没有需要用户决定的缺口：不要为内容再提问，直接进入配色与制作；warnings 在页面上如实处理即可。' };
 }
 
 // Data comes before pictures: several figures go into metric tiles even when photos exist.

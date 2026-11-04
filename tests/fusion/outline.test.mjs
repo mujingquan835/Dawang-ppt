@@ -15,7 +15,7 @@ test('a complete work-report outline has no gaps and only the optional asks warn
 });
 
 test('missing conclusion, issues, plan and period are gaps with their cost, and the user is asked to decide', () => {
-  const r = checkOutline({ kind: 'report', pages: [
+  const r = checkOutline({ kind: 'report', scope: 'full', pages: [
     { id: 'a', role: 'actions', keyLine: { text: '梳理三条业务线支持方式' } },
     { id: 'b', role: 'results', keyLine: { text: '新签 20 单' }, data: [{ label: '新签', value: '20' }] }
   ] });
@@ -23,11 +23,11 @@ test('missing conclusion, issues, plan and period are gaps with their cost, and 
   assert(r.gaps.every((g) => g.ask && g.impact));
   assert(r.warnings.some((w) => w.item === 'keyLine' && w.page === 'a'));
   assert(r.warnings.some((w) => w.item === 'unit' && w.page === 'b'));
-  assert.match(r.decision, /补充材料，或按现有材料生成/);
+  assert.match(r.decision, /只问一次/);
 });
 
 test('performance reviews need duties, results, shortcomings and a plan', () => {
-  const r = checkOutline({ kind: 'review', period: '2026年', pages: [{ id: 'a', role: 'results', keyLine: { text: '完成 12 个项目' }, data: [{ label: '项目', value: '12', unit: '个' }] }] });
+  const r = checkOutline({ kind: 'review', scope: 'full', period: '2026年', pages: [{ id: 'a', role: 'results', keyLine: { text: '完成 12 个项目' }, data: [{ label: '项目', value: '12', unit: '个' }] }] });
   assert.deepEqual(r.gaps.map((g) => g.item).sort(), ['duties', 'issues', 'plan']);
 });
 
@@ -39,4 +39,19 @@ test('page type suggestions put data before photos', () => {
   assert.equal(suggestPattern({ data: d(3) }), 'metricTiles');
   assert.equal(suggestPattern({ table: { rows: [['a']] }, flows: [{}] }), 'tableWithFlows');
   assert.equal(suggestPattern({ table: { rows: [['a']] }, chains: [{}] }), 'tableWithPanel');
+});
+
+test('a partial job (the default) checks only its own pages and asks nothing when they are complete', () => {
+  const pages = [
+    { id: 'a', role: 'actions', keyLine: { text: '梳理三条业务线支持方式' } },
+    { id: 'b', role: 'results', keyLine: { text: '新签 20 单' }, data: [{ label: '新签', value: '20', unit: '单' }] }
+  ];
+  const r = checkOutline({ kind: 'report', pages });
+  assert.equal(r.scope, 'part');
+  assert.deepEqual(r.gaps, []);
+  assert.match(r.decision, /不要为内容再提问/);
+  // The period is only a note on a partial job.
+  assert(r.warnings.some((w) => w.item === 'period'));
+  // A page with no key line is still worth one question.
+  assert.deepEqual(checkOutline({ kind: 'report', pages: [{ id: 'c', role: 'results', data: [{ label: 'x', value: '1', unit: '单' }] }] }).gaps.map((g) => g.item), ['keyLine']);
 });
