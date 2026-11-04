@@ -66,7 +66,7 @@ export function buildReviewPacket({ project, rules, pages, only }) {
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
     '- status=visual：按给出的视觉标准逐页看图，任一页明显不符判 fail；reason 写出页码和具体问题（例如“第2页：流程说明与节点错位”）。',
     HOUSE_STYLE,
-    '- 原材料本身没有提供的信息（如统计时间、口径、来源）不能要求制作者补造：页面如实标注“待补/未提供”，或以“材料未提供”记为 not-applicable，均判 pass；只有页面把缺失信息写成确定事实，或明明材料里有却没用，才判 fail。',
+    '- 原材料本身没有提供的信息（如统计时间、口径、来源）不能要求制作者补造：页面如实标注“待补/未提供”，或以“材料未提供”记为 not-applicable（尤其理由写明“用户确认按现有材料生成”时），均判 pass；只有页面把缺失信息写成确定事实，或明明材料里有却没用，才判 fail。',
     'reason 用中文一句话，写出你在截图上看到的依据；fail 时写明缺什么。必须对每条声明各给一条结果，id 原样返回，只输出符合 schema 的 JSON。',
     '',
     '## 页面元素表',

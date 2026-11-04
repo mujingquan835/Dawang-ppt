@@ -83,7 +83,9 @@ test('failed reviews count rounds and tell the author to keep fixing until the l
   assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 2);
   assert.equal(reviewGate(p, dir).issues[0].round, 2);
   assert.match(nextStep(1, 2), /本轮继续/);
-  assert.match(nextStep(1, MAX_REVIEW_ROUNDS), /停止/);
+  assert.match(nextStep(1, MAX_REVIEW_ROUNDS), /请用户决定/);
+  // Missing material is the user's call at any round: the hint says to ask, never to decide or stop alone.
+  for (const r of [1, 2, MAX_REVIEW_ROUNDS]) assert.match(nextStep(1, r), /请用户选择补充材料或按现有材料生成/);
   assert.match(nextStep(0, 2), /publish:html/);
   writeReview(dir, p, { reviewer: 'fake', items: fail.map((i) => ({ ...i, verdict: 'pass' })) });
   assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 1);

@@ -35,8 +35,9 @@ function runReviewer(reviewer, packetDir, packet) {
 export const MAX_REVIEW_ROUNDS = 3;
 export function nextStep(failed, round) {
   if (!failed) return '复核通过：运行 publish:html <workspaceDir> <交付.html>。';
-  if (round >= MAX_REVIEW_ROUNDS) return `已复核 ${round} 轮仍有 fail：停止，向用户说明剩余 fail 理由，附截图与可选方案。`;
-  return '本轮继续，不要结束或向用户汇报未通过：按 failed[].reason 修改页面（patch:project）后再运行 review:rules。版式、精致度、结构图、视觉母题类 fail 要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。原材料缺失导致的 fail：页面如实标注待补，清单改为 not-applicable 并写明材料未提供。';
+  const missing = '若 fail 要的是原材料没有的信息（整体目标、达成率、差距、决策事项等）：不要改措辞重试，立即向用户说明缺哪几项，请用户选择补充材料或按现有材料生成（页面如实标注“材料未提供”，清单改 not-applicable 并写明用户的选择）；由用户决定，不自行判定。';
+  if (round >= MAX_REVIEW_ROUNDS) return `已复核 ${round} 轮仍有 fail：向用户说明剩余 fail 理由，附截图与可选方案，请用户决定。` + missing;
+  return '本轮继续，不要向用户汇报未通过：按 failed[].reason 修改页面（patch:project）后再运行 review:rules。版式、精致度、结构图、视觉母题类 fail 要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。' + missing;
 }
 
 // A follow-up round re-judges only the previous fails (same checklist) and carries the passes, which keeps later
