@@ -1,6 +1,7 @@
+import { reviewPagePlan } from '../authoring/page-plan.mjs';
 import { materializeElements } from "../scene/model.mjs";
 function checkCoverage(project) {
-  const issues = [], hidden = /* @__PURE__ */ new Set([...project.editorState.deletedSlides || [], ...project.editorState.skippedSlides || []]), visible = project.slides.filter((s) => !hidden.has(s.slideId)), fixed = project.requirements.fixedPageCount;
+  const issues = reviewPagePlan(project).issues, hidden = /* @__PURE__ */ new Set([...project.editorState.deletedSlides || [], ...project.editorState.skippedSlides || []]), visible = project.slides.filter((s) => !hidden.has(s.slideId)), fixed = project.requirements.fixedPageCount;
   if (fixed && visible.length !== fixed) issues.push({ kind: "page-count", expected: fixed, actual: visible.length });
   const allImages = [];
   for (const slide of visible) {

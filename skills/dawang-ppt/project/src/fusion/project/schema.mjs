@@ -1,10 +1,11 @@
+import { validateContentModel } from '../authoring/content-model.mjs';
 import {validImageCrop} from '../scene/image-crop.mjs';
 import { validateTextRuns } from '../authoring/text-runs.mjs';
 import { validateVector } from '../scene/vector-model.mjs';
 const clone = (value) => structuredClone(value);
 const revision = () => globalThis.crypto.randomUUID();
 function validateProject(p) {
-  const issues = [];
+  const issues = validateContentModel(p).map(i => `${i.kind}: ${i.ref || i.field || "contentPlan"}`);
   if (p?.version !== 2) issues.push("Project must be version 2");
   const ids = /* @__PURE__ */ new Set();
   for (const s of p?.slides || []) {

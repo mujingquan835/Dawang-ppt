@@ -1,3 +1,4 @@
+import { pageDesignClaims } from '../authoring/page-plan.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -48,7 +49,7 @@ export const HOUSE_STYLE = houseStylePrompt();
 
 // only: claim ids to judge this round (a follow-up round re-checks the previous fails).
 export function buildReviewPacket({ project, rules, pages, only }) {
-  const all = [...reviewClaims(project, rules), ...(isSectionChecklist(project) ? VISUAL_CLAIMS : [])];
+  const all = [...reviewClaims(project, rules), ...pageDesignClaims(project), ...(isSectionChecklist(project) ? VISUAL_CLAIMS : [])];
   // Claims a user decision settles carry the user's words, so the reviewer judges against them, not against the rule.
   const decided = all.map((c) => { const d = decisionFor(project, { id: c.id }); return d ? { ...c, userDecision: { quote: d.quote, decision: d.decision, pages: d.pages || '全稿' } } : c; });
   const claims = only ? decided.filter((c) => only.has(c.id)) : decided;
@@ -64,6 +65,7 @@ export function buildReviewPacket({ project, rules, pages, only }) {
     '逐条判断声明是否成立，只以截图上实际看得到的效果为准：',
     '- status=applied：证据页面是否真正满足这条规则的原意。勉强对应判 fail，例如用普通条形图或表格充当“结构图”、用页脚细线或页码充当“视觉母题”、用一句泛泛的工作描述充当封面“关键状态句”、标题只是动作罗列却声称“标题陈述状态或结论”。规则要求的效果在页面上看不出来，也判 fail。',
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
+    '- id 以 page-design# 开头时：按声明中的页面任务、事实和关系检查截图；绑定只用于定位，不代表表达已正确。检查每个条件、返回路径、成员对应和数据限定；不能因为有色块或箭头就判 pass。',
     '- status=visual：按给出的视觉标准逐页看图，任一页明显不符判 fail；reason 写出页码和具体问题（例如“第2页：流程说明与节点错位”）。',
     HOUSE_STYLE,
     decisions.length ? '用户决定（用户原话，优先于规则、视觉标准和你的个人判断）：带 userDecision 的声明，只要页面做法与用户决定一致就判 pass；不得因用户已明确接受的做法判 fail（例如用户说“图片仅作示意”，就不得要求图片内容与说明对应）。决定之外的问题照常判断。' : '',

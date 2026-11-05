@@ -1,3 +1,4 @@
+import { hasPageDesignContract } from '../authoring/content-model.mjs';
 import { materializeElements } from '../scene/model.mjs';
 import { resolveSlideStyle } from '../styles/registry.mjs';
 import { lintLayout } from './layout-lint.mjs';
@@ -146,7 +147,7 @@ export function reviewVisualDecisions(project) {
     // In a report deck a freely composed page is still carried by at least one report component (answer block,
     // compare pair, contrast pair, period band, KPI strip, metric tiles, side panel). Cover, contents and divider
     // pages use waived; anything else the user decides is recorded in requirements.userDecisions.
-    if (zonesRequired && project.requirements?.scope && nonempty(decision.pattern) && /^free/i.test(decision.pattern.trim()) && !all.some((e) => REPORT_COMPONENTS.has(e.component))) report({ kind: 'report-component-missing', ...where, need: '汇报稿的自由页用 answerBlock / comparePair / contrastPair / periodBand / kpiStrip / metricTiles / sidePanel 之一承载；封面、目录、章节页写 waived；用户决定不用的写进 requirements.userDecisions' });
+    if (!hasPageDesignContract(project) && zonesRequired && project.requirements?.scope && nonempty(decision.pattern) && /^free/i.test(decision.pattern.trim()) && !all.some((e) => REPORT_COMPONENTS.has(e.component))) report({ kind: 'report-component-missing', ...where, need: '汇报稿的自由页用 answerBlock / comparePair / contrastPair / periodBand / kpiStrip / metricTiles / sidePanel 之一承载；封面、目录、章节页写 waived；用户决定不用的写进 requirements.userDecisions' });
     if (zonesRequired && !nonempty(decision.pattern)) report({ kind: 'visual-pattern-missing', ...where, need: 'visualDecision.pattern：所用页型名（targetVsActual、contrastColumns、listWithPhotos…），或“free：为什么不用 outline:check 建议的页型”' });
     review.slides.push({ ...where, focus: focusText, layout: decision.layout, ...(decision.pattern ? { pattern: decision.pattern } : {}), ...(decision.zones ? { zones: decision.zones.map((z) => `${z.id}:${z.role}`) } : {}) });
     signatures.push({ slideId: slide.slideId, sig: signature(slide, project, element.id) });

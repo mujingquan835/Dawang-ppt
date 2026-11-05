@@ -1,3 +1,4 @@
+import { hasPageDesignContract } from '../authoring/content-model.mjs';
 import {validImageCrop} from '../scene/image-crop.mjs';
 import { validateTextRuns, runsText } from '../authoring/text-runs.mjs';
 import { clone, revision } from "../project/schema.mjs";
@@ -57,10 +58,16 @@ function applyEditCommand(project, command) {
           target.runs=clone(command.runs);text=runsText(command.runs);
         }else delete target.runs;
         target.text=text;
+        if (hasPageDesignContract(p)) {
+          const pagePlan = p.contentPlan.slides?.find(page => page.slideId === s.slideId);
+          const refs = (pagePlan?.regions || []).flatMap(region => (region.bindings || []).filter(binding => binding.elementIds?.includes(e.id)).map(binding => binding.ref));
+          s.semanticDirtyRefs = [...new Set([...(s.semanticDirtyRefs || []), ...refs])];
+        }
         if (e.contentRef) {
           const old = p.contentPlan.nodes[e.contentRef];
           const id = command.global ? e.contentRef : `edit:${s.slideId}:${e.id}`;
           p.contentPlan.nodes[id] = { ...clone(old || {}), text, kind: "user-edit", sourceRef: old?.sourceRef || e.contentRef };
+          if (hasPageDesignContract(p) && !command.global) p.contentPlan.nodes[id].importance = 'optional';
           target.sourceContentRef = e.sourceContentRef || e.contentRef;
           target.contentRef = id;
         } else if (e.dataPath && o) {

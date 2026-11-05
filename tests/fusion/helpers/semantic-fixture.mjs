@@ -1,0 +1,8 @@
+// Synthetic conditional branch content, not a customer deck.
+export function semanticFixture(){
+ const nodes=Object.fromEntries(['a','b','c'].map((id,i)=>[id,{type:'action',text:['核对资料','确认接收','补充资料'][i],sourceRefs:['s'],importance:'required',status:'planned'}]));
+ const edges=[{id:'yes',from:'a',to:'b',condition:'完整'},{id:'no',from:'a',to:'c',condition:'不完整'},{id:'return',from:'c',to:'a'}];
+ return {requirements:{projectId:'synthetic-contracts',scope:'part',semanticContract:'content-relations-v1',pageDesignContract:'page-design-v1'},sources:{entries:[{sourceId:'s',kind:'synthetic'}]},media:{entries:[]},designChoice:{styleId:'authored/custom'},
+ contentPlan:{brief:{purpose:'解释处理分支',audience:'试点同事',scenario:'proposal',scope:'part'},nodes,relations:[{id:'r',kind:'branch',members:['a','b','c'],edges,sourceRefs:['s'],importance:'required'}],gaps:[],dispositions:[],slides:[{slideId:'p1',readerTask:'知道何时接收以及缺资料时返回哪里',requiredRefs:['a','b','c','r'],visualDecision:{pattern:'free：分支与文字对应',focus:{elementId:'ea'},layout:'逐项说明条件与路径',zones:[{id:'body',role:'flow',bounds:[90,200,1700,650]}]},regions:[{zoneId:'body',contentRefs:['a','b','c'],relationRefs:['r'],representation:'conditional-flow',reason:'保留条件和返回路径',bindings:[...['a','b','c'].map(ref=>({ref,elementIds:['e'+ref]})),...edges.map(e=>({ref:'r',edgeId:e.id,elementIds:['e'+e.id]}))]}]}]},
+ slides:[{slideId:'p1',elements:[...Object.values(nodes).map((n,i)=>({id:'e'+['a','b','c'][i],type:'text',text:n.text,bounds:[100,240+i*150,700,80],style:{fontSize:i?32:52}})),...edges.map((e,i)=>({id:'e'+e.id,type:'text',text:e.from+' → '+e.to+' '+(e.condition||''),bounds:[950,240+i*150,700,80],style:{fontSize:30}}))]}]};
+}

@@ -1,3 +1,4 @@
+import { validateContentModel } from './content-model.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -46,7 +47,7 @@ const hasNumber = (s) => /\d/.test(s || '');
 
 export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
   const gaps = [], warnings = [], suggestions = [];
-  const kind = outline.kind === 'review' ? 'review' : 'report', full = outline.scope === 'full';
+  const kind = ['proposal','report','review','training','other'].includes(outline.kind) ? outline.kind : 'report', full = outline.scope === 'full';
   const pages = Array.isArray(outline.pages) ? outline.pages : [];
   if (!pages.length) gaps.push({ level: 'deck', item: 'pages', ask: '至少一页内容', impact: '无法制作' });
   const hasData = pages.some((p) => (p.data || []).length);
@@ -55,7 +56,7 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
     (full ? gaps : warnings).push({ level: 'deck', item: 'period', ask: '统计时期（年份、季度或起止日期）', impact: '数字的时间口径不明，领导无法判断是哪个周期的成绩' });
   }
   const roles = new Set(pages.map((p) => p.role));
-  for (const need of full ? NEEDS[kind] : []) {
+  for (const need of full ? (NEEDS[kind] || []) : []) {
     if (roles.has(need.role)) continue;
     // A summary may live in the first page's key line instead of its own page.
     if (need.role === 'summary' && pages[0]?.keyLine?.text && hasNumber(pages[0].keyLine.text)) continue;
@@ -66,7 +67,7 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
     if (!ROLES.includes(p.role)) warnings.push({ ...where, item: 'role', ask: `role 取 ${ROLES.join(' / ')}` });
     const key = p.keyLine?.text?.trim();
     if (!key) gaps.push({ ...where, item: 'keyLine', ask: '这一页要让读者记住的结论', impact: '页面没有重点，只能平铺信息' });
-    else if (!hasNumber(key) && ACTION_ONLY.test(key)) warnings.push({ ...where, item: 'keyLine', ask: '重点句只是动作罗列，改成结果或状态（最好带数字）', impact: '标题看不出做成了什么' });
+    else if (['report','review'].includes(kind) && !hasNumber(key) && ACTION_ONLY.test(key)) warnings.push({ ...where, item: 'keyLine', ask: '重点句只是动作罗列，改成结果或状态（最好带数字）', impact: '标题看不出做成了什么' });
     for (const d of p.data || []) {
       if (!d.unit && !/[%％]/.test(String(d.value))) warnings.push({ ...where, item: 'unit', ask: `「${d.label}」的单位`, impact: '数字无法读懂' });
     }
@@ -83,9 +84,10 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
     if ((p.photos || []).length >= 2 && !(p.items || []).length) warnings.push({ ...where, item: 'items', ask: '这页有多张照片但没写事项：把每张照片对应的动作/资源写进 items（与 photos 同序、同数量），页型会把照片放在对应事项下', impact: '照片和内容对不上，读者分不清哪张图说明哪件事' });
     suggestions.push({ ...where, pattern: suggestPattern(p), why: suggestReason(p), components: suggestComponents(p) });
   });
-  const blocking = gaps.length > 0;
-  return { ok: !blocking, kind, scope: full ? 'full' : 'part', gaps, warnings, suggestions,
-    decision: blocking ? '只问一次：在同一条回复里列出 gaps（缺什么、为什么需要、缺了会怎样），请用户选择补充材料或按现有材料生成（页面标注“材料未提供”）。由用户决定。'
+  const contentIssues = validateContentModel(outline);
+  const blocking = gaps.length > 0 || contentIssues.length > 0;
+  return { ok: !blocking, kind, scope: full ? 'full' : 'part', gaps, warnings, suggestions, contentIssues,
+    decision: contentIssues.length ? '内容契约不完整：制作智能体先修正 contentIssues，不把内部结构缺失当作用户材料缺口。' : blocking ? '只问一次：在同一条回复里列出 gaps（缺什么、为什么需要、缺了会怎样），请用户选择补充材料或按现有材料生成（页面标注“材料未提供”）。由用户决定。'
       : '没有需要用户决定的缺口：不要为内容再提问，直接进入配色与制作；warnings 在页面上如实处理即可。' };
 }
 
