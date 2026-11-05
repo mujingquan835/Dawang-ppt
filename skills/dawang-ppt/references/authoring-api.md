@@ -108,3 +108,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 ## 候选内容关系与页面绑定
 
 显式启用 `content-relations-v1` 与 `page-design-v1` 后，材料节点、关系和页面区域绑定进入现有覆盖检查；旧稿保持兼容。字段、诊断和当前限制见 [内容关系与页面绑定](content-page-contracts.md)。候选功能不自动切换日常制作流程。
+
+## 候选容量模块
+
+人物组、容量表格、排期与顺序流程可用浏览器测量后重排；放不下返回明确状态而不删字缩字。接口与限制见 [模块与容量处理](capacity-modules.md)。

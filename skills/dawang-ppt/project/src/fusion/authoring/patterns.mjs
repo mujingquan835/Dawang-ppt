@@ -420,3 +420,15 @@ export function itemRows({ theme, grid, header, items, photos = [], highlight = 
   const zones = [['rows', 'support', [grid.left, top, leftW, H]], ...(photo ? [['photos', 'media', [px, top, photo.w, H]]] : [])];
   return { elements: [...header.elements, ...elements], visualDecision: decision('itemRows', header, '编号事项保持文字，各项数据色块竖排在对应行；照片按原图比例成组（竖图竖放、横图横放），上下与事项区对齐', zones) };
 }
+
+// Explicit composition helper: caller owns regions; no automatic fact selection or font reduction.
+export async function rolesWithSchedule({roleSpec,scheduleSpec,measurer}) {
+  const {roleGroup,schedule,measureModule}=await import('./capacity-kit.mjs');
+  const roles=measurer?await measureModule(roleGroup,roleSpec,measurer):roleGroup(roleSpec);
+  const times=measurer?await measureModule(schedule,scheduleSpec,measurer):schedule(scheduleSpec);
+  const [a,b]=[roleSpec.bounds,scheduleSpec.bounds];
+  if(Math.min(a[0]+a[2],b[0]+b[2])>Math.max(a[0],b[0])&&Math.min(a[1]+a[3],b[1]+b[3])>Math.max(a[1],b[1]))throw new Error('role and schedule regions overlap');
+  const elements=[...roles.elements,...times.elements];
+  if(new Set(elements.map(e=>e.id)).size!==elements.length)throw new Error('module IDs must be distinct');
+  return {elements,bindings:[...roles.bindings,...times.bindings],modules:{roles,times},capacity:{status:[roles,times].some(m=>m.capacity.status==='cannot-fit')?'cannot-fit':[roles,times].some(m=>m.capacity.status==='needs-reflow')?'needs-reflow':'fits',method:measurer?'measured':'estimated'}};
+}

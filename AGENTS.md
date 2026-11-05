@@ -1,5 +1,10 @@
 # Dawang-PPT 维护规则
 
+## 2026-11-05 W3 开发授权
+
+用户明确要求开始 W3 模块与容量处理，沿用隔离分支开发与验证；不等同于切换日常安装或真实业务视觉验收。记录见 `docs/plans/authoring-system-v2/w3-implementation.md`。
+
+
 ## 2026-11-05 内容与页面契约开发授权
 
 用户确认 `docs/plans/2026-11-04-authoring-system-v2.md` 方案，并明确授权开始 W1 内容契约与 W2 页面设计绑定开发。按方案使用隔离工作树与 `codex/content-page-contracts` 分支，本次授权覆盖旧阶段“不新开分支”约束。范围只含候选实现与验证，不切换日常安装、不覆盖旧成稿、不合主分支或发布正式版。实现记录见 `docs/plans/authoring-system-v2/w1-w2-implementation.md`。

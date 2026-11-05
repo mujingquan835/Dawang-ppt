@@ -105,6 +105,11 @@ export function reviewVisualDecisions(project) {
   for (const slide of slides) {
     const where = { slideId: slide.slideId }, decision = plan.slides?.find((s) => s.slideId === slide.slideId)?.visualDecision;
     const all = materializeElements(slide, project);
+    const capacities = new Map(all.filter(e => e.capacityModule).map(e => [e.capacityModule.id, e.capacityModule]));
+    for (const [moduleId, capacity] of capacities) {
+      if (capacity.status !== 'fits') report({kind:'module-capacity-unresolved', ...where, moduleId, status:capacity.status, hint:'保留内容，重新分区、换布局或拆页；不要通过裁切或缩小文字放行'});
+      else if (capacity.method !== 'measured') warnings.push({kind:'module-capacity-estimated', ...where, moduleId, hint:'估算不是实测，使用 measureModule 并通过最终页面测量'});
+    }
     for (const w of lintLayout(all)) warnings.push({ ...w, ...where });
     // User-ruled composition defects: blocked on new decks, warned on older ones.
     for (const w of lintComposition(all)) report({ ...w, ...where });
