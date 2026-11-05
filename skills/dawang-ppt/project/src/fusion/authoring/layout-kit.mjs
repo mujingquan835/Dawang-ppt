@@ -199,6 +199,15 @@ export function imageFill({ id, x, y, width, height, images, theme, gap = 24, ca
       options.push([{ img: tallImg, x: tx, y, w: w0, h: height - cap }, ...rest.map((img, i) => ({ img, x: sx, y: y + i * (rh + cap + gap), w: w2, h: rh }))]);
     }
   }
+  // Two rows, each spanning the full width at its own shared height; row heights follow the photos' ratios, so a
+  // short last row no longer ends early. Every split point is tried.
+  if (sized.length >= 3) for (let k = 1; k < sized.length; k++) {
+    const rows = [sized.slice(0, k), sized.slice(k)], nat = rows.map((r) => (width - gap * (r.length - 1)) / r.reduce((a, i) => a + ratio(i), 0));
+    const scale = (height - cap * 2 - gap) / (nat[0] + nat[1]);
+    let cy = y; const boxes = [];
+    rows.forEach((r, ri) => { const h = nat[ri] * scale, sum = r.reduce((a, i) => a + ratio(i), 0); let cx = x; r.forEach((img) => { const w = (width - gap * (r.length - 1)) * ratio(img) / sum; boxes.push({ img, x: cx, y: cy, w, h }); cx += w + gap; }); cy += h + cap + gap; });
+    options.push(boxes);
+  }
   // Frames that always fill: one column (a narrow tall box) and, for four photos, a 2 × 2 grid.
   if (always && sized.length >= 2) {
     const n = sized.length, rh = (height - cap * n - gap * (n - 1)) / n;
@@ -212,7 +221,8 @@ export function imageFill({ id, x, y, width, height, images, theme, gap = 24, ca
   if (!viable.length) return null;
   const elements = [];
   viable[0].forEach(({ img, x: bx, y: by, w, h }, i) => {
-    const b = [Math.round(bx), Math.round(by), Math.round(w), Math.round(h)];
+    // Round the edges, not the sizes, so tiled frames meet exactly and end on the box edge.
+    const b = [Math.round(bx), Math.round(by), Math.round(bx + w) - Math.round(bx), Math.round(by + h) - Math.round(by)];
     // A framed photo remembers its frame: later edits may move the crop (focal), not shrink it or show it whole.
     elements.push(imageElement({ id: `${id}-img-${i + 1}`, src: img.src, bounds: b, fit: 'cover', focal: img.focal || '50% 40%', naturalSize: [img.size.width, img.size.height], style: { radius: theme.radius ?? 0 }, ...(always ? { frame: b } : {}), ...(img.alt ? { alt: img.alt } : {}) }));
     if (img.caption) elements.push(textElement({ id: `${id}-caption-${i + 1}`, text: img.caption, bounds: [Math.round(bx), Math.round(by + h + 10), Math.round(w), cap - 10], style: theme.font(captionSize, { color: theme.palette.muted, lineHeight: 1.35 }) }));
@@ -335,6 +345,26 @@ export function photoPanel({ id, bounds: [x, y, w, h], photo, title, lines = [],
 // frames tile it completely, and each photo is cropped into its frame around its focal point. Unlike imageFill it
 // never shrinks photos to leave gaps; pick focal points so faces and key text stay in frame.
 export const imageFrames = (args) => imageFill({ ...args, always: true });
+
+// One photo policy for every photo group: photos stay close to their own shape and each frame follows its photo's
+// orientation (a portrait stands tall, a landscape lies wide); they are never stretched.
+//  - height given (the group must end level with neighbouring content): fill the box with at most a mild crop; if no
+//    arrangement manages that, use the least-cropping frames (imageFrames), which may crop more but never leave gaps.
+//  - maxHeight only (the group may take the height its photos need): take the native layout that shows the photos
+//    largest, then square its edges with a mild crop so rows end level.
+export function photoGroup({ id, x, y, width, height, maxHeight = 600, images, theme, gap = 24, mildCrop = 1.2 }) {
+  const sized = images.map((img) => ({ ...img, size: img.size || imageSize(img.file || img.src) }));
+  if (height) {
+    const mild = imageFill({ id, x, y, width, height, images: sized, theme, gap, maxCrop: mildCrop });
+    const g = mild || imageFrames({ id, x, y, width, height, images: sized, theme, gap });
+    return { ...g, width, height };
+  }
+  // The most upright photo leads, so a mosaic stands it tall on the left.
+  const ordered = [...sized].sort((a, b) => a.size.width / a.size.height - b.size.width / b.size.height);
+  const native = imageGrid({ id, x, y, width, images: ordered, perRow: 'auto', maxHeight, theme, gap });
+  const squared = imageFill({ id, x, y, width, height: native.height, images: ordered, theme, gap, maxCrop: mildCrop });
+  return squared ? { ...squared, width, height: native.height } : { ...native, crop: 1 };
+}
 
 // Move a block sideways, e.g. to centre a photo grid that is narrower than its zone.
 export const shiftX = (elements, dx) => (dx ? elements.map((e) => ({ ...e, bounds: [e.bounds[0] + Math.round(dx), ...e.bounds.slice(1)] })) : elements);

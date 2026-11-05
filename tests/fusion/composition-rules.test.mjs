@@ -119,3 +119,19 @@ test('a block running into the footer band is flagged', () => {
   assert(kinds([source, bar]).includes('block-into-footer'));
   assert(!kinds([source, { ...bar, bounds: [96, 870, 760, 130] }]).includes('block-into-footer'));
 });
+
+test('one photo policy: a fixed box is filled with a mild crop when possible, otherwise with least-cropping frames; a free height follows the photos', async () => {
+  const { photoGroup } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs');
+  const wide = { src: 'a', size: { width: 1800, height: 900 } }, wide2 = { src: 'b', size: { width: 1800, height: 752 } }, tall = { src: 'c', size: { width: 1200, height: 1386 } };
+  const keep = (e) => { const r = e.bounds[2] / e.bounds[3], n = e.naturalSize[0] / e.naturalSize[1]; return Math.max(r / n, n / r); };
+  // Free height: native layout squared with a mild crop, every photo close to its own shape, edges flush.
+  const free = photoGroup({ id: 'f', x: 0, y: 0, width: 993, maxHeight: 810, images: [wide, wide2, tall], theme });
+  const imgs = free.elements.filter((e) => e.type === 'image');
+  assert(imgs.every((e) => keep(e) <= 1.21));
+  assert.equal(Math.max(...imgs.map((e) => e.bounds[0] + e.bounds[2])), 993);
+  // Fixed box that no mild crop can fill: frames still fill it, without gaps.
+  const fixed = photoGroup({ id: 'x', x: 0, y: 0, width: 900, height: 800, images: [wide, wide2, tall], theme });
+  const boxes = fixed.elements.filter((e) => e.type === 'image');
+  assert.equal(Math.max(...boxes.map((e) => e.bounds[1] + e.bounds[3])), 800);
+  assert.deepEqual(kinds(fixed.elements), []);
+});

@@ -143,9 +143,10 @@ export function reviewVisualDecisions(project) {
       if (w < 0.7 * zw && h < 0.7 * zh) report({ kind: 'image-small-in-zone', ...where, elementIds: photos.map((x) => x.id), zone: z.id, hint: '图片明显小于所在分区：按分区画框，用 imageFrames 裁切填满' });
     }
     // The page type the page started from, or free with the reason: the report page types are meant to be used.
-    // A freely composed page is still carried by at least one report component (answer block, compare pair, contrast
-    // pair, period band, KPI strip, metric tiles, side panel), or says why none fits.
-    if (zonesRequired && nonempty(decision.pattern) && /^free/i.test(decision.pattern.trim()) && !all.some((e) => REPORT_COMPONENTS.has(e.component)) && !nonempty(decision.componentsWaived)) report({ kind: 'report-component-missing', ...where, need: '用 answerBlock / comparePair / contrastPair / periodBand / kpiStrip / metricTiles / sidePanel 之一承载本页，或写 visualDecision.componentsWaived 说明为何都不适用' });
+    // In a report deck a freely composed page is still carried by at least one report component (answer block,
+    // compare pair, contrast pair, period band, KPI strip, metric tiles, side panel). Cover, contents and divider
+    // pages use waived; anything else the user decides is recorded in requirements.userDecisions.
+    if (zonesRequired && project.requirements?.scope && nonempty(decision.pattern) && /^free/i.test(decision.pattern.trim()) && !all.some((e) => REPORT_COMPONENTS.has(e.component))) report({ kind: 'report-component-missing', ...where, need: '汇报稿的自由页用 answerBlock / comparePair / contrastPair / periodBand / kpiStrip / metricTiles / sidePanel 之一承载；封面、目录、章节页写 waived；用户决定不用的写进 requirements.userDecisions' });
     if (zonesRequired && !nonempty(decision.pattern)) report({ kind: 'visual-pattern-missing', ...where, need: 'visualDecision.pattern：所用页型名（targetVsActual、contrastColumns、listWithPhotos…），或“free：为什么不用 outline:check 建议的页型”' });
     review.slides.push({ ...where, focus: focusText, layout: decision.layout, ...(decision.pattern ? { pattern: decision.pattern } : {}), ...(decision.zones ? { zones: decision.zones.map((z) => `${z.id}:${z.role}`) } : {}) });
     signatures.push({ slideId: slide.slideId, sig: signature(slide, project, element.id) });

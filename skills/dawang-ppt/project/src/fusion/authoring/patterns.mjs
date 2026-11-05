@@ -1,5 +1,5 @@
 import { textElement, lineElement } from './elements.mjs';
-import { textHeight, textWidth, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage, colorRoles, kpiStrip, lighten, imageFrames, pointList, pointsHeight } from './layout-kit.mjs';
+import { textHeight, textWidth, textBlock, panel, metricRow, metricTiles, photoPanel, darken, flow, numberedList, imageRow, imageGrid, imageFill, imageSize, table, shiftX, fitImage, colorRoles, kpiStrip, lighten, imageFrames, pointList, pointsHeight, photoGroup } from './layout-kit.mjs';
 
 // Page patterns built on the layout kit. Each returns elements on the 12-column grid plus a visualDecision that
 // can go straight into contentPlan. A pattern is a starting point: change its parameters, add or drop elements,
@@ -80,11 +80,13 @@ export function metricsWithEvidence({ theme, grid, header, hero, secondary = [],
     elements.push(...b.elements); y += b.height + 14;
   });
   if (y > FOOTER_TOP) throw new Error(`metricsWithEvidence overflows by ${Math.round(y - FOOTER_TOP)}px: shorten notes or drop the flow`);
-  const ph = FOOTER_TOP - top - 50;
-  elements.push(panel({ id: 'evidence-panel', bounds: [rx, top, rw, ph], radius: theme.radius, theme }));
-  elements.push({ type: 'image', id: 'evidence', src: image.src, bounds: [rx + 24, top + 24, rw - 48, ph - 48], fit: 'contain', style: { radius: theme.radius }, ...(image.alt ? { alt: image.alt } : {}) });
-  if (image.caption) elements.push(textElement({ id: 'evidence-caption', text: image.caption, bounds: [rx, top + ph + 12, rw, 30], style: theme.font(19, { color: p.muted }) }));
-  return { elements: [...header.elements, ...elements], visualDecision: decision('metricsWithEvidence', header, '左侧主指标放大承担主视觉，次级指标同基线成行，下接机制流程；右侧色面完整展示证据图', [['metrics', 'focus', [lx, top, lw, y - top]], ['evidence', 'evidence', [rx, top, rw, ph + 50]]]) };
+  // Shared photo policy: the evidence keeps its own shape (a landscape lies wide, a portrait stands tall), as large as
+  // the column allows, centred in it; no panel behind it.
+  const ph = FOOTER_TOP - top - 20, g = photoGroup({ id: 'evidence', x: rx, y: top, width: rw, maxHeight: ph, images: [image], theme });
+  // The single evidence image keeps the id 'evidence', so existing scripts and patches still find it.
+  let named = false;
+  elements.push(...shiftX(g.elements, Math.round((rw - (g.width || rw)) / 2)).map((e) => (e.type === 'image' && !named ? (named = true, { ...e, id: 'evidence' }) : e)));
+  return { elements: [...header.elements, ...elements], visualDecision: decision('metricsWithEvidence', header, '左侧主指标放大承担主视觉，次级指标同基线成行，下接机制流程；右侧色面完整展示证据图', [['metrics', 'focus', [lx, top, lw, y - top]], ['evidence', 'evidence', [rx, top, rw, g.height]]]) };
 }
 
 // Numbered resources, result metrics and a review note on the left; the photos get the whole right zone and fill it
@@ -105,7 +107,7 @@ export function listWithPhotos({ theme, grid, header, items, metrics: results = 
   const photoH = FOOTER_TOP - top - 50;
   // Frames first: the photo column always fills its box (top and bottom level with the left column's span);
   // photos are cropped into the frames rather than shrunk with gaps around them.
-  const fill = perRow === 'auto' ? imageFrames({ id: 'photos', x: rx, y: top, width: rw, height: photoH, images: photos, theme }) : null;
+  const fill = perRow === 'auto' ? photoGroup({ id: 'photos', x: rx, y: top, width: rw, height: photoH, images: photos, theme }) : null;
   const g = fill || imageGrid({ id: 'photos', x: rx, y: top, width: rw, images: photos, perRow, theme, maxHeight: photoH });
   elements.push(...(fill ? fill.elements : shiftX(g.elements, (rw - g.width) / 2)));
   return { elements: [...header.elements, ...elements], visualDecision: decision('listWithPhotos', header, '左侧编号资源、结果指标与复盘判断，右侧照片铺满整栏作为证据', [['items', 'support', [lx, top, lw, y - top + 8]], ['photos', 'evidence', [rx, top, rw, (fill ? photoH : g.height) + 8]]]) };
@@ -370,4 +372,51 @@ export function periodColumns({ theme, grid, header, periods, summary }) {
     zones.push(['summary', 'data', [x, sy, w, stripH]]);
   }
   return { elements: [...header.elements, ...elements], visualDecision: decision('periodColumns', header, '顶部箭头色带按时期分段，每段下方一栏写该期重点、达成率与要点，主辅色交替区分阶段；底部深色块给出全期汇总', zones) };
+}
+
+// Item rows: the item list stays plain text (number, title, detail — no boxes), and the figures that would sit in a
+// separate row of tiles are stacked into one column, each tile beside the item it belongs to. Photos keep their own
+// shape: they are laid out at their native ratios (a portrait stands tall, landscapes lie wide — a tall-left mosaic or
+// rows, whichever shows them largest), at the column width that fits the page best; the item rows then share the
+// photo block's top and bottom. The photos form one group and do not imply which belongs to which item; photos that do
+// belong one to each item go under them with itemsWithPhotos instead.
+// items: [{ title, detail?, metric?: { value, unit?, label } }]; photos: [{ src, size?, focal? }].
+export function itemRows({ theme, grid, header, items, photos = [], highlight = -1, gap = 24 }) {
+  const n = items.length, top = header.bottom + 40, maxH = FOOTER_TOP - 20 - top, elements = [];
+  if (n < 2 || n > 5) throw new Error('itemRows takes 2–5 items');
+  const list = (Array.isArray(photos) ? photos : photos?.images || []).map(({ caption, ...img }) => ({ ...img, size: img.size || imageSize(img.src) }));
+  const ratio = (im) => im.size.width / im.size.height, hasMetric = items.some((it) => it.metric);
+  const images = list;
+  const minRows = n * 120 + gap * (n - 1), area = (g) => g.elements.filter((e) => e.type === 'image').reduce((a, e) => a + e.bounds[2] * e.bounds[3], 0);
+  let photo = null;
+  // Wider photo columns show the photos larger; the item column keeps at least 640px for text and tiles.
+  for (const cols of [3, 4, 5, 6, 7, 8]) {
+    if (!images.length) break;
+    const [, pw] = grid.span(12 - cols, cols);
+    if (grid.width - pw - grid.gutter < 640) continue;
+    // Shared photo policy: native ratios, largest layout within the page height, edges squared with a mild crop.
+    const g = photoGroup({ id: 'photos', x: 0, y: top, width: pw, maxHeight: maxH, images, theme });
+    if (g.height > maxH) continue;
+    const cand = { g, w: g.width || pw, h: g.height, a: area(g) }, fits = cand.h >= minRows;
+    if (!photo || (fits && !photo.fits) || (fits === photo.fits && cand.a > photo.a)) photo = { ...cand, fits };
+  }
+  const H = photo ? Math.max(photo.h, minRows) : maxH, px = photo ? grid.right - photo.w : grid.right + grid.gutter;
+  if (photo) elements.push(...shiftX(photo.g.elements, px).map((e) => ({ ...e, bounds: [e.bounds[0], e.bounds[1] + Math.round((H - photo.h) / 2), e.bounds[2], e.bounds[3]] })));
+  const leftW = px - grid.gutter - grid.left, tileW = hasMetric ? Math.min(340, Math.round(leftW * 0.34)) : 0, textW = leftW - (hasMetric ? tileW + 40 : 0);
+  const rowH = Math.floor((H - gap * (n - 1)) / n), metricSize = Math.max(40, Math.min(64, Math.floor((rowH - 24 - 34 - 26) / 1.32)));
+  items.forEach((it, i) => {
+    const y = top + i * (rowH + gap), id = `row-${i + 1}`;
+    const l = numberedList({ id, x: grid.left, y: 0, width: textW, items: [{ title: it.title, detail: it.detail }], theme, badge: 56, titleSize: 32, detailSize: 24, gap: 0, start: i + 1 });
+    if (l.height > rowH) throw new Error(`itemRows: item ${i + 1} needs ${l.height}px but a row has ${rowH}px: shorten details or use fewer items`);
+    // Plain text centred on its row, so it lines up with the tile beside it.
+    const dy = y + Math.round((rowH - l.height) / 2);
+    elements.push(...l.elements.map((e) => ({ ...e, bounds: [e.bounds[0], e.bounds[1] + dy, e.bounds[2], e.bounds[3]] })));
+    if (it.metric) {
+      const t = metricTiles({ id: `${id}-metric`, x: grid.left + leftW - tileW, y: 0, width: tileW, items: [it.metric], theme, size: metricSize, highlight: i === highlight ? 0 : -1, highlightStyle: 'solid' });
+      const ty = y + Math.round((rowH - t.height) / 2);
+      elements.push(...t.elements.map((e) => ({ ...e, bounds: [e.bounds[0], e.bounds[1] + ty, e.bounds[2], e.bounds[3]] })));
+    }
+  });
+  const zones = [['rows', 'support', [grid.left, top, leftW, H]], ...(photo ? [['photos', 'media', [px, top, photo.w, H]]] : [])];
+  return { elements: [...header.elements, ...elements], visualDecision: decision('itemRows', header, '编号事项保持文字，各项数据色块竖排在对应行；照片按原图比例成组（竖图竖放、横图横放），上下与事项区对齐', zones) };
 }

@@ -8,7 +8,7 @@ const text = (id, value, fontSize, bounds, extra = {}) => ({ id, type: 'text', t
 const runs = (id, parts, bounds) => text(id, parts.map((p) => p[0]).join(''), 64, bounds, { runs: parts.map(([t, style]) => ({ text: t, style })) });
 // Zones are checked in their own test; elsewhere a decision gets one full-page zone unless it brings its own.
 // Fixtures record a page type (free, with its reason) and one page zone unless a test sets its own.
-const withZone = (d) => (d && typeof d === 'object' && !d.waived ? { pattern: 'free：合成测试页', componentsWaived: '合成测试页只验证当前规则', ...d, ...('zones' in d ? {} : { zones: [{ id: 'page', role: 'support', bounds: [0, 0, 1920, 1080] }] }) } : d);
+const withZone = (d) => (d && typeof d === 'object' && !d.waived ? { pattern: 'free：合成测试页', ...d, ...('zones' in d ? {} : { zones: [{ id: 'page', role: 'support', bounds: [0, 0, 1920, 1080] }] }) } : d);
 function input(decisions, slides) {
   return {
     requirements: { projectId: 'visual-decisions-test', title: '合成测试' },
@@ -102,11 +102,13 @@ test('v2 decks record the page type each page started from', () => {
   assert(r.issues.some((i) => i.kind === 'visual-pattern-missing'));
 });
 
-test('a freely composed page needs a report component or a stated reason', () => {
+test('in a report deck a freely composed page needs a report component', () => {
   const page = [[{ type: 'text', id: 'big', text: '42%', bounds: [96, 300, 600, 200], style: { fontSize: 160 } }]];
-  const bare = reviewVisualDecisions(createAuthoredProject(input([{ pattern: 'free：自由组合', componentsWaived: '', focus: { elementId: 'big' }, layout: '大数字' }], page)));
-  assert(bare.issues.some((i) => i.kind === 'report-component-missing'));
+  const report = (slides) => { const inp = input([{ pattern: 'free：自由组合', focus: { elementId: 'big' }, layout: '大数字' }], slides); inp.requirements.scope = 'part'; return reviewVisualDecisions(createAuthoredProject(inp)); };
+  assert(report(page).issues.some((i) => i.kind === 'report-component-missing'));
   const withBlock = [[...page[0], { type: 'shape', id: 'a', component: 'answerBlock', bounds: [96, 560, 600, 200], style: { fill: '#23338B' } }]];
-  const ok = reviewVisualDecisions(createAuthoredProject(input([{ pattern: 'free：自由组合', componentsWaived: '', focus: { elementId: 'big' }, layout: '大数字' }], withBlock)));
-  assert(!ok.issues.some((i) => i.kind === 'report-component-missing'));
+  assert(!report(withBlock).issues.some((i) => i.kind === 'report-component-missing'));
+  // Decks outside the report flow (no scope) are not held to it.
+  assert(!reviewVisualDecisions(createAuthoredProject(input([{ pattern: 'free：自由组合', focus: { elementId: 'big' }, layout: '大数字' }], page))).issues.some((i) => i.kind === 'report-component-missing'));
 });
+

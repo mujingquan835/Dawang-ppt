@@ -3,6 +3,12 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { materializeElements } from '../scene/model.mjs';
 import { isRuleContract, isSectionChecklist } from './rule-checklist.mjs';
+import { readDecisions, decisionFor } from './user-decisions.mjs';
+import { houseStylePrompt } from './house-style.mjs';
+
+// After this many consecutive rounds, findings the author could not resolve stop blocking: they are delivered with the
+// deck and listed to the user, who decides. Objective program checks keep blocking regardless.
+export const MAX_REVIEW_ROUNDS = 3;
 
 // Independent review of the production rule checklist. The author fills the checklist; a reviewer with a fresh context
 // sees only the page screenshots, an element map, the rule text and the claims, and judges each claim. Publishing
@@ -34,26 +40,19 @@ export function reviewClaims(project, rules) {
 export const VISUAL_CLAIMS = [
   { id: 'visual#alignment', rule: '同组元素共用对齐线；流程节点与下方说明逐一对应；同一行图片等高；数字与单位成组，不被拉开' },
   { id: 'visual#hierarchy', rule: '每页第一眼读到的是本页重点；主次在实际尺寸上看得出，不是等大文字堆叠，也不是每页同一个结构' },
-  { id: 'visual#images', rule: '照片先按版面画框、再裁切嵌入是用户确认的做法：照片填满框、与相邻内容上下对齐，比例未变形；裁切掉部分画面不算问题，只有人脸或页面依赖的关键文字被切掉才判 fail，修正写“调整 focal 或换图”，不得要求改成完整显示或缩小；照片缩小后框内留空、与相邻栏不对齐判 fail；图片与旁边的说明逐项对应；页面没有大块无意义空白' }
+  { id: 'visual#images', rule: '照片先按版面画框、再裁切嵌入是用户确认的做法：照片填满框、与相邻内容上下对齐，比例未变形；裁切掉部分画面不算问题，只有人脸或页面依赖的关键文字被切掉才判 fail，修正写“调整 focal 或换图”，不得要求改成完整显示或缩小；照片缩小后框内留空判 fail。对应看位置：照片排在事项旁边或下方时，第 n 张与第 n 项在位置上对齐；照片数量与事项不同而成组排列时，不要求逐项对应。图片画面内容是否与说明一致，只在照片作为证据时判断；页面或用户决定标明“示意”的照片不判断画面内容。页面没有大块无意义空白' }
 ].map((c) => ({ ...c, status: 'visual' }));
 
-// The user's confirmed house style. It takes precedence over original-rule clauses that forbid cards or rectangles
-// (user requests outrank the rules), so the reviewer must not fail these components and the author must not strip them.
-export const HOUSE_STYLE = [
-  '用户确认的 Dawang 版式（优先于原规则中禁止用卡片/矩形建立层级、要求所有矩形统一圆角等条款）：',
-  '- 数字色块：每个数字一个圆角色块，标签在上、数字在下，重点块带强调色竖条，空余处可加线性图标；',
-  '- 数据页的“色块＋照片”：指标色块在一栏，照片铺满另一栏；',
-  '- 深色侧栏：承载应用链或要点的整块深色区域；',
-  '- 照片拼板：色块一侧写字、向照片渐隐过渡（仅用于数据少的页面）；',
-  '- 编号方块、流程圆点等导航标记。',
-  '这些组件出现时，不得仅因“使用了卡片/矩形/圆角”判 fail；清单中以 user-override 并注明“用户确认的 Dawang 版式”记录的条款，只要页面上的矩形确属上述组件，判 pass。用普通卡片包裹大段正文、或每页套同一卡片墙，仍按原规则判 fail。',
-  '用户确认的配色来源：汇报稿以九组汇报配色（蓝金、蓝青、商务金、绿红金、翡翠金、紫金橙、红金、三原色、皓石金）为主选，场景文档自带的配色参考不作主选；配色参考章节以 user-override 并注明此理由时，不得因“未采用场景配色参考”判 fail，只看所选配色在页面上的主色/辅色/跳色分工与对比度是否成立。',
-].join('\n');
+// The user's confirmed house style, one replaced clause at a time (see house-style.mjs, the single source).
+export const HOUSE_STYLE = houseStylePrompt();
 
 // only: claim ids to judge this round (a follow-up round re-checks the previous fails).
 export function buildReviewPacket({ project, rules, pages, only }) {
   const all = [...reviewClaims(project, rules), ...(isSectionChecklist(project) ? VISUAL_CLAIMS : [])];
-  const claims = only ? all.filter((c) => only.has(c.id)) : all;
+  // Claims a user decision settles carry the user's words, so the reviewer judges against them, not against the rule.
+  const decided = all.map((c) => { const d = decisionFor(project, { id: c.id }); return d ? { ...c, userDecision: { quote: d.quote, decision: d.decision, pages: d.pages || '全稿' } } : c; });
+  const claims = only ? decided.filter((c) => only.has(c.id)) : decided;
+  const decisions = readDecisions(project);
   const slides = pages.map(({ slideId }, index) => {
     const slide = project.slides.find((s) => s.slideId === slideId);
     const elements = materializeElements(slide, project).map((e) => ({ id: e.id, type: e.type, ...(e.text ? { text: String(e.text).slice(0, 80) } : {}), bounds: (e.bounds || []).map(Math.round) }));
@@ -67,6 +66,7 @@ export function buildReviewPacket({ project, rules, pages, only }) {
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
     '- status=visual：按给出的视觉标准逐页看图，任一页明显不符判 fail；reason 写出页码和具体问题（例如“第2页：流程说明与节点错位”）。',
     HOUSE_STYLE,
+    decisions.length ? '用户决定（用户原话，优先于规则、视觉标准和你的个人判断）：带 userDecision 的声明，只要页面做法与用户决定一致就判 pass；不得因用户已明确接受的做法判 fail（例如用户说“图片仅作示意”，就不得要求图片内容与说明对应）。决定之外的问题照常判断。' : '',
     // A partial job is judged on its own pages: deck-level demands do not apply to a section someone asked AI to make.
     project.requirements?.scope === 'full'
       ? '本稿是完整的汇报/述职：整体结论、问题差距、下一步等整稿要求适用。'
@@ -116,7 +116,12 @@ export function reviewGate(project, workspaceDir) {
     report({ kind: 'rules-review-stale', reviewedRevision: record.revision, revision: project.revision, hint });
     return { issues, warnings, review: null, strict };
   }
-  const failed = record.items.filter((i) => i.verdict === 'fail');
-  if (failed.length) report({ kind: 'rules-review-failed', count: failed.length, round: record.round ?? 1, items: failed.map(({ id, status, reason }) => ({ id, status, reason })), hint: '按 reason 改页面后重新 review:rules，同一轮内继续；3 轮仍失败再向用户说明' });
-  return { issues, warnings, review: { reviewer: record.reviewer, at: record.at, passed: record.items.length - failed.length, failed: failed.length }, strict };
+  // A fail the user has decided is settled; the rest block until the author has had MAX_REVIEW_ROUNDS attempts, then
+  // they are delivered as open findings for the user to see (never hidden, never edited out of rules-review.json).
+  const decided = [], failed = [];
+  for (const i of record.items.filter((x) => x.verdict === 'fail')) { const d = decisionFor(project, { id: i.id }); (d ? decided : failed).push(d ? { ...i, decidedBy: d.id, quote: d.quote } : i); }
+  const round = record.round ?? 1, open = failed.length && round >= MAX_REVIEW_ROUNDS;
+  if (open) warnings.push({ kind: 'rules-review-open', round, items: failed.map(({ id, status, reason }) => ({ id, status, reason })), hint: `已复核 ${round} 轮仍有意见：可以发布，但交付回复里必须逐条列出这些意见，请用户决定是否修改；用户明确接受的，写入 requirements.userDecisions` });
+  if (failed.length && !open) report({ kind: 'rules-review-failed', count: failed.length, round: record.round ?? 1, items: failed.map(({ id, status, reason }) => ({ id, status, reason })), hint: '按 reason 改页面后重新 review:rules，同一轮内继续；3 轮仍失败再向用户说明' });
+  return { issues, warnings, review: { reviewer: record.reviewer, at: record.at, round, passed: record.items.length - failed.length - decided.length, decided: decided.map(({ id, decidedBy, quote }) => ({ id, decidedBy, quote })), failed: failed.length, openFindings: open ? failed.map(({ id, reason }) => ({ id, reason })) : [] }, strict };
 }

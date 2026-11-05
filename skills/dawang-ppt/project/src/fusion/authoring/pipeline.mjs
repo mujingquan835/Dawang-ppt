@@ -3,7 +3,7 @@ import {workspacePath,withRunDirectory,recordRun} from './workspace.mjs';
 import {createAuthoredProject} from './create-project.mjs';import {stageMedia} from './media.mjs';
 import {loadProject,saveProject} from '../project/store.mjs';import {renderProject} from '../scene/render-project.jsx';
 import {createFusionServer} from '../../../scripts/fusion-preview.jsx';import {measureProject} from '../qa/measure.mjs';
-import {validatePortableHtml} from '../portable/html.mjs';import {reviewKeyLines} from '../qa/key-lines.mjs';import {reviewVisualDecisions} from '../qa/visual-decisions.mjs';import {reviewRuleChecklist} from '../qa/rule-checklist.mjs';import {reviewGate} from '../qa/rules-review.mjs';
+import {validatePortableHtml} from '../portable/html.mjs';import {reviewKeyLines} from '../qa/key-lines.mjs';import {reviewVisualDecisions} from '../qa/visual-decisions.mjs';import {reviewRuleChecklist} from '../qa/rule-checklist.mjs';import {reviewGate} from '../qa/rules-review.mjs';import {checkDecisions,applyDecisions} from '../qa/user-decisions.mjs';
 const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 async function run({workspaceDir,outFile,slideIds,screenshots}){
  const start=performance.now(),phases={};const project=loadProject(path.join(workspaceDir,'deck-project.json'));
@@ -21,16 +21,22 @@ async function run({workspaceDir,outFile,slideIds,screenshots}){
    phases.qaMs=performance.now()-qaStart;
    if(!qa.pages.length){qa.ok=false;qa.coverageIssues.push({kind:'no-visible-pages'});}
    const content=reviewKeyLines(staged),visual=reviewVisualDecisions(staged),rules=reviewRuleChecklist(staged),gate=reviewGate(project,workspaceDir);
-   const issues=[...qa.coverageIssues,...qa.pages.flatMap(p=>p.issues),...qa.browserErrors.map(message=>({kind:'browser-error',message})),...content.issues,...visual.issues,...rules.issues,...gate.issues];
+   // Checks the user explicitly decided (requirements.userDecisions) no longer block; they stay listed as decided.
+   const pageIssues=qa.pages.flatMap(p=>p.issues.map(i=>({slideId:p.slideId,...i})));const pageDecided=applyDecisions(staged,pageIssues);
+   const authored=applyDecisions(staged,[...content.issues,...visual.issues,...rules.issues]),malformed=checkDecisions(staged);
+   const decided=[...pageDecided.decided,...authored.decided];
+   const issues=[...qa.coverageIssues,...pageDecided.open,...qa.browserErrors.map(message=>({kind:'browser-error',message})),...authored.open,...malformed,...gate.issues];
    const warnings=[...qa.pages.flatMap(p=>(p.warnings||[]).map(w=>({slideId:p.slideId,...w}))),...content.warnings,...visual.warnings,...rules.warnings,...gate.warnings];
-   if(content.issues.length||visual.issues.length||rules.issues.length||gate.issues.length)qa.ok=false;
-   if(!qa.ok)return {ok:false,issues,warnings,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa};
+   // Same conditions as measure (readiness, finite bounds, coverage, browser errors, page issues), minus decided page issues.
+   qa.ok=qa.readiness?.ready!==false&&qa.finiteBounds!==false&&!qa.coverageIssues.length&&!qa.browserErrors.length&&!pageDecided.open.length;
+   if(authored.open.length||malformed.length||gate.issues.length)qa.ok=false;
+   if(!qa.ok)return {ok:false,issues,warnings,decided,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa};
    if(outFile){const serializationStart=performance.now();const html=await page.evaluate(()=>window.__fusionEditor.serializeHtml());const validation=validatePortableHtml(html);if(!validation.ok)return {ok:false,issues:[validation],qa};
     phases.serializeMs=performance.now()-serializationStart;
     if(requests.length)throw Error('Unexpected automatic format export');
     fs.mkdirSync(path.dirname(path.resolve(outFile)),{recursive:true});const tmp=outFile+'.'+process.pid+'.tmp';try{fs.writeFileSync(tmp,html);fs.renameSync(tmp,outFile);}finally{fs.rmSync(tmp,{force:true});}
    }
-   return {ok:true,issues,warnings,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa,exportRequests:requests};
+   return {ok:true,issues,warnings,decided,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa,exportRequests:requests};
   }finally{await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  });}catch(error){result={ok:false,issues:[{kind:'operation-failed',message:error.message}]};}
  const report={...result,projectId:project.requirements.projectId,revision:project.revision,workspaceDir,outFile,scope:slideIds?'slides':'all',deliveryProfile:'html-first',phases,durationMs:performance.now()-start,at:new Date().toISOString()};recordRun(workspaceDir,report);return report;

@@ -98,6 +98,9 @@ export function suggestPattern(p) {
   if (p.compare?.left?.length && p.compare.left.length === p.compare.right?.length) return 'contrastColumns';
   if ((p.periods || []).length >= 3) return 'periodColumns';
   // Photos that each belong to one item go under that item, so the reader matches 1, 2, 3 to their pictures.
+  // A figure per item (or photos that do not match the items one to one) go in rows: each item's figure beside it,
+  // photos aligned to the rows.
+  if (nItems >= 2 && nItems <= 5 && (nData === nItems || (nPhotos >= 2 && nPhotos !== nItems))) return 'itemRows';
   // Little text and almost no data keeps the confirmed photo panels; items with details or figures get a column each.
   const brief = (p.items || []).every((it) => String(it.detail || '').length <= 30 && !/\d/.test(String(it.detail || '')));
   if (nPhotos >= 2 && nItems === nPhotos) return nData <= 1 && brief ? 'photoPanels' : 'itemsWithPhotos';
@@ -112,6 +115,7 @@ function suggestReason(p) {
   const nData = (p.data || []).length, nPhotos = (p.photos || []).length;
   if (suggestPattern(p) === 'targetVsActual') return '有目标值：计划与实际同列对照，深色块给出整体完成度';
   if (suggestPattern(p) === 'contrastColumns') return '两侧逐项成对（亮点/待改进、问题/改进）：左右对照、中间编号连起每一对';
+  if (suggestPattern(p) === 'itemRows') return '每项一行：该项数据放在同一行右端的色块，照片与各行对齐；照片对不上时成组排列，不暗示逐项对应';
   if (suggestPattern(p) === 'itemsWithPhotos') return '每项一张对应照片：每项一栏，照片在该项正下方，编号与照片一一对应';
   if (suggestPattern(p) === 'periodColumns') return '按时期展开：箭头色带分段，每期一栏，底部汇总';
   if (nData >= 2 && nPhotos) return `${nData} 个数字优先进色块，${nPhotos} 张照片作证据`;

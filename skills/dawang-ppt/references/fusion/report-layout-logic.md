@@ -31,8 +31,8 @@
 | green-red-gold | 绿红金 | `#59846C` / `#D2423C` / `#E1A662` | 问题与改进对照（绿达成、红差距） |
 | jade-gold | 翡翠金 | `#438C80` / `#E1BC8B` / `#DE8784` | 人力、行政、服务类述职 |
 | purple-gold-orange | 紫金橙 | `#4A4C81` / `#F0C25E` / `#ED8300` | 市场与品牌复盘 |
-| red-gold | 红金 | `#C72231` / `#D45022` / `#E3A557` | 年终总结、表彰与冲刺动员 |
-| primary-colors | 三原色 | `#F65474` / `#5E96FA` / `#F8CF67` | 团队分享与轻量周报；正式汇报慎用 |
+| red-gold | 红金 | `#C72231` / `#D45022` / `#E3A557` | 年终总结、表彰与冲刺动员；**不用于大促/促销类复盘**，问题页控制红色面积（HS-04） |
+| primary-colors | 三原色 | `#F65474` / `#5E96FA` / `#F8CF67` | 团队分享与轻量周报；**不用于正式汇报**，同页不加紫绿（HS-04、HS-05） |
 | stone-gold | 皓石金 | `#2D4F6E` / `#F1B871` / `#E49882` | 财务、项目与年度规划 |
 
 ## 3. 反复出现的五种结构
@@ -50,6 +50,8 @@
 **⑤ 等宽栏中的一栏反白：** 3–5 个并列事项用等宽栏，每栏顶部一条色帽或标签；需要突出其中一项时，整栏改为主色实底、白字（其余保持浅底），不靠放大。用 `metricTiles` 的 `highlight` 加 `highlightStyle:'solid'`。
 
 ## 4. 七类页面对应的汇报角色
+
+下表说明模板各类页面借鉴了什么；每页实际用哪个页型或组件，以 `outline:check` 的 `suggestions` 为准（选择逻辑只在代码里维护一份）。
 
 | 模板类别 | 页数 | 对应大纲 role | 主要借鉴 | 先用的工具 |
 |---|---|---|---|---|
@@ -92,6 +94,6 @@
 | `metricTiles` + `highlightStyle:'solid'` | 并列几项里只把最关键的一项整块反白 | 并列动作、并列指标 |
 | `sidePanel` | 深色侧栏：关键数字＋编号事项 | 需审批/支持事项 |
 
-`outline:check` 的 `suggestions[].components` 按页面角色和关系词（目标、去年、同比、季度、阶段……）给出默认组件；整页页型（`targetVsActual`、`contrastColumns`、`periodColumns`）只是这些组件排满一页的现成组合，内容不完全匹配时直接用组件自己组合。自由组合的页面（`visualDecision.pattern` 以 `free` 开头）至少用一个组件，确实不适用时写 `visualDecision.componentsWaived` 说明理由，否则 `make` 以 `report-component-missing` 拦下。
+`outline:check` 的 `suggestions[].components` 按页面角色和关系词（目标、去年、同比、季度、阶段……）给出默认组件；整页页型（`targetVsActual`、`contrastColumns`、`periodColumns`）只是这些组件排满一页的现成组合，内容不完全匹配时直接用组件自己组合。汇报稿里自由组合的页面（`visualDecision.pattern` 以 `free` 开头）至少用一个组件，否则 `make` 以 `report-component-missing` 拦下；封面、目录、章节页写 `waived`，用户决定不用的写进 `requirements.userDecisions`。
 
 选配色时可把九组配色之一作为候选（经 `palette-preview` 展示给用户），用户确认后以 `createTheme({ palette: reportPalette(id) })` 建主题；其他配色也会按一深一浅一跳自动分配组件颜色。示例见 `examples/report-patterns.mjs`（第 4 页为组件自由组合）。

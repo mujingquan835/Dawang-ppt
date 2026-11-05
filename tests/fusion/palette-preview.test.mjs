@@ -53,3 +53,10 @@ test('a report palette is referenced by id and previewed as a small report page 
   assert.match(html, /--pop:#FA6500/);
   assert.throws(() => validatePaletteOptions({ options: [{ report: 'nope' }] }), /unknown report palette/);
 });
+
+test('report palettes that clash with the original palette rules carry their limits into the preview', () => {
+  const html = renderPalettePreview({ options: [{ report: 'red-gold' }, { report: 'primary-colors' }, { report: 'blue-gold' }] });
+  assert.match(html, /限制：不用于大促/);
+  assert.match(html, /限制：不用于正式汇报/);
+  assert.equal((html.match(/class="limits"/g) || []).length, 2);
+});

@@ -119,11 +119,15 @@ test('a follow-up round starts only from a failed review of the same checklist',
   assert.equal(previousRound(dir, p), null);
 });
 
-test('the reviewer is told the confirmed house style outranks no-card clauses', () => {
+test('the reviewer gets the house-style exceptions clause by clause, with what each still requires', async () => {
+  const { HOUSE_STYLE_TABLE, houseStyleMarkdown } = await import('../../skills/dawang-ppt/project/src/fusion/qa/house-style.mjs');
   const packet = buildReviewPacket({ project: project(), rules, pages: [{ slideId: 's', image: 'x' }] });
-  assert.match(packet.prompt, /用户确认的 Dawang 版式/);
-  assert.match(packet.prompt, /数字色块/);
-  assert.match(packet.prompt, /不得仅因/);
+  for (const h of HOUSE_STYLE_TABLE) { assert(packet.prompt.includes(h.id)); assert(packet.prompt.includes(h.still)); }
+  assert.match(packet.prompt, /同一章节的其他要求照常判断/);
+  assert.match(packet.prompt, /不把整章当成豁免/);
+  // The reference document is generated from the same table and must not drift.
+  const doc = fs.readFileSync(new URL('../../skills/dawang-ppt/references/fusion/house-style.md', import.meta.url), 'utf8');
+  assert.equal(doc, houseStyleMarkdown());
 });
 
 test('the Codex reviewer can run at a chosen reasoning effort', () => {

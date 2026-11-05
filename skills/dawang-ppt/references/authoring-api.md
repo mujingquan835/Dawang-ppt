@@ -74,7 +74,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `photoPanel({bounds,photo,title,lines,color,textSide})`：深色色块写标题、强调色短线与一到三行要点，从色块向照片渐隐过渡（`textSide:'left'` 文左图右，`'top'` 文上图下）。
 - `numberedList({items:[{title,detail}],start})`（一组事项分到多栏时用 `start` 接着编号 01、02、03）、`table({columns:[{key,label,width,size,weight,color}],rows})`、`panel({bounds,fill,radius})`、`textBlock`。
 - `imageRow` / `imageGrid({images:[{src,file?,size?,caption}],perRow:'auto'})`：同行等高、按原始比例分宽，不把图片放大到原始像素 2 倍以上；`auto` 会在分行与“左侧高图、右侧堆叠”拼贴中取图片面积最大且放得下的一种。真实图片用文件路径作 `src`，`imageSize(file)` 读取原始尺寸（make 会登记到图片台账）。
-- `imageFill({x,y,width,height,images})`：用一行或“左高右叠”拼贴铺满整个方框，每张图围绕 `focal`（默认 `50% 40%`）轻度裁切，形状改变不超过 1.45 倍；做不到时返回 null。
+- `imageFill({x,y,width,height,images})`：用一行、两行或“左高右叠”拼贴铺满整个方框，每张图围绕 `focal`（默认 `50% 40%`）轻度裁切，形状改变不超过 1.45 倍；做不到时返回 null。
 - `imageFrames({x,y,width,height,images,tall})`：先画框再嵌图。方框由版面决定（与左侧内容的上下边界对齐），框一定铺满，每张图裁切嵌入，自动选裁切最少的排法（一行、左高右叠或 `tall:'right'` 镜像、一列、2×2）；用 `focal` 保住人脸和关键文字。多张照片一律用它。
 - `noteBar({id,x,y,width,text,label,height})`：一句收尾结论放在浅主色条上，左侧强调色竖条和短标签（默认“复盘判断”）；宽度不够一行时标签移到句子上方，`height` 让它与相邻区块底边对齐；单独悬在空白里的结论句会被 `text-orphan` 拦下。
 - `sidePanel({id,bounds,figure:{label,value,unit,note},list:{title,items:[{title,detail}]}})`：深色侧栏，标题、关键数字和编号事项按面板高度铺开，编号圆标加悬挂缩进；放不下时报错。
@@ -96,6 +96,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 | `metricsWithEvidence({header,hero,secondary,flow,notes,image})` | 主指标、次级指标行、机制流程，右侧证据图 |
 | `listWithPhotos({header,items,metrics,photos,note})` | 默认的图文资源页：左侧编号资源、结果指标与复盘，右侧照片铺满整栏（先画框再裁切嵌入，任何比例都不留空隙） |
 | `itemsWithPhotos({header,items:[{title,detail,photo:{src,caption,focal}}],metrics,note,highlight})` | 每项资源一栏、照片在正下方，照片一律裁切填满各自的栏框；竖图裁切较多，用 `focal` 保住主体 |
+| `itemRows({header,items:[{title,detail,metric:{value,unit,label}}],photos,highlight})` | 2–5 项。事项保持纯文字编号列表；各项数据色块竖排在对应行（`highlight` 整块反白突出一项）；照片按原图比例成组（竖图竖框、横图横框），自动选图片最大的栏宽与排法，轻度裁切让边缘对齐，上下与事项区对齐。内容不足以逐项对应时用它 |
 | `photoPanels({header,panels:[{title,lines,photo,color}],colors})` | 2–4 个“色块＋照片渐隐”拼板；只用于文字少、几乎无数据、每张照片对应一项的内容。拼板文字合计超过 3 个数字会报错（数据优先：改用指标色块＋照片的页型） |
 | `tableWithPanel({header,table,panel:{title,chains}})` | 明细表加深色侧栏应用链 |
 | `twoLaneFlow({header,lanes,conclusion})` | 两条并列流程 |
