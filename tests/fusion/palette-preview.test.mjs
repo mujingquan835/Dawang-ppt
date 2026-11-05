@@ -40,3 +40,16 @@ for(const viaLink of [false,true])test(`CLI writes the requested preview through
   assert.equal(JSON.parse(run.stdout).html,path.join(dir,'preview.html'));
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('a report palette is referenced by id and previewed as a small report page with its colour roles', () => {
+  const data = validatePaletteOptions({ options: [{ report: 'blue-gold', reason: '稳重正式' }, { report: '红金' }] });
+  assert.equal(data.options[0].id, 'blue-gold');
+  assert.equal(data.options[0].palette.primary, '#23338B');
+  assert.equal(data.options[1].name, '红金');
+  assert.match(data.options[1].source, /九组汇报配色/);
+  const html = renderPalettePreview({ options: [{ report: 'blue-gold' }] });
+  assert.match(html, /class="answer"/);
+  assert.match(html, /class="pair"/);
+  assert.match(html, /--pop:#FA6500/);
+  assert.throws(() => validatePaletteOptions({ options: [{ report: 'nope' }] }), /unknown report palette/);
+});
