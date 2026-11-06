@@ -1,3 +1,4 @@
+import {validateContentBaseline} from './content-baseline.mjs';
 // Versioned, opt-in semantic contract. Validation never infers facts or mutates a saved deck.
 export const SEMANTIC_CONTRACT = 'content-relations-v1';
 export const PAGE_DESIGN_CONTRACT = 'page-design-v1';
@@ -14,6 +15,8 @@ export function decidedDisposition(project, disposition) {
 }
 export function validateContentModel(project) {
  const issues=[], add=(kind,detail={})=>issues.push({kind,...detail}), req=project?.requirements||{};
+ for(const [key,value] of [['contentBaselineContract','source-baseline-v1'],['compositionContract','regional-composition-v1']])if(Object.hasOwn(req,key)&&req[key]!==value)add('unsupported-authoring-contract',{field:key});
+ if ((req.contentBaselineContract||req.compositionContract)&&!hasSemanticContract(project))add('semantic-contract-required');
  if (!Object.hasOwn(req,'semanticContract') && !Object.hasOwn(req,'pageDesignContract')) return issues;
  if (req.semanticContract !== SEMANTIC_CONTRACT) add(Object.hasOwn(req,'semanticContract')?'semantic-contract-version':'semantic-contract-required');
  if (Object.hasOwn(req,'pageDesignContract') && req.pageDesignContract !== PAGE_DESIGN_CONTRACT) add('page-design-contract-version');
@@ -69,5 +72,5 @@ export function validateContentModel(project) {
   gapIds.add(g?.id);
   if(g?.resolution==='user-accepted'&&!decidedDisposition(project,g))add('content-decision-required',{ref:g.id});
  }
- return issues;
+ return [...issues,...validateContentBaseline(project)];
 }

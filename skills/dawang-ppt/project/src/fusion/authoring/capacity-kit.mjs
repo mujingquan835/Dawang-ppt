@@ -12,8 +12,8 @@ function finish(spec,elements,bindings=[],extra={}) {
  validate(spec);
  const [x,y,w,h]=spec.bounds, right=Math.max(x,...elements.map(e=>e.bounds[0]+e.bounds[2])), bottom=Math.max(y,...elements.map(e=>e.bounds[1]+e.bounds[3]));
  const violations=[];
- if(bottom>y+h)violations.push({kind:'height',required:bottom-y,available:h});
- if(right>x+w)violations.push({kind:'width',required:right-x,available:w});
+ if(bottom>y+h+1e-6)violations.push({kind:'height',required:bottom-y,available:h});
+ if(right>x+w+1e-6)violations.push({kind:'width',required:right-x,available:w});
  for(const e of elements)if(e.type==='text'&&spec.measurements?.get(e.id)?.width>e.bounds[2]+2)violations.push({kind:'text-width',elementId:e.id,required:spec.measurements.get(e.id).width,available:e.bounds[2]});
  const status=violations.length?(bottom>1080||right>1920||violations.some(v=>v.kind==='text-width')?'cannot-fit':'needs-reflow'):'fits';
  const method=spec.measurements?'measured':'estimated';
@@ -41,7 +41,8 @@ export function roleGroup(spec) {
   let mediaElements;
   if(item.photo)mediaElements=photoGroup({id:`${prefix}-photo`,x,y:cy,width:mediaW,height:mediaH,images:[{...item.photo,src:item.photo.src||item.photo.file}],theme,gap:0}).elements;
   else {
-   const placeholder=text(`${prefix}-placeholder`,item.placeholder||'形象待补',x+8,cy+12,mediaW-16,22,theme,measurements,{color:theme.palette.muted,textAlign:'center'});
+   const placeholderLabel=item.placeholder||'形象待补';
+   const placeholder=text(`${prefix}-placeholder`,placeholderLabel==='形象待补'&&mediaW<120?'形象\n待补':placeholderLabel,x+8,cy+12,mediaW-16,22,theme,measurements,{color:theme.palette.muted,textAlign:'center'});
    mediaElements=[{id:`${prefix}-placeholder-bg`,type:'shape',bounds:[x,cy,mediaW,Math.max(mediaH,placeholder.bounds[3]+24)],style:{fill:theme.palette.pale,radius:theme.radius}},placeholder];
   }
   elements.push(...mediaElements);
@@ -114,4 +115,41 @@ export async function measureModule(builder,spec,measurer) {
  const measured=await measurer.texts(texts);
  if(measured.length!==texts.length||texts.some(e=>!measured.some(m=>m.id===e.id&&m.fontAvailable===true&&Number.isFinite(m.height)&&m.height>0&&Number.isFinite(m.width)&&m.width>0)))throw new Error('Incomplete or invalid module measurements');
  return builder({...spec,measurements:new Map(measured.map(m=>[m.id,m]))});
+}
+
+// Equal outer panels; internal rows remain independent (no invented row correspondence).
+// Optional summaries share a band, so budget/forecast details start on one baseline.
+export function panelGroup(spec) {
+ validate(spec);checkItems(spec.panels);
+ const {id,panels,bounds:[x,y,w,h],measurements}=spec,theme=spec.theme||createTheme();
+ const gap=spec.gap??36,pad=spec.padding??24;
+ if(![gap,pad].every(v=>Number.isFinite(v)&&v>=0)||panels.length<2)throw new TypeError('panels require nonnegative spacing and at least two panels');
+ const pw=(w-gap*(panels.length-1))/panels.length,inner=pw-pad*2;
+ if(inner<120)throw new TypeError('panel columns too narrow');
+ const heads=panels.map((p,i)=>text(`${id}-${p.id}-heading`,p.title,x+i*(pw+gap)+pad,y+pad,inner,spec.titleSize??30,theme,measurements,{fontWeight:700,color:theme.palette.accent}));
+ if(panels.some(p=>!p.title||typeof p.builder!=='function'))throw new TypeError('panel title and builder required');
+ const titleH=Math.max(...heads.map(e=>e.bounds[3]));
+ const summaries=panels.map((p,i)=>p.summary?text(`${id}-${p.id}-summary`,p.summary,x+i*(pw+gap)+pad,y+pad+titleH+16,inner,spec.summarySize??40,theme,measurements,{fontWeight:700,color:theme.palette.accent}):null);
+ const summaryH=Math.max(0,...summaries.filter(Boolean).map(e=>e.bounds[3]));
+ const bodyY=y+pad+titleH+24+(summaryH?summaryH+24:0),bodyH=y+h-pad-bodyY;
+ if(bodyH<=0)throw new RangeError('panel header leaves no body space; reallocate region');
+ const elements=[],bindings=[],regions=[],children=[];
+ panels.forEach((p,i)=>{
+  const px=x+i*(pw+gap),pid=`${id}-${p.id}`,bounds=[px+pad,bodyY,inner,bodyH];
+  let child=p.builder({...p.spec,id:pid+'-body',bounds,theme,measurements});
+  // Spread table padding equally, without scaling fonts or forcing row correspondence.
+  if(p.distributeRows&&child.rows?.length&&child.capacity.status==='fits'){
+   const extra=Math.max(0,bodyH-child.height)/child.rows.length/2;
+   child=p.builder({...p.spec,padY:(p.spec?.padY??16)+extra,id:pid+'-body',bounds,theme,measurements});
+  }
+  elements.push({id:pid+'-panel',type:'shape',bounds:[px,y,pw,h],style:{fill:theme.palette.pale,radius:theme.radius}},
+   {id:pid+'-accent',type:'shape',bounds:[px,y,6,h],style:{fill:theme.palette.accent,radius:0}},heads[i],...(summaries[i]?[summaries[i]]:[]),...child.elements);
+  bindings.push(...child.bindings);if(p.titleRef)bindings.push({ref:p.titleRef,elementIds:[heads[i].id]});if(p.summaryRef&&summaries[i])bindings.push({ref:p.summaryRef,elementIds:[summaries[i].id]});children.push(child.capacity);
+  regions.push({id:p.id,frameElementId:pid+'-panel',padding:pad,bounds:[px,y,pw,h],bodyBounds:bounds,headingId:heads[i].id});
+ });
+ if(new Set(elements.map(e=>e.id)).size!==elements.length)throw new Error('duplicate panel element IDs');
+ const result=finish(spec,elements,bindings,{regions,children});
+ const failed=children.filter(c=>c.status!=='fits');
+ if(failed.length){result.capacity.status=failed.some(c=>c.status==='cannot-fit')?'cannot-fit':'needs-reflow';result.capacity.violations.push(...failed.flatMap(c=>c.violations));result.capacity.alternatives=[{action:'reallocate-region-or-change-layout',preserveContent:true}];result.elements.forEach(e=>{e.capacityModule.status=result.capacity.status;});}
+ return result;
 }

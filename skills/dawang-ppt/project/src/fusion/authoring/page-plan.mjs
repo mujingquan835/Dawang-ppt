@@ -1,3 +1,4 @@
+import {reviewComposition} from './composition-contract.mjs';
 import { materializeElements } from '../scene/model.mjs';
 import { hasPageDesignContract, hasSemanticContract, validateContentModel, decidedDisposition, record, list, nonempty } from './content-model.mjs';
 // Structural evidence only: a binding does not prove the text is true or a diagram is understandable.
@@ -27,6 +28,7 @@ export function reviewPagePlan(project) {
   for(const ref of list(slide.semanticDirtyRefs))add('bound-content-needs-reconciliation',{...where,ref});
   if(!page||!nonempty(page.readerTask)||!Array.isArray(page.requiredRefs)||!Array.isArray(page.regions)||!page.regions.length){add('page-plan-required',where);continue;}
   const elements=new Map(materializeElements(slide,project).map(e=>[e.id,e])), local=new Set(), regionIds=new Set();
+  if(project.requirements?.compositionContract==='regional-composition-v1')issues.push(...reviewComposition(page,elements));
   for(const region of page.regions){
    if(!record(region)){add('page-region-invalid',where);continue;}
    const at={...where,zoneId:region.zoneId}, zone=list(page.visualDecision?.zones).find(z=>z.id===region.zoneId);
@@ -58,7 +60,7 @@ export function reviewPagePlan(project) {
     }
     if(valid){covered.add(ref);local.add(ref);}
    }
-   evidence.push({...at,readerTask:page.readerTask,representation:region.representation,reason:region.reason,contentRefs:list(region.contentRefs),relationRefs:list(region.relationRefs),bindings:list(region.bindings)});
+   evidence.push({...at,composition:page.composition,module:region.module,typography:region.typography,hierarchy:region.hierarchy,designReference:region.designReference,frameElementId:region.frameElementId,padding:region.padding,readerTask:page.readerTask,representation:region.representation,reason:region.reason,contentRefs:list(region.contentRefs),relationRefs:list(region.relationRefs),bindings:list(region.bindings)});
   }
   for(const ref of page.requiredRefs)if(!allRefs.has(ref)||!local.has(ref))add('page-required-unbound',{...where,ref});
  }
