@@ -136,6 +136,9 @@ function mountInspector(panel, selection, api) {
     if(mixed('color')){
       const note=document.createElement('small');note.textContent='当前为多种颜色；修改文字颜色将统一整段。';container.append(note);
     }
+    const weightOptions = [['300','Light · 细体 (300)'],['400','Regular · 常规 (400)'],['500','Medium · 中黑 (500)'],['600','SemiBold · 中粗 (600)'],['700','Bold · 粗体 (700)']];
+    const effectiveWeight = String(e.runs?.[0]?.style?.fontWeight ?? e.style?.fontWeight ?? 400);
+    select('字重',weightOptions.some(([w])=>w===effectiveWeight)?effectiveWeight:'400',weightOptions,value=>textStyle({fontWeight:Number(value)}));
     select('对齐',e.style.textAlign || 'left', [['left','左对齐'],['center','居中'],['right','右对齐']], textAlign => textStyle({textAlign}));
     if(e.runs){
       container = section('fusion-text-runs','分段文字与样式');
@@ -143,7 +146,7 @@ function mountInspector(panel, selection, api) {
         const update=patch=>{const runs=structuredClone(latestElement().runs);runs[index]={...runs[index],...patch};apply({type:'text-runs',runs});};
         const input=field(`文字段 ${index+1}`,run.text,text=>update({text}));input.dataset.runIndex=String(index);
         const color=field(`段 ${index+1} 颜色`,run.style?.color||e.style?.color||'#111111',color=>update({style:{...latestElement().runs[index].style,color}}),'color');color.dataset.runColor=String(index);
-        select(`段 ${index+1} 字重`,String(run.style?.fontWeight||400),[['400','常规'],['600','中粗'],['700','粗体']],value=>update({style:{...latestElement().runs[index].style,fontWeight:Number(value)}}));
+        select(`段 ${index+1} 字重`,String(run.style?.fontWeight||400),weightOptions,value=>update({style:{...latestElement().runs[index].style,fontWeight:Number(value)}}));
       });
       button('转为纯文本（清除句内样式）',()=>apply({type:'text',text:latestElement().text,resetRuns:true}));
     }else field('文字',e.text,text=>apply({type:'text',text}));

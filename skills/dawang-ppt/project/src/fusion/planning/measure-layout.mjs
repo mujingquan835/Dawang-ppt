@@ -27,10 +27,11 @@ async function createLayoutMeasurer({chrome='/Applications/Google Chrome.app/Con
           const root=document.getElementById('measure');root.replaceChildren();
           const nodes=specs.map(e=>{
             const node=document.createElement('div');
-            const apply=(node,style)=>{for(const [key,value] of Object.entries(style||{}))node.style[key]=typeof value==='number'&&!['fontWeight','lineHeight','opacity','zIndex'].includes(key)?value+'px':String(value);};
+            const apply=(node,style)=>{for(const [key,value] of Object.entries(style||{}))node.style[key]=typeof value==='number'&&!['fontWeight','lineHeight','opacity','zIndex'].includes(key)?value+'px':String(value);if(style?.fontWeight&&!style?.fontVariationSettings)node.style.fontVariationSettings=`"wght" ${Number(style.fontWeight)||400}`;};
             if(e.runs)for(const run of e.runs){const span=document.createElement('span');span.textContent=run.text;span.dataset.fusionRun='true';apply(span,run.style);node.append(span);}else node.textContent=String(e.text??'');
             apply(node,e.style);
-            Object.assign(node.style,{position:'relative',width:e.bounds[2]+'px',boxSizing:'border-box',fontFamily:e.fontFamily,fontSize:e.fontSize+'px',fontWeight:String(e.style?.fontWeight||400),lineHeight:String(e.style?.lineHeight||1.25),whiteSpace:'pre-wrap',overflowWrap:'break-word'});
+            const wght=Number(e.style?.fontWeight||400)||400;
+            Object.assign(node.style,{position:'relative',width:e.bounds[2]+'px',boxSizing:'border-box',fontFamily:e.fontFamily,fontSize:e.fontSize+'px',fontWeight:String(wght),fontVariationSettings:`"wght" ${wght}`,lineHeight:String(e.style?.lineHeight||1.25),whiteSpace:'pre-wrap',overflowWrap:'break-word'});
             root.append(node);return node;
           });
           await document.fonts.ready;

@@ -10,19 +10,32 @@ import { pickIcon, iconElements } from './icons.mjs';
 export const CANVAS = { width: 1920, height: 1080 };
 
 // radius: one corner radius shared by tiles, panels and photos, so rounded components read as one family.
-// roles: canonical typography scale driving page titles, hero metrics, units, section titles, key numbers, body and captions.
-export function createTheme({ palette = {}, fontFamily = 'PingFang SC', headingFamily, radius = 14, roles = {} } = {}) {
+// roles: position-aware OPPO Sans 4.0 typography scale driving eyebrows, page titles, hero metrics, units, section titles, item titles, key numbers, tables, body and captions.
+export function createTheme({ palette = {}, fontFamily = 'OPPO Sans 4.0', headingFamily, radius = 14, roles = {} } = {}) {
   const p = { bg: '#FFFFFF', ink: '#14213D', accent: '#E8590C', gold: '#B58A42', body: '#4B5563', muted: '#5C6B7A', line: '#D9DEE5', pale: '#F2F4F7', highlightBg: '#F7F0E3', inverse: '#FFFFFF', ...palette };
   const hFamily = headingFamily || fontFamily;
   const defaultRoles = {
-    pageTitle: { fontFamily: hFamily, fontSize: 52, fontWeight: 700, color: p.ink, lineHeight: 1.3 },
-    heroMetric: { fontFamily: hFamily, fontSize: 80, fontWeight: 700, color: p.accent, lineHeight: 1.3 },
+    eyebrow: { fontFamily, fontSize: 20, fontWeight: 500, color: p.accent, lineHeight: 1.3, letterSpacing: 0.6 },
+    pageTitle: { fontFamily: hFamily, fontSize: 52, fontWeight: 600, color: p.ink, lineHeight: 1.25, letterSpacing: -0.6 },
+    pageTitleFocus: { fontFamily: hFamily, fontSize: 52, fontWeight: 700, color: p.accent, lineHeight: 1.25, letterSpacing: -0.6 },
+    heroMetric: { fontFamily: hFamily, fontSize: 80, fontWeight: 700, color: p.accent, lineHeight: 1.25, letterSpacing: -1.5 },
+    subHeroMetric: { fontFamily: hFamily, fontSize: 54, fontWeight: 700, color: p.accent, lineHeight: 1.25, letterSpacing: -0.8 },
     metricUnit: { fontFamily, fontSize: 26, fontWeight: 500, color: p.accent, lineHeight: 1.3 },
-    sectionTitle: { fontFamily: hFamily, fontSize: 30, fontWeight: 700, color: p.accent, lineHeight: 1.35 },
-    keyNumber: { fontFamily: hFamily, fontSize: 34, fontWeight: 700, color: p.accent, lineHeight: 1.3 },
-    body: { fontFamily, fontSize: 26, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.4 },
-    tableBody: { fontFamily, fontSize: 24, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.35 },
-    caption: { fontFamily, fontSize: 20, fontWeight: 400, color: p.muted, lineHeight: 1.35 }
+    sectionTitle: { fontFamily: hFamily, fontSize: 30, fontWeight: 600, color: p.accent, lineHeight: 1.32, letterSpacing: -0.2 },
+    keyNumber: { fontFamily: hFamily, fontSize: 34, fontWeight: 700, color: p.accent, lineHeight: 1.25, letterSpacing: -0.4 },
+    itemTitle: { fontFamily: hFamily, fontSize: 28, fontWeight: 600, color: p.ink, lineHeight: 1.32 },
+    stepTitle: { fontFamily: hFamily, fontSize: 26, fontWeight: 600, color: p.ink, lineHeight: 1.32 },
+    roleSubtitle: { fontFamily, fontSize: 22, fontWeight: 500, color: p.accent, lineHeight: 1.32 },
+    badge: { fontFamily, fontSize: 28, fontWeight: 700, color: p.inverse, lineHeight: 1.15 },
+    tagBadge: { fontFamily, fontSize: 20, fontWeight: 600, color: p.inverse, lineHeight: 1.2, letterSpacing: 0.4 },
+    body: { fontFamily, fontSize: 24, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.42 },
+    tableHeader: { fontFamily, fontSize: 20, fontWeight: 600, color: p.muted, lineHeight: 1.3, letterSpacing: 0.4 },
+    tableKey: { fontFamily, fontSize: 24, fontWeight: 500, color: p.ink, lineHeight: 1.36 },
+    tableBody: { fontFamily, fontSize: 22, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.38 },
+    stepDetail: { fontFamily, fontSize: 22, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.38 },
+    tableEmphasis: { fontFamily, fontSize: 24, fontWeight: 600, color: p.accent, lineHeight: 1.36 },
+    caption: { fontFamily, fontSize: 20, fontWeight: 400, color: p.muted, lineHeight: 1.35 },
+    lightNote: { fontFamily, fontSize: 20, fontWeight: 300, color: p.muted, lineHeight: 1.36 }
   };
   const resolvedRoles = Object.fromEntries(Object.keys({ ...defaultRoles, ...roles }).map((k) => [k, { ...(defaultRoles[k] || { fontFamily, color: p.ink, fontWeight: 400, lineHeight: 1.4 }), ...(roles[k] || {}) }]));
   const font = (size, extra = {}) => {
@@ -407,7 +420,7 @@ export function fitImage({ id, src, size, box: [bx, by, bw, bh], maxUpscale = 2,
 export function table({ id, x, y, columns, rows, theme, headSize = 20, size = 24, padY = 18, rule = true }) {
   const p = theme.palette, width = columns.reduce((a, c) => a + c.width, 0), elements = [];
   let cx = x;
-  columns.forEach((c) => { elements.push(textElement({ id: `${id}-head-${c.key}`, text: c.label, bounds: [cx, y, c.width - 24, Math.round(headSize * 1.5)], style: theme.font(headSize, { color: p.muted }) })); cx += c.width; });
+  columns.forEach((c) => { elements.push(textElement({ id: `${id}-head-${c.key}`, text: c.label, bounds: [cx, y, c.width - 24, Math.round(headSize * 1.5)], style: theme.font(headSize, { fontWeight: 600, color: p.muted, letterSpacing: 0.4 }) })); cx += c.width; });
   let cy = y + Math.round(headSize * 1.5) + 10;
   elements.push(lineElement({ id: `${id}-head-rule`, from: [x, cy], to: [x + width, cy], style: { stroke: p.ink, strokeWidth: 2 } }));
   rows.forEach((row, r) => {

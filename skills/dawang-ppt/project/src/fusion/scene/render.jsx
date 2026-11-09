@@ -11,12 +11,19 @@ function SceneRoot({ slide, project }) {
  {materializeElements(slide, project).map((e) => <SceneElement key={e.id} element={e} styleDefinition={style} />)}
  </div>;
 }
+function weightVariation(weight) {
+  const n = Number(weight);
+  return Number.isFinite(n) && n >= 100 && n <= 900 ? `"wght" ${n}` : void 0;
+}
 function SceneElement({ element: e, styleDefinition: s }) {
   const [x, y, w, h] = e.bounds;
   const markerId = ("arrow-" + s.id + "-" + e.id).replace(/[^a-zA-Z0-9_-]/g, "-");
   const st = { position: "absolute", left: x, top: y, width: w, height: h, boxSizing: "border-box", ...e.style };
   const props = { "data-node-id": e.nodeId, "data-relationship-id": e.relationshipId, "data-from-node": e.fromNodeId, "data-to-node": e.toNodeId, "data-fusion-element": e.id, "data-fusion-parent": e.parentId || void 0, "data-element-type": e.type, "data-end-arrow": e.endArrow || void 0, "data-shape": e.shape || void 0, "data-clip-shape": e.clipShape || void 0 };
-  if (e.type === "text") return <div {...props} className={e.role === "title" || (e.style?.fontSize || 0) > 50 ? "fusion-title" : "fusion-body"} data-editable-path={`fusion-${e.id}`} data-fusion-font={e.manualStyle?.fontFamily ? "true" : undefined} style={{ ...st, "--fusion-text-font": cssFontStack(e.manualStyle?.fontFamily || e.style?.fontFamily), fontFamily: cssFontStack(e.style?.fontFamily || (e.role === "title" || e.id === "title" ? s.typography.heading : s.typography.body)), fontSize: e.style?.fontSize || s.typography.sizes.body, lineHeight: e.style?.lineHeight || 1.25, whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>{e.runs ? e.runs.map((run,index)=><span key={index} data-fusion-run={index} style={{...run.style,...(run.style?.fontFamily?{fontFamily:cssFontStack(run.style.fontFamily)}:{})}}>{run.text}</span>) : e.text || ""}</div>;
+  if (e.type === "text") {
+    const fvs = e.style?.fontVariationSettings || weightVariation(e.style?.fontWeight || 400);
+    return <div {...props} className={e.role === "title" || (e.style?.fontSize || 0) > 50 ? "fusion-title" : "fusion-body"} data-editable-path={`fusion-${e.id}`} data-fusion-font={e.manualStyle?.fontFamily ? "true" : undefined} style={{ ...st, ...(fvs ? { fontVariationSettings: fvs } : {}), "--fusion-text-font": cssFontStack(e.manualStyle?.fontFamily || e.style?.fontFamily), fontFamily: cssFontStack(e.style?.fontFamily || (e.role === "title" || e.id === "title" ? s.typography.heading : s.typography.body)), fontSize: e.style?.fontSize || s.typography.sizes.body, lineHeight: e.style?.lineHeight || 1.25, whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>{e.runs ? e.runs.map((run,index)=>{const rfvs=run.style?.fontVariationSettings||weightVariation(run.style?.fontWeight||e.style?.fontWeight||400);return <span key={index} data-fusion-run={index} style={{...run.style,...(rfvs?{fontVariationSettings:rfvs}:{}),...(run.style?.fontFamily?{fontFamily:cssFontStack(run.style.fontFamily)}:{})}}>{run.text}</span>;}) : e.text || ""}</div>;
+  }
   if (e.type === "vector") return <VectorElement element={e} position={{position:"absolute",left:x,top:y,width:w,height:h}} attributes={props} />;
   if (e.type === 'image' && e.crop) {
     const [cx,cy,cw,ch]=e.crop;

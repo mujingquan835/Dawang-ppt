@@ -34,9 +34,9 @@ export function roleGroup(spec) {
  const elements=[],bindings=[],rows=[];let cy=y;
  for(const item of items){
   if(!item.name||!item.role||!item.detail)throw new TypeError('name, role and detail required');
-  const prefix=`${id}-${item.id}`,tx=x+mediaW+24,tw=w-mediaW-24,ids=[];let ty=cy;
-  for(const [key,size,weight] of [['name',spec.nameSize??30,700],['role',spec.roleSize??24,700],['detail',spec.detailSize??24,400]]){
-   const e=text(`${prefix}-${key}`,item[key],tx,ty,tw,size,theme,measurements,{fontWeight:weight});elements.push(e);ids.push(e.id);ty+=e.bounds[3]+8;
+  const prefix=`${id}-${item.id}`,tx=x+mediaW+24,tw=w-mediaW-24,ids=[],lineGap=spec.lineGap??6;let ty=cy;
+  for(const [key,size,weight,color] of [['name',spec.nameSize??30,spec.nameWeight??600,theme.palette.ink],['role',spec.roleSize??24,spec.roleWeight??500,spec.roleColor||theme.palette.accent],['detail',spec.detailSize??24,spec.detailWeight??400,theme.palette.body||theme.palette.muted]]){
+   const e=text(`${prefix}-${key}`,item[key],tx,ty,tw,size,theme,measurements,{fontWeight:weight,color});elements.push(e);ids.push(e.id);ty+=e.bounds[3]+lineGap;
   }
   let mediaElements;
   if(item.photo)mediaElements=photoGroup({id:`${prefix}-photo`,x,y:cy,width:mediaW,height:mediaH,images:[{...item.photo,src:item.photo.src||item.photo.file}],theme,gap:0}).elements;
@@ -54,7 +54,7 @@ export function roleGroup(spec) {
    mediaElements=[{id:`${prefix}-placeholder-bg`,type:'shape',bounds:[x,cy,mediaW,boxH],style:{fill:item.placeholderFill||'#E2E7F4',radius:theme.radius}},...(badgeEl?[badgeEl]:[]),placeholder];
   }
   elements.push(...mediaElements);
-  const rh=Math.max(ty-cy-8,...mediaElements.map(e=>e.bounds[1]+e.bounds[3]-cy));
+  const rh=Math.max(ty-cy-lineGap,...mediaElements.map(e=>e.bounds[1]+e.bounds[3]-cy));
   if(item.ref)bindings.push({ref:item.ref,elementIds:ids});
   rows.push({id:item.id,bounds:[x,cy,w,rh]});cy+=rh+gap;
  }
@@ -82,11 +82,17 @@ export function capacityTable(spec) {
    e.id=`${id}-row-${encodeURIComponent(row.id)}-${col.key}`;
    if(j===0&&inset0)e.bounds[0]+=inset0;
    if(col.align)e.style.textAlign=col.align;
+   if(col.fontSize)e.style.fontSize=col.fontSize;
    if(row.runs?.[col.key])e.runs=structuredClone(row.runs[col.key]);
    if(isPrimary){
-    if(j===0||col.emphasize||col.key==='value'){e.style.fontWeight=700;if(col.emphasize||col.key==='value'){e.style.color=theme.palette.accent;if(col.emphasisSize)e.style.fontSize=col.emphasisSize;}}
+    if(j===0||col.emphasize||col.key==='value'){e.style.fontWeight=700;e.style.color=(col.emphasize||col.key==='value')?theme.palette.accent:theme.palette.ink;if((col.emphasize||col.key==='value')&&col.emphasisSize)e.style.fontSize=col.emphasisSize;}
+    else{e.style.fontWeight=500;e.style.color=theme.palette.ink;}
    }else if(isSecondary&&(j===0||col.emphasize||col.key==='value')){
-    e.style.fontWeight=700;if(col.emphasize||col.key==='value')e.style.color=theme.palette.accent;
+    e.style.fontWeight=600;if(col.emphasize||col.key==='value')e.style.color=theme.palette.accent;
+   }else{
+    if(col.emphasize){e.style.fontWeight=col.weight??600;e.style.color=col.color||theme.palette.accent;}
+    else if(j===0){e.style.fontWeight=col.weight??500;e.style.color=col.color||theme.palette.ink;}
+    else{e.style.fontWeight=col.weight??400;e.style.color=col.color||theme.palette.body||theme.palette.ink;}
    }
    if(row.styles?.[col.key])Object.assign(e.style,row.styles[col.key]);
   });
@@ -118,7 +124,9 @@ export function capacityFlow(spec) {
   const title=result.elements.find(e=>e.id===`${id}-title-${i+1}`),detail=result.elements.find(e=>e.id===`${id}-detail-${i+1}`);
   if(steps[i].nodeFill&&nodeEl)nodeEl.style.fill=steps[i].nodeFill;
   if(steps[i].nodeColor&&numEl)numEl.style.color=steps[i].nodeColor;
+  if(title)title.style.fontWeight=(steps[i].highlight||steps[i].titleColor)?700:600;
   if(steps[i].titleColor&&title)title.style.color=steps[i].titleColor;
+  if(detail)detail.style.color=theme.palette.body||theme.palette.muted;
   title.bounds[3]=heightFor({...title,id:`${id}-title-${encodeURIComponent(steps[i].id)}`},measurements);
   if(detail){detail.bounds[1]=title.bounds[1]+title.bounds[3]+6;detail.bounds[3]=heightFor({...detail,id:`${id}-detail-${encodeURIComponent(steps[i].id)}`},measurements);}
  }
@@ -162,7 +170,7 @@ export function panelGroup(spec) {
  });
  if(cols.some(c=>c.inner<120))throw new TypeError('panel columns too narrow');
  if(panels.some(p=>!p.title||typeof p.builder!=='function'))throw new TypeError('panel title and builder required');
- const heads=panels.map((p,i)=>text(`${id}-${p.id}-heading`,p.title,cols[i].px+pad,y+pad,cols[i].inner,spec.titleSize??30,theme,measurements,{fontWeight:700,color:theme.palette.accent}));
+ const heads=panels.map((p,i)=>text(`${id}-${p.id}-heading`,p.title,cols[i].px+pad,y+pad,cols[i].inner,spec.titleSize??30,theme,measurements,{fontWeight:theme.roles?.sectionTitle?.fontWeight??600,letterSpacing:theme.roles?.sectionTitle?.letterSpacing??-0.2,color:p.titleColor||theme.palette.accent}));
  const titleH=Math.max(...heads.map(e=>e.bounds[3]));
  const summaries=panels.map((p,i)=>{
   if(!p.summary)return null;
@@ -171,18 +179,19 @@ export function panelGroup(spec) {
    const unitSize=p.summary.unitSize??spec.summaryUnitSize??theme.roles?.metricUnit?.fontSize??26;
    const color=p.summary.color||theme.palette.accent,unitColor=p.summary.unitColor||color;
    const mr=theme.metricRuns(p.summary.value,p.summary.unit||'',{size:valSize,unitSize,color,unitColor,gap:p.summary.gap??' '});
-   const e=textElement({id:`${id}-${p.id}-summary`,text:mr.text,runs:mr.runs,bounds:[cols[i].px+pad,y+pad+titleH+16,cols[i].inner,1],style:theme.font(valSize,{fontWeight:700,color,lineHeight:1.3})});
+   const e=textElement({id:`${id}-${p.id}-summary`,text:mr.text,runs:mr.runs,bounds:[cols[i].px+pad,y+pad+titleH+16,cols[i].inner,1],style:theme.font(valSize,{fontWeight:700,letterSpacing:-1.5,color,lineHeight:1.3})});
    e.bounds[3]=heightFor(e,measurements);return e;
   }
   return text(`${id}-${p.id}-summary`,p.summary,cols[i].px+pad,y+pad+titleH+16,cols[i].inner,spec.summarySize??40,theme,measurements,{fontWeight:700,color:theme.palette.accent});
  });
  const summaryH=Math.max(0,...summaries.filter(Boolean).map(e=>e.bounds[3]));
- const sharedBodyY=y+pad+titleH+24+(summaryH?summaryH+24:0);
+ const headerGap=spec.headerGap??24,summaryGap=spec.summaryGap??24;
+ const sharedBodyY=y+pad+titleH+headerGap+(summaryH?summaryH+summaryGap:0);
  if(y+h-pad-sharedBodyY<=0)throw new RangeError('panel header leaves no body space; reallocate region');
  const elements=[],bindings=[],regions=[],children=[];
  panels.forEach((p,i)=>{
   const {px,pw,inner}=cols[i],pid=`${id}-${p.id}`;
-  const bodyY=(summaries[i]||spec.alignBodyTop)?sharedBodyY:(y+pad+titleH+24),bodyH=y+h-pad-bodyY;
+  const bodyY=(summaries[i]||spec.alignBodyTop)?sharedBodyY:(y+pad+titleH+headerGap),bodyH=y+h-pad-bodyY;
   const bounds=[px+pad,bodyY,inner,bodyH];
   let child=p.builder({...p.spec,id:pid+'-body',bounds,theme,measurements});
   // Spread table/allocation row padding equally, without scaling fonts or forcing row correspondence.
@@ -206,14 +215,14 @@ export function panelGroup(spec) {
 export function allocationList(spec) {
  validate(spec);checkItems(spec.items);
  const {id,items,bounds:[x,y,w],measurements}=spec,theme=spec.theme||createTheme();
- const pad=spec.padY??16,gap=spec.gap??14,barH=spec.showBar===false?0:(spec.barHeight??14),barGap=spec.barGap??4;
- if(![pad,gap,barH,barGap].every(v=>Number.isFinite(v)&&v>=0))throw new TypeError('allocationList spacing must be nonnegative');
+ const pad=spec.padY??16,gap=spec.gap??14,barH=spec.showBar===false?0:(spec.barHeight??14),barGap=spec.barGap??4,barBottomGap=spec.barBottomGap??20,lineGap=spec.lineGap??6,leftShare=spec.leftShare??0.56;
+ if(![pad,gap,barH,barGap,barBottomGap,lineGap].every(v=>Number.isFinite(v)&&v>=0))throw new TypeError('allocationList spacing must be nonnegative');
  const shares=items.map(it=>Number(it.shareValue??String(it.share??'').replace(/[^\d.]/g,'')));
  if(shares.some(s=>!Number.isFinite(s)||s<=0))throw new TypeError('allocationList items require positive share values');
  const shareSum=shares.reduce((a,b)=>a+b,0),elements=[],bindings=[],rowBounds=[];
  let cy=y;
  if(barH>0){
-  const availBarW=w-barGap*(items.length-1),colors=[theme.palette.accent,theme.palette.gold||'#B58A42','#9BA8D4','#C5CEE8'];
+  const availBarW=w-barGap*(items.length-1),colors=[theme.palette.accent,theme.palette.gold||'#B58A42','#6476B8','#9BA8D4','#C5CEE8'];
   let bx=x;
   items.forEach((it,i)=>{
    const sw=i===items.length-1?x+w-bx:Math.max(8,Math.round(availBarW*shares[i]/shareSum));
@@ -221,16 +230,16 @@ export function allocationList(spec) {
    elements.push({id:segId,type:'shape',bounds:[bx,cy,sw,barH],style:{fill:it.barColor||colors[i%colors.length],radius:4}});
    bx+=sw+barGap;
   });
-  cy+=barH+20;
+  cy+=barH+barBottomGap;
  }
- const leftW=Math.round(w*0.56)-28,rightX=x+Math.round(w*0.56),rightW=w-Math.round(w*0.56)-16,badgeW=spec.badgeWidth??92,badgeH=spec.badgeHeight??42;
+ const leftW=Math.round(w*leftShare)-28,rightX=x+Math.round(w*leftShare),rightW=w-Math.round(w*leftShare)-16,badgeW=spec.badgeWidth??92,badgeH=spec.badgeHeight??42;
  if(leftW<80||rightW-badgeW-12<60)throw new TypeError('allocationList region too narrow');
  items.forEach((it,i)=>{
   if(!it.title||it.amount===undefined||it.share===undefined)throw new TypeError('allocationList item requires title, amount and share');
   const rid=`${id}-row-${encodeURIComponent(it.id)}`,isPrimary=it.highlight===true||it.tone==='primary';
   const titleEl=text(`${rid}-title`,it.title,x+20,cy,leftW,spec.titleSize??24,theme,measurements,{fontWeight:isPrimary?700:600,color:theme.palette.ink});
   const detailEl=it.detail?text(`${rid}-detail`,it.detail,x+20,cy,leftW,spec.detailSize??20,theme,measurements,{fontWeight:400,color:theme.palette.body||theme.palette.muted}):null;
-  const leftH=titleEl.bounds[3]+(detailEl?6+detailEl.bounds[3]:0);
+  const leftH=titleEl.bounds[3]+(detailEl?lineGap+detailEl.bounds[3]:0);
   const amtSize=it.amountSize??spec.amountSize??(theme.roles?.keyNumber?.fontSize??34),unitSize=spec.unitSize??20;
   const mr=theme.metricRuns(it.amount,it.unit??'元',{valueRole:'keyNumber',unitRole:'metricUnit',size:amtSize,unitSize,color:theme.palette.accent,gap:it.unitGap??''});
   const amtEl=textElement({id:`${rid}-amount`,text:mr.text,runs:mr.runs,bounds:[rightX,cy,rightW-badgeW-14,1],style:theme.font(amtSize,{fontWeight:700,color:theme.palette.accent,textAlign:'right',lineHeight:1.2})});
@@ -239,7 +248,7 @@ export function allocationList(spec) {
   const rightH=Math.max(amtEl.bounds[3],badgeH,shareEl.bounds[3]);
   const rh=Math.max(leftH,rightH)+pad*2;
   const topLeft=cy+Math.round((rh-leftH)/2);
-  titleEl.bounds[1]=topLeft;if(detailEl)detailEl.bounds[1]=topLeft+titleEl.bounds[3]+6;
+  titleEl.bounds[1]=topLeft;if(detailEl)detailEl.bounds[1]=topLeft+titleEl.bounds[3]+lineGap;
   amtEl.bounds[1]=cy+Math.round((rh-amtEl.bounds[3])/2);
   const badgeY=cy+Math.round((rh-badgeH)/2);
   shareEl.bounds[1]=badgeY+Math.round((badgeH-shareEl.bounds[3])/2);
@@ -271,14 +280,15 @@ export function capacityCycle(spec) {
  const labelDrafts=nodes.map((node,i)=>{
   if(!node.title)throw new TypeError('capacityCycle node requires title');
   const angle=-Math.PI/2+(2*Math.PI*i)/n,sin=Math.sin(angle),cos=Math.cos(angle);
-  const pos=sin<-0.7?'top':sin>0.7?'bottom':cos>=0?'right':'left';
+  const pos=Math.abs(cos)<0.35?(sin<0?'top':'bottom'):(cos>=0?'right':'left');
   const lw=pos==='top'||pos==='bottom'?tbW:sideW,align=pos==='top'||pos==='bottom'?'center':pos==='left'?'right':'left';
   const nid=encodeURIComponent(node.id);
-  const tEl=text(`${id}-title-${nid}`,node.title,x,y,lw,titleSize,theme,measurements,{fontWeight:700,color:mainColor,textAlign:align});
+  const isStart=node.highlight??(i===0);
+  const tEl=text(`${id}-title-${nid}`,node.title,x,y,lw,titleSize,theme,measurements,{fontWeight:isStart?700:600,color:isStart?mainColor:theme.palette.ink,textAlign:align});
   const dEl=node.detail?text(`${id}-detail-${nid}`,node.detail,x,y,lw,detailSize,theme,measurements,{fontWeight:400,color:theme.palette.body||theme.palette.muted,textAlign:align}):null;
   return {node,nid,angle,sin,cos,pos,lw,tEl,dEl,blockH:tEl.bounds[3]+(dEl?6+dEl.bounds[3]:0)};
  });
- const noteEl=spec.note?text(`${id}-note`,typeof spec.note==='string'?spec.note:spec.note.text,x+16,y+h-36,w-32,spec.noteSize??(theme.roles?.caption?.fontSize??20),theme,measurements,{color:theme.palette.muted,textAlign:spec.noteAlign||'center'}):null;
+ const noteEl=spec.note?text(`${id}-note`,typeof spec.note==='string'?spec.note:spec.note.text,x+16,y+h-36,w-32,spec.noteSize??(theme.roles?.caption?.fontSize??20),theme,measurements,{fontWeight:spec.noteWeight??300,color:theme.palette.muted,textAlign:spec.noteAlign||'center'}):null;
  const availH=h-(noteEl?noteEl.bounds[3]+12:0);
  const topH=Math.max(0,...labelDrafts.filter(d=>d.pos==='top').map(d=>d.blockH));
  const botH=Math.max(0,...labelDrafts.filter(d=>d.pos==='bottom').map(d=>d.blockH));
@@ -294,8 +304,8 @@ export function capacityCycle(spec) {
  const innerR=Math.max(48,R-22);
  if(spec.center){
   const cw=Math.round(innerR*1.65),cx0=cx-Math.round(cw/2);
-  const cVal=text(`${id}-center-value`,spec.center.value,cx0,cy,cw,spec.center.valueSize??52,theme,measurements,{fontWeight:700,color:mainColor,textAlign:'center',lineHeight:1.3});
-  const cLab=spec.center.label?text(`${id}-center-label`,spec.center.label,cx0,cy,cw,spec.center.labelSize??24,theme,measurements,{fontWeight:400,color:theme.palette.body||theme.palette.muted,textAlign:'center'}):null;
+  const cVal=text(`${id}-center-value`,spec.center.value,cx0,cy,cw,spec.center.valueSize??52,theme,measurements,{fontWeight:700,color:mainColor,textAlign:'center',lineHeight:1.28,letterSpacing:-0.5});
+  const cLab=spec.center.label?text(`${id}-center-label`,spec.center.label,cx0,cy,cw,spec.center.labelSize??24,theme,measurements,{fontWeight:500,color:theme.palette.body||theme.palette.muted,textAlign:'center'}):null;
   const ch=cVal.bounds[3]+(cLab?6+cLab.bounds[3]:0),ctop=cy-Math.round(ch/2);
   cVal.bounds[1]=ctop;if(cLab)cLab.bounds[1]=ctop+cVal.bounds[3]+6;
   elements.push(cVal,...(cLab?[cLab]:[]));

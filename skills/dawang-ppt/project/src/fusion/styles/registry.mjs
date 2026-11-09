@@ -14,7 +14,7 @@ export { STYLE_DEFINITIONS, resolveStyle };
 function resolveSlideStyle(slide,project) {
  const authored=['dawang-authored-v1','kimi-authored-v1'].includes(slide.authoring?.engine) && slide.styleId==='authored/custom';
  const style=authored
-  ? {id:'authored/custom',source:{kind:'authored'},palette:{bg:'#FFFFFF',ink:'#161616',muted:'#667085',accent:'#245B48',line:'#D8DEE5'},typography:{heading:'sans-serif',body:'sans-serif',mono:'monospace',sizes:{title:82,body:34,note:23}}}
+  ? {id:'authored/custom',source:{kind:'authored'},palette:{bg:'#FFFFFF',ink:'#161616',muted:'#667085',accent:'#245B48',line:'#D8DEE5'},typography:{heading:'OPPO Sans 4.0',body:'OPPO Sans 4.0',mono:'monospace',sizes:{title:82,body:34,note:23}}}
   : resolveStyle(slide.styleId);
  if(authored&&project?.designChoice?.appearance?.palette)style.palette={...style.palette,...project.designChoice.appearance.palette};
  if(slide.appearance?.palette)style.palette={...style.palette,...slide.appearance.palette};
