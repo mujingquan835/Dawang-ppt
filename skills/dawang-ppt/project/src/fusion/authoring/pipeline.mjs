@@ -5,7 +5,7 @@ import {loadProject,saveProject} from '../project/store.mjs';import {renderProje
 import {createFusionServer} from '../../../scripts/fusion-preview.jsx';import {measureProject} from '../qa/measure.mjs';
 import {validatePortableHtml} from '../portable/html.mjs';import {reviewKeyLines} from '../qa/key-lines.mjs';import {reviewVisualDecisions} from '../qa/visual-decisions.mjs';import {reviewRuleChecklist} from '../qa/rule-checklist.mjs';import {reviewGate} from '../qa/rules-review.mjs';import {checkDecisions,applyDecisions} from '../qa/user-decisions.mjs';
 const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-async function run({workspaceDir,outFile,slideIds,screenshots}){
+async function run({workspaceDir,outFile,reviewDraftFile,slideIds,screenshots}){
  const start=performance.now(),phases={};const project=loadProject(path.join(workspaceDir,'deck-project.json'));
  // Patch diagnostics conservatively widen shared edits. Publish never uses a local result.
  const patchFile=path.join(workspaceDir,'last-patch.json'),patch=fs.existsSync(patchFile)?JSON.parse(fs.readFileSync(patchFile,'utf8')):null;
@@ -30,15 +30,28 @@ async function run({workspaceDir,outFile,slideIds,screenshots}){
    // Same conditions as measure (readiness, finite bounds, coverage, browser errors, page issues), minus decided page issues.
    qa.ok=qa.readiness?.ready!==false&&qa.finiteBounds!==false&&!qa.coverageIssues.length&&!qa.browserErrors.length&&!pageDecided.open.length;
    if(authored.open.length||malformed.length||gate.issues.length)qa.ok=false;
-   if(!qa.ok)return {ok:false,issues,warnings,decided,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa};
-   if(outFile){const serializationStart=performance.now();const html=await page.evaluate(()=>window.__fusionEditor.serializeHtml());const validation=validatePortableHtml(html);if(!validation.ok)return {ok:false,issues:[validation],qa};
+   if(!qa.ok){
+    let draftWritten=false;
+    if(reviewDraftFile&&qa.readiness?.ready!==false&&qa.finiteBounds!==false){
+     const html=await page.evaluate(()=>window.__fusionEditor.serializeHtml());
+     const validation=validatePortableHtml(html);
+     if(validation.ok){
+      fs.mkdirSync(path.dirname(path.resolve(reviewDraftFile)),{recursive:true});
+      const tmp=reviewDraftFile+'.'+process.pid+'.tmp';
+      try{fs.writeFileSync(tmp,html);fs.renameSync(tmp,reviewDraftFile);draftWritten=true;}finally{fs.rmSync(tmp,{force:true});}
+     }
+    }
+    const releaseStatus=draftWritten?'review-draft':(gate.releaseStatus==='validating'&&!pageDecided.open.length&&!authored.open.length?'validating':'needs-revision');
+    return {ok:false,releaseStatus,reviewDraftFile:draftWritten?reviewDraftFile:undefined,issues,warnings,decided,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa};
+   }
+   if(outFile){const serializationStart=performance.now();const html=await page.evaluate(()=>window.__fusionEditor.serializeHtml());const validation=validatePortableHtml(html);if(!validation.ok)return {ok:false,releaseStatus:'needs-revision',issues:[validation],qa};
     phases.serializeMs=performance.now()-serializationStart;
     if(requests.length)throw Error('Unexpected automatic format export');
     fs.mkdirSync(path.dirname(path.resolve(outFile)),{recursive:true});const tmp=outFile+'.'+process.pid+'.tmp';try{fs.writeFileSync(tmp,html);fs.renameSync(tmp,outFile);}finally{fs.rmSync(tmp,{force:true});}
    }
-   return {ok:true,issues,warnings,decided,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa,exportRequests:requests};
+   return {ok:true,releaseStatus:'ready',issues,warnings,decided,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa,exportRequests:requests};
   }finally{await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
- });}catch(error){result={ok:false,issues:[{kind:'operation-failed',message:error.message}]};}
+ });}catch(error){result={ok:false,releaseStatus:'needs-revision',issues:[{kind:'operation-failed',message:error.message}]};}
  const report={...result,projectId:project.requirements.projectId,revision:project.revision,workspaceDir,outFile,scope:slideIds?'slides':'all',deliveryProfile:'html-first',phases,durationMs:performance.now()-start,at:new Date().toISOString()};recordRun(workspaceDir,report);return report;
 }
 export async function publishHtml(options){return run(options);}

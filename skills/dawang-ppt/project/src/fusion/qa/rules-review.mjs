@@ -1,4 +1,5 @@
 import { pageDesignClaims } from '../authoring/page-plan.mjs';
+import { hasPageDesignContract, hasSemanticContract } from '../authoring/content-model.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -7,23 +8,147 @@ import { isRuleContract, isSectionChecklist } from './rule-checklist.mjs';
 import { readDecisions, decisionFor } from './user-decisions.mjs';
 import { houseStylePrompt } from './house-style.mjs';
 
-// After this many consecutive rounds, findings the author could not resolve stop blocking: they are delivered with the
-// deck and listed to the user, who decides. Objective program checks keep blocking regardless.
+// After this many consecutive rounds, legacy findings stop blocking, whereas tiered-review (W4) keeps blockers active
+// as needs-revision and only allows advisories to pass with disclosure.
 export const MAX_REVIEW_ROUNDS = 3;
+export const hasTieredReview = (project) => Boolean(
+  hasPageDesignContract(project) ||
+  hasSemanticContract(project) ||
+  project?.requirements?.reviewContract === 'tiered-review-v1'
+);
 
 // Independent review of the production rule checklist. The author fills the checklist; a reviewer with a fresh context
 // sees only the page screenshots, an element map, the rule text and the claims, and judges each claim. Publishing
 // a new deck needs a review of the current revision with no failed claim. The reviewer never sees the author's
 // reasoning, so a stretched mapping (a bar chart offered as a structural diagram) has to survive on the pages alone.
 export const REVIEW_FILE = 'rules-review.json';
-const VERDICTS = new Set(['pass', 'fail']);
-export const checklistHash = (project) => createHash('sha256').update(JSON.stringify(project.contentPlan?.ruleChecklist ?? null)).digest('hex');
+const VERDICTS = new Set(['pass', 'fail', 'needs-verification']);
+const CATEGORIES = new Set(['content', 'render', 'design']);
+const SEVERITIES = new Set(['blocker', 'advisory', 'needs-verification']);
+const sha256 = (value) => createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex');
+export const checklistHash = (project) => sha256(project.contentPlan?.ruleChecklist ?? null);
+
+export function globalDependencyHash(project) {
+  return sha256({
+    checklistHash: checklistHash(project),
+    designChoice: project?.designChoice ?? null,
+    scope: project?.requirements?.scope ?? null,
+    slideOrder: project?.editorState?.slideOrder ?? (project?.slides || []).map((s) => s.slideId),
+    skippedSlides: project?.editorState?.skippedSlides ?? [],
+    deletedSlides: project?.editorState?.deletedSlides ?? []
+  });
+}
+
+export function pageDependencyHash(project, slideId) {
+  const slide = (project?.slides || []).find((s) => s.slideId === slideId);
+  if (!slide) return sha256(null);
+  const elements = materializeElements(slide, project);
+  const pagePlan = (project?.contentPlan?.slides || []).find((p) => p?.slideId === slideId) || null;
+  const refs = new Set([
+    ...(pagePlan?.requiredRefs || []),
+    ...((pagePlan?.regions || []).flatMap((r) => [...(r?.contentRefs || []), ...(r?.relationRefs || [])])),
+    ...elements.map((e) => e.contentRef).filter(Boolean)
+  ]);
+  const nodes = {};
+  for (const ref of [...refs].sort()) {
+    if (project?.contentPlan?.nodes?.[ref]) nodes[ref] = project.contentPlan.nodes[ref];
+  }
+  const relations = (project?.contentPlan?.relations || []).filter((r) => refs.has(r?.id));
+  const mediaRefs = new Set(elements.map((e) => e.mediaRef || e.src).filter(Boolean));
+  const media = (project?.media?.entries || []).filter((m) => mediaRefs.has(m?.mediaId) || mediaRefs.has(m?.src));
+  return sha256({
+    slideId,
+    appearance: slide.appearance ?? null,
+    semanticDirtyRefs: slide.semanticDirtyRefs ?? [],
+    elements,
+    pagePlan,
+    nodes,
+    relations,
+    media
+  });
+}
+
+export function allPageHashes(project) {
+  return Object.fromEntries((project?.slides || []).map((s) => [s.slideId, pageDependencyHash(project, s.slideId)]));
+}
+
+export function claimPageIds(claim, project) {
+  if (Array.isArray(claim?.pageIds) && claim.pageIds.length) return [...new Set(claim.pageIds)];
+  if (typeof claim?.slideId === 'string' && claim.slideId) return [claim.slideId];
+  if (typeof claim?.id === 'string' && claim.id.startsWith('page-design#')) {
+    const raw = claim.id.slice('page-design#'.length).split('/')[0];
+    if (raw) return [decodeURIComponent(raw)];
+  }
+  if (Array.isArray(claim?.evidence) && claim.evidence.length) {
+    const ids = [...new Set(claim.evidence.map((e) => e?.slideId).filter(Boolean))];
+    if (ids.length) return ids;
+  }
+  if (claim?.status === 'not-applicable' || claim?.status === 'user-override') return [];
+  return (project?.slides || []).map((s) => s.slideId);
+}
+
+export function classifyFinding(item, claim, project) {
+  const pageIds = Array.isArray(item?.pageIds) && item.pageIds.length ? [...new Set(item.pageIds)] : claimPageIds(claim, project);
+  const regionIds = Array.isArray(item?.regionIds) && item.regionIds.length
+    ? [...new Set(item.regionIds)]
+    : (claim?.zoneId ? [claim.zoneId] : []);
+  const refs = Array.isArray(item?.refs) && item.refs.length
+    ? [...new Set(item.refs)]
+    : [...new Set([...(claim?.contentRefs || []), ...(claim?.relationRefs || [])])];
+  const reason = String(item?.reason ?? '');
+  let category = CATEGORIES.has(item?.category) ? item.category : null;
+  if (!category) {
+    if (/事实|数据|数值|口径|单位|来源|遗漏|缺失|预估|实绩|待确认|关系|返回|闭环|分支|成员/.test(reason)) category = 'content';
+    else if (claim?.id === 'visual#alignment' || claim?.id === 'visual#images' || /裁切|溢出|遮挡|重叠|出界|看不清|变形|对比度/.test(reason)) category = 'render';
+    else category = 'design';
+  }
+  let severity = SEVERITIES.has(item?.severity) ? item.severity : null;
+  if (item?.verdict === 'pass') severity = 'none';
+  else if (item?.verdict === 'needs-verification' || severity === 'needs-verification') severity = 'needs-verification';
+  else if (!severity) {
+    if (category === 'content' || category === 'render') severity = 'blocker';
+    else if (
+      (String(claim?.id || '').startsWith('scenario#Directions') || /可选|建议|偏好|装饰|润色|更精致|微调/.test(reason)) &&
+      !/阅读任务|看不出|主次不清|勉强对应|缺乏结构/.test(reason)
+    ) severity = 'advisory';
+    else severity = 'blocker';
+  }
+  const suggestedAction = item?.suggestedAction || (
+    item?.verdict === 'pass' ? 'none'
+      : category === 'content' ? 'return-to-content-model'
+      : category === 'render' ? 'return-to-capacity-layout'
+      : severity === 'advisory' ? 'local-polish-or-user-decision'
+      : 'return-to-page-design'
+  );
+  return {
+    id: item.id,
+    verdict: item.verdict === 'needs-verification' ? 'fail' : item.verdict,
+    status: claim?.status ?? item?.status,
+    category,
+    severity,
+    pageIds,
+    regionIds,
+    refs,
+    reason,
+    suggestedAction
+  };
+}
 
 export const VERDICT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['items'],
   properties: { items: { type: 'array', items: {
     type: 'object', additionalProperties: false, required: ['id', 'verdict', 'reason'],
-    properties: { id: { type: 'string' }, verdict: { type: 'string', enum: ['pass', 'fail'] }, reason: { type: 'string' } }
+    properties: {
+      id: { type: 'string' },
+      verdict: { type: 'string', enum: ['pass', 'fail', 'needs-verification'] },
+      reason: { type: 'string' },
+      category: { type: 'string', enum: ['content', 'render', 'design'] },
+      severity: { type: 'string', enum: ['blocker', 'advisory', 'needs-verification'] },
+      pageIds: { type: 'array', items: { type: 'string' } },
+      regionIds: { type: 'array', items: { type: 'string' } },
+      refs: { type: 'array', items: { type: 'string' } },
+      suggestedAction: { type: 'string' }
+    }
   } } }
 };
 
@@ -86,44 +211,188 @@ export function buildReviewPacket({ project, rules, pages, only }) {
 }
 
 // Missing or duplicated verdicts make the review unusable rather than silently passing those claims.
-export function normalizeVerdict(verdict, claims) {
+export function normalizeVerdict(verdict, claims, project = null) {
   const items = Array.isArray(verdict?.items) ? verdict.items : [];
-  const byId = new Map(items.filter((i) => VERDICTS.has(i?.verdict)).map((i) => [i.id, { id: i.id, verdict: i.verdict, reason: String(i.reason ?? '') }]));
+  const byId = new Map(items.filter((i) => VERDICTS.has(i?.verdict)).map((i) => [i.id, i]));
   const missing = claims.filter((c) => !byId.has(c.id)).map((c) => c.id);
   if (missing.length) throw new Error('复核结果缺少条目：' + missing.join('，'));
-  return claims.map((c) => ({ ...byId.get(c.id), status: c.status }));
+  return claims.map((c) => {
+    const raw = byId.get(c.id);
+    if (!project || !hasTieredReview(project)) {
+      return { id: raw.id, verdict: raw.verdict === 'needs-verification' ? 'fail' : raw.verdict, reason: String(raw.reason ?? ''), status: c.status };
+    }
+    return classifyFinding(raw, c, project);
+  });
 }
 
-export function writeReview(workspaceDir, project, { reviewer, items }) {
+export function inspectReviewScope(project, record) {
+  const slideIds = (project?.slides || []).map((s) => s.slideId);
+  const currentGlobal = globalDependencyHash(project);
+  const currentPages = allPageHashes(project);
+  const globalChanged = record?.globalHash
+    ? record.globalHash !== currentGlobal
+    : record?.checklistHash !== checklistHash(project);
+  const invalidatedSlideIds = globalChanged || !record?.pageHashes
+    ? [...slideIds]
+    : slideIds.filter((id) => record.pageHashes[id] !== currentPages[id]);
+  const invalidatedSet = new Set(invalidatedSlideIds);
+  const reusableSlideIds = slideIds.filter((id) => !invalidatedSet.has(id));
+  const items = Array.isArray(record?.items) ? record.items : [];
+  const reusableItems = [];
+  const staleItems = [];
+  for (const item of items) {
+    const itemPages = Array.isArray(item?.pageIds) ? item.pageIds : slideIds;
+    const touchesInvalidSlide = itemPages.some((id) => invalidatedSet.has(id));
+    if (!globalChanged && item?.verdict === 'pass' && item?.severity !== 'needs-verification' && !touchesInvalidSlide) {
+      reusableItems.push(item);
+    } else {
+      staleItems.push(item);
+    }
+  }
+  return {
+    globalChanged,
+    invalidatedSlideIds,
+    reusableSlideIds,
+    reusableClaimIds: reusableItems.map((i) => i.id),
+    staleClaimIds: staleItems.map((i) => i.id),
+    reusableItems,
+    staleItems
+  };
+}
+
+export function writeReview(workspaceDir, project, { reviewer, items, claims = [] }) {
   const file = path.join(workspaceDir, REVIEW_FILE);
   // Rounds count consecutive reviews of this workspace; a pass resets the count for later edits.
   let previous = null;
   try { previous = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* first review */ }
-  const passedBefore = previous && previous.items?.every((i) => i.verdict === 'pass');
+  const tiered = hasTieredReview(project);
+  const claimById = new Map((claims || []).map((c) => [c.id, c]));
+  const normalizedItems = items.map((item) => {
+    if (!tiered && !item.category && !item.severity && !item.pageIds) return item;
+    return classifyFinding(item, claimById.get(item.id) || item, project);
+  });
+  const passedBefore = previous && previous.items?.every((i) => i.verdict === 'pass' || i.severity === 'advisory');
   const round = previous && !passedBefore ? (previous.round || 1) + 1 : 1;
-  const record = { revision: project.revision, checklistHash: checklistHash(project), reviewer, at: new Date().toISOString(), round, items };
+  const record = {
+    revision: project.revision,
+    checklistHash: checklistHash(project),
+    globalHash: globalDependencyHash(project),
+    pageHashes: allPageHashes(project),
+    reviewer,
+    at: new Date().toISOString(),
+    round,
+    items: normalizedItems
+  };
   fs.writeFileSync(file, JSON.stringify(record, null, 2));
   return record;
 }
 
 export function reviewGate(project, workspaceDir) {
-  const strict = isRuleContract(project), issues = [], warnings = [];
+  const strict = isRuleContract(project) || hasTieredReview(project), issues = [], warnings = [];
+  const tiered = hasTieredReview(project);
   const report = (record) => (strict ? issues : warnings).push(record);
-  if (!project.contentPlan?.ruleChecklist) return { issues, warnings, review: null, strict };
+  if (!project.contentPlan?.ruleChecklist) return { issues, warnings, review: null, strict, releaseStatus: 'ready' };
   const file = workspaceDir && path.join(workspaceDir, REVIEW_FILE);
   const hint = '正常步骤，不是失败：同一轮内运行 review:rules <工程目录>，通过后 publish:html，不要先向用户汇报';
-  if (!file || !fs.existsSync(file)) { report({ kind: 'rules-review-missing', hint }); return { issues, warnings, review: null, strict }; }
-  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
-  if (record.revision !== project.revision || record.checklistHash !== checklistHash(project)) {
-    report({ kind: 'rules-review-stale', reviewedRevision: record.revision, revision: project.revision, hint });
-    return { issues, warnings, review: null, strict };
+  if (!file || !fs.existsSync(file)) {
+    report({ kind: 'rules-review-missing', hint });
+    return { issues, warnings, review: null, strict, releaseStatus: 'validating' };
   }
-  // A fail the user has decided is settled; the rest block until the author has had MAX_REVIEW_ROUNDS attempts, then
-  // they are delivered as open findings for the user to see (never hidden, never edited out of rules-review.json).
-  const decided = [], failed = [];
-  for (const i of record.items.filter((x) => x.verdict === 'fail')) { const d = decisionFor(project, { id: i.id }); (d ? decided : failed).push(d ? { ...i, decidedBy: d.id, quote: d.quote } : i); }
-  const round = record.round ?? 1, open = failed.length && round >= MAX_REVIEW_ROUNDS;
-  if (open) warnings.push({ kind: 'rules-review-open', round, items: failed.map(({ id, status, reason }) => ({ id, status, reason })), hint: `已复核 ${round} 轮仍有意见：可以发布，但交付回复里必须逐条列出这些意见，请用户决定是否修改；用户明确接受的，写入 requirements.userDecisions` });
-  if (failed.length && !open) report({ kind: 'rules-review-failed', count: failed.length, round: record.round ?? 1, items: failed.map(({ id, status, reason }) => ({ id, status, reason })), hint: '按 reason 改页面后重新 review:rules，同一轮内继续；3 轮仍失败再向用户说明' });
-  return { issues, warnings, review: { reviewer: record.reviewer, at: record.at, round, passed: record.items.length - failed.length - decided.length, decided: decided.map(({ id, decidedBy, quote }) => ({ id, decidedBy, quote })), failed: failed.length, openFindings: open ? failed.map(({ id, reason }) => ({ id, reason })) : [] }, strict };
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const scope = inspectReviewScope(project, record);
+  if (record.revision !== project.revision || record.checklistHash !== checklistHash(project) || scope.globalChanged || scope.invalidatedSlideIds.length > 0) {
+    report({
+      kind: 'rules-review-stale',
+      reviewedRevision: record.revision,
+      revision: project.revision,
+      globalChanged: scope.globalChanged,
+      invalidatedSlideIds: scope.invalidatedSlideIds,
+      reusableSlideIds: scope.reusableSlideIds,
+      staleClaimIds: scope.staleClaimIds,
+      reusableClaimIds: scope.reusableClaimIds,
+      hint
+    });
+    return { issues, warnings, review: null, strict, scope, releaseStatus: 'validating' };
+  }
+  if (!tiered) {
+    // Legacy behavior: after MAX_REVIEW_ROUNDS, remaining fails become rules-review-open warnings.
+    const decided = [], failed = [];
+    for (const i of record.items.filter((x) => x.verdict === 'fail')) {
+      const d = decisionFor(project, { id: i.id });
+      (d ? decided : failed).push(d ? { ...i, decidedBy: d.id, quote: d.quote } : i);
+    }
+    const round = record.round ?? 1, open = failed.length && round >= MAX_REVIEW_ROUNDS;
+    if (open) warnings.push({ kind: 'rules-review-open', round, items: failed.map(({ id, status, reason }) => ({ id, status, reason })), hint: `已复核 ${round} 轮仍有意见：可以发布，但交付回复里必须逐条列出这些意见，请用户决定是否修改；用户明确接受的，写入 requirements.userDecisions` });
+    if (failed.length && !open) report({ kind: 'rules-review-failed', count: failed.length, round: record.round ?? 1, items: failed.map(({ id, status, reason }) => ({ id, status, reason })), hint: '按 reason 改页面后重新 review:rules，同一轮内继续；3 轮仍失败再向用户说明' });
+    return {
+      issues,
+      warnings,
+      review: {
+        reviewer: record.reviewer,
+        at: record.at,
+        round,
+        passed: record.items.length - failed.length - decided.length,
+        decided: decided.map(({ id, decidedBy, quote }) => ({ id, decidedBy, quote })),
+        failed: failed.length,
+        openFindings: open ? failed.map(({ id, reason }) => ({ id, reason })) : []
+      },
+      strict,
+      releaseStatus: failed.length && !open ? 'needs-revision' : 'ready'
+    };
+  }
+
+  // W4 Tiered Review: classify findings into blockers (content/render/core design or needs-verification) vs advisories.
+  // Blockers NEVER auto-pass after MAX_REVIEW_ROUNDS; advisories warn and allow publishing as ready.
+  const decided = [], blockers = [], advisories = [];
+  for (const raw of record.items.filter((x) => x.verdict === 'fail' || x.verdict === 'needs-verification')) {
+    const item = raw.category && raw.severity ? raw : classifyFinding(raw, raw, project);
+    const d = decisionFor(project, { id: item.id });
+    if (d) decided.push({ ...item, decidedBy: d.id, quote: d.quote });
+    else if (item.severity === 'advisory') advisories.push(item);
+    else blockers.push(item);
+  }
+  const round = record.round ?? 1;
+  const exhausted = round >= MAX_REVIEW_ROUNDS;
+  if (advisories.length) {
+    warnings.push({
+      kind: 'rules-review-advisory',
+      round,
+      items: advisories.map(({ id, status, category, severity, pageIds, reason, suggestedAction }) => ({ id, status, category, severity, pageIds, reason, suggestedAction })),
+      hint: '纯审美或可选精致度建议不阻断发布，但交付回复中应单独列出供用户参考'
+    });
+  }
+  if (blockers.length) {
+    report({
+      kind: exhausted ? 'rules-review-blocker-unresolved' : 'rules-review-failed',
+      count: blockers.length,
+      round,
+      releaseStatus: 'needs-revision',
+      items: blockers.map(({ id, status, category, severity, pageIds, regionIds, refs, reason, suggestedAction }) => ({
+        id, status, category, severity, pageIds, regionIds, refs, reason, suggestedAction
+      })),
+      hint: exhausted
+        ? `已复核 ${round} 轮仍有 ${blockers.length} 项阻断问题（内容/关系/渲染裁切/阅读任务），状态保持 needs-revision，禁止覆盖正式交付文件；可输出 review-draft 供用户查看`
+        : '按 reason 与 suggestedAction 返工后重新 review:rules'
+    });
+  }
+  const releaseStatus = blockers.length ? 'needs-revision' : 'ready';
+  return {
+    issues,
+    warnings,
+    review: {
+      reviewer: record.reviewer,
+      at: record.at,
+      round,
+      releaseStatus,
+      passed: record.items.length - blockers.length - advisories.length - decided.length,
+      decided: decided.map(({ id, decidedBy, quote }) => ({ id, decidedBy, quote })),
+      failed: blockers.length,
+      blockers: blockers.map(({ id, category, severity, pageIds, reason, suggestedAction }) => ({ id, category, severity, pageIds, reason, suggestedAction })),
+      advisories: advisories.map(({ id, category, severity, pageIds, reason, suggestedAction }) => ({ id, category, severity, pageIds, reason, suggestedAction })),
+      openFindings: []
+    },
+    strict,
+    scope,
+    releaseStatus
+  };
 }

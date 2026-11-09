@@ -141,3 +141,153 @@ test('partial decks tell the reviewer that deck-level demands do not apply', () 
   const p = project(); p.requirements.scope = 'full';
   assert.match(buildReviewPacket({ project: p, rules, pages: [{ slideId: 's', image: 'x' }] }).prompt, /完整的汇报/);
 });
+
+test('W4 V11: tiered review classifies three categories, keeps blockers blocking after 3 rounds, and allows advisories as ready', async (t) => {
+  const { classifyFinding, inspectReviewScope } = await import('../../skills/dawang-ppt/project/src/fusion/qa/rules-review.mjs');
+  const { nextStep, MAX_REVIEW_ROUNDS } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/independent-review.mjs');
+  const dir = workspace(t), p = project();
+  p.requirements.reviewContract = 'tiered-review-v1';
+
+  const claims = buildReviewPacket({ project: p, rules, pages: [{ slideId: 's', image: 'x' }] }).claims;
+  const normalized = normalizeVerdict({
+    items: [
+      { id: 'scenario#Visual#1', verdict: 'fail', reason: '循环返回边遗漏，事实关系不完整' },
+      { id: 'scenario#Visual#2', verdict: 'fail', reason: '第1页底部说明文字裁切溢出' },
+      { id: 'scenario#Directions', verdict: 'fail', reason: '可选装饰建议：页脚线条配色微调更精致' }
+    ]
+  }, claims, p);
+
+  assert.equal(normalized[0].category, 'content');
+  assert.equal(normalized[0].severity, 'blocker');
+  assert.equal(normalized[0].suggestedAction, 'return-to-content-model');
+
+  assert.equal(normalized[1].category, 'render');
+  assert.equal(normalized[1].severity, 'blocker');
+  assert.equal(normalized[1].suggestedAction, 'return-to-capacity-layout');
+
+  assert.equal(normalized[2].category, 'design');
+  assert.equal(normalized[2].severity, 'advisory');
+  assert.equal(normalized[2].suggestedAction, 'local-polish-or-user-decision');
+
+  // Even after MAX_REVIEW_ROUNDS (3 rounds), blockers must NOT auto-pass into warnings.
+  writeReview(dir, p, { reviewer: 'fake', items: normalized, claims });
+  writeReview(dir, p, { reviewer: 'fake', items: normalized, claims });
+  const r3 = writeReview(dir, p, { reviewer: 'fake', items: normalized, claims });
+  assert.equal(r3.round, MAX_REVIEW_ROUNDS);
+
+  const gate = reviewGate(p, dir);
+  assert.equal(gate.releaseStatus, 'needs-revision');
+  assert.deepEqual(kinds(gate), ['rules-review-blocker-unresolved']);
+  assert.equal(gate.issues[0].count, 2);
+  assert.deepEqual(gate.issues[0].items.map((i) => i.id), ['scenario#Visual#1', 'scenario#Visual#2']);
+  assert.equal(gate.warnings[0].kind, 'rules-review-advisory');
+  assert.deepEqual(gate.warnings[0].items.map((i) => i.id), ['scenario#Directions']);
+  assert.match(nextStep(3, MAX_REVIEW_ROUNDS, { blockers: 2, advisories: 1, tiered: true }), /needs-revision/);
+
+  // Once blockers are resolved and only the advisory remains, releaseStatus becomes ready with advisory warning.
+  const onlyAdvisory = [
+    { ...normalized[0], verdict: 'pass', severity: 'none', reason: '关系已补齐' },
+    { ...normalized[1], verdict: 'pass', severity: 'none', reason: '裁切已修复' },
+    normalized[2]
+  ];
+  writeReview(dir, p, { reviewer: 'fake', items: onlyAdvisory, claims });
+  const readyGate = reviewGate(p, dir);
+  assert.equal(readyGate.releaseStatus, 'ready');
+  assert.deepEqual(readyGate.issues, []);
+  assert.equal(readyGate.warnings[0].kind, 'rules-review-advisory');
+  assert.equal(readyGate.review.advisories.length, 1);
+  assert.equal(inspectReviewScope(p, JSON.parse(fs.readFileSync(path.join(dir, REVIEW_FILE), 'utf8'))).globalChanged, false);
+});
+
+test('W4 V10: page-level image/text patch invalidates only affected page claims while global font/theme invalidates all', async (t) => {
+  const { inspectReviewScope } = await import('../../skills/dawang-ppt/project/src/fusion/qa/rules-review.mjs');
+  const { previousRound } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/independent-review.mjs');
+  const { saveProject, loadProject } = await import('../../skills/dawang-ppt/project/src/fusion/project/store.mjs');
+  const { patchProject } = await import('../../skills/dawang-ppt/project/src/fusion/project/patch.mjs');
+
+  const dir = workspace(t);
+  const p = createAuthoredProject({
+    requirements: { projectId: 'w4-granularity', title: '局部失效测试', reviewContract: 'tiered-review-v1', ruleContract: 'rules-checklist-v1' },
+    sources: { entries: [{ sourceId: 'fixture', kind: 'synthetic' }] },
+    media: { entries: [{ mediaId: 'img1', src: 'a.jpg' }] },
+    designChoice: { styleId: 'authored/custom' },
+    contentPlan: {
+      nodes: {},
+      slides: [],
+      ruleChecklist: {
+        scenario: 'management-report',
+        items: {
+          'scenario#Visual#1': { status: 'applied', how: '第1页结构图', evidence: [{ slideId: 's1', elementIds: ['t1'] }] },
+          'scenario#Visual#2': { status: 'applied', how: '第2页图文', evidence: [{ slideId: 's2', elementIds: ['t2'] }] },
+          'scenario#Directions': { status: 'not-applicable', reason: '未借用' }
+        }
+      }
+    },
+    slides: [
+      { slideId: 's1', elements: [{ id: 't1', type: 'text', text: '第一页稳定内容', bounds: [100, 100, 600, 60], style: { fontSize: 30 } }] },
+      { slideId: 's2', elements: [
+        { id: 't2', type: 'text', text: '第二页待改内容', bounds: [100, 100, 600, 60], style: { fontSize: 30 } },
+        { id: 'pic2', type: 'image', mediaRef: 'img1', bounds: [100, 220, 400, 260], fit: 'cover' }
+      ] }
+    ]
+  });
+  p.requirements.ruleContract = 'rules-checklist-v1';
+  p.requirements.reviewContract = 'tiered-review-v1';
+
+  const file = path.join(dir, 'deck-project.json');
+  const saved = saveProject(file, p, null).project;
+  const claims = buildReviewPacket({ project: saved, rules, pages: [{ slideId: 's1', image: '1.png' }, { slideId: 's2', image: '2.png' }] }).claims;
+  const items = normalizeVerdict({
+    items: [
+      { id: 'scenario#Visual#1', verdict: 'pass', reason: 's1 ok' },
+      { id: 'scenario#Visual#2', verdict: 'pass', reason: 's2 ok' },
+      { id: 'scenario#Directions', verdict: 'pass', reason: 'na ok' }
+    ]
+  }, claims, saved);
+  writeReview(dir, saved, { reviewer: 'fake', items, claims });
+
+  // 1) Patch image + text on s2 only -> s1 remains reusable, only s2 is invalidated.
+  const patch1 = patchProject(dir, {
+    expectedRevision: saved.revision,
+    commands: [
+      { type: 'text', slideId: 's2', elementId: 't2', text: '第二页修改后人物名称' },
+      { type: 'image', slideId: 's2', elementId: 'pic2', src: 'b.jpg', focal: '50% 25%' }
+    ]
+  });
+  assert(patch1.ok);
+  assert.equal(patch1.checkScope, 'slides');
+  assert.deepEqual(patch1.changedSlideIds, ['s2']);
+  assert.deepEqual(patch1.reusableSlideIds, ['s1']);
+
+  const afterS2 = loadProject(file);
+  const record = JSON.parse(fs.readFileSync(path.join(dir, REVIEW_FILE), 'utf8'));
+  const scopeS2 = inspectReviewScope(afterS2, record);
+  assert.equal(scopeS2.globalChanged, false);
+  assert.deepEqual(scopeS2.invalidatedSlideIds, ['s2']);
+  assert.deepEqual(scopeS2.reusableSlideIds, ['s1']);
+  assert.deepEqual(scopeS2.staleClaimIds, ['scenario#Visual#2']);
+  assert.deepEqual(scopeS2.reusableClaimIds, ['scenario#Visual#1', 'scenario#Directions']);
+
+  const prev = previousRound(dir, afterS2);
+  assert(prev);
+  assert.deepEqual(prev.scope.staleClaimIds, ['scenario#Visual#2']);
+  assert.deepEqual(prev.scope.reusableClaimIds, ['scenario#Visual#1', 'scenario#Directions']);
+
+  // 2) Global font/theme change -> checkScope is 'all' and all pages/claims are invalidated.
+  writeReview(dir, afterS2, { reviewer: 'fake', items, claims });
+  const patchGlobal = patchProject(dir, {
+    expectedRevision: afterS2.revision,
+    commands: [{ type: 'theme', fontFamily: 'PingFang SC', designChoice: { paletteId: 'earth-gold' } }]
+  });
+  assert(patchGlobal.ok);
+  assert.equal(patchGlobal.checkScope, 'all');
+  assert.deepEqual(patchGlobal.changedSlideIds, ['s1', 's2']);
+
+  const afterGlobal = loadProject(file);
+  const record2 = JSON.parse(fs.readFileSync(path.join(dir, REVIEW_FILE), 'utf8'));
+  const scopeGlobal = inspectReviewScope(afterGlobal, record2);
+  assert.equal(scopeGlobal.globalChanged, true);
+  assert.deepEqual(scopeGlobal.invalidatedSlideIds, ['s1', 's2']);
+  assert.deepEqual(scopeGlobal.reusableSlideIds, []);
+  assert.equal(previousRound(dir, afterGlobal), null);
+});
