@@ -4,7 +4,7 @@
 
 调用 `node <skill>/scripts/dawang.mjs rules:read management-report [--design <相对原规则路径>] [--format <路径> ...]` 获取按章节切分的原文、来源路径、SHA 与 apply/adapt/replaced 标注（`--full` 含 replaced 原文；`--allow-drift` 仅在用户同意时使用）。`rules:lock [--root <目录>] [--label <名称>]` 重新锁定规则版本并列出与旧锁的差异，属于维护操作。缓存不能代替本会话阅读。
 
-完整合成工程：`node <skill>/examples/authored-minimal.mjs /tmp/authored.json`。
+新稿完整示例：`node <skill>/examples/report-contract.mjs <新目录>`，生成的工程能通过 `make`，页面设计照它写。`examples/authored-minimal.mjs` 只演示元素写法，没有内容契约，`make` 会拦下。
 推荐交付：`node <skill>/scripts/dawang.mjs make /tmp/authored.json /目标/报告.html`。
 已存工程用 `patch:project <工程目录> <patch.json>`，之后 `publish:html <工程目录> <报告.html>`；旧工程低层入口 `render:project <deck-project.json> <index.html>` 保留。
 
@@ -74,7 +74,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - 关系：流程和路径生成 sequence，`compare` 生成 comparison，`periods` 生成 sequence，`table` 生成 classification。其余关系写顶层 `relations:[{id,kind,members,edges 或 rows,from,page?}]`，由制作智能体判断。
 - `gaps`、`dispositions` 按内容模型原样写入基线。
 
-把 `authored-scaffold.json` 复制成同目录的 `authored.json`，补 `slides` 与 `contentPlan.slides[]` 的页面设计后运行 `make`。新稿缺声明或缺基线文件时 `make` 拦下；只有用户明确决定不走这套流程时，才在 `userDecisions` 里用用户原话覆盖 `new-deck-contracts-required`。
+把 `authored-scaffold.json` 复制成同目录的 `authored.json`。骨架里每页已有 `requiredRefs`、`regions`（内容、主次、模块建议）和待填的 `bindings`、`zones`：补 `slides` 元素、区域 `bounds`、`frameElementId`、`representation`、`reason`，把 `bindings[].elementIds` 填成实际元素。`capacityFlow`、`capacityTable` 返回的 `bindings` 可直接用，流程箭头用 `flowEdgeBindings(flowId, relationRef, stepIds)`。补完运行 `make`。新稿缺声明或缺基线文件时 `make` 拦下；只有用户明确决定不走这套流程时，才在 `userDecisions` 里用用户原话覆盖 `new-deck-contracts-required`。
 
 ## 排版工具与页型
 

@@ -134,20 +134,22 @@ export function classifyFinding(item, claim, project) {
   };
 }
 
+// Strict structured output needs every property listed in `required`, so optional fields are nullable; normalizeVerdict fills nulls in.
+const nullableStrings = { type: ['array', 'null'], items: { type: 'string' } };
 export const VERDICT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['items'],
   properties: { items: { type: 'array', items: {
-    type: 'object', additionalProperties: false, required: ['id', 'verdict', 'reason'],
+    type: 'object', additionalProperties: false, required: ['id', 'verdict', 'reason', 'category', 'severity', 'pageIds', 'regionIds', 'refs', 'suggestedAction'],
     properties: {
       id: { type: 'string' },
       verdict: { type: 'string', enum: ['pass', 'fail', 'needs-verification'] },
       reason: { type: 'string' },
-      category: { type: 'string', enum: ['content', 'render', 'design'] },
-      severity: { type: 'string', enum: ['blocker', 'advisory', 'needs-verification'] },
-      pageIds: { type: 'array', items: { type: 'string' } },
-      regionIds: { type: 'array', items: { type: 'string' } },
-      refs: { type: 'array', items: { type: 'string' } },
-      suggestedAction: { type: 'string' }
+      category: { type: ['string', 'null'], enum: ['content', 'render', 'design', null] },
+      severity: { type: ['string', 'null'], enum: ['blocker', 'advisory', 'needs-verification', null] },
+      pageIds: nullableStrings,
+      regionIds: nullableStrings,
+      refs: nullableStrings,
+      suggestedAction: { type: ['string', 'null'] }
     }
   } } }
 };

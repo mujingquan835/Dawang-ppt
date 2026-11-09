@@ -142,6 +142,11 @@ export function capacityFlow(spec) {
  return finish(spec,result.elements,bindings);
 }
 
+// Bindings for a capacityFlow's arrows, matching the e1…en edges outline:baseline writes for a sequence.
+export function flowEdgeBindings(flowId, relationRef, stepIds) {
+ return stepIds.slice(1).map((to,i)=>({ref:relationRef,edgeId:`e${i+1}`,elementIds:[`${flowId}-link-${encodeURIComponent(stepIds[i])}-${encodeURIComponent(to)}`]}));
+}
+
 // One measured pass is enough: widths, fonts and text do not change during reflow.
 // Caller owns the measurer lifecycle; failures propagate, never masquerade as estimated success.
 export async function measureModule(builder,spec,measurer) {

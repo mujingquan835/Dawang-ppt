@@ -28,18 +28,18 @@ export const ROLES = ['summary', 'results', 'actions', 'resources', 'issues', 'c
 // What a reader of each kind of deck needs, and what a missing piece costs. Kept short and specific to reports.
 const NEEDS = {
   report: [
-    { role: 'summary', ask: '整体结论：本期整体状态、核心成果或与目标的差距（一句话）', impact: '首页只能罗列工作安排，领导看不出整体完成得怎样' },
-    { role: 'results', ask: '成果数据：带单位和统计时期的关键数字', impact: '成果只能用文字描述，缺少可比较的证据' },
-    { role: 'issues', ask: '问题与差距：未达成项、风险或不足', impact: '只有成绩没有问题，汇报显得不客观，领导无法判断风险' },
-    { role: 'plan', ask: '下一步计划：时间、动作和负责人', impact: '结尾落不到行动，汇报停在回顾' },
-    { role: 'asks', ask: '需要的支持或待决策事项', impact: '无法提出需要领导拍板或协调的事项', optional: true }
+    { role: 'summary', ask: '整体结论：本期整体状态、核心成果或与目标的差距（一句话）', impact: '首页只能罗列工作安排，领导看不出整体完成得怎样', example: '例如：三季度签约 48 单，完成目标的 96%', fallback: '首页只写工作定位，并标注“材料未提供整体达成情况”' },
+    { role: 'results', ask: '成果数据：带单位和统计时期的关键数字', impact: '成果只能用文字描述，缺少可比较的证据', example: '例如：新签 20 单、续费 12 万元（2026 年 Q3）', fallback: '成果页只写做了什么，不出现数字' },
+    { role: 'issues', ask: '问题与差距：未达成项、风险或不足', impact: '只有成绩没有问题，汇报显得不客观，领导无法判断风险', example: '例如：差 2 单未达标，问题集中在新客转化', fallback: '不做问题页，并在交付时说明' },
+    { role: 'plan', ask: '下一步计划：时间、动作和负责人', impact: '结尾落不到行动，汇报停在回顾', example: '例如：10 月底前建立 48 小时回访，负责人张三', fallback: '不做下一步页，并在交付时说明' },
+    { role: 'asks', ask: '需要的支持或待决策事项', impact: '无法提出需要领导拍板或协调的事项', example: '例如：申请 Q4 活动预算 5 万元', fallback: '不写需支持事项', optional: true }
   ],
   review: [
-    { role: 'duties', ask: '岗位职责与定位：负责什么、服务谁', impact: '评委不清楚业绩对应的职责范围' },
-    { role: 'results', ask: '个人业绩数据：带单位、时期和个人贡献说明的数字', impact: '业绩只能泛泛描述，无法证明个人贡献' },
-    { role: 'issues', ask: '不足与反思', impact: '缺少自我认知，述职显得只报喜不报忧' },
-    { role: 'plan', ask: '下一阶段目标与计划', impact: '缺少对未来的承诺，述职收尾无力' },
-    { role: 'summary', ask: '整体自评：一句话总结本期表现', impact: '开头缺少定调，评委需要自己归纳', optional: true }
+    { role: 'duties', ask: '岗位职责与定位：负责什么、服务谁', impact: '评委不清楚业绩对应的职责范围', example: '例如：负责天津二手房线市场支持，服务 100 家门店', fallback: '只写岗位名称' },
+    { role: 'results', ask: '个人业绩数据：带单位、时期和个人贡献说明的数字', impact: '业绩只能泛泛描述，无法证明个人贡献', example: '例如：主导活动带来新签 20 单', fallback: '业绩只写做了什么，不出现数字' },
+    { role: 'issues', ask: '不足与反思', impact: '缺少自我认知，述职显得只报喜不报忧', example: '例如：数据复盘偏慢，下季度改为周复盘', fallback: '不做反思页，并在交付时说明' },
+    { role: 'plan', ask: '下一阶段目标与计划', impact: '缺少对未来的承诺，述职收尾无力', example: '例如：Q4 目标签约 55 单', fallback: '不做计划页，并在交付时说明' },
+    { role: 'summary', ask: '整体自评：一句话总结本期表现', impact: '开头缺少定调，评委需要自己归纳', example: '例如：本期完成全部核心目标', fallback: '不写整体自评', optional: true }
   ]
 };
 
@@ -54,25 +54,25 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
   const hasData = pages.some((p) => (p.data || []).length);
   if (hasData && !outline.period && !pages.some((p) => (p.data || []).some((d) => d.period))) {
     // Only a complete deck asks for the period; a partial job notes it on the page instead of asking.
-    (full ? gaps : warnings).push({ level: 'deck', item: 'period', ask: '统计时期（年份、季度或起止日期）', impact: '数字的时间口径不明，领导无法判断是哪个周期的成绩' });
+    (full ? gaps : warnings).push({ level: 'deck', item: 'period', ask: '统计时期（年份、季度或起止日期）', impact: '数字的时间口径不明，领导无法判断是哪个周期的成绩', example: '例如：2026 年第三季度', fallback: '页脚标注“统计时期材料未提供”' });
   }
   const roles = new Set(pages.map((p) => p.role));
   for (const need of full ? (NEEDS[kind] || []) : []) {
     if (roles.has(need.role)) continue;
     // A summary may live in the first page's key line instead of its own page.
     if (need.role === 'summary' && pages[0]?.keyLine?.text && hasNumber(pages[0].keyLine.text)) continue;
-    (need.optional ? warnings : gaps).push({ level: 'deck', item: need.role, ask: need.ask, impact: need.impact });
+    (need.optional ? warnings : gaps).push({ level: 'deck', item: need.role, ask: need.ask, impact: need.impact, example: need.example, fallback: need.fallback });
   }
   pages.forEach((p, i) => {
     const where = { level: 'page', page: p.id || `p${i + 1}` };
     if (!ROLES.includes(p.role)) warnings.push({ ...where, item: 'role', ask: `role 取 ${ROLES.join(' / ')}` });
     const key = p.keyLine?.text?.trim();
-    if (!key) gaps.push({ ...where, item: 'keyLine', ask: '这一页要让读者记住的结论', impact: '页面没有重点，只能平铺信息' });
+    if (!key) gaps.push({ ...where, item: 'keyLine', ask: '这一页要让读者记住的结论', impact: '页面没有重点，只能平铺信息', example: '例如：案例传播带来 20 单新签', fallback: '由制作智能体从本页内容提炼，并标为待确认' });
     else if (['report','review'].includes(kind) && !hasNumber(key) && ACTION_ONLY.test(key)) warnings.push({ ...where, item: 'keyLine', ask: '重点句只是动作罗列，改成结果或状态（最好带数字）', impact: '标题看不出做成了什么' });
     for (const d of p.data || []) {
       if (!d.unit && !/[%％]/.test(String(d.value))) warnings.push({ ...where, item: 'unit', ask: `「${d.label}」的单位`, impact: '数字无法读懂' });
     }
-    if (p.role === 'results' && !(p.data || []).length) gaps.push({ ...where, item: 'data', ask: '这一页成果对应的数字', impact: '成果页没有数据支撑' });
+    if (p.role === 'results' && !(p.data || []).length) gaps.push({ ...where, item: 'data', ask: '这一页成果对应的数字', impact: '成果页没有数据支撑', example: '例如：收集喜报 150 份', fallback: '本页只写动作，并标注“材料未提供数据”' });
     for (const ph of p.photos || []) {
       const file = path.resolve(baseDir, ph.src || '');
       if (!ph.src || !fs.existsSync(file)) warnings.push({ ...where, item: 'photo', ask: `照片文件不存在：${ph.src}` });
@@ -91,7 +91,7 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
   const baselineIssues = outlineBaselineIssues(outline, { baseDir });
   return { ok: !blocking, kind, scope: full ? 'full' : 'part', gaps, warnings, suggestions, contentIssues, baselineIssues,
     next: baselineIssues.length ? '制作智能体补全 baselineIssues（来源位置与摘录）后运行 outline:baseline' : '运行 outline:baseline <outline.json> <新目录> 生成事实基线与工程骨架',
-    decision: contentIssues.length ? '内容契约不完整：制作智能体先修正 contentIssues，不把内部结构缺失当作用户材料缺口。' : blocking ? '只问一次：在同一条回复里列出 gaps（缺什么、为什么需要、缺了会怎样），请用户选择补充材料或按现有材料生成（页面标注“材料未提供”）。由用户决定。'
+    decision: contentIssues.length ? '内容契约不完整：制作智能体先修正 contentIssues，不把内部结构缺失当作用户材料缺口。' : blocking ? '只问一次：在同一条回复里逐项写明 gaps：缺什么（ask）、举例该给什么（example）、用在哪页（page 或整稿）、不提供时默认怎么处理（fallback），请用户选择补充材料或按默认处理。由用户决定。'
       : '没有需要用户决定的缺口：不要为内容再提问，直接进入配色与制作；warnings 在页面上如实处理即可。' };
 }
 

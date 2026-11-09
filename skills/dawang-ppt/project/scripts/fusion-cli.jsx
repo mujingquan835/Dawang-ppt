@@ -139,7 +139,7 @@ async function main(args = process.argv.slice(2)) {
     fs.writeFileSync(file.replace(/\.html$/i,'')+'.json',JSON.stringify(options,null,2));
     console.log(JSON.stringify({file,options}));return;
   }
-  if (!input) throw new Error("Usage: dawang <render:authored|render:goal|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
+  if (!input) throw new Error("Usage: dawang <outline:check|outline:baseline|make|review:rules|publish:html|patch:project|rules:read|rules:checklist|render:authored|render:goal|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
   if (["render:authored", "render:goal", "render:brief", "render:project"].includes(mode)) {
     if (!output) throw new Error("Output HTML path required");
     const file = absolute(input), outFile = absolute(output), dir2 = path.dirname(outFile), pf2 = path.join(dir2, "deck-project.json");

@@ -25,7 +25,7 @@
 - gaps：id、affectedRefs、missing、impact、resolution（pending/placeholder/user-accepted/resolved）。仅记录 placeholder 不等于声称已获业务授权；是否需询问仍遵守已有技能要求。
 - dispositions：ref、action（included/merged/deferred/excluded）、reason。required 项 deferred/excluded 还需 decisionRef，指向用户原话决定；对应决定的 covers 必须包括 `content#<ref>`。user-accepted gap 的决定覆盖 `content#<gapId>`。
 
-合成输入参考：`tests/fusion/helpers/semantic-fixture.mjs`。此夹具用于结构与浏览器回归，不是最终设计模板。
+完整示例：`examples/report-contract.mjs`，生成的工程能通过 `make`。它演示写法，不是设计模板。
 
 ## 页面绑定
 

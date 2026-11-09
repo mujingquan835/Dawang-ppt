@@ -48,7 +48,7 @@ function collect(outline, baseDir) {
   };
 
   asList(outline.pages).forEach((page, pageIndex) => {
-    const pageId = page.id || `p${pageIndex + 1}`, refs = [], planned = page.role === 'plan';
+    const pageId = page.id || `p${pageIndex + 1}`, refs = [], zones = [], planned = page.role === 'plan';
     const addNode = (suffix, type, text, item, from, extra = {}) => {
       const id = `${pageId}:${suffix}`, where = { page: pageId, item: id }, location = located(from, where);
       if (!location) return id;
@@ -57,18 +57,21 @@ function collect(outline, baseDir) {
       return id;
     };
     const addRelation = (suffix, kind, members, from, structure) => {
-      if (members.length < 2) return;
+      if (members.length < 2) return null;
       const id = `${pageId}:${suffix}`, location = located(from, { page: pageId, item: id });
-      if (!location) return;
+      if (!location) return null;
       relations.push({ id, kind, members, importance: 'required', ...location, ...structure });
       refs.push(id);
+      return id;
     };
+    const addZone = (zoneId, module, role, members, relationId) => zones.push({ zoneId, module, role, members: members.filter((m) => nodes[m]), relationId });
     const sequence = (members) => ({ edges: members.slice(1).map((to, i) => ({ id: `e${i + 1}`, from: members[i], to })) });
     const stepsOf = (groups, label) => asList(groups).forEach((group, g) => {
       const members = asList(group.steps).map((step, s) => addNode(`${label}-${g + 1}-${s + 1}`, 'stage', typeof step === 'string' ? step : step.title, group, group.from));
-      addRelation(`${label}-${g + 1}`, 'sequence', members, group.from, sequence(members));
+      addZone(`${label}-${g + 1}`, 'capacityFlow', 'flow', members, addRelation(`${label}-${g + 1}`, 'sequence', members, group.from, sequence(members)));
     });
 
+    const dataRefs = asList(page.data).map((_, i) => `${pageId}:data-${i + 1}`), itemRefs = asList(page.items).map((_, i) => `${pageId}:item-${i + 1}`);
     asList(page.data).forEach((d, i) => {
       const unit = d.unit || (hasPercent(d.value) ? '%' : '');
       if (!unit) issues.push({ kind: 'outline-metric-unit-missing', page: pageId, item: `${pageId}:data-${i + 1}`, need: `「${d.label}」的单位` });
@@ -77,38 +80,79 @@ function collect(outline, baseDir) {
       addNode(`data-${i + 1}`, 'metric', `${d.label} ${display}`, d, d.from, { facts });
     });
     asList(page.items).forEach((it, i) => addNode(`item-${i + 1}`, 'statement', it.detail ? `${it.title}｜${it.detail}` : it.title, it, it.from));
+    if (dataRefs.length) addZone('metrics', 'metricTiles', 'data', dataRefs);
+    if (itemRefs.length) addZone('items', 'numberedList', 'support', itemRefs);
     stepsOf(page.flows, 'flow');
     stepsOf(page.chains, 'chain');
     if (page.compare) {
       const pair = (side, label) => asList(page.compare[side]).map((it, i) => addNode(`compare-${label}${i + 1}`, 'statement', it.detail ? `${it.title}｜${it.detail}` : it.title, it, it.from || page.compare.from));
       const left = pair('left', 'l'), right = pair('right', 'r');
       const rows = left.flatMap((l, i) => (right[i] ? [{ id: `row-${i + 1}`, members: [l, right[i]] }] : []));
-      addRelation('compare', 'comparison', [...left, ...right], page.compare.from, { rows });
+      addZone('compare', 'comparePair', 'evidence', [...left, ...right], addRelation('compare', 'comparison', [...left, ...right], page.compare.from, { rows }));
     }
     if (asList(page.periods).length) {
       const members = page.periods.map((p, i) => addNode(`period-${i + 1}`, 'statement', `${p.label}｜${[p.title, ...asList(p.points)].filter(Boolean).join('：')}`, p, p.from));
-      addRelation('periods', 'sequence', members, page.periods[0]?.from, sequence(members));
+      addZone('periods', 'periodColumns', 'flow', members, addRelation('periods', 'sequence', members, page.periods[0]?.from, sequence(members)));
     }
     if (page.table) {
       const members = asList(page.table.rows).map((row, i) => addNode(`row-${i + 1}`, 'statement', row.join('｜'), page.table, page.table.from && { ...page.table.from, locator: `${page.table.from.locator} · 第 ${i + 1} 行` }));
-      addRelation('table', 'classification', members, page.table.from, { rows: members.map((m, i) => ({ id: `row-${i + 1}`, members: [m] })) });
+      addZone('table', 'capacityTable', 'evidence', members, addRelation('table', 'classification', members, page.table.from, { rows: members.map((m, i) => ({ id: `row-${i + 1}`, members: [m] })) }));
     }
     asList(page.photos).forEach((photo, i) => {
       const mediaId = `${pageId}-photo-${i + 1}`, caption = photo.caption || photo.src;
       media.push({ mediaId, src: path.resolve(baseDir, photo.src || ''), alt: caption });
       addNode(`photo-${i + 1}`, 'media', caption, photo, photo.from || { locator: `附件：${photo.src}`, excerpt: caption }, { mediaRef: mediaId });
     });
-    pages.push({ slideId: pageId, requiredRefs: refs });
+    if (asList(page.photos).length) addZone('photos', 'imageFrames', 'media', asList(page.photos).map((_, i) => `${pageId}:photo-${i + 1}`));
+    pages.push({ slideId: pageId, requiredRefs: refs, zones, readerTask: page.readerTask || '', keyLineSource: page.keyLine?.source || 'distilled' });
   });
 
   for (const relation of asList(outline.relations)) {
     const { from, page, ...rest } = relation, location = located(from, { item: relation.id });
     if (!location) continue;
     relations.push({ importance: 'required', ...rest, ...location });
-    pages.find((p) => p.slideId === page)?.requiredRefs.push(relation.id);
+    const target = pages.find((p) => p.slideId === page);
+    if (!target) continue;
+    target.requiredRefs.push(relation.id);
+    // A relation is bound inside one region, so it joins the region already holding all its members or gets its own.
+    const holder = target.zones.find((z) => relation.members?.every((m) => z.members.includes(m)));
+    if (holder && !holder.relationId) holder.relationId = relation.id;
+    else target.zones.push({ zoneId: `relation-${target.zones.length + 1}`, module: 'custom', role: 'evidence', members: asList(relation.members), relationId: relation.id });
   }
   const brief = { purpose: outline.purpose || outline.title, audience: outline.audience, scenario: kind, scope };
   return { kind, scope, sources, nodes, relations, pages, media, brief, issues };
+}
+
+// The page-design half of the scaffold: every region, its content and an empty binding for each fact, edge and row.
+// The designer fills bounds, element ids and the reasons; nothing here chooses a layout.
+const PRIMARY_ORDER = ['metrics', 'table', 'flow', 'chain', 'compare', 'periods', 'items', 'photos', 'relation'];
+function pagePlan({ slideId, requiredRefs, zones, readerTask, keyLineSource }, relations) {
+  const rank = (z) => { const i = PRIMARY_ORDER.findIndex((p) => z.zoneId.startsWith(p)); return i < 0 ? 99 : i; };
+  const primary = [...zones].sort((a, b) => rank(a) - rank(b))[0]?.zoneId;
+  const relationBindings = (id) => {
+    const relation = relations.find((r) => r.id === id);
+    return [...asList(relation?.edges).map((e) => ({ ref: id, edgeId: e.id, elementIds: [] })), ...asList(relation?.rows).map((r) => ({ ref: id, rowId: r.id, elementIds: [] }))];
+  };
+  return {
+    slideId, requiredRefs, readerTask,
+    keyLine: { elementId: 'title', source: keyLineSource, support: [] },
+    visualDecision: { pattern: '', focus: { elementId: 'title' }, layout: '', zones: zones.map((z) => ({ id: z.zoneId, role: z.role, bounds: [] })) },
+    composition: { alignments: [], gaps: [] },
+    regions: zones.map((z) => ({
+      zoneId: z.zoneId,
+      hierarchy: z.zoneId === primary ? 'primary' : z.module === 'imageFrames' ? 'support' : 'secondary',
+      padding: 16,
+      frameElementId: '',
+      module: { name: z.module, variant: '' },
+      typography: { title: 30, body: 24 },
+      designReference: { source: '原创', principle: '' },
+      representation: '',
+      reason: '',
+      contentRefs: z.members,
+      relationRefs: z.relationId ? [z.relationId] : [],
+      bindings: [...z.members.map((ref) => ({ ref, elementIds: [] })), ...(z.relationId ? relationBindings(z.relationId) : [])]
+    }))
+  };
 }
 
 // What still stops outline:baseline. Separate from outline:check's gaps: these are the agent's to fix.
@@ -125,7 +169,7 @@ export function buildOutlineBaseline(outline, { baseDir = process.cwd() } = {}) 
     sources: { entries: sources },
     media: { entries: media },
     designChoice: { styleId: 'authored/custom' },
-    contentPlan: { ...structuredClone(baseline.snapshot), baseline, slides: pages },
+    contentPlan: { ...structuredClone(baseline.snapshot), baseline, slides: pages.map((page) => pagePlan(page, relations)) },
     slides: []
   };
   const modelIssues = validateContentModel({ version: 2, requirements, sources: scaffold.sources, contentPlan: scaffold.contentPlan });

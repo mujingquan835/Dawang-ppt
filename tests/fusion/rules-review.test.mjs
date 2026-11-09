@@ -38,7 +38,10 @@ test('the packet carries rule text, claims and an element map, but no author rea
   assert.match(packet.prompt, /独立复核者/);
   assert.match(packet.prompt, /画面稳定效果 42 条/);
   assert.deepEqual(packet.images, ['/tmp/01.png']);
-  assert.deepEqual(packet.schema.properties.items.items.required, ['id', 'verdict', 'reason']);
+  // Strict structured output rejects a schema unless every property is required (optional fields are nullable).
+  const itemSchema = packet.schema.properties.items.items;
+  assert.deepEqual([...itemSchema.required].sort(), Object.keys(itemSchema.properties).sort());
+  for (const key of ['id', 'verdict', 'reason']) assert.equal(itemSchema.properties[key].type, 'string');
 });
 
 test('a verdict that skips a claim is rejected instead of passing it', () => {
