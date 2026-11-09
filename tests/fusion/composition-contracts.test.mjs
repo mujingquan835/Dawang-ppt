@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {semanticFixture} from './helpers/semantic-fixture.mjs';
 import {createContentBaseline,validateContentBaseline} from '../../skills/dawang-ppt/project/src/fusion/authoring/content-baseline.mjs';
 import {reviewComposition} from '../../skills/dawang-ppt/project/src/fusion/authoring/composition-contract.mjs';
-import {panelGroup,capacityTable,allocationList,capacityCycle,measureModule} from '../../skills/dawang-ppt/project/src/fusion/authoring/capacity-kit.mjs';
+import {panelGroup,capacityTable,allocationList,capacityCycle,capacityBranch,measureModule} from '../../skills/dawang-ppt/project/src/fusion/authoring/capacity-kit.mjs';
 import {createTheme} from '../../skills/dawang-ppt/project/src/fusion/authoring/layout-kit.mjs';
 import {createLayoutMeasurer} from '../../skills/dawang-ppt/project/src/fusion/planning/measure-layout.mjs';
 function baseline(){const p=semanticFixture();for(const item of [...Object.values(p.contentPlan.nodes),...p.contentPlan.relations])item.sourceLocations=[{sourceId:'s',locator:'section 1',excerpt:'合成测试来源'}];p.requirements.contentBaselineContract='source-baseline-v1';p.contentPlan.baseline=createContentBaseline({id:'v1',...p.contentPlan});return p;}
@@ -74,5 +74,70 @@ test('unequal panelGroup with structured summary, allocationList proportion bar 
   const bars=r.elements.filter(e=>e.id.startsWith('p5-budget-body-bar-'));
   assert.equal(bars.length,3);assert(bars[0].bounds[2]>bars[1].bounds[2]&&bars[1].bounds[2]>bars[2].bounds[2]);
   assert(r.elements.some(e=>e.id==='p5-forecast-body-bg-r5'));
+ }finally{await m.close();}
+});
+test('V06: capacityBranch binds forward, fail and return edges and catches missing return edge',async()=>{
+ const m=await createLayoutMeasurer();
+ try{
+  const theme=createTheme({palette:{accent:'#23338B',pop:'#B58A42',ink:'#1F2430',pale:'#F0F2F9',highlightBg:'#F7F0E3'}});
+  const bSpec={
+   id:'b3-flow',
+   bounds:[128,212,1664,472],
+   theme,
+   relationRef:'b3:handoff-branch',
+   forwardEdgeIds:['e1','e-pass','e3'],
+   steps:[
+    {id:'submit',num:'01',title:'提交交接',detail:'发起方整理并提交交接任务资料',ref:'s1'},
+    {id:'check',num:'02',title:'核对资料',detail:'检查交接材料是否齐全合规',ref:'s2',highlight:true},
+    {id:'receive',num:'03',title:'确认接收',detail:'资料完整时由接收人正式确认接收',ref:'s3'},
+    {id:'execute',num:'04',title:'开始执行',detail:'接收人确认后方可进入执行阶段',ref:'s4'}
+   ],
+   branch:{
+    from:'check',
+    returnTo:'submit',
+    id:'supply',
+    title:'返回补充资料（资料不完整分支）',
+    detail:'退回发起方补齐缺失资料，补齐后重新提交核对',
+    ref:'s5',
+    passCondition:{label:'资料完整',edgeId:'e-pass'},
+    failCondition:{label:'资料不完整',edgeId:'e-fail'},
+    returnEdge:{label:'补齐后重新提交核对',edgeId:'e-return'},
+    passSummary:{title:'资料完整通过路径',detail:'核对通过后进入接收人确认'}
+   }
+  };
+  const r=await measureModule(capacityBranch,bSpec,m);
+  assert.equal(r.capacity.status,'fits');
+  assert.equal(r.capacity.method,'measured');
+  const edgeIds=r.bindings.filter(b=>b.ref==='b3:handoff-branch').map(b=>b.edgeId);
+  assert.deepEqual(edgeIds,['e1','e-pass','e3','e-fail','e-return']);
+  assert(r.elements.some(e=>e.id==='b3-flow-return-path'));
+  assert(r.elements.some(e=>e.id==='b3-flow-pass-summary-card'));
+ }finally{await m.close();}
+});
+test('V08: cross-theme re-measurement preserves regional alignment and capacity across serif and sans-serif themes',async()=>{
+ const m=await createLayoutMeasurer();
+ try{
+  const themes=[
+   createTheme({fontFamily:'PingFang SC',headingFamily:'Songti SC',palette:{accent:'#23338B',gold:'#B58A42',ink:'#1F2430',pale:'#F0F2F9'}}),
+   createTheme({fontFamily:'Heiti SC',headingFamily:'Heiti SC',palette:{accent:'#0F4C5C',gold:'#E36414',ink:'#1E293B',pale:'#F1F5F9'}})
+  ];
+  for(const theme of themes){
+   const r=await measureModule(panelGroup,{id:'cross',bounds:[96,184,1728,536],shares:[0.46,0.54],theme,panels:[
+    {id:'comp',title:'示例第1周交接任务记录组成',summary:{value:'34',unit:'项'},distributeRows:true,builder:allocationList,spec:{relationRef:'rel',items:[
+     {id:'done',title:'已完成交接任务',detail:'资料核对齐全、接收人已确认接收',amount:'27',unit:'项',share:'27项',highlight:true,ref:'m1'},
+     {id:'pend',title:'待确认交接任务',detail:'处于核对或等待确认阶段',amount:'7',unit:'项',share:'7项',ref:'m2'}
+    ]}},
+    {id:'limit',title:'当前记录状态结论与使用边界',distributeRows:true,builder:s=>capacityTable({...s,columns:[{key:'k',label:'核对维度',width:s.bounds[2]*0.3,emphasize:true},{key:'v',label:'原稿事实与限定边界',width:s.bounds[2]*0.7}]}),spec:{size:24,rows:[
+     {id:'r1',k:'数量组成关系',v:'第1周共记录34项交接任务，由27项已完成与7项待确认组成。'},
+     {id:'r2',k:'待确认状态定性',v:'7项待确认仅代表尚未完成接收确认，不能视为失败或取消。',highlight:true},
+     {id:'r3',k:'无历史对比基线',v:'上述数量仅用于展示数量组成关系，没有真实业务数据或对比基线。'}
+    ]}}
+   ]},m);
+   assert.equal(r.capacity.status,'fits');
+   assert.equal(r.regions[0].bounds[1],r.regions[1].bounds[1]);
+   assert.equal(r.regions[0].bounds[3],r.regions[1].bounds[3]);
+   // Panel without summary starts its body directly below heading without wasted summary space
+   assert(r.regions[1].bodyBounds[1]<r.regions[0].bodyBounds[1]);
+  }
  }finally{await m.close();}
 });

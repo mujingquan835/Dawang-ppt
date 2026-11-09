@@ -41,8 +41,9 @@ try {
 | schedule | capacityTable 的时间、内容、参与人员三列默认配置；可传 columns 替换。不是拼接空格的文本框 |
 | capacityFlow | 顺序流程。steps：id/title/detail/ref。实测标题后移动说明 |
 | capacityCycle | 环形闭环动线。center：{value,label,ref}；nodes（3—6 个）：id/title/detail/ref；自动生成顺时针圆弧、方向箭头、短引线与外侧标签（起点①与返回边默认金色强调），绑定节点 ref 与 `relationRef` 的 `edgeId` |
+| capacityBranch | 条件分支与返回回路图。steps：主干正向节点（id/title/detail/ref）；branch：{from,returnTo,id,title,detail,ref,passCondition,failCondition,returnEdge,passSummary}；自动生成正向推进边、条件徽标、向下异常分支卡片及 L 形返回回路箭头，并完整绑定 `relationRef` 的全部 `edgeId` |
 | allocationList | 比例分配列表。顶部按 `share` 真实比例绘制分段色带，下部按行排列渠道/用途、34px `keyNumber` 金额 runs 与占比徽标；支持 `highlight:true` 主投入浅金底色与左强调条，支持 `distributeRows` |
-| panelGroup | 多栏面板组合（支持等宽或 `shares:[0.44,0.56]` 比例分栏，支持字符串或 `{value,unit}` 结构化同基线摘要，支持 `distributeRows` 共同收口） |
+| panelGroup | 多栏面板组合（支持等宽或 `shares:[0.44,0.56]` 比例分栏，支持字符串或 `{value,unit}` 结构化同基线摘要，无摘要面板自动紧贴标题排布，支持 `distributeRows` 共同收口） |
 | measureModule | 复用同一 createLayoutMeasurer，测量文本后重新生成几何；保留字号、字体、文字、图片参数与列宽 |
 | rolesWithSchedule | patterns.mjs 的组合入口；接收 roleSpec、scheduleSpec、可选 measurer。合并元素/绑定和容量状态，并拒绝区域重叠与重复元素 ID |
 

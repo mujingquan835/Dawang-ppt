@@ -177,11 +177,13 @@ export function panelGroup(spec) {
   return text(`${id}-${p.id}-summary`,p.summary,cols[i].px+pad,y+pad+titleH+16,cols[i].inner,spec.summarySize??40,theme,measurements,{fontWeight:700,color:theme.palette.accent});
  });
  const summaryH=Math.max(0,...summaries.filter(Boolean).map(e=>e.bounds[3]));
- const bodyY=y+pad+titleH+24+(summaryH?summaryH+24:0),bodyH=y+h-pad-bodyY;
- if(bodyH<=0)throw new RangeError('panel header leaves no body space; reallocate region');
+ const sharedBodyY=y+pad+titleH+24+(summaryH?summaryH+24:0);
+ if(y+h-pad-sharedBodyY<=0)throw new RangeError('panel header leaves no body space; reallocate region');
  const elements=[],bindings=[],regions=[],children=[];
  panels.forEach((p,i)=>{
-  const {px,pw,inner}=cols[i],pid=`${id}-${p.id}`,bounds=[px+pad,bodyY,inner,bodyH];
+  const {px,pw,inner}=cols[i],pid=`${id}-${p.id}`;
+  const bodyY=(summaries[i]||spec.alignBodyTop)?sharedBodyY:(y+pad+titleH+24),bodyH=y+h-pad-bodyY;
+  const bounds=[px+pad,bodyY,inner,bodyH];
   let child=p.builder({...p.spec,id:pid+'-body',bounds,theme,measurements});
   // Spread table/allocation row padding equally, without scaling fonts or forcing row correspondence.
   if(p.distributeRows&&child.rows?.length&&child.capacity.status==='fits'){
@@ -353,4 +355,132 @@ export function capacityCycle(spec) {
   if(spec.note?.ref)bindings.push({ref:spec.note.ref,elementIds:[noteEl.id]});
  }
  return finish(spec,elements,bindings,{center:[cx,cy],radius:R});
+}
+
+// Conditional branch workflow with forward main lane, downward exception branch, and return loop edge.
+export function capacityBranch(spec) {
+ validate(spec);checkItems(spec.steps);
+ const {id,steps,branch,bounds:[x,y,w,h],measurements}=spec,theme=spec.theme||createTheme();
+ if(!branch||typeof branch.id!=='string'||!branch.title||!branch.from)throw new TypeError('branch with id, title and from step id required');
+ const n=steps.length,bIdx=steps.findIndex(s=>s.id===branch.from),rIdx=Math.max(0,steps.findIndex(s=>s.id===(branch.returnTo|| steps[0].id)));
+ if(bIdx<0||bIdx>=n-1)throw new TypeError('branch.from must reference a non-terminal main step');
+ const gap=spec.gap??48,slotW=Math.floor((w-gap*(n-1))/n);
+ if(slotW<140)throw new TypeError('branch main slots too narrow');
+ const titleSize=spec.titleSize??30,detailSize=spec.detailSize??24,condSize=spec.conditionSize??20;
+ const mainColor=theme.palette.accent,branchColor=spec.branchColor||theme.palette.pop||'#B58A42';
+ const topY=y+36,nodeSize=48,elements=[],bindings=[];
+
+ // 1) Main forward lane
+ const stepDrafts=steps.map((step,i)=>{
+  const sx=x+i*(slotW+gap),sid=encodeURIComponent(step.id);
+  const numEl=text(`${id}-num-${sid}`,String(step.num??`0${i+1}`),sx,topY,nodeSize,28,theme,measurements,{fontWeight:700,color:'#FFFFFF',textAlign:'center',lineHeight:1.15});
+  numEl.bounds[1]=topY+Math.round((nodeSize-numEl.bounds[3])/2);
+  const tEl=text(`${id}-title-${sid}`,step.title,sx,topY+nodeSize+14,slotW,titleSize,theme,measurements,{fontWeight:700,color:step.highlight?mainColor:theme.palette.ink});
+  const dEl=step.detail?text(`${id}-detail-${sid}`,step.detail,sx,topY+nodeSize+14+tEl.bounds[3]+8,slotW,detailSize,theme,measurements,{fontWeight:400,color:theme.palette.body||theme.palette.muted}):null;
+  const bottom=dEl?dEl.bounds[1]+dEl.bounds[3]:tEl.bounds[1]+tEl.bounds[3];
+  return {step,sid,sx,numEl,tEl,dEl,bottom};
+ });
+ const mainBottom=Math.max(...stepDrafts.map(d=>d.bottom));
+ stepDrafts.forEach(({step,sid,sx,numEl,tEl,dEl})=>{
+  const fill=step.highlight?mainColor:(step.nodeFill||mainColor);
+  elements.push({id:`${id}-node-${sid}`,type:'shape',bounds:[sx,topY,nodeSize,nodeSize],style:{fill,radius:24}},numEl,tEl,...(dEl?[dEl]:[]));
+  if(step.ref)bindings.push({ref:step.ref,elementIds:[numEl.id,tEl.id,...(dEl?[dEl.id]:[])]});
+ });
+
+ // 2) Forward edges + passCondition badge on bIdx -> bIdx+1
+ for(let i=0;i<n-1;i++){
+  const from=stepDrafts[i],to=stepDrafts[i+1];
+  const lx1=from.sx+nodeSize+12,lx2=to.sx-14,ly=topY+Math.round(nodeSize/2);
+  const linkId=`${id}-link-${from.sid}-${to.sid}`,headId=`${id}-head-${from.sid}-${to.sid}`;
+  elements.push(
+   lineElement({id:linkId,from:[lx1,ly],to:[lx2,ly],style:{stroke:mainColor,strokeWidth:3}}),
+   {id:headId,type:'vector',bounds:[lx2-14,ly-8,16,16],viewBox:[0,0,16,16],path:'M 0 0 L 16 8 L 0 16 Z',style:{fill:mainColor,stroke:'none'}}
+  );
+  const edgeIds=[linkId,headId];
+  if(i===bIdx&&branch.passCondition?.label){
+   const cw=Math.min(180,Math.max(116,lx2-lx1-16)),cx0=lx1+Math.round((lx2-lx1-cw)/2);
+   const cBgId=`${id}-cond-pass-bg`,cTxt=text(`${id}-cond-pass`,branch.passCondition.label,cx0,y,cw,condSize,theme,measurements,{fontWeight:700,color:mainColor,textAlign:'center',lineHeight:1.2});
+   elements.push({id:cBgId,type:'shape',bounds:[cx0,y-2,cw,cTxt.bounds[3]+4],style:{fill:theme.palette.pale||'#F0F2F9',radius:6}},cTxt);
+   edgeIds.push(cTxt.id);
+   if(branch.passCondition.ref)bindings.push({ref:branch.passCondition.ref,elementIds:[cTxt.id]});
+  }
+  const edgeId=i===bIdx?(branch.passCondition?.edgeId||`e${i+1}`):(spec.forwardEdgeIds?.[i]||`e${i+1}`);
+  if(spec.relationRef&&edgeId)bindings.push({ref:spec.relationRef,edgeId,elementIds:edgeIds});
+ }
+
+ // 3) Downward exception branch from bIdx
+ const bStep=stepDrafts[bIdx],rStep=stepDrafts[rIdx];
+ const branchGap=spec.branchGap??78,by=mainBottom+branchGap;
+ const downX=bStep.sx+Math.round(nodeSize/2),downY1=bStep.bottom+8,downY2=by-6;
+ const failLineId=`${id}-branch-down`,failHeadId=`${id}-branch-down-head`;
+ elements.push(
+  lineElement({id:failLineId,from:[downX,downY1],to:[downX,downY2],style:{stroke:branchColor,strokeWidth:3}}),
+  {id:failHeadId,type:'vector',bounds:[downX-8,downY2-12,16,16],viewBox:[0,0,16,16],path:'M 0 0 L 16 0 L 8 16 Z',style:{fill:branchColor,stroke:'none'}}
+ );
+ const failEdgeIds=[failLineId,failHeadId];
+ if(branch.failCondition?.label){
+  const fTxt=text(`${id}-cond-fail`,branch.failCondition.label,downX+14,downY1+Math.max(4,Math.round((downY2-downY1-32)/2)),180,condSize,theme,measurements,{fontWeight:700,color:'#1F2430',lineHeight:1.2});
+  elements.push({id:`${id}-cond-fail-bg`,type:'shape',bounds:[downX+10,fTxt.bounds[1]-2,188,fTxt.bounds[3]+4],style:{fill:theme.palette.highlightBg||'#F7F0E3',radius:6}},fTxt);
+  failEdgeIds.push(fTxt.id);
+  if(branch.failCondition.ref)bindings.push({ref:branch.failCondition.ref,elementIds:[fTxt.id]});
+ }
+ if(spec.relationRef&&branch.failCondition?.edgeId)bindings.push({ref:spec.relationRef,edgeId:branch.failCondition.edgeId,elementIds:failEdgeIds});
+
+ // 4) Exception branch card
+ const maxBranchW=branch.passSummary&&bIdx+1<n?Math.max(slotW+40,stepDrafts[bIdx+1].sx-bStep.sx-28):w-(bStep.sx-x);
+ const bCardW=Math.min(maxBranchW,Math.max(slotW+80,Math.round(slotW*1.45))),bid=encodeURIComponent(branch.id);
+ const bTitle=text(`${id}-title-${bid}`,branch.title,bStep.sx+24,by+16,bCardW-40,titleSize,theme,measurements,{fontWeight:700,color:'#1F2430'});
+ const bDetail=branch.detail?text(`${id}-detail-${bid}`,branch.detail,bStep.sx+24,by+16+bTitle.bounds[3]+8,bCardW-40,detailSize,theme,measurements,{fontWeight:400,color:theme.palette.body||theme.palette.muted}):null;
+ let bCardH=(bDetail?bDetail.bounds[1]+bDetail.bounds[3]:bTitle.bounds[1]+bTitle.bounds[3])-by+18;
+ let passEls=[];
+ if(branch.passSummary&&bIdx+1<n){
+  const px0=Math.max(bStep.sx+bCardW+28,stepDrafts[bIdx+1].sx),pw0=x+w-px0;
+  if(pw0>=180){
+   const pTitle=text(`${id}-pass-summary-title`,branch.passSummary.title,px0+24,by+16,pw0-40,titleSize,theme,measurements,{fontWeight:700,color:mainColor});
+   const pDetail=branch.passSummary.detail?text(`${id}-pass-summary-detail`,branch.passSummary.detail,px0+24,by+16+pTitle.bounds[3]+8,pw0-40,detailSize,theme,measurements,{fontWeight:400,color:theme.palette.body||theme.palette.muted}):null;
+   const pCardH=(pDetail?pDetail.bounds[1]+pDetail.bounds[3]:pTitle.bounds[1]+pTitle.bounds[3])-by+18;
+   bCardH=Math.max(bCardH,pCardH);
+   passEls=[
+    {id:`${id}-pass-summary-card`,type:'shape',bounds:[px0,by,pw0,bCardH],style:{fill:theme.palette.pale||'#F0F2F9',radius:8}},
+    {id:`${id}-pass-summary-bar`,type:'shape',bounds:[px0,by,6,bCardH],style:{fill:mainColor,radius:0}},
+    pTitle,
+    ...(pDetail?[pDetail]:[])
+   ];
+   if(branch.passSummary.ref)bindings.push({ref:branch.passSummary.ref,elementIds:[pTitle.id,...(pDetail?[pDetail.id]:[])]});
+  }
+ }
+ elements.push(
+  {id:`${id}-card-${bid}`,type:'shape',bounds:[bStep.sx,by,bCardW,bCardH],style:{fill:theme.palette.highlightBg||'#F7F0E3',radius:8}},
+  {id:`${id}-bar-${bid}`,type:'shape',bounds:[bStep.sx,by,6,bCardH],style:{fill:branchColor,radius:0}},
+  bTitle,
+  ...(bDetail?[bDetail]:[]),
+  ...passEls
+ );
+ if(branch.ref)bindings.push({ref:branch.ref,elementIds:[bTitle.id,...(bDetail?[bDetail.id]:[])]});
+
+ // 5) Return loop from branch card left side -> left to rStep -> up to rStep bottom
+ const retY=by+Math.round(bCardH/2),retX1=bStep.sx,retX2=rStep.sx+Math.round(nodeSize/2),retTopY=rStep.bottom+10;
+ const retVecX=Math.min(retX1,retX2)-12,retVecY=retTopY-4,retVecW=Math.abs(retX1-retX2)+24,retVecH=retY-retTopY+16;
+ const vx1=retX1-retVecX,vy1=retY-retVecY,vx2=retX2-retVecX,vy2=retTopY-retVecY+10;
+ const retPathId=`${id}-return-path`,retHeadId=`${id}-return-head`;
+ elements.push(
+  {id:retPathId,type:'vector',bounds:[retVecX,retVecY,retVecW,retVecH],viewBox:[0,0,retVecW,retVecH],path:`M ${vx1} ${vy1} L ${vx2} ${vy1} L ${vx2} ${vy2}`,style:{fill:'none',stroke:branchColor,strokeWidth:3}},
+  {id:retHeadId,type:'vector',bounds:[retX2-8,retTopY-2,16,16],viewBox:[0,0,16,16],path:'M 8 0 L 16 14 L 0 14 Z',style:{fill:branchColor,stroke:'none'}}
+ );
+ const retEdgeIds=[retPathId,retHeadId];
+ if(branch.returnEdge?.label){
+  const rw=Math.max(180,Math.min(280,retX1-retX2-24)),rx0=retX2+Math.max(12,Math.round((retX1-retX2-rw)/2));
+  const rTxt=text(`${id}-return-label`,branch.returnEdge.label,rx0,retY-38,rw,condSize,theme,measurements,{fontWeight:700,color:mainColor,textAlign:'center',lineHeight:1.2});
+  elements.push(rTxt);
+  retEdgeIds.push(rTxt.id);
+  if(branch.returnEdge.ref)bindings.push({ref:branch.returnEdge.ref,elementIds:[rTxt.id]});
+ }
+ if(spec.relationRef&&branch.returnEdge?.edgeId)bindings.push({ref:spec.relationRef,edgeId:branch.returnEdge.edgeId,elementIds:retEdgeIds});
+
+ if(spec.note?.text){
+  const nEl=text(`${id}-note`,spec.note.text,x,by+bCardH+18,w,spec.note.size??20,theme,measurements,{color:theme.palette.muted});
+  elements.push(nEl);
+  if(spec.note.ref)bindings.push({ref:spec.note.ref,elementIds:[nEl.id]});
+ }
+ return finish(spec,elements,bindings,{mainBottom,branchBounds:[bStep.sx,by,bCardW,bCardH]});
 }

@@ -12,9 +12,14 @@ description: 制作、编辑和返工中文工作汇报类演示文稿（工作�
 
 用户用自然语言提交材料；工程 JSON 和 CLI 都由制作智能体完成。保留原规则阅读、逐页设计与看图，不降低模型思考档位。
 
-## W1—W3 候选开发流程
+## W1—W5 候选开发流程（理解原稿 → 确定重点与关系 → 逐页设计 → 技能实现 → 视觉复核）
 
-本候选版新建或重构稿件时，先执行 [独立基线与组合布局](references/composition-contracts.md)：材料生成独立基线并另存，再逐区设计、声明真实边界对齐，最后调用实测模块。不得从最终页面反向生成基线，不得用单个 body 区域代替实际多区构图。生成前后均对照外部基线检查。流程关系调用适用模块；缺少适用模块时明确自定义设计并看图，不静默降级为文字箭头。下面的完整规则阅读与独立视觉复核仍须执行。
+本候选版新建或重构稿件时，严格遵循 [独立基线与组合布局](references/composition-contracts.md)、[内容关系与页面绑定](references/content-page-contracts.md) 与 [模块与容量处理](references/capacity-modules.md)：
+1. **理解原稿（`source-baseline-v1`）**：先从原始材料建立独立 `content-baseline.json`（含 `sourceLocations`），不得从最终页面元素反向生成基线。
+2. **确定重点与关系（`content-relations-v1`）**：梳理必填事实节点、数字角色与结构关系（`sequence`、`cycle`、`branch`、`composition`、`classification`、`assignment`、`conversion`），缺失资产显式记入 `gaps`。
+3. **逐页与逐区设计（`page-design-v1` + `regional-composition-v1`）**：每页声明 `readerTask`、`typographyRoles`（统一 8 级字号体系）、区域主次（`primary` / `secondary` / `support`）与对齐关系（支持有框 `frameElementId` 或无外框开放区 `openGroup: true`）。不得用单个 `body` 区域掩盖多区构图。
+4. **技能模块实测实现**：优先调用 `capacity-kit.mjs` 中的实测模块（`roleGroup`、`schedule`、`capacityTable`、`capacityFlow`、`capacityCycle`、`capacityBranch`、`allocationList`、`panelGroup`）通过 `measureModule` 实测几何，严禁静默删字或缩字。
+5. **三类复核与真实看图（`W4`）**：生成前后均对照外部基线检查，渲染 PNG 截图后逐页看图复核；启用组合契约的工程按 `content` / `render` / `design` 三类分级复核，`blocker`（事实漂移、文字裁切重叠、核心关系缺失）在 3 轮后仍阻断正式发布（仅可输出 `reviewDraftFile` 审阅稿），`advisory`（审美微调）以警告随附正式交付。局部修改（单页文字/图片/样式）仅使受影响页复核失效，全局字体/主题变更使全稿复核失效。
 
 ## 默认制作流程
 

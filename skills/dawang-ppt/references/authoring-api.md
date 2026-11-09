@@ -105,10 +105,12 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 
 运行记录的浏览器就绪、渲染、QA等是程序计时，不包含完整模型制作成本。`runs.jsonl`保留多轮程序记录，不自动测量模型/平台等待。
 
-## 候选内容关系与页面绑定
+## 候选内容关系与页面绑定（W1—W2）
 
-显式启用 `content-relations-v1` 与 `page-design-v1` 后，材料节点、关系和页面区域绑定进入现有覆盖检查；旧稿保持兼容。字段、诊断和当前限制见 [内容关系与页面绑定](content-page-contracts.md)。候选功能不自动切换日常制作流程。
+显式启用 `source-baseline-v1`、`content-relations-v1`、`page-design-v1` 与 `regional-composition-v1` 后，独立原稿基线、材料节点、关系、页面区域层级与真实对齐边界进入覆盖检查；旧稿保持兼容。字段、诊断和当前限制见 [内容关系与页面绑定](content-page-contracts.md) 与 [独立基线与组合布局](composition-contracts.md)。候选功能不自动切换日常制作流程。
 
-## 候选容量模块
+## 候选容量模块与三类复核（W3—W5）
 
-人物组、容量表格、排期与顺序流程可用浏览器测量后重排；放不下返回明确状态而不删字缩字。接口与限制见 [模块与容量处理](capacity-modules.md)。
+- `capacity-kit.mjs` 提供 `roleGroup`、`capacityTable`、`schedule`、`capacityFlow`、`capacityCycle`（环形闭环动线）、`capacityBranch`（条件分支与返回回路图）、`allocationList`（比例分配条与主次高亮行）、`panelGroup`（等宽/非等宽比例面板、结构化数字摘要与行距自适应分配），均支持 `measureModule` 浏览器实测重排；放不下返回明确状态而不删字缩字。接口与限制见 [模块与容量处理](capacity-modules.md)。
+- `createTheme` 提供统一 8 级字号体系 `theme.roles`（`heroMetric` 80、`pageTitle` 52、`keyNumber` 34、`sectionTitle` 30、`badge` 28、`metricUnit` 26、`body` 26、`tableBody` 24、`caption` 20）、`theme.roleStyle(roleName, overrides)` 与 `theme.metricRuns(value, unit, opts)`。
+- 启用候选组合契约的工程支持三类复核分类（`content` / `render` / `design`）与发布状态 `releaseStatus`（`ready` / `validating` / `needs-revision` / `review-draft`），`make` / `publish:html` 支持 `--review-draft <path>` 在阻断时单独输出审阅草稿而不覆盖正式 `outFile`。

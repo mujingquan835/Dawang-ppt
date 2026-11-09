@@ -101,15 +101,35 @@
   - P4：[`screens/04.png`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/longhu-full-v2/screens/04.png)
   - P5：[`screens/05.png`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/longhu-full-v2/screens/05.png)
 
-### 2. P3 与 P5 专项设计样张
+### 2. 样稿 B（跨团队交接试点 · 四页公开合成示例重做稿，W5）
+目录：[`/Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2)
+- **最终可离线编辑与导出的单文件 HTML**：  
+  [`跨团队交接试点-四页合成样稿.html`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/%E8%B7%A8%E5%9B%A2%E9%98%9F%E4%BA%A4%E6%8E%A5%E8%AF%95%E7%82%B9-%E5%9B%9B%E9%A1%B5%E5%90%88%E6%88%90%E6%A0%B7%E7%A8%BF.html)
+- **排版前独立提取的四页内容基线**：  
+  [`content-baseline.json`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/content-baseline.json)
+- **完整构建与验证脚本（含 `capacityBranch` 条件分支与返回回路）**：  
+  [`build-showcase.jsx`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/build-showcase.jsx)
+- **四页契约与浏览器 QA 报告（0 issues, 0 warnings）**：  
+  [`qa.json`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/qa.json)
+- **四页高清渲染截图（已逐张视觉复核）**：
+  - B1：[`screens/01.png`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/screens/01.png)
+  - B2：[`screens/02.png`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/screens/02.png)
+  - B3：[`screens/03.png`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/screens/03.png)
+  - B4：[`screens/04.png`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/showcase-pilot-v2/screens/04.png)
+
+### 3. P3 与 P5 专项设计样张
 目录：[`/Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/longhu-p3-p5-samples/`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/longhu-p3-p5-samples)
 - [`龙湖方案-P3与P5样张预览.html`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/longhu-p3-p5-samples/龙湖方案-P3与P5样张预览.html)
 - [`build-samples.jsx`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/longhu-p3-p5-samples/build-samples.jsx)
 
-### 3. 设计文档与参考规范
+### 4. 设计文档与实施记录（W1—W5）
 - 逐页设计基准：[`output/longhu-design-first/龙湖方案-逐页设计与能力对照.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/output/longhu-design-first/龙湖方案-逐页设计与能力对照.md)
-- W1–W3 实现计划：[`docs/plans/authoring-system-v2/w1-w3-composition-implementation.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/docs/plans/authoring-system-v2/w1-w3-composition-implementation.md)
+- W1–W3 实现记录：[`docs/plans/authoring-system-v2/w1-w3-composition-implementation.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/docs/plans/authoring-system-v2/w1-w3-composition-implementation.md)
+- W4 三类复核与局部失效实现记录：[`docs/plans/authoring-system-v2/w4-implementation.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/docs/plans/authoring-system-v2/w4-implementation.md)
+- W5 条件分支模块与样稿 B 实现记录：[`docs/plans/authoring-system-v2/w5-implementation.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/docs/plans/authoring-system-v2/w5-implementation.md)
 - 模块与契约文档：
+  - [`skills/dawang-ppt/SKILL.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/skills/dawang-ppt/SKILL.md)
+  - [`skills/dawang-ppt/references/authoring-api.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/skills/dawang-ppt/references/authoring-api.md)
   - [`skills/dawang-ppt/references/capacity-modules.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/skills/dawang-ppt/references/capacity-modules.md)
   - [`skills/dawang-ppt/references/composition-contracts.md`](file:///Users/meimaodawang/Documents/Dawang-ppt-w1-w2/skills/dawang-ppt/references/composition-contracts.md)
 
