@@ -37,9 +37,12 @@ try {
 | API | 内容与行为 |
 |---|---|
 | roleGroup | items：id/name/role/detail，选填 ref/photo/placeholder。人物按行布局，左图或明确占位，右姓名/角色/职责。行高随全部内容增长。mediaWidth/mediaHeight 可配置，photo 支持现有 photoGroup 的 size/focal 等输入 |
-| capacityTable | rows：稳定 id 和列数据；columns：key/label/width，宽度总和等于区域宽度。全部表头/单元格参与测量；长行推动后续行，适用于预算明细等 |
+| capacityTable | rows：稳定 id 和列数据（支持 `highlight:true` 重点底色带、`tone:'secondary'` 次重点强调、`runs` 单元格富文本）；columns：key/label/width/align/emphasize，宽度总和等于区域宽度。全部表头/单元格参与测量；长行推动后续行 |
 | schedule | capacityTable 的时间、内容、参与人员三列默认配置；可传 columns 替换。不是拼接空格的文本框 |
-| capacityFlow | 顺序流程。steps：id/title/detail/ref。实测标题后移动说明；不表示已支持分支或循环自动布线 |
+| capacityFlow | 顺序流程。steps：id/title/detail/ref。实测标题后移动说明 |
+| capacityCycle | 环形闭环动线。center：{value,label,ref}；nodes（3—6 个）：id/title/detail/ref；自动生成顺时针圆弧、方向箭头、短引线与外侧标签（起点①与返回边默认金色强调），绑定节点 ref 与 `relationRef` 的 `edgeId` |
+| allocationList | 比例分配列表。顶部按 `share` 真实比例绘制分段色带，下部按行排列渠道/用途、34px `keyNumber` 金额 runs 与占比徽标；支持 `highlight:true` 主投入浅金底色与左强调条，支持 `distributeRows` |
+| panelGroup | 多栏面板组合（支持等宽或 `shares:[0.44,0.56]` 比例分栏，支持字符串或 `{value,unit}` 结构化同基线摘要，支持 `distributeRows` 共同收口） |
 | measureModule | 复用同一 createLayoutMeasurer，测量文本后重新生成几何；保留字号、字体、文字、图片参数与列宽 |
 | rolesWithSchedule | patterns.mjs 的组合入口；接收 roleSpec、scheduleSpec、可选 measurer。合并元素/绑定和容量状态，并拒绝区域重叠与重复元素 ID |
 

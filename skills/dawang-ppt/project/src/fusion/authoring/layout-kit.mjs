@@ -10,10 +10,36 @@ import { pickIcon, iconElements } from './icons.mjs';
 export const CANVAS = { width: 1920, height: 1080 };
 
 // radius: one corner radius shared by tiles, panels and photos, so rounded components read as one family.
-export function createTheme({ palette = {}, fontFamily = 'PingFang SC', headingFamily, radius = 14 } = {}) {
-  const p = { bg: '#FFFFFF', ink: '#14213D', accent: '#E8590C', muted: '#5C6B7A', line: '#D9DEE5', pale: '#F2F4F7', inverse: '#FFFFFF', ...palette };
-  const font = (size, extra = {}) => ({ fontFamily, fontSize: size, color: p.ink, fontWeight: 400, lineHeight: 1.4, ...extra });
-  return { palette: p, fontFamily, headingFamily: headingFamily || fontFamily, font, radius };
+// roles: canonical typography scale driving page titles, hero metrics, units, section titles, key numbers, body and captions.
+export function createTheme({ palette = {}, fontFamily = 'PingFang SC', headingFamily, radius = 14, roles = {} } = {}) {
+  const p = { bg: '#FFFFFF', ink: '#14213D', accent: '#E8590C', gold: '#B58A42', body: '#4B5563', muted: '#5C6B7A', line: '#D9DEE5', pale: '#F2F4F7', highlightBg: '#F7F0E3', inverse: '#FFFFFF', ...palette };
+  const hFamily = headingFamily || fontFamily;
+  const defaultRoles = {
+    pageTitle: { fontFamily: hFamily, fontSize: 52, fontWeight: 700, color: p.ink, lineHeight: 1.3 },
+    heroMetric: { fontFamily: hFamily, fontSize: 80, fontWeight: 700, color: p.accent, lineHeight: 1.3 },
+    metricUnit: { fontFamily, fontSize: 26, fontWeight: 500, color: p.accent, lineHeight: 1.3 },
+    sectionTitle: { fontFamily: hFamily, fontSize: 30, fontWeight: 700, color: p.accent, lineHeight: 1.35 },
+    keyNumber: { fontFamily: hFamily, fontSize: 34, fontWeight: 700, color: p.accent, lineHeight: 1.3 },
+    body: { fontFamily, fontSize: 26, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.4 },
+    tableBody: { fontFamily, fontSize: 24, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.35 },
+    caption: { fontFamily, fontSize: 20, fontWeight: 400, color: p.muted, lineHeight: 1.35 }
+  };
+  const resolvedRoles = Object.fromEntries(Object.keys({ ...defaultRoles, ...roles }).map((k) => [k, { ...(defaultRoles[k] || { fontFamily, color: p.ink, fontWeight: 400, lineHeight: 1.4 }), ...(roles[k] || {}) }]));
+  const font = (size, extra = {}) => {
+    const isHeading = extra.fontWeight >= 600 && size >= 28;
+    return { fontFamily: isHeading ? hFamily : fontFamily, fontSize: size, color: p.ink, fontWeight: 400, lineHeight: 1.4, ...extra };
+  };
+  const roleStyle = (role, extra = {}) => {
+    if (!Object.hasOwn(resolvedRoles, role)) throw new Error('Unknown typography role: ' + role);
+    return { ...resolvedRoles[role], ...extra };
+  };
+  const metricRuns = (value, unit = '', { valueRole = 'heroMetric', unitRole = 'metricUnit', color, unitColor, size, unitSize, gap = ' ' } = {}) => {
+    const vs = roleStyle(valueRole, { ...(size ? { fontSize: size } : {}), ...(color ? { color } : {}) });
+    const us = roleStyle(unitRole, { ...(unitSize ? { fontSize: unitSize } : {}), color: unitColor || color || vs.color });
+    const runs = [{ text: String(value), style: { fontFamily: vs.fontFamily, fontSize: vs.fontSize, fontWeight: vs.fontWeight, color: vs.color } }, ...(unit ? [{ text: gap + unit, style: { fontFamily: us.fontFamily, fontSize: us.fontSize, fontWeight: us.fontWeight, color: us.color } }] : [])];
+    return { text: String(value) + (unit ? gap + unit : ''), runs, style: vs };
+  };
+  return { palette: p, fontFamily, headingFamily: hFamily, font, roles: resolvedRoles, roleStyle, metricRuns, radius };
 }
 
 export function createGrid({ margin = 96, columns = 12, gutter = 32, width = CANVAS.width } = {}) {

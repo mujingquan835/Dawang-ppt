@@ -25,3 +25,22 @@
 - W2 只自动检查已表达的几何约束；标题实际视觉基线、文字美感、参考案例质量由看图与独立复核判断。
 - 当前组合等宽，循环自动布线、不等宽和自动拆页未实现。不应宣称完整 W3 视觉能力已验收。
 - 尚未重做龙湖业务稿，不改旧测试 HTML；未合主分支、未发布、未修改日常安装。
+
+---
+
+## 2026-11-08 P0 视觉与构图能力补齐及龙湖五页重做验证
+
+按“理解原稿 → 确定重点与关系 → 逐页设计 → 技能实现 → 视觉复核”顺序，补齐此前未实现的循环构图、非等宽组合、数值主次强调与 8 级字号真校验：
+
+1. **8 级字号角色与同基线数值+单位 (`layout-kit.mjs` & `composition-contract.mjs`)**：
+   - `createTheme` 新增 `roles`（`pageTitle` 52px、`heroMetric` 80px、`metricUnit` 26px、`sectionTitle` 30px、`keyNumber` 34px、`body` 26px、`tableBody` 24px、`caption` 20px）、`roleStyle(role, extra)` 与 `metricRuns(value, unit, opts)`，标题字号自动带入 `headingFamily`。
+   - `reviewComposition` 对声明 `typographyRoles` 或 `typography.strict = true` 的区域遍历绑定文本元素与 `runs`，实测校验字号是否匹配声明集合（违规报 `region-typography-mismatch`）。
+   - `reviewComposition` 新增 `openGroup: true` / `anchorElementIds` 支持，对无背景大框的开放文字分组基于绑定元素包络 (`envelopeOf`) 校验跨区齐边。
+2. **真环形闭环、比例分配与非等宽面板 (`capacity-kit.mjs`)**：
+   - 新增 `capacityCycle(spec)`：中心时长/主指标、顺时针圆周节点（默认起点①与④→①返场弧金色 `#B58A42`）、圆周 SVG `vector` 弧线与切向箭头、短引线、外侧实测标签及闭合关系边绑定 (`edgeId`)。
+   - 新增 `allocationList(spec)`：顶部按 `shares` 切分比例色带（如 `60:25:15`），下方渠道卡片支持主投入行浅金底 `#F7F0E3` + 金色竖条 + `28px` 粗体占比徽标，金额与单位同基线。
+   - 增强 `panelGroup(spec)`：支持非等宽 `shares`（如 `[0.44, 0.56]`）与结构化 `summary: { value, unit }`（80px 数值 + 26px 单位同基线）。
+   - 增强 `capacityTable(spec)`、`capacityFlow(spec)`、`roleGroup(spec)`：支持表格重点行 (`highlight: true` / `tone: 'primary'`) 与次重点行 (`tone: 'secondary'`) 及首列统一内缩对齐；支持流程单步节点配色高亮；支持角色缺失照片时的 `placeholderBadge`（如 `'C'` + 双行 `'形象\n待补'`）同尺寸设计占位。
+3. **验证与本机样稿**：
+   - 新增契约与浏览器实测单测全部通过（`composition-contracts.test.mjs`、`capacity-kit.test.mjs`、`content-page-contracts.test.mjs`、`capacity-browser.test.mjs`、`semantic-portable.test.mjs` 共 36 项通过）。
+   - 先完成 P3/P5 专项样张（本机 `output/longhu-p3-p5-samples/`）获用户确认，随后基于排版前独立提取的 5 页 `content-baseline.json` 完成龙湖双11五页完整重做稿（本机 `output/longhu-full-v2/`），契约、视觉 lint 与浏览器 `measureProject` 均为 0 错误、0 警告，并完成 5 张渲染截图肉眼复核。
