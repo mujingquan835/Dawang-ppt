@@ -1,4 +1,4 @@
-# 模块与容量处理（W3 候选）
+# 模块与容量处理
 
 入口：`project/src/fusion/authoring/capacity-kit.mjs`。在原 layout-kit 的表格、图片组、流程工具上组合，旧工具默认行为不变。候选模块不会自动决定内容、删字、缩小字号或分页。
 

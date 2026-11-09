@@ -1,4 +1,5 @@
 import { validateContentModel } from './content-model.mjs';
+import { outlineBaselineIssues } from './outline-baseline.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -86,7 +87,10 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
   });
   const contentIssues = validateContentModel(outline);
   const blocking = gaps.length > 0 || contentIssues.length > 0;
-  return { ok: !blocking, kind, scope: full ? 'full' : 'part', gaps, warnings, suggestions, contentIssues,
+  // Source locations are the agent's to fill in; they never become a question for the user.
+  const baselineIssues = outlineBaselineIssues(outline, { baseDir });
+  return { ok: !blocking, kind, scope: full ? 'full' : 'part', gaps, warnings, suggestions, contentIssues, baselineIssues,
+    next: baselineIssues.length ? '制作智能体补全 baselineIssues（来源位置与摘录）后运行 outline:baseline' : '运行 outline:baseline <outline.json> <新目录> 生成事实基线与工程骨架',
     decision: contentIssues.length ? '内容契约不完整：制作智能体先修正 contentIssues，不把内部结构缺失当作用户材料缺口。' : blocking ? '只问一次：在同一条回复里列出 gaps（缺什么、为什么需要、缺了会怎样），请用户选择补充材料或按现有材料生成（页面标注“材料未提供”）。由用户决定。'
       : '没有需要用户决定的缺口：不要为内容再提问，直接进入配色与制作；warnings 在页面上如实处理即可。' };
 }

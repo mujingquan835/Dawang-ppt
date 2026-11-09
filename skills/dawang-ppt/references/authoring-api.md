@@ -63,6 +63,19 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - 照片路径相对大纲文件所在目录。
 - 输出：`gaps`（缺口：缺什么 `ask`、缺了会怎样 `impact`）、`warnings`（单位缺失、重点句只是动作罗列、照片不存在、可选内容缺失）、`suggestions`（每页建议页型及理由：数据多用色块，数据少照片多才用照片拼板）、`decision`（下一步该问用户什么）。工作汇报要求整体结论、成果数据、问题差距、下一步，需支持事项为可选；述职要求职责定位、个人业绩、不足反思、下一阶段计划。
 
+### 从大纲到事实基线
+
+新稿确认大纲后运行 `outline:baseline <outline.json> <新目录>`，生成 `content-baseline.json` 和 `authored-scaffold.json`。目录里已有基线时命令拒绝覆盖。
+
+- 顶层 `sources:[{sourceId,kind,path 或 title}]`，`audience` 必填。
+- `from:{sourceId?,locator,excerpt}` 写在 `data[]`、`items[]`、`flows[]`、`chains[]`、`compare`、`periods[]`、`table` 上；`sourceId` 省略时用第一份材料。照片没写时按附件文件记录。
+- 节点 id：`<页>:data-1`、`:item-1`、`:flow-1-1`、`:chain-1-1`、`:compare-l1`、`:compare-r1`、`:period-1`、`:row-1`、`:photo-1`。`keyLine` 是提炼结论，不进事实基线，走 `slides[i].keyLine`。
+- `data[].display` 可覆盖上屏字符串，默认是“数值 单位”（如 `20 单`），要与页面实际文字一致；`data[].role` 取 target/actual/estimated/planned，plan 页默认 planned，其他默认 actual。
+- 关系：流程和路径生成 sequence，`compare` 生成 comparison，`periods` 生成 sequence，`table` 生成 classification。其余关系写顶层 `relations:[{id,kind,members,edges 或 rows,from,page?}]`，由制作智能体判断。
+- `gaps`、`dispositions` 按内容模型原样写入基线。
+
+把 `authored-scaffold.json` 复制成同目录的 `authored.json`，补 `slides` 与 `contentPlan.slides[]` 的页面设计后运行 `make`。新稿缺声明或缺基线文件时 `make` 拦下；只有用户明确决定不走这套流程时，才在 `userDecisions` 里用用户原话覆盖 `new-deck-contracts-required`。
+
 ## 排版工具与页型
 
 排版用 `project/src/fusion/authoring/layout-kit.mjs` 与 `patterns.mjs`，不手算对齐坐标。每个工具返回 `{elements,height}`，按返回高度往下堆叠。完整用法见 `examples/layout-patterns.mjs` 与 `examples/report-patterns.mjs`（合成示例，每个页型一页）。
@@ -105,12 +118,12 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 
 运行记录的浏览器就绪、渲染、QA等是程序计时，不包含完整模型制作成本。`runs.jsonl`保留多轮程序记录，不自动测量模型/平台等待。
 
-## 候选内容关系与页面绑定（W1—W2）
+## 内容关系与页面绑定
 
 显式启用 `source-baseline-v1`、`content-relations-v1`、`page-design-v1` 与 `regional-composition-v1` 后，独立原稿基线、材料节点、关系、页面区域层级与真实对齐边界进入覆盖检查；旧稿保持兼容。字段、诊断和当前限制见 [内容关系与页面绑定](content-page-contracts.md) 与 [独立基线与组合布局](composition-contracts.md)。候选功能不自动切换日常制作流程。
 
-## 候选容量模块与三类复核（W3—W5）
+## 容量模块与三类复核
 
 - `capacity-kit.mjs` 提供 `roleGroup`、`capacityTable`、`schedule`、`capacityFlow`、`capacityCycle`（环形闭环动线）、`capacityBranch`（条件分支与返回回路图）、`allocationList`（比例分配条与主次高亮行）、`panelGroup`（等宽/非等宽比例面板、结构化数字摘要与行距自适应分配），均支持 `measureModule` 浏览器实测重排；放不下返回明确状态而不删字缩字。接口与限制见 [模块与容量处理](capacity-modules.md)。
 - `createTheme` 提供统一 8 级字号体系 `theme.roles`（`heroMetric` 80、`pageTitle` 52、`keyNumber` 34、`sectionTitle` 30、`badge` 28、`metricUnit` 26、`body` 26、`tableBody` 24、`caption` 20）、`theme.roleStyle(roleName, overrides)` 与 `theme.metricRuns(value, unit, opts)`。
-- 启用候选组合契约的工程支持三类复核分类（`content` / `render` / `design`）与发布状态 `releaseStatus`（`ready` / `validating` / `needs-revision` / `review-draft`），`make` / `publish:html` 支持 `--review-draft <path>` 在阻断时单独输出审阅草稿而不覆盖正式 `outFile`。
+- 启用组合契约的工程支持三类复核分类（`content` / `render` / `design`）与发布状态 `releaseStatus`（`ready` / `validating` / `needs-revision` / `review-draft`），`make` / `publish:html` 支持 `--review-draft <path>` 在阻断时单独输出审阅草稿而不覆盖正式 `outFile`。

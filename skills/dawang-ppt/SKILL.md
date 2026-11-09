@@ -12,15 +12,6 @@ description: 制作、编辑和返工中文工作汇报类演示文稿（工作�
 
 用户用自然语言提交材料；工程 JSON 和 CLI 都由制作智能体完成。保留原规则阅读、逐页设计与看图，不降低模型思考档位。
 
-## W1—W5 候选开发流程（理解原稿 → 确定重点与关系 → 逐页设计 → 技能实现 → 视觉复核）
-
-本候选版新建或重构稿件时，严格遵循 [独立基线与组合布局](references/composition-contracts.md)、[内容关系与页面绑定](references/content-page-contracts.md) 与 [模块与容量处理](references/capacity-modules.md)：
-1. **理解原稿（`source-baseline-v1`）**：先从原始材料建立独立 `content-baseline.json`（含 `sourceLocations`），不得从最终页面元素反向生成基线。
-2. **确定重点与关系（`content-relations-v1`）**：梳理必填事实节点、数字角色与结构关系（`sequence`、`cycle`、`branch`、`composition`、`classification`、`assignment`、`conversion`），缺失资产显式记入 `gaps`。
-3. **逐页与逐区设计（`page-design-v1` + `regional-composition-v1`）**：每页声明 `readerTask`、`typographyRoles`（统一 8 级字号体系）、区域主次（`primary` / `secondary` / `support`）与对齐关系（支持有框 `frameElementId` 或无外框开放区 `openGroup: true`）。不得用单个 `body` 区域掩盖多区构图。
-4. **技能模块实测实现**：优先调用 `capacity-kit.mjs` 中的实测模块（`roleGroup`、`schedule`、`capacityTable`、`capacityFlow`、`capacityCycle`、`capacityBranch`、`allocationList`、`panelGroup`）通过 `measureModule` 实测几何，严禁静默删字或缩字。
-5. **三类复核与真实看图（`W4`）**：生成前后均对照外部基线检查，渲染 PNG 截图后逐页看图复核；启用组合契约的工程按 `content` / `render` / `design` 三类分级复核，`blocker`（事实漂移、文字裁切重叠、核心关系缺失）在 3 轮后仍阻断正式发布（仅可输出 `reviewDraftFile` 审阅稿），`advisory`（审美微调）以警告随附正式交付。局部修改（单页文字/图片/样式）仅使受影响页复核失效，全局字体/主题变更使全稿复核失效。
-
 ## 默认制作流程
 
 按原规则的制作步骤执行，Dawang 只在对应步骤插入引擎操作。
@@ -29,12 +20,13 @@ description: 制作、编辑和返工中文工作汇报类演示文稿（工作�
 1. **读材料（原规则 step1）：** `prepare <材料> <新目录> --scenario <id>` 提取正文、原图台账与该场景规则；实际阅读 material.json、rules.json 并查看必需图片。完整读取用户材料，不擅自联网扩充，不补造数据。
 2. **梳理内容，找出缺口（原规则 step2，新建必做）：** 不论用户给的是大纲、一段文字、文档还是图片，先整理成结构化大纲 `outline.json`（格式见 [工程编写速查](references/authoring-api.md#内容大纲)）：汇报类型（工作汇报/复盘为 `report`，述职为 `review`）、统计时期、每页角色（整体结论、成果数据、关键动作、资源支持、问题差距、原因复盘、下一步、需支持/决策、职责定位）、重点句、带单位的数据、要点和照片。大纲写明 `scope`：用户只要一部分页面或某一块内容时为 `part`（默认），用户明确要完整汇报/述职时才是 `full`；authored 工程的 `requirements.scope` 同步填写。汇报结构要写进对应字段，页型才能被建议出来：有目标值写 `data[].target`（与实际值成对），今年/去年、亮点/待改进等成对内容写 `compare`，按月/季度展开写 `periods`，多张照片各对应一项时把事项写进 `items`（与 `photos` 同序同数量）。然后运行 `outline:check <outline.json>`：`part` 只检查所做页面本身（缺重点句、成果页无数据），`full` 才检查整稿结构（整体结论、问题差距、下一步）；同时给出每页建议页型。`rules:list` 查场景 ID，选主场景（工作汇报一般为 management-report）。
    **页数按原规则 step2 定：** 用户指定页数优先；给了逐页大纲或讲稿时按其页数；给了完整文档且没说页数时，问每页放多少内容并给出估计总页数；只给主题时推荐页数并确认。需要确认页数时，和缺口、配色候选放在同一次提问里。
-   **没有缺口、页数也已确定时不问内容**，直接进入配色与制作。有缺口时只问一次，和大纲、配色候选（见第 4 步）放在同一条回复里：简短大纲（每页一句重点）、缺口清单（缺什么、为什么需要、缺了会怎样）。不要为同一份材料反复追问，不要追问用户没让做的部分。请用户二选一：补充材料，或按现有材料生成（相关页面如实标注“材料未提供”）。这个选择由用户做，不由模型判断；即使用户已委托配色和风格，缺材料仍要问，除非用户的请求里已说明缺材料时怎么处理。用户确认后按大纲制作：每页沿用大纲里的重点句、数据与照片，并按 `outline:check` 建议的页型和组件起步。[汇报版式逻辑](references/fusion/report-layout-logic.md)已拆成可放进任何区域的组件（答案块 `answerBlock`、对照组 `comparePair`、左右对照 `contrastPair`、时期色带 `periodBand`、指标带 `kpiStrip`、反白色块、深色侧栏），按页面角色默认使用，不要求材料数字与模板对上。每页 `visualDecision.pattern` 写所用页型；自由组合写 `free：理由`，汇报稿的自由页至少用一个组件，否则 `make` 会拦下；封面、目录、章节页写 `waived`，用户决定不用组件的写进 `userDecisions`。
+   **没有缺口、页数也已确定时不问内容**，直接进入配色与制作。有缺口时只问一次，和大纲、配色候选（见第 4 步）放在同一条回复里：简短大纲（每页一句重点）、缺口清单（缺什么、为什么需要、缺了会怎样）。不要为同一份材料反复追问，不要追问用户没让做的部分。请用户二选一：补充材料，或按现有材料生成（相关页面如实标注“材料未提供”）。这个选择由用户做，不由模型判断；即使用户已委托配色和风格，缺材料仍要问，除非用户的请求里已说明缺材料时怎么处理。用户确认后按大纲制作：每页沿用大纲里的重点句、数据与照片，并按 `outline:check` 建议的页型和组件起步。[汇报版式逻辑](references/fusion/report-layout-logic.md)已拆成可放进任何区域的组件（答案块 `answerBlock`、对照组 `comparePair`、左右对照 `contrastPair`、时期色带 `periodBand`、指标带 `kpiStrip`、反白色块、深色侧栏），按页面角色默认使用，不要求材料数字与模板对上。每页 `visualDecision.pattern` 写所用页型；自由组合写 `free：理由`，由区域设计说明各区域如何帮助读者理解；封面、目录、章节页写 `waived`，用户决定不用组件的写进 `userDecisions`。
+   **确认大纲后建立事实基线（新稿必做）：** 大纲顶层写 `sources`，每项事实写 `from:{locator,excerpt}`（原文位置与摘录）；版面结构看不出的关系（因果、支撑、归属等）写进 `relations`，缺口和取舍写进 `gaps`、`dispositions`。流程、对照、时期和表格的关系由工具按结构生成，不从措辞推断。运行 `outline:baseline <outline.json> <新目录>`，得到 `content-baseline.json` 与 `authored-scaffold.json`（已带四项内容契约和每页 `requiredRefs`）。`outline:check` 的 `baselineIssues` 由制作智能体补全，不问用户。排版不能改基线；内容修订先审查来源，在新目录生成新版本。
 3. **读规则，先列清单：** 实际阅读 `rules:read <主场景>` 返回的 apply/adapt 原文（本会话已读过同场景同指纹可复用）。原文与锁定版本不一致时停止并告知用户。随后运行 `rules:checklist <主场景>`，在排版前按章节写下这一章的要求打算怎么落实、落在哪页，或为何不适用（见“规则清单”）。设计从这份清单出发，不是排完再补记。
 4. **配色：** 简短大纲后按 [配色推荐与确认](references/fusion/palette-selection.md) 处理：未指定且未委托时展示预览并等待选择。**主选候选取九组汇报配色**（用户确认，场景文档自带的配色参考不作主选），按内容挑 3–4 组，用 `palette-preview` 的 `{report:'blue-gold'}` 生成迷你汇报页预览；规则清单的配色参考章节记为 `applied`，`how` 写所选配色的颜色分工并引用 HS-04（红金不用于大促/促销类复盘，三原色不用于正式汇报，三原色同页不加紫绿，见 HS-05）；已指定、已委托或旧稿局部修改直接继续。
 5. **文案与提纲：** 按场景规则对标题、内容的要求和 [文案编辑](references/fusion/content-editing.md) 主动改写，先形成可上屏文案再排版。记录全稿定位句 `contentPlan.throughLine`、逐页重点句 `slides[i].keyLine`（来源 quoted/distilled/created）、只给作者看的 `authorNotes`；字段见 [工程编写速查](references/authoring-api.md)。
-6. **排版（原规则 step3）：** 依据清单与场景规则视觉要求逐页设计，写 authored 工程（`styleId:"authored/custom"`，1920×1080 逻辑画布）。排版前实际读取 [Dawang补充做法](references/fusion/visual-authoring.md) 与 [汇报版式逻辑](references/fusion/report-layout-logic.md)：禁止卡片不等于只用文字，每页用尺度对比、结构图、证据画面、视觉母题或色面分区之一承担主视觉。用 [排版工具与页型](references/authoring-api.md#排版工具与页型) 写工程：网格、指标组、流程、编号列表、图片网格与表格由工具保证对齐与成组，不手算坐标；先按每页内容选页型或自行组合工具，再调整。每页写 `visualDecision`，含 `zones` 分区（页型会给出初稿，按实际构图修改）；排版后运行 `wireframe <authored.json> <临时目录>` 看分区线框，确认主次区域与留白合理再进入生成。图片用文件路径作 `src`（或登记到 `media.entries` 后用 `mediaRef`），不把照片写成 data URI。
-7. **生成与检查（原规则 step4）：** `make <authored.json> <用户命名.html> --screenshots <临时目录> --summary`。逐页实际看图，按原规则的 7 项看图清单和 [复核清单](references/fusion/visual-review.md) 修正（局部修改用 `patch:project`）。新稿首次 `make` 会以 `rules-review-missing` 停下，然后进入独立复核。
+6. **排版（原规则 step3）：** 依据清单与场景规则视觉要求逐页设计，写 authored 工程（`styleId:"authored/custom"`，1920×1080 逻辑画布）。排版前实际读取 [Dawang补充做法](references/fusion/visual-authoring.md) 与 [汇报版式逻辑](references/fusion/report-layout-logic.md)：禁止卡片不等于只用文字，每页用尺度对比、结构图、证据画面、视觉母题或色面分区之一承担主视觉。用 [排版工具与页型](references/authoring-api.md#排版工具与页型) 写工程：网格、指标组、流程、编号列表、图片网格与表格由工具保证对齐与成组，不手算坐标；先按每页内容选页型或自行组合工具，再调整。每页写 `visualDecision`，含 `zones` 分区（页型会给出初稿，按实际构图修改）；排版后运行 `wireframe <authored.json> <临时目录>` 看分区线框，确认主次区域与留白合理再进入生成。图片用文件路径作 `src`（或登记到 `media.entries` 后用 `mediaRef`），不把照片写成 data URI。工程从 `authored-scaffold.json` 开始，存为同目录的 `authored.json`：每页写 `readerTask`、`typographyRoles` 和 `regions`（主次、内边距、模块、绑定），把事实和关系绑定到实际元素；无底框的文字组用 `openGroup:true`，不为对齐而画满矩形。表格、流程、角色、排期优先用 `capacity-kit.mjs` 的实测模块（`measureModule`），不静默删字或缩字。细节见[内容关系与页面绑定](references/content-page-contracts.md)、[独立基线与组合布局](references/composition-contracts.md)和[模块与容量处理](references/capacity-modules.md)。
+7. **生成与检查（原规则 step4）：** `make <authored.json> <用户命名.html> --screenshots <临时目录> --summary`。`make` 只接受声明了四项内容契约、同目录有 `content-baseline.json` 的新稿，否则以 `new-deck-contracts-required` 或 `content-baseline-file-missing` 拦下，不建工程。逐页实际看图，按原规则的 7 项看图清单和 [复核清单](references/fusion/visual-review.md) 修正（局部修改用 `patch:project`）。新稿首次 `make` 会以 `rules-review-missing` 停下，然后进入独立复核。
 8. **独立复核（同一轮内闭环）：** `review:rules <workspaceDir>`。有 fail 时不结束本轮、不向用户汇报“未通过/还不能交付”：直接按理由改页面（`patch:project`），重新 `review:rules`，最多 3 轮。涉及版式、精致度、结构图、视觉母题的 fail 必须重新构图（换布局、加结构图或母题、调整图片面积），并更新 `visualDecision.layout`；只改措辞、行距或字号不算修正。通过后 `publish:html <workspaceDir> <交付.html>`（见“独立复核”）。
 9. **交付（原规则 step5 由 Dawang 替代）：** 只交付一个 HTML（见“交付与保存”）。回复列出 contentReview（定位句、每页重点句及来源，created 句请用户确认）、visualReview 每页视觉重点、ruleReview 未采用的规则及理由、复核轮次与 fail→修正；用户决定覆盖了哪些检查（结果里的 `decided`、复核的 `decided`），以及第 3 轮后仍未解决、带着交付的复核意见（`rules-review-open`）逐条写明，请用户决定。用户效果认可单独记录。未经要求不加演讲者备注。
 
@@ -58,7 +50,7 @@ description: 制作、编辑和返工中文工作汇报类演示文稿（工作�
 - 复核者看不到制作者的思考。用条形图充当结构图、页脚线充当母题、泛泛描述充当封面状态句、动作罗列充当结论标题等勉强对应会被判 fail。
 - 修改后再次 `review:rules` 只复核上一轮 fail 的条目，通过项沿用（清单改动或加 `--full` 时全部重判），后续轮次更快。
 - 下面放宽的只是独立复核者的意见：原规则 step4 的 7 项看图自查必须每页通过，程序检查（溢出、出界、叠压、图片未填满等）必须通过，只有用户决定能放行某项程序检查。
-- `publish:html` 只接受当前修订、当前清单的复核：不通过的条目被用户决定覆盖时算已决定；没被覆盖的不通过在前 3 轮必须修改；**第 3 轮后**仍未解决的意见不再阻止发布，以 `rules-review-open` 列出，交付回复必须逐条写明这些意见并请用户决定。之后任何修改都需重新复核。按 fail 理由改页面；确实不适用时改为 not-applicable 并写理由（同样会被复核）。不得编辑或伪造 `rules-review.json`。找不到复核者时告知用户，不跳过。
+- `publish:html` 只接受当前修订、当前清单的复核：不通过的条目被用户决定覆盖时算已决定；没被覆盖的不通过在前 3 轮必须修改。新稿按内容、渲染、设计三类分级：事实漂移、文字裁切重叠、核心关系缺失等阻断问题，**第 3 轮后仍阻止正式发布**，用 `publish:html <工程> <交付.html> --review-draft <审阅稿.html>` 输出审阅稿并告知用户；审美类建议随正式稿交付，回复里逐条写明。旧工程沿用原规则：第 3 轮后仍未解决的意见以 `rules-review-open` 列出，不阻止发布，回复逐条写明并请用户决定。之后任何修改都需重新复核。按 fail 理由改页面；确实不适用时改为 not-applicable 并写理由（同样会被复核）。不得编辑或伪造 `rules-review.json`。找不到复核者时告知用户，不跳过。
 - 部分页面（`scope: part`）不因缺少整体结论、下一步等整稿内容判 fail，复核提示已写明。
 - fail 的原因是原材料没有、且所做页面确实需要的信息：不要改措辞反复重试，也不要自行停止或自行决定。第一次出现就向用户说明缺哪几项、复核为什么要它，请用户二选一：① 补充材料，补充后修改页面再复核；② 按现有材料生成，相关页面加一句如实说明（如“材料未提供整体目标与达成率”），清单该条改为 `not-applicable`，理由写“材料未提供……；用户确认按现有材料生成”，再复核（复核会判通过）。用户已在请求中说明缺材料时怎么处理的，按其说明执行。
 - 复核意见与用户已明确的决定冲突时，不要顺着复核去改页面（例如把裁切的照片改成完整显示、把图片缩小）：把用户决定写进 `requirements.userDecisions`（见下节），重新复核即可。
@@ -99,6 +91,7 @@ description: 制作、编辑和返工中文工作汇报类演示文稿（工作�
 
 ## 已有工程与历史输入
 
+- 新入口只约束 `make` 新建的稿件。旧工程不自动补声明，继续按原检查修改和发布。
 - 局部修改：`patch:project` 后 `publish:html`，保留稳定 ID 与历史；严禁删除工程重建覆盖人工修改。
 - ProjectV2：`render:project <deck-project.json> <index.html>`；历史 brief：`render:brief`；用户指定 dashi 原样模板：`templates` / `render:goal`（见 [旧主题与返工](references/legacy-and-revision.md)）。不承诺任意 HTML/PPTX 无损导入。
 - 不支持原生数据图表、SmartArt、任意 SVG/动画；用文字、runs、图片、形状、线条和受控 vector 构建，不静默改成整页图片。

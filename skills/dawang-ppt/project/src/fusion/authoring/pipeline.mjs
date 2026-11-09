@@ -4,6 +4,7 @@ import {createAuthoredProject} from './create-project.mjs';import {stageMedia} f
 import {loadProject,saveProject} from '../project/store.mjs';import {renderProject} from '../scene/render-project.jsx';
 import {createFusionServer} from '../../../scripts/fusion-preview.jsx';import {measureProject} from '../qa/measure.mjs';
 import {validatePortableHtml} from '../portable/html.mjs';import {reviewKeyLines} from '../qa/key-lines.mjs';import {reviewVisualDecisions} from '../qa/visual-decisions.mjs';import {reviewRuleChecklist} from '../qa/rule-checklist.mjs';import {reviewGate} from '../qa/rules-review.mjs';import {checkDecisions,applyDecisions} from '../qa/user-decisions.mjs';
+import {missingContracts} from './outline-baseline.mjs';import {validateContentBaseline} from './content-baseline.mjs';
 const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 async function run({workspaceDir,outFile,reviewDraftFile,slideIds,screenshots}){
  const start=performance.now(),phases={};const project=loadProject(path.join(workspaceDir,'deck-project.json'));
@@ -56,8 +57,18 @@ async function run({workspaceDir,outFile,reviewDraftFile,slideIds,screenshots}){
 }
 export async function publishHtml(options){return run(options);}
 export async function checkProject(options){return run({...options,outFile:undefined});}
+// make only creates new decks, so this is where the contracts become the default. Existing projects go through patch and publish and keep their own checks.
+function newDeckIssues(project,inputFile){
+ const missing=missingContracts(project);
+ if(missing.length)return [{kind:'new-deck-contracts-required',missing,hint:'新稿从 outline:baseline 生成的 authored-scaffold.json 开始；只有用户明确决定才可记入 userDecisions 跳过'}];
+ const file=path.join(path.dirname(inputFile),'content-baseline.json');
+ if(!fs.existsSync(file))return [{kind:'content-baseline-file-missing',file,hint:'authored.json 要和 outline:baseline 生成的 content-baseline.json 放在同一目录'}];
+ return validateContentBaseline(project,JSON.parse(fs.readFileSync(file,'utf8')));
+}
 export async function makeHtml({inputFile,outFile,workspaceDir,screenshots}){
  const source=JSON.parse(fs.readFileSync(inputFile,'utf8')),p=createAuthoredProject(source);workspaceDir=workspacePath(p.requirements.projectId,workspaceDir);
+ const gate=applyDecisions(p,newDeckIssues(p,inputFile));
+ if(gate.open.length)return {ok:false,releaseStatus:'needs-revision',issues:gate.open,warnings:[],decided:gate.decided,projectId:p.requirements.projectId,workspaceDir,outFile};
  const file=path.join(workspaceDir,'deck-project.json');if(fs.existsSync(file))throw Error('工程已存在：'+workspaceDir+'；使用 patch:project / publish:html 保留修改。');
- const staged=stageMedia(p,path.dirname(inputFile),workspaceDir);const saved=saveProject(file,staged,null);if(!saved.ok)throw Error(JSON.stringify(saved));return publishHtml({workspaceDir,outFile,screenshots});
+ const staged=stageMedia(p,path.dirname(inputFile),workspaceDir);const saved=saveProject(file,staged,null);if(!saved.ok)throw Error(JSON.stringify(saved));const report=await publishHtml({workspaceDir,outFile,screenshots});return gate.decided.length?{...report,decided:[...gate.decided,...(report.decided||[])]}:report;
 }

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import {textElement,imageElement,lineElement} from '../project/src/fusion/authoring/elements.mjs';
 // Usage example, not a layout catalogue. All supported elements/custom geometry remain available.
+// It shows element syntax only and declares no content contracts, so make refuses it; new decks start from outline:baseline.
 // Key lines: contentPlan.throughLine (deck) and contentPlan.slides[i].keyLine (page) point at real text elements;
 // contentPlan.authorNotes lists material meant only for the author, which must not appear on slides.
 // Visual decisions: contentPlan.slides[i].visualDecision names the focus words ({elementId,text}), the layout, and zones

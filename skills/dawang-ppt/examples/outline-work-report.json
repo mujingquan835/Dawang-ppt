@@ -5,15 +5,133 @@
   "audience": "区域管理层",
   "period": "2026年第三季度",
   "owner": "华东市场部",
+  "sources": [
+    {
+      "sourceId": "material",
+      "kind": "synthetic",
+      "title": "合成示例材料"
+    }
+  ],
   "pages": [
-    { "id": "p1", "role": "summary", "keyLine": { "text": "第三季度签约 48 单，完成季度目标的 96%", "source": "distilled" },
-      "data": [ { "label": "季度签约", "value": "48", "unit": "单", "target": "50" }, { "label": "目标完成率", "value": "96", "unit": "%" } ] },
-    { "id": "p2", "role": "results", "keyLine": { "text": "活动带来 20 单新签、30 单续费", "source": "distilled" },
-      "data": [ { "label": "新签", "value": "20", "unit": "单" }, { "label": "续费", "value": "30", "unit": "单" }, { "label": "新签金额", "value": "10", "unit": "万元" } ],
-      "items": [ { "title": "案例传播", "detail": "每周两次成交案例推送" } ] },
-    { "id": "p3", "role": "issues", "keyLine": { "text": "差 2 单未达标，问题集中在新客转化", "source": "distilled" },
-      "items": [ { "title": "新客转化偏低", "detail": "到店后跟进不足" } ] },
-    { "id": "p4", "role": "plan", "keyLine": { "text": "第四季度补齐新客跟进，目标 55 单", "source": "created" },
-      "items": [ { "title": "10 月", "detail": "建立到店 48 小时回访" }, { "title": "11 月", "detail": "大促前集中邀约" } ] }
+    {
+      "id": "p1",
+      "role": "summary",
+      "keyLine": {
+        "text": "第三季度签约 48 单，完成季度目标的 96%",
+        "source": "distilled"
+      },
+      "data": [
+        {
+          "label": "季度签约",
+          "value": "48",
+          "unit": "单",
+          "target": "50",
+          "from": {
+            "locator": "材料第 1 段",
+            "excerpt": "季度签约 48单"
+          }
+        },
+        {
+          "label": "目标完成率",
+          "value": "96",
+          "unit": "%",
+          "from": {
+            "locator": "材料第 2 段",
+            "excerpt": "目标完成率 96%"
+          }
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "role": "results",
+      "keyLine": {
+        "text": "活动带来 20 单新签、30 单续费",
+        "source": "distilled"
+      },
+      "data": [
+        {
+          "label": "新签",
+          "value": "20",
+          "unit": "单",
+          "from": {
+            "locator": "材料第 3 段",
+            "excerpt": "新签 20单"
+          }
+        },
+        {
+          "label": "续费",
+          "value": "30",
+          "unit": "单",
+          "from": {
+            "locator": "材料第 4 段",
+            "excerpt": "续费 30单"
+          }
+        },
+        {
+          "label": "新签金额",
+          "value": "10",
+          "unit": "万元",
+          "from": {
+            "locator": "材料第 5 段",
+            "excerpt": "新签金额 10万元"
+          }
+        }
+      ],
+      "items": [
+        {
+          "title": "案例传播",
+          "detail": "每周两次成交案例推送",
+          "from": {
+            "locator": "材料第 6 段",
+            "excerpt": "案例传播：每周两次成交案例推送"
+          }
+        }
+      ]
+    },
+    {
+      "id": "p3",
+      "role": "issues",
+      "keyLine": {
+        "text": "差 2 单未达标，问题集中在新客转化",
+        "source": "distilled"
+      },
+      "items": [
+        {
+          "title": "新客转化偏低",
+          "detail": "到店后跟进不足",
+          "from": {
+            "locator": "材料第 7 段",
+            "excerpt": "新客转化偏低：到店后跟进不足"
+          }
+        }
+      ]
+    },
+    {
+      "id": "p4",
+      "role": "plan",
+      "keyLine": {
+        "text": "第四季度补齐新客跟进，目标 55 单",
+        "source": "created"
+      },
+      "items": [
+        {
+          "title": "10 月",
+          "detail": "建立到店 48 小时回访",
+          "from": {
+            "locator": "材料第 8 段",
+            "excerpt": "10 月：建立到店 48 小时回访"
+          }
+        },
+        {
+          "title": "11 月",
+          "detail": "大促前集中邀约",
+          "from": {
+            "locator": "材料第 9 段",
+            "excerpt": "11 月：大促前集中邀约"
+          }
+        }
+      ]
+    }
   ]
 }
