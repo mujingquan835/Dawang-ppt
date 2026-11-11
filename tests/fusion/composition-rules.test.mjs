@@ -38,6 +38,11 @@ test('a wide tile with an empty right strip and no icon is flagged; the kit tile
   assert.deepEqual(kinds(bare), ['tile-spare-no-icon']);
   const kit = metricTiles({ id: 'm', x: 96, y: 790, width: 790, theme, size: 64, items: [{ label: '直播券核销 / 全部到店', value: '18.0', unit: '%' }] });
   assert.deepEqual(kinds(kit.elements), []);
+  // Equal tiles in a row are sized by the fullest one: a short figure beside a full tile is not spare room.
+  const neighbour = [{ type: 'shape', id: 't2', bounds: [898, 790, 790, 180], style: { fill: '#FFFFFF', radius: 10 } },
+    { type: 'text', id: 'l2', text: '全年品牌内容全网累计曝光量与直播间累计观看人次合计', bounds: [926, 812, 740, 30], style: { fontSize: 22 } },
+    { type: 'text', id: 'v2', text: '1,636,000 万人次', runs: [{ text: '1,636,000', style: { fontSize: 64 } }, { text: ' 万人次', style: { fontSize: 22 } }], bounds: [926, 850, 740, 80], style: { fontSize: 64 } }];
+  assert.deepEqual(kinds([...bare, ...neighbour]), []);
 });
 
 test('list items lined up with spaces in one text box are flagged; the side panel lays them out with badges', () => {

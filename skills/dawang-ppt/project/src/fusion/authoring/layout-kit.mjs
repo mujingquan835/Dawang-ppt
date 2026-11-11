@@ -102,11 +102,12 @@ export function metricRow({ id, x, y, width, items, size = 64, gap = 40, theme, 
 }
 
 // Numbered nodes joined by arrows; each title and detail starts at its node's left edge, so labels line up with nodes.
-export function flow({ id, x, y, width, steps, theme, node: requested = 52, titleSize = 30, detailSize = 22, numbered = true, color }) {
+// span: the last slot shrinks to its own text, so the nodes reach across the whole width instead of leaving the right side empty.
+export function flow({ id, x, y, width, steps, theme, node: requested = 52, titleSize = 30, detailSize = 22, numbered = true, color, span = false }) {
   // Numbers stay at 28px bold (large text for the contrast check), so a numbered node is never smaller than 48px.
   const node = numbered ? Math.max(48, requested) : requested;
-  const p = theme.palette, fill = color || p.accent, n = steps.length, slot = width / n, elements = [];
-  const labelW = Math.round(slot - 24);
+  const p = theme.palette, fill = color || p.accent, n = steps.length, last = steps[n - 1], lastW = span && n > 1 ? Math.min(width / n, Math.max(node, textWidth(last.title, titleSize), textWidth(last.detail || '', detailSize)) + 24) : width / n, slot = n > 1 ? (width - lastW) / (n - 1) : width, elements = [];
+  const labelW = Math.round(slot - 24), finalW = Math.round(lastW - 24);
   let h = node;
   steps.forEach((step, i) => {
     const nx = Math.round(x + i * slot);
@@ -114,10 +115,10 @@ export function flow({ id, x, y, width, steps, theme, node: requested = 52, titl
     if (numbered) elements.push(textElement({ id: `${id}-num-${i + 1}`, text: String(i + 1).padStart(2, '0'), bounds: [nx, y + Math.round((node - Math.max(28, node * 0.54) * 1.3) / 2), node, Math.round(Math.max(28, node * 0.54) * 1.3)], style: theme.font(Math.max(28, Math.round(node * 0.54)), { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.3 }) }));
     if (i < n - 1) elements.push({ ...lineElement({ id: `${id}-link-${i + 1}`, from: [nx + node + 12, y + node / 2], to: [Math.round(x + (i + 1) * slot) - 12, y + node / 2], style: { stroke: fill, strokeWidth: 3 } }), endArrow: true });
     let ty = y + node + 20;
-    const th = textHeight(step.title, titleSize, labelW, 1.3);
-    elements.push(textElement({ id: `${id}-title-${i + 1}`, text: step.title, bounds: [nx, ty, labelW, th], style: theme.font(titleSize, { fontWeight: 700, lineHeight: 1.3 }) }));
+    const w = i === n - 1 ? finalW : labelW, th = textHeight(step.title, titleSize, w, 1.3);
+    elements.push(textElement({ id: `${id}-title-${i + 1}`, text: step.title, bounds: [nx, ty, w, th], style: theme.font(titleSize, { fontWeight: 700, lineHeight: 1.3 }) }));
     ty += th + 6;
-    if (step.detail) { const dh = textHeight(step.detail, detailSize, labelW, 1.4); elements.push(textElement({ id: `${id}-detail-${i + 1}`, text: step.detail, bounds: [nx, ty, labelW, dh], style: theme.font(detailSize, { color: p.muted }) })); ty += dh; }
+    if (step.detail) { const dh = textHeight(step.detail, detailSize, w, 1.4); elements.push(textElement({ id: `${id}-detail-${i + 1}`, text: step.detail, bounds: [nx, ty, w, dh], style: theme.font(detailSize, { color: p.muted }) })); ty += dh; }
     h = Math.max(h, ty - y);
   });
   return { elements, height: h };
@@ -294,15 +295,15 @@ const centredValue = ({ id, x, y, width, value, unit, size, color, theme }) => {
 // KPI strip: one solid anchor block holds the summary figure (整体完成度, 年度合计), its peers follow on a tinted band
 // split by thin rules, each with its label or note below. The anchor is the one place the eye lands first.
 // Returns the column positions so content below can line up with each figure.
-export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, anchorWidth, size = 56, color, labelPosition = 'below' }) {
+export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, anchorWidth, size = 56, anchorSize, labelSize = 22, labelLines = 1, color, labelPosition = 'below' }) {
   const p = theme.palette, r = colorRoles(p), aw = anchor ? anchorWidth || Math.round(width * 0.17) : 0, elements = [];
-  const n = items.length, colW = (width - aw) / n, labelSize = 22, valueH = Math.round(size * 1.25), labelH = Math.round(labelSize * 1.4);
+  const n = items.length, colW = (width - aw) / n, valueH = Math.round(size * 1.25), labelH = Math.round(labelSize * 1.4 * labelLines);
   elements.push({ type: 'shape', id: `${id}-band`, component: 'kpiStrip', bounds: [x + aw, y, width - aw, height], style: { fill: r.band } });
   if (anchor) {
     elements.push({ type: 'shape', id: `${id}-anchor`, bounds: [x, y, aw, height], style: { fill: r.primary } });
     const block = labelH + 6 + valueH, ay = y + Math.round((height - block) / 2);
     elements.push(textElement({ id: `${id}-anchor-label`, text: anchor.label, bounds: [x + 12, ay, aw - 24, labelH], style: theme.font(labelSize, { color: p.inverse, textAlign: 'center' }) }));
-    elements.push(centredValue({ id: `${id}-anchor-value`, x: x + 12, y: ay + labelH + 6, width: aw - 24, value: anchor.value, unit: anchor.unit, size: Math.round(size * 1.05), color: p.inverse, theme }));
+    elements.push(centredValue({ id: `${id}-anchor-value`, x: x + 12, y: ay + labelH + 6, width: aw - 24, value: anchor.value, unit: anchor.unit, size: anchorSize ?? Math.round(size * 1.05), color: p.inverse, theme }));
   }
   const columns = [];
   items.forEach((it, i) => {
@@ -323,32 +324,43 @@ export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, 
 // switch to leave a wide empty strip bare.
 // highlightStyle 'solid' turns the highlighted tile into a solid primary block with white text (the one inverted
 // column among peers); 'bar' (default) keeps the accent bar and accent number.
-export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill, icons = 'auto', highlightStyle = 'bar' }) {
+// tileHeight makes tiles taller than their content (the content stays centred), so a thin page can give its numbers more presence.
+export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill, icons = 'auto', highlightStyle = 'bar', tileHeight, growValue = false, iconCap = 180, figureSize }) {
   const p = theme.palette, cols = columns || items.length, tileW = Math.floor((width - gap * (cols - 1)) / cols);
   const tileFill = fill || p.tile || (String(p.bg).toUpperCase() === '#FFFFFF' ? p.pale : '#FFFFFF');
-  const labelSize = Math.max(20, Math.round(size * 0.3)), tileH = 24 + Math.round(labelSize * 1.4) + 8 + Math.round(size * 1.32) + 18, elements = [];
-  const unitSize = Math.max(20, Math.round(size * 0.32));
+  const labelSize = Math.max(20, Math.round(size * 0.3)), labelH = Math.round(labelSize * 1.4), noteH = items.some((it) => it.note) ? labelH + 2 : 0, naturalOf = (s) => 24 + labelH + 8 + Math.round(s * 1.32) + noteH + 18, tileH = Math.max(naturalOf(figureSize || size), Math.round(tileHeight || 0)), elements = [];
+  const unitOf = (s) => Math.max(20, Math.round(s * 0.32)), iconMax = iconCap, beforeOf = (s) => Math.max(20, Math.round(s * 0.6));
+  // item.before is the earlier value: it reads "before → value" on one line, smaller than the figure it leads to.
+  const figureWidth = (it, s) => (it.before != null ? textWidth(`${it.before} → `, beforeOf(s)) : 0) + textWidth(String(it.value), s) + (it.unit ? textWidth(' ' + it.unit, unitOf(s)) : 0), widest = (s) => Math.max(...items.map((it) => figureWidth(it, s)));
+  // A tile stretched taller than it needs shows that in the figure, not in a bigger icon. Tiles in one group share one size.
+  // figureSize sets the figure on its own, leaving the label at the size it has for `size`.
+  let valueSize = figureSize || size;
+  if (growValue && tileH > naturalOf(size)) for (let s = Math.min(Math.round(size * 1.75), Math.floor((tileH - 50 - labelH - noteH) / 1.32)); s > size; s -= 2) if (widest(s) <= (tileW - 44 - iconMax - 16) * 0.88) { valueSize = s; break; }
+  const unitSize = unitOf(valueSize), naturalTile = naturalOf(valueSize), inset = Math.round((tileH - naturalTile) / 2);
   // Icons grow with the spare room (up to 180px, never taller than the tile allows) and cannot be switched off: a tile
   // with a wide empty strip always gets one (user rule); item.icon picks which. Tiles in one group share one icon
-  // size, and room for less than 56px gets none, so a row never mixes large and tiny icons.
-  const contentOf = (it) => Math.max(textWidth(it.label || '', labelSize), textWidth(String(it.value), size) + (it.unit ? textWidth(' ' + it.unit, unitSize) : 0));
-  const fits = items.map((it) => Math.round(Math.min(180, tileH - 36, tileW - 28 - 16 - contentOf(it) - 24)));
-  const iconS = Math.min(...fits.filter((v) => v >= 56), 180);
+  // size, and a group has icons on every tile or on none: when one tile has no room for 56px, the whole group goes without.
+  const contentOf = (it) => Math.max(textWidth(it.label || '', labelSize), textWidth(it.note || '', labelSize), figureWidth(it, valueSize));
+  const fits = items.map((it) => Math.round(Math.min(iconMax, tileH - 36, tileW - 28 - 16 - contentOf(it) - 24)));
+  const iconS = Math.min(...fits.filter((v) => v >= 56), iconMax), everyIcon = fits.every((v) => v >= 56);
   items.forEach((it, i) => {
-    const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), on = i === highlight, solid = on && highlightStyle === 'solid';
+    // A tile without a note beside tiles that have one keeps its label and figure in the middle, not over an empty line.
+    const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), lift = inset + (noteH && !it.note ? Math.round(noteH / 2) : 0), on = i === highlight, solid = on && highlightStyle === 'solid';
     const roles = colorRoles(p), ink = solid ? p.inverse : null;
     elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, component: solid ? 'highlightTile' : 'metricTiles', bounds: [tx, ty, tileW, tileH], style: { fill: solid ? roles.primary : tileFill, radius: theme.radius ?? 14 } });
     if (on && !solid) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
-    elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: ink || p.muted }) }));
-    const runs = [{ text: String(it.value), style: { fontSize: size, fontWeight: 700, color: ink || (on ? p.accent : p.ink) } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 700, color: ink || p.muted } }] : [])];
+    elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + lift + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: ink || p.muted }) }));
+    const lead = it.before != null ? `${it.before} → ` : '';
+    const runs = [...(lead ? [{ text: lead, style: { fontSize: beforeOf(valueSize), fontWeight: 600, color: ink || p.muted } }] : []), { text: String(it.value), style: { fontSize: valueSize, fontWeight: 700, color: ink || (on ? p.accent : p.ink) } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 700, color: ink || p.muted } }] : [])];
     const name = (typeof it.icon === 'string' && it.icon) || pickIcon(`${it.label || ''}${it.unit || ''}`);
-    const withIcon = name && fits[i] >= 56;
+    const withIcon = name && everyIcon;
     const textW = withIcon ? tileW - 44 - iconS - 16 : tileW - 44;
-    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + 24 + Math.round(labelSize * 1.4) + 4, textW, Math.round(size * 1.32)], style: theme.font(size, { fontWeight: 700, lineHeight: 1.15, color: ink || (on ? p.accent : p.ink) }) }));
+    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: lead + String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + lift + 24 + labelH + 4, textW, Math.round(valueSize * 1.32)], style: theme.font(valueSize, { fontWeight: 700, lineHeight: 1.15, color: ink || (on ? p.accent : p.ink) }) }));
+    if (it.note) elements.push(textElement({ id: `${id}-note-${i + 1}`, text: it.note, bounds: [tx + 28, ty + lift + 24 + labelH + 4 + Math.round(valueSize * 1.32) + 2, textW, labelH], style: theme.font(labelSize, { fontWeight: 500, lineHeight: 1.3, color: ink || p.muted }) }));
     if (withIcon) elements.push(...iconElements({ id: `${id}-tile-${i + 1}`, name, bounds: [tx + tileW - iconS - 20, ty + Math.round((tileH - iconS) / 2), iconS], color: ink || (on ? p.accent : p.muted), disc: solid ? 'rgba(255, 255, 255, 0.16)' : rgba(on ? p.accent : p.ink, on ? 0.12 : 0.06) }));
   });
   const rows = Math.ceil(items.length / cols);
-  return { elements, height: rows * tileH + (rows - 1) * gap };
+  return { elements, height: rows * tileH + (rows - 1) * gap, valueSize };
 }
 
 // Photo panel: a solid colour block whose text half fades into a photo (gradient from the panel colour to clear over
@@ -485,6 +497,95 @@ export function noteBar({ id, x, y, width, text, label = '复盘判断', theme, 
   const top = y + Math.round((h - (need - 44)) / 2);
   if (label) elements.push(textElement({ id: `${id}-label`, text: label, bounds: stacked ? [x + 32, top, width - 56, 34] : [x + 32, y + Math.round((h - 34) / 2), lw - 16, 34], style: theme.font(24, { fontWeight: 700, color: p.accent }) }));
   elements.push(textElement({ id: `${id}-text`, text, bounds: stacked ? [x + 32, top + 44, tw, th] : [x + 32 + lw, y + Math.round((h - th) / 2), tw, th], style: theme.font(size, { fontWeight: 700, lineHeight: 1.4 }) }));
+  return { elements, height: h };
+}
+
+// Type scale for dense report pages: pass as createTheme({ roles: REPORT_ROLES }). Body text at 20 leaves room for
+// several labelled modules on a page, and each level sits at least one step above the next.
+export const REPORT_ROLES = {
+  eyebrow: { fontSize: 18, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
+  sectionTitle: { fontSize: 24 }, itemTitle: { fontSize: 24 }, stepTitle: { fontSize: 22 }, roleSubtitle: { fontSize: 20 },
+  body: { fontSize: 20 }, stepDetail: { fontSize: 20 }, tableHeader: { fontSize: 18 }, tableKey: { fontSize: 22 },
+  tableBody: { fontSize: 20 }, tableEmphasis: { fontSize: 22 }, caption: { fontSize: 18 }, lightNote: { fontSize: 18 }
+};
+
+// The same hue, darkened until it reads as small text on white or a pale tint. Light palette accents stay on fills.
+const luminance = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+export const readableInk = (hex, bg = '#F3F5FA') => { let c = hex, k = 0; const ratio = (a) => (luminance(bg) + 0.05) / (luminance(a) + 0.05); while (ratio(c) < 4.6 && k < 12) { k += 1; c = darken(hex, k * 0.07); } return c; };
+
+// A roomier scale for decks with little content on each page; composeReportDeck picks whichever fits every page.
+// For pages with very little on them: larger still, same ratios.
+export const REPORT_ROLES_HERO = {
+  eyebrow: { fontSize: 20, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
+  sectionTitle: { fontSize: 36 }, itemTitle: { fontSize: 34 }, stepTitle: { fontSize: 34 }, roleSubtitle: { fontSize: 30 },
+  body: { fontSize: 30 }, stepDetail: { fontSize: 30 }, tableHeader: { fontSize: 24 }, tableKey: { fontSize: 32 },
+  tableBody: { fontSize: 30 }, tableEmphasis: { fontSize: 32 }, caption: { fontSize: 22 }, lightNote: { fontSize: 22 }
+};
+
+// Between the dense and roomy scales, and between roomy and hero, so a page can land on the size its content really fills.
+export const REPORT_ROLES_COMFY = {
+  eyebrow: { fontSize: 18, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
+  sectionTitle: { fontSize: 26 }, itemTitle: { fontSize: 26 }, stepTitle: { fontSize: 24 }, roleSubtitle: { fontSize: 22 },
+  body: { fontSize: 22 }, stepDetail: { fontSize: 22 }, tableHeader: { fontSize: 18 }, tableKey: { fontSize: 24 },
+  tableBody: { fontSize: 22 }, tableEmphasis: { fontSize: 24 }, caption: { fontSize: 18 }, lightNote: { fontSize: 18 }
+};
+
+export const REPORT_ROLES_LARGE = {
+  eyebrow: { fontSize: 20, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
+  sectionTitle: { fontSize: 32 }, itemTitle: { fontSize: 30 }, stepTitle: { fontSize: 30 }, roleSubtitle: { fontSize: 26 },
+  body: { fontSize: 26 }, stepDetail: { fontSize: 26 }, tableHeader: { fontSize: 22 }, tableKey: { fontSize: 28 },
+  tableBody: { fontSize: 26 }, tableEmphasis: { fontSize: 28 }, caption: { fontSize: 20 }, lightNote: { fontSize: 20 }
+};
+
+export const REPORT_ROLES_ROOMY = {
+  eyebrow: { fontSize: 20, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
+  sectionTitle: { fontSize: 30 }, itemTitle: { fontSize: 28 }, stepTitle: { fontSize: 28 }, roleSubtitle: { fontSize: 24 },
+  body: { fontSize: 24 }, stepDetail: { fontSize: 24 }, tableHeader: { fontSize: 20 }, tableKey: { fontSize: 26 },
+  tableBody: { fontSize: 24 }, tableEmphasis: { fontSize: 26 }, caption: { fontSize: 20 }, lightNote: { fontSize: 20 }
+};
+
+// A labelled statement: tinted band, colour bar, short label, then one sentence. It lets a reader get the page's logic
+// from the labels alone. tone 'judgment' (warm) is for the review verdict only, so it stays the one warm band on a page.
+export function labelBand({ id, x, y, width, label, text, theme, tone = 'primary', height, measurements, scale = 1 }) {
+  const p = theme.palette, r = colorRoles(p), judgment = tone === 'judgment', warm = p.pop || p.gold, ink = judgment ? readableInk(darken(warm, 0.3), lighten(warm, 0.88)) : readableInk(p.accent, r.band);
+  const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), labelStyle = theme.roleStyle('stepTitle', { color: ink, lineHeight: 1.2, fontSize: grown('stepTitle') }), textStyle = theme.roleStyle('body', { fontWeight: 500, color: p.ink, fontSize: grown('body') });
+  const tw = width - 48, labelH = Math.ceil(labelStyle.fontSize * 1.34), th = Math.ceil(measurements?.get(`${id}-text`)?.height ?? textHeight(text, textStyle.fontSize, tw, textStyle.lineHeight));
+  const need = labelH + 6 + th, h = Math.max(need + 28, height || 0), top = y + Math.round((h - need) / 2);
+  return { height: h, elements: [
+    { type: 'shape', id: `${id}-bar`, component: 'labelBand', bounds: [x, y, width, h], style: { fill: judgment ? lighten(warm, 0.88) : r.band, radius: theme.radius ?? 0 } },
+    { type: 'shape', id: `${id}-mark`, bounds: [x, y, 6, h], style: { fill: judgment ? warm : p.accent } },
+    textElement({ id: `${id}-label`, text: label, bounds: [x + 24, top, tw, labelH], style: labelStyle }),
+    textElement({ id: `${id}-text`, text, bounds: [x + 24, top + labelH + 6, tw, th], style: textStyle })
+  ] };
+}
+
+// Numbered actions in one panel: an optional heading that sums up the sequence, then number, short handle and the full
+// sentence on each row. items: [{ title, detail }]. stacked puts the sentence under its handle; height spreads the rows.
+// Element ids: `${id}-panel`, `${id}-title-n`, `${id}-detail-n`.
+export function actionPanel({ id, x, y, width, heading, items, theme, height, stacked = false, measurements, scale = 1 }) {
+  const p = theme.palette, pad = 24, badge = 26, elements = [];
+  const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), titleStyle = theme.roleStyle('stepTitle', { color: readableInk(p.accent, '#FFFFFF'), fontSize: grown('stepTitle') }), detailStyle = theme.roleStyle('stepDetail', { color: p.ink, fontSize: grown('stepDetail') });
+  const titleX = x + pad + badge + 10, titleH = Math.ceil(titleStyle.fontSize * titleStyle.lineHeight);
+  const titleW = stacked ? width - pad * 2 - badge - 10 : Math.max(...items.map((it) => textWidth(it.title, titleStyle.fontSize))) + 16;
+  const detailX = stacked ? titleX : titleX + titleW + 12, detailW = x + width - pad - detailX;
+  const detailH = (it, i) => (it.detail ? Math.ceil(measurements?.get(`${id}-detail-${i + 1}`)?.height ?? textHeight(it.detail, detailStyle.fontSize, detailW, detailStyle.lineHeight)) : 0);
+  const rows = items.map((it, i) => (stacked && it.detail ? titleH + 4 + detailH(it, i) : Math.max(titleH, detailH(it, i))));
+  const headingStyle = theme.roleStyle('sectionTitle', { color: readableInk(p.accent, '#FFFFFF'), lineHeight: 1.3 }), headingBox = heading ? Math.ceil(measurements?.get(`${id}-heading`)?.height ?? textHeight(heading, headingStyle.fontSize, width - pad * 2, headingStyle.lineHeight)) : 0;
+  const headH = heading ? headingBox + 12 : 0, rowGap = 21, need = (pad - 6) * 2 + headH + rows.reduce((a, b) => a + b, 0) + (items.length - 1) * rowGap, h = Math.max(need, height || 0);
+  const spare = Math.floor((h - need) / (items.length + 1));
+  elements.push({ type: 'shape', id: `${id}-panel`, component: 'actionPanel', bounds: [x, y, width, h], style: { fill: '#FFFFFF', stroke: p.line, strokeWidth: 1.5, radius: theme.radius ?? 0 } });
+  let cy = y + pad - 6;
+  if (heading) { elements.push(textElement({ id: `${id}-heading`, text: heading, bounds: [x + pad, cy, width - pad * 2, headingBox], style: headingStyle })); cy += headH; }
+  cy += spare;
+  items.forEach((it, i) => {
+    const n = i + 1;
+    elements.push({ type: 'shape', id: `${id}-badge-${n}`, bounds: [x + pad, cy + 2, badge, badge], style: { fill: readableInk(p.accent, '#FFFFFF'), radius: badge / 2 } });
+    elements.push(textElement({ id: `${id}-num-${n}`, text: String(n), bounds: [x + pad, cy + 2, badge, badge], style: theme.roleStyle('caption', { color: p.inverse, fontWeight: 700, textAlign: 'center', lineHeight: 1.4 }) }));
+    elements.push(textElement({ id: `${id}-title-${n}`, text: it.title, bounds: [titleX, cy, titleW, titleH], style: titleStyle }));
+    if (it.detail) elements.push(textElement({ id: `${id}-detail-${n}`, text: it.detail, bounds: [detailX, stacked ? cy + titleH + 4 : cy + 1, detailW, rows[i] - (stacked ? titleH + 4 : 0)], style: detailStyle }));
+    if (n < items.length) elements.push({ type: 'shape', id: `${id}-rule-${n}`, bounds: [x + pad, cy + rows[i] + Math.round((rowGap + spare) / 2), width - pad * 2, 1], style: { fill: p.line } });
+    cy += rows[i] + rowGap + spare;
+  });
   return { elements, height: h };
 }
 

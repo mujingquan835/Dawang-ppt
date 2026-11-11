@@ -1,6 +1,7 @@
 import { waitForSlideReady } from '../qa/readiness.mjs';
 import { cssDecoration, cssTextGradient } from "./css-paint.mjs";
 import { checkCoverage } from "../qa/coverage.mjs";
+import { slideNotes } from "../authoring/drafted.mjs";
 function collectSlideInDom(slideId) {
   const slide = [...document.querySelectorAll("#deck > .slide")].find((s) => s.dataset.vmSlideId === slideId);
   if (!slide) throw new Error("Slide not materialized: " + slideId);
@@ -358,6 +359,8 @@ async function collectExportObjects(page, project) {
       if (!error.message.startsWith("FontSnapshotChanged:") || attempt === 2) throw error;
     }
     }
+    const notes = slideNotes(project, id);
+    if (notes) collected.notes = notes;
     results.push(collected);
   }
   await cdp.detach();

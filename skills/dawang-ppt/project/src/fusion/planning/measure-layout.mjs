@@ -41,11 +41,18 @@ async function createLayoutMeasurer({chrome='/Applications/Google Chrome.app/Con
            const family=getComputedStyle(el).fontFamily.split(',')[0].trim().replace(/^['"]|['"]$/g,'');
            if(!generic.has(family)&&!['serif','monospace'].some(fallback=>{ctx.font='24px '+fallback;const base=ctx.measureText('Aa0123汉字').width;ctx.font='24px '+JSON.stringify(family)+','+fallback;return Math.abs(ctx.measureText('Aa0123汉字').width-base)>.01;}))throw new Error('font-unavailable: '+family);
           }
+          // Asked per text (lastLine:true): how many lines it wraps to and how many characters sit on the last one.
+          // Asked per text (lastLine:true): how many lines it wraps to, how many characters sit on the last one, and the
+          // offset in the text where each later line starts. Glyphs of one line can sit a few pixels apart (Latin beside
+          // Chinese), so a new line starts half a font size down.
+          const lastLine=(node)=>{const half=parseFloat(getComputedStyle(node).fontSize)/2,range=document.createRange(),walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT),breaks=[];let at=0,lines=0,start=-Infinity,onLast=0;
+           for(let t=walker.nextNode();t;t=walker.nextNode()){for(let k=0;k<t.length;k++,at++){if(/\s/.test(t.data[k]))continue;range.setStart(t,k);range.setEnd(t,k+1);const r=range.getClientRects()[0];if(!r)continue;const top=Math.round(r.top);if(top-start>half){lines++;if(lines>1)breaks.push(at);start=top;onLast=0;}onLast++;}}
+           return {lines,lastLineChars:onLast,breaks};};
           return nodes.map((node,i)=>{
- const height=node.getBoundingClientRect().height,width=node.scrollWidth;
+ const height=node.getBoundingClientRect().height,width=node.scrollWidth,wrap=specs[i].lastLine?lastLine(node):{};
  const clone=node.cloneNode(true);Object.assign(clone.style,{width:'max-content',whiteSpace:'pre'});root.append(clone);
  const naturalWidth=clone.getBoundingClientRect().width;clone.remove();
- return {fontAvailable:true,id:specs[i].id,height,width,naturalWidth,fontFamily:getComputedStyle(node).fontFamily,fontSize:parseFloat(getComputedStyle(node).fontSize)};
+ return {...wrap,fontAvailable:true,id:specs[i].id,height,width,naturalWidth,fontFamily:getComputedStyle(node).fontFamily,fontSize:parseFloat(getComputedStyle(node).fontSize)};
 });
         },normalized);
       },

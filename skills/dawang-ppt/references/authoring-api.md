@@ -4,7 +4,7 @@
 
 调用 `node <skill>/scripts/dawang.mjs rules:read management-report [--design <相对原规则路径>] [--format <路径> ...]` 获取按章节切分的原文、来源路径、SHA 与 apply/adapt/replaced 标注（`--full` 含 replaced 原文；`--allow-drift` 仅在用户同意时使用）。`rules:lock [--root <目录>] [--label <名称>]` 重新锁定规则版本并列出与旧锁的差异，属于维护操作。缓存不能代替本会话阅读。
 
-新稿完整示例：`node <skill>/examples/report-contract.mjs <新目录>`，生成的工程能通过 `make`，页面设计照它写。`examples/authored-minimal.mjs` 只演示元素写法，没有内容契约，`make` 会拦下。
+工作汇报默认用 `composeReportDeck`（照 `node <skill>/examples/report-modules.mjs <新目录>`）：大纲写内容和顺序，组版器生成全部页面和区域绑定，返回 `scales`、`anchors`、`sparse`（内容太少的页）、`loose`（上下留空超过四分之一的页）、`rearranged`（自动换了排法的页）；随后用 `draftDeckClaims({deck,outline,palette,projectId})` 生成定位句和规则清单草稿。参数：`layouts` 指定某页排法（通常不需要），`header:'tag'|'eyebrow'` 选页头样式，`footer` 写材料名称和时期。大纲字段：`statements`、`items`、`data[].highlight`、`table` 或 `tables:[{title,columns,rows,highlight,from}]`、`flows`/`chains`（可带 `returnTo:步骤序号`）、`compare`、`periods`、`photos`、`eyebrow`、`focus`。新稿完整示例：`node <skill>/examples/report-contract.mjs <新目录>`，生成的工程能通过 `make`，页面设计照它写。`examples/authored-minimal.mjs` 只演示元素写法，没有内容契约，`make` 会拦下。
 推荐交付：`node <skill>/scripts/dawang.mjs make /tmp/authored.json /目标/报告.html`。
 已存工程用 `patch:project <工程目录> <patch.json>`，之后 `publish:html <工程目录> <报告.html>`；旧工程低层入口 `render:project <deck-project.json> <index.html>` 保留。
 
@@ -44,7 +44,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 
 ## 内容大纲
 
-新建稿件先把用户材料整理成 `outline.json`，运行 `outline:check <outline.json>` 后再与用户确认、再排版。合成示例见 `examples/outline-work-report.json`。
+新建稿件先把用户材料整理成 `outline.json`，运行 `outline:check <outline.json>` 找出关系缺口，不等用户确认，继续排版出第一版。合成示例见 `examples/outline-work-report.json`。
 
 ```json
 { "kind": "report", "scope": "part", "title": "…", "audience": "业务管理层", "period": "2026年Q3", "owner": "…",
@@ -59,13 +59,21 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `role`：summary 整体结论 / results 成果数据 / actions 关键动作 / resources 资源支持 / issues 问题差距 / causes 原因复盘 / plan 下一步 / asks 需支持或决策 / duties 职责定位（述职）/ other。
 - `flows` 是流程步骤（建议表格加流程色带），`chains` 是应用路径（建议表格加深色侧栏）。
 - 照片各对应一项时，事项写进 `items`（与 `photos` 同序同数量）：有说明或数字时建议 `itemsWithPhotos`（每项一栏、照片在正下方），文字很少、几乎无数据时建议 `photoPanels`。`outline:check` 会提醒：标签或重点句提到目标却没写 `target`、提到去年/同比却没有对照结构、有多张照片却没写事项。
-- `data[].target` 写目标值（两项以上时建议 `targetVsActual`）；`compare:{left:[…],right:[…]}` 写逐项成对的两侧（建议 `contrastColumns`）；`periods:[{label,title,points}]` 写按时期展开的工作（3 个以上时建议 `periodColumns`）。
+- `data[].target` 写目标值（两项以上时建议 `targetVsActual`）；`compare:{leftLabel,rightLabel,left:[…],right:[…],current?,paired?,badge?}` 写两侧（组版器里同名数字指标自动排成“前值 → 后值”的变化色块，`current` 指定本期一侧，`paired:false` 表示不逐行成对，`badge` 只在两方对立时写）（建议 `contrastColumns`）；`periods:[{label,title,points}]` 写按时期展开的工作（3 个以上时建议 `periodColumns`）。
+- `figureStyle:'tiles'|'strip'`（页级，可选）固定这页数字组的排法：`tiles` 色块，`strip` 锚定指标带。不写时组版器按数据和相邻页自动选，结果在返回值 `forms` 里。
+- `itemStyle:'list'|'cards'`（页级，可选）固定这页并列事项的排法：`list` 编号列表，`cards` 等宽卡片（每项都要有 `detail`）。不写时同样自动选。
 - 照片路径相对大纲文件所在目录。
 - 输出：`gaps`（缺口：缺什么 `ask`、缺了会怎样 `impact`）、`warnings`（单位缺失、重点句只是动作罗列、照片不存在、可选内容缺失）、`suggestions`（每页建议页型及理由：数据多用色块，数据少照片多才用照片拼板）、`decision`（下一步该问用户什么）。工作汇报要求整体结论、成果数据、问题差距、下一步，需支持事项为可选；述职要求职责定位、个人业绩、不足反思、下一阶段计划。
 
 ### 从大纲到事实基线
 
-新稿确认大纲后运行 `outline:baseline <outline.json> <新目录>`，生成 `content-baseline.json` 和 `authored-scaffold.json`。目录里已有基线时命令拒绝覆盖。
+`outline:check` 的 `relationGaps` 每项含 `page`、`item`、`relation`、`have`（材料里有什么）、`question`（读者的问题）、`whyItMatters`、`ask`（要用户给什么）、`afterFill`（补上后页面变成什么）、`draftable`（`text` 可直接写，`number` 用 `XX` 占位）、`fallback`。它们是候选，不阻断流程。`gaps` 只在完全没有页面时出现。
+
+用户授权补写时，数字写 `"value":"XX"`（百分比写 `"XX%"`），连同文字项标 `"status":"estimated"` 和 `"from":{"locator":"用户授权补写","excerpt":"用户原话"}`。`publish:html` 的结果会在 `drafted` 里按页列出这些内容（`kind:'drafted'`）；来源写 `制作者展开` 的条目为 `kind:'expanded'`。`outline:check` 的 `deliveryNote` 是写好的缺口段落，交付时直接使用。
+
+**整稿换色：** 没有单独的换色命令。用新配色重新生成 `authored.json`，运行 `outline:baseline` 和 `make` 到新目录。用户已在编辑器里手改过时，先说明手改不会带过去，由用户决定。
+
+新稿大纲整理好后运行 `outline:baseline <outline.json> <新目录>`，生成 `content-baseline.json` 和 `authored-scaffold.json`。目录里已有基线时命令拒绝覆盖。
 
 - 顶层 `sources:[{sourceId,kind,path 或 title}]`，`audience` 必填。
 - `from:{sourceId?,locator,excerpt}` 写在 `data[]`、`items[]`、`flows[]`、`chains[]`、`compare`、`periods[]`、`table` 上；`sourceId` 省略时用第一份材料。照片没写时按附件文件记录。
@@ -83,7 +91,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `createTheme({palette:{bg,ink,accent,muted,line,pale,inverse},fontFamily})`、`createGrid({margin:96,columns:12,gutter:32})`：`grid.span(起始栏,栏数)` 返回 `[x,width]`。
 - `metricGroup` / `metricRow({items:[{value,unit,label}],size})`：数值与单位在同一文字元素的 runs 内，名称紧贴其下；并列指标等宽同基线。
 - `flow({steps:[{title,detail}]})`：编号圆点、箭头连线，标题与说明从节点左缘起排；编号固定 28px 粗体，节点不小于 48px。
-- `metricTiles({items:[{value,unit,label}],size,columns,highlight})`：每个数字一个圆角色块，标签在上、数字在下，高亮项带强调色竖条与强调色数字；色块右侧空余较大时自动加一个线性图标（按标签选：喜报→文档、新签→笔、续费→循环、金额→硬币、门票、门店、大屏、场地等；大小随空余缩放，最大 180px，不足 36px 不加），空间刚好时不加；图标不能关闭，`item.icon` 只用来指定换哪个图标。图标集见 `authoring/icons.mjs`。页型默认用色块（`metricStyle:'plain'` 退回无底色数字）。
+- `metricTiles({items:[{value,unit,label}],size,columns,highlight})`：每个数字一个圆角色块，标签在上、数字在下，高亮项带强调色竖条与强调色数字；色块右侧空余较大时自动加一个线性图标（按标签选：喜报→文档、新签→笔、续费→循环、金额→硬币、门票、门店、大屏、场地等；大小随空余缩放，最大 180px），空间刚好时不加；同一组每块都有图标或都没有，有一块空余不足 56px 就整组不加；图标不能关闭，`item.icon` 只用来指定换哪个图标。图标集见 `authoring/icons.mjs`。页型默认用色块（`metricStyle:'plain'` 退回无底色数字）。
 - `photoPanel({bounds,photo,title,lines,color,textSide})`：深色色块写标题、强调色短线与一到三行要点，从色块向照片渐隐过渡（`textSide:'left'` 文左图右，`'top'` 文上图下）。
 - `numberedList({items:[{title,detail}],start})`（一组事项分到多栏时用 `start` 接着编号 01、02、03）、`table({columns:[{key,label,width,size,weight,color}],rows})`、`panel({bounds,fill,radius})`、`textBlock`。
 - `imageRow` / `imageGrid({images:[{src,file?,size?,caption}],perRow:'auto'})`：同行等高、按原始比例分宽，不把图片放大到原始像素 2 倍以上；`auto` 会在分行与“左侧高图、右侧堆叠”拼贴中取图片面积最大且放得下的一种。真实图片用文件路径作 `src`，`imageSize(file)` 读取原始尺寸（make 会登记到图片台账）。

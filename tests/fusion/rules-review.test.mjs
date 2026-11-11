@@ -88,7 +88,7 @@ test('failed reviews count rounds and tell the author to keep fixing until the l
   assert.match(nextStep(1, 2), /本轮继续/);
   assert.match(nextStep(1, MAX_REVIEW_ROUNDS), /请用户决定/);
   // Missing material is the user's call at any round: the hint says to ask, never to decide or stop alone.
-  for (const r of [1, 2, MAX_REVIEW_ROUNDS]) assert.match(nextStep(1, r), /请用户选择补充材料或按现有材料生成/);
+  for (const r of [1, 2, MAX_REVIEW_ROUNDS]) assert.match(nextStep(1, r), /不要停下来问用户.*not-applicable/);
   assert.match(nextStep(0, 2), /publish:html/);
   writeReview(dir, p, { reviewer: 'fake', items: fail.map((i) => ({ ...i, verdict: 'pass' })) });
   assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 1);
@@ -103,11 +103,11 @@ test('v2 decks add concrete visual claims to the packet', () => {
   const p = project(); p.requirements.ruleContract = 'rules-checklist-v2';
   p.contentPlan.ruleChecklist.items = { 'scenario#Visual': { status: 'applied', how: '条形图与细线', evidence: [{ slideId: 's', elementIds: ['bar'] }] }, 'scenario#Directions': { status: 'not-applicable', reason: '参考方向' } };
   const packet = buildReviewPacket({ project: p, rules, pages: [{ slideId: 's', image: 'x' }] });
-  assert.deepEqual(packet.claims.map((c) => c.id), ['scenario#Visual', 'scenario#Directions', 'visual#alignment', 'visual#hierarchy', 'visual#images']);
+  assert.deepEqual(packet.claims.map((c) => c.id), ['scenario#Visual', 'scenario#Directions', 'visual#alignment', 'visual#hierarchy', 'visual#takeaways', 'visual#images']);
   assert.match(packet.prompt, /status=visual/);
   const followUp = buildReviewPacket({ project: p, rules, pages: [{ slideId: 's', image: 'x' }], only: new Set(['visual#images']) });
   assert.deepEqual(followUp.claims.map((c) => c.id), ['visual#images']);
-  assert.equal(followUp.all.length, 5);
+  assert.equal(followUp.all.length, 6);
 });
 
 test('a follow-up round starts only from a failed review of the same checklist', async (t) => {

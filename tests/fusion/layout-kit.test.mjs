@@ -167,6 +167,9 @@ test('tiles add an icon whenever there is spare room, sized to it, and pick it f
   // A wide empty strip always gets an icon: icons:false and item.icon:false no longer leave it bare (user rule).
   const off = metricTiles({ id: 'o', x: 0, y: 0, width: 1000, items: [{ value: '20', label: '新签', icon: false }], theme, icons: false });
   assert(byId(off.elements, 'o-tile-1-icon'));
+  // A group has icons on every tile or on none: one tile without room takes them off the whole row.
+  const mixed = metricTiles({ id: 'x', x: 0, y: 0, width: 1000, columns: 2, items: [{ value: '20', unit: '单', label: '辅助新签' }, { value: '1,000,000', unit: '万元', label: '一个很长很长很长很长很长的指标名称' }], theme });
+  assert.equal(mixed.elements.filter((e) => /-icon$/.test(e.id)).length, 0);
 });
 
 test('tiles, panels and photos share the theme corner radius', async () => {

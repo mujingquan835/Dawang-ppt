@@ -17,6 +17,7 @@ import { applyEditCommand } from "./commands.mjs";
 import { mountInspector } from "./inspector.jsx";
 import { collectSlideInDom } from "../export/collect.mjs";
 import { composeEditablePptx } from "../export/pptx-core.mjs";
+import { slideNotes } from "../authoring/drafted.mjs";
 const seed = document.getElementById("fusion-project");
 if (seed) {
   let saveControls = null;
@@ -378,6 +379,8 @@ if (seed) {
             f.readAsDataURL(blob);
           });
         }
+        const notes = slideNotes(p, el.dataset.vmSlideId);
+        if (notes) collected.notes = notes;
         collection.slides.push(collected);
       }
       window.pptxgen ||= window.PptxGenJS;

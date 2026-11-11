@@ -32,10 +32,10 @@ export function prepareMaterial({inputFile,outDir,scenarioId}) {
  let project;
  if(ext==='.html')project=extractPortableProject(raw);
  else if(ext==='.json'){project=JSON.parse(raw);if(!Array.isArray(project.slides))throw Error('Expected authored/ProjectV2 JSON with slides');}
- else if(!['.md','.txt'].includes(ext))throw Error('Supported inputs: portable HTML, authored/ProjectV2 JSON, Markdown, text');
+ else if(!['.md','.txt'].includes(ext))throw Error('Supported inputs: PPTX, portable HTML, authored/ProjectV2 JSON, Markdown, text');
  const rules=scenarioId?readAuthoringRules({scenarioId}):null;
  if(fs.existsSync(dest))throw Error('Preparation output already exists: '+dest);
- const media=[];
+ const media=[],missingImages=[];
  function asset(value){
   if(typeof value!=='string')return value;
   if(!value.startsWith('data:'))return value;
@@ -48,6 +48,13 @@ export function prepareMaterial({inputFile,outDir,scenarioId}) {
   return file;
  }
  function clean(v){if(typeof v==='string')return asset(v);if(Array.isArray(v))return v.map(clean);if(v&&typeof v==='object')return Object.fromEntries(Object.entries(v).map(([k,x])=>[k,clean(x)]));return v;}
+ if(!project)for(const m of raw.matchAll(/!\[([^\]]*)\]\(([^)\s]+)\)/g)){
+  if(/^(https?:|data:)/.test(m[2]))continue;
+  const src=path.resolve(path.dirname(input),decodeURI(m[2])),type={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif'}[path.extname(src).toLowerCase()];
+  if(!type||!fs.existsSync(src)){missingImages.push(m[2]);continue;}
+  const bytes=fs.readFileSync(src),hash=createHash('sha256').update(bytes).digest('hex'),file=path.join(dest,'media',hash+path.extname(src).toLowerCase());
+  if(!media.some(x=>x.sha256===hash))media.push({path:file,mime:type,bytes:bytes.length,sha256:hash,sourceRef:m[2],alt:m[1],data:bytes});
+ }
  const material=project?{title:project.requirements?.title,requirements:clean(project.requirements),sources:clean(project.sources),revision:project.revision,contentPlan:clean(project.contentPlan),slides:project.slides.map(s=>({slideId:s.slideId,hidden:s.hidden,elements:(s.elements||[]).map(e=>({id:e.id,type:e.type,text:e.text,runs:clean(e.runs),contentRef:e.contentRef,src:e.src?asset(e.src):undefined,mediaRef:e.mediaRef,bounds:e.bounds,crop:e.crop,fit:e.fit}))})),media:clean(project.media)}:{text:raw};
  const text=project?[...Object.values(project.contentPlan?.nodes||{}).map(n=>n?.text),...project.slides.flatMap(s=>(s.elements||[]).map(e=>e.runs?e.runs.map(r=>r.text).join(''):e.text))].filter(t=>typeof t==='string').join('\n'):raw;
  const candidates=scanMaterialText(text);
@@ -56,5 +63,5 @@ export function prepareMaterial({inputFile,outDir,scenarioId}) {
  const manifest=media.map(({data,...entry})=>entry);
  fs.writeFileSync(path.join(dest,'material.json'),JSON.stringify({source:input,sourceSha256:createHash('sha256').update(raw).digest('hex'),...material,extractedMedia:manifest,...candidates},null,2));
  if(rules)fs.writeFileSync(path.join(dest,'rules.json'),JSON.stringify(rules,null,2));
- return {materialFile:path.join(dest,'material.json'),rulesFile:rules?path.join(dest,'rules.json'):null,media:manifest,...candidates,scenarios:SCENARIOS.map(({id,zh})=>({id,name:zh})),note:'Read the full material and applicable Dawang-PPT rules; inspect required images. This preparation makes no content or layout decisions. Relative media paths in JSON resolve against source directory: '+path.dirname(input)};
+ return {materialFile:path.join(dest,'material.json'),...(missingImages.length?{missingImages}:{}),rulesFile:rules?path.join(dest,'rules.json'):null,media:manifest,...candidates,scenarios:SCENARIOS.map(({id,zh})=>({id,name:zh})),note:'Read the full material and applicable Dawang-PPT rules; inspect required images. This preparation makes no content or layout decisions. Relative media paths in JSON resolve against source directory: '+path.dirname(input)};
 }

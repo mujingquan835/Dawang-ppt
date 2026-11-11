@@ -1,4 +1,5 @@
 import { materializeElements } from "../scene/model.mjs";
+import { draftedShownBy } from "../authoring/drafted.mjs";
 const inspectorSections = new Map();
 const FOCUSABLE = "input,select,button,summary";
 // A rebuild replaces every control; remember which one had focus (or where Tab was heading) by position.
@@ -36,6 +37,16 @@ function mountInspector(panel, selection, api) {
   const e = elements.find((e2) => e2.id === selection.elementId);
   const o = slide.objects?.find((o2) => o2.objectId === e?.parentId);
   if (!e) return;
+  // Content the agent drafted is marked here and in the speaker notes, never on the page (user decision 2026-11-11).
+  const drafted = draftedShownBy(project, selection.slideId, e.id);
+  if (drafted.length) {
+    const note = document.createElement("div");
+    note.id = "fusion-drafted-note";
+    note.style.cssText = "padding:10px 12px;border-left:3px solid #C9A227;background:rgba(201,162,39,.12);font:500 13px/1.5 var(--sans-zh);color:var(--pp-fg)";
+    const kinds = new Set(drafted.map((d) => d.kind));
+    note.textContent = (kinds.has("drafted") ? "模型补写" : "制作时展开") + "，请核对：" + drafted.map((d) => d.text).join("；") + (drafted.some((d) => d.placeholder) ? "（XX 处填实际数字）" : "") + "。已写入本页演讲备注，投屏时不显示。";
+    box.append(note);
+  }
   const button = (label, fn) => {
     const b = document.createElement("button");
     b.type = "button";

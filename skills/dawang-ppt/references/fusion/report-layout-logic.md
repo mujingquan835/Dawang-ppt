@@ -6,7 +6,8 @@
 
 - **页头：** 左上实心主色标签（如“成果数据 | 02”，标明章节与序号），标题紧跟在同一行，下方一条贯穿内容宽度的细线收住页头。页头只占画面顶部约 12%。工具：`pageHeader({ tag, title, focus })`。
 - **内容区：** 细线以下到页脚之间整块使用。版面由**横向条带**（指标带、时期色带）和**等宽栏**（每栏一个对象）两种骨架组合，很少自由散排。
-- **页脚：** 只放来源与页码，字小、颜色弱。
+- **页脚：** 细线之下只放来源与页码，字小、颜色弱。来源只写材料名称和时期，不写定稿、版本、字体规范。
+- **进度：** 页头细线上的主色粗段按页序变长（用户调整：放在标题下方），兼作标题区的分隔。
 
 ## 2. 颜色职责：一深一浅一跳
 
@@ -96,4 +97,8 @@
 
 `outline:check` 的 `suggestions[].components` 按页面角色和关系词（目标、去年、同比、季度、阶段……）给出默认组件；整页页型（`targetVsActual`、`contrastColumns`、`periodColumns`）只是这些组件排满一页的现成组合，内容不完全匹配时直接用组件自己组合。汇报稿里自由组合的页面（`visualDecision.pattern` 以 `free` 开头）至少用一个组件，否则 `make` 以 `report-component-missing` 拦下；封面、目录、章节页写 `waived`，用户决定不用的写进 `requirements.userDecisions`。
 
-选配色时可把九组配色之一作为候选（经 `palette-preview` 展示给用户），用户确认后以 `createTheme({ palette: reportPalette(id) })` 建主题；其他配色也会按一深一浅一跳自动分配组件颜色。示例见 `examples/report-patterns.mjs`（第 4 页为组件自由组合）。
+选配色时可把九组配色之一作为候选（经 `palette-preview` 展示给用户），选定后以 `createTheme({ palette: reportPalette(id) })` 建主题；其他配色也会按一深一浅一跳自动分配组件颜色。示例见 `examples/report-patterns.mjs`（第 4 页为组件自由组合）。
+
+## 8. 把重点提出来：标签模块
+
+读者只看标题、标签和加粗就能说出本页逻辑。`labelBand` 放一句话模块（色条＋标签＋一句话，暖色只给复盘判断），`actionPanel` 放编号动作（概括小标题＋短标签＋完整句），模块按问题、动作、结果、判断的顺序堆叠。默认由 `composeReportDeck` 生成，写法见 `examples/report-modules.mjs`。

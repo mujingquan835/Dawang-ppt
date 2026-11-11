@@ -7,8 +7,8 @@ export const HOUSE_STYLE_TABLE = [
   {
     id: 'HS-01', chapters: ['general#Strictly forbidden', 'scenario#Key Requirements'],
     clause: '禁止用圆角矩形、矩形卡片或带色条的卡片建立层级与对齐',
-    allows: '数字色块（含强调色竖条与图标）、答案块、对照组、左右对照、指标带、反白色块、结论条、深色侧栏、照片拼板、编号方块与流程圆点',
-    still: '不用普通卡片包裹大段正文，不在每页套同一卡片墙；正文层级仍靠字号、字重、留白和细线',
+    allows: '数字色块（含强调色竖条与图标）、答案块、对照组、左右对照、指标带、反白色块、结论条、色条标签模块、编号动作面板、流程面板、表格外框、深色侧栏、照片拼板、编号方块与流程圆点',
+    still: '不用普通卡片包裹大段正文，不在每页套同一卡片墙；容器里是标签加一两句话，不是整段文字',
     basis: '用户确认 2026-11-04'
   },
   {
@@ -38,7 +38,21 @@ export const HOUSE_STYLE_TABLE = [
     allows: '三原色配色（粉红、蓝、黄）',
     still: '使用三原色时同页不再加入紫色或绿色；其他配色照常遵守原文',
     basis: '用户确认 2026-11-05'
-  }
+  },
+  {
+    id: 'HS-06', chapters: ['scenario#Visualize information with structural diagrams'],
+    clause: '结构图要表达真实关系（时间、并行、占比）',
+    allows: '排期默认用等宽时期色带，每栏一个阶段，时段写在色带标签上、所属项目写在栏标题；不要求段宽按时长，也不要求重叠时段画成泳道',
+    still: '阶段内容、时段和归属写对；只有写了泳道且色带和文字能占满各行时才用时间轴，不为区分时段露出大片空白',
+    basis: '用户确认 2026-11-10'
+  },
+  {
+    id: 'HS-07', chapters: ['general#Requirements', 'scenario#Visual References'],
+    clause: '页面没有大块无意义空白',
+    allows: '板块贴合内容，不为铺满页面拉高；内容不足以铺满时整组上下居中，上下留白对称，这样的留白不算无意义空白',
+    still: '矩形大小贴合内容，单个数字收紧成合适的矩形并把相关说明放在后面；不置顶、不压底留出单侧大空白',
+    basis: '用户确认 2026-11-10'
+  },
 ];
 
 export const houseStyleFor = (chapter) => HOUSE_STYLE_TABLE.filter((h) => h.chapters.includes(chapter));

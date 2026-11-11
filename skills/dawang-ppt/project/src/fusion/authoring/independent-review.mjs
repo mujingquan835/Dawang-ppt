@@ -21,6 +21,7 @@ export function resolveReviewer(env = process.env) {
 
 function runReviewer(reviewer, packetDir, packet) {
   const verdictFile = path.join(packetDir, 'verdict.json');
+  if (reviewer.kind === 'file') return JSON.parse(fs.readFileSync(reviewer.file, 'utf8'));
   const run = reviewer.kind === 'command'
     ? spawnSync(reviewer.command, { shell: true, cwd: packetDir, env: { ...process.env, PACKET_DIR: packetDir }, encoding: 'utf8', timeout: 900000 })
     : spawnSync(reviewer.command, ['exec', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', packetDir,
@@ -36,7 +37,7 @@ export const MAX_REVIEW_ROUNDS = 3;
 export function nextStep(failed, round, { blockers = failed, advisories = 0, tiered = false } = {}) {
   if (!failed && !blockers) return '复核通过：运行 publish:html <workspaceDir> <交付.html>。';
   if (tiered && !blockers && advisories > 0) return '无阻断问题（仅含审美/可选建议）：可运行 publish:html <workspaceDir> <交付.html>，并在交付回复中单独说明建议项。';
-  const missing = '若 fail 要的是原材料没有的信息（整体目标、达成率、差距、决策事项等）：不要改措辞重试，立即向用户说明缺哪几项，请用户选择补充材料或按现有材料生成（页面如实标注“材料未提供”，清单改 not-applicable 并写明用户的选择）；由用户决定，不自行判定。';
+  const missing = '若 fail 要的是原材料没有的信息（整体目标、达成率、差距、决策事项等）：不要改措辞重试，也不要停下来问用户：清单该条改 not-applicable，理由写“材料未提供……，已在交付时说明”，继续复核，并把这项写进交付回复的关系缺口。用户已授权补写的，把缺的内容写上（数字用 XX 占位）。';
   if (round >= MAX_REVIEW_ROUNDS) {
     if (tiered && blockers > 0) {
       return `已复核 ${round} 轮仍有 ${blockers} 项阻断问题（needs-revision）：禁止覆盖正式交付文件，可输出 review-draft 供用户查看并请用户决定。` + missing;
@@ -62,8 +63,10 @@ export function previousRound(workspaceDir, project) {
   } catch { return null; }
 }
 
-export async function reviewRulesIndependently({ workspaceDir, reviewer = resolveReviewer(), keepPacket, full = false }) {
-  if (!reviewer) throw new Error('未找到可用的独立复核者：安装 Codex CLI，或设置 DAWANG_REVIEWER_CMD（命令读取 $PACKET_DIR 并写出 verdict.json）');
+// prepare: stop once the packet is written, for a reviewer the host starts itself in a fresh context. verdict: read that reviewer's answer back.
+export async function reviewRulesIndependently({ workspaceDir, reviewer: given, keepPacket, full = false, prepare = false, verdict }) {
+  const reviewer = given || (verdict ? { kind: 'file', file: verdict, name: 'host-agent' } : prepare ? { kind: 'prepare', name: 'host-agent' } : resolveReviewer());
+  if (!reviewer) throw new Error('未找到可用的独立复核者：安装 Codex CLI，设置 DAWANG_REVIEWER_CMD（命令读取 $PACKET_DIR 并写出 verdict.json），或用 --prepare <目录> 交给宿主的全新子智能体');
   const project = loadProject(path.join(workspaceDir, 'deck-project.json'));
   const checklist = project.contentPlan?.ruleChecklist;
   if (!checklist) throw new Error('工程没有 contentPlan.ruleChecklist；先按 rules:checklist 填写');
@@ -87,6 +90,7 @@ export async function reviewRulesIndependently({ workspaceDir, reviewer = resolv
     fs.writeFileSync(path.join(packetDir, 'prompt.txt'), packet.prompt);
     fs.writeFileSync(path.join(packetDir, 'schema.json'), JSON.stringify(packet.schema));
     fs.writeFileSync(path.join(packetDir, 'claims.json'), JSON.stringify(packet.claims, null, 2));
+    if (prepare) return { ok: true, prepared: true, releaseStatus: 'awaiting-review', packetDir, claims: packet.claims.length, next: '让一个全新上下文的复核者读取 packetDir 的 prompt.txt、schema.json、claims.json 和 images，把结论写成 verdict.json；然后运行 review:rules <工程目录> --verdict <verdict.json>。不要把制作过程告诉复核者。' };
     const judged = normalizeVerdict(runReviewer(reviewer, packetDir, packet), packet.claims, project);
     const reusableIds = previous?.scope ? new Set(previous.scope.reusableClaimIds) : null;
     const carried = previous

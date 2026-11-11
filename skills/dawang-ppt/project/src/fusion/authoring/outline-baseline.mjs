@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { createContentBaseline } from './content-baseline.mjs';
 import { validateContentModel } from './content-model.mjs';
+import { keyLineFigureIssues } from './wording.mjs';
 
 // The bridge from an outline to the deck contracts. The agent reads the material and records where each fact came from
 // (`from`) and any relation the structure does not show (`relations`); this code only moves that into the independent
@@ -8,8 +9,9 @@ import { validateContentModel } from './content-model.mjs';
 //
 // Added to the outline:
 //   sources: [{ sourceId, kind, path?, title? }]
-//   from: { sourceId?, locator, excerpt }   on data[], items[], flows[], chains[], compare, periods[], table
+//   from: { sourceId?, locator, excerpt }   on data[], items[], flows[], chains[], compare, periods[], table, tables[]
 //   relations: [{ id, kind, members: [nodeId], edges?, rows?, from, page? }]   relations the agent identified
+//   statements: [{ id, label, text, from }]   on a page: labelled sentences, one module each
 //   gaps, dispositions                      passed through to the baseline as written
 // Node ids: <page>:data-1, :item-1, :flow-1-1, :chain-1-1, :compare-l1, :compare-r1, :period-1, :row-1, :photo-1.
 export const NEW_DECK_CONTRACTS = {
@@ -80,6 +82,12 @@ function collect(outline, baseDir) {
       addNode(`data-${i + 1}`, 'metric', `${d.label} ${display}`, d, d.from, { facts });
     });
     asList(page.items).forEach((it, i) => addNode(`item-${i + 1}`, 'statement', it.detail ? `${it.title}｜${it.detail}` : it.title, it, it.from));
+    // A labelled sentence (业务问题、复盘判断、AI 提效) gets its own zone, so it can be its own module on the page.
+    asList(page.statements).forEach((st, i) => {
+      const key = st.id || `statement-${i + 1}`;
+      addZone(key, 'labelBand', 'support', [addNode(key, 'statement', st.text, st, st.from)]);
+    });
+    if (page.role === 'cover') addZone('cover', 'coverPanel', 'focus', [addNode('status', 'statement', page.keyLine.text, page, { locator: page.keyLine.from || '封面状态句', excerpt: page.keyLine.text })]);
     if (dataRefs.length) addZone('metrics', 'metricTiles', 'data', dataRefs);
     if (itemRefs.length) addZone('items', 'numberedList', 'support', itemRefs);
     stepsOf(page.flows, 'flow');
@@ -94,6 +102,10 @@ function collect(outline, baseDir) {
       const members = page.periods.map((p, i) => addNode(`period-${i + 1}`, 'statement', `${p.label}｜${[p.title, ...asList(p.points)].filter(Boolean).join('：')}`, p, p.from));
       addZone('periods', 'periodColumns', 'flow', members, addRelation('periods', 'sequence', members, page.periods[0]?.from, sequence(members)));
     }
+    asList(page.tables).forEach((table, n) => {
+      const zone = `table-${n + 1}`, members = asList(table.rows).map((row, i) => addNode(`${zone}-row-${i + 1}`, 'statement', row.join('｜'), table, table.from && { ...table.from, locator: `${table.from.locator} · 第 ${i + 1} 行` }));
+      addZone(zone, 'capacityTable', 'evidence', members, addRelation(zone, 'classification', members, table.from, { rows: members.map((m, i) => ({ id: `row-${i + 1}`, members: [m] })) }));
+    });
     if (page.table) {
       const members = asList(page.table.rows).map((row, i) => addNode(`row-${i + 1}`, 'statement', row.join('｜'), page.table, page.table.from && { ...page.table.from, locator: `${page.table.from.locator} · 第 ${i + 1} 行` }));
       addZone('table', 'capacityTable', 'evidence', members, addRelation('table', 'classification', members, page.table.from, { rows: members.map((m, i) => ({ id: `row-${i + 1}`, members: [m] })) }));
@@ -119,6 +131,8 @@ function collect(outline, baseDir) {
     if (holder && !holder.relationId) holder.relationId = relation.id;
     else target.zones.push({ zoneId: `relation-${target.zones.length + 1}`, module: 'custom', role: 'evidence', members: asList(relation.members), relationId: relation.id });
   }
+  // A title states what its page shows: a figure in it that the page never puts on screen is the agent's to fix.
+  if (['report', 'review'].includes(kind)) issues.push(...keyLineFigureIssues(outline));
   const brief = { purpose: outline.purpose || outline.title, audience: outline.audience, scenario: kind, scope };
   return { kind, scope, sources, nodes, relations, pages, media, brief, issues };
 }
@@ -154,6 +168,9 @@ function pagePlan({ slideId, requiredRefs, zones, readerTask, keyLineSource }, r
     }))
   };
 }
+
+// What the agent wrote on the user's say-so, per page: the delivery reply lists these so the user knows what to check.
+export { DRAFT_LOCATOR, EXPAND_LOCATOR, draftedContent } from './drafted.mjs';
 
 // What still stops outline:baseline. Separate from outline:check's gaps: these are the agent's to fix.
 export const outlineBaselineIssues = (outline, { baseDir = process.cwd() } = {}) => collect(outline, baseDir).issues;

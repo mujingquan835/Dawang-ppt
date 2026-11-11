@@ -39,18 +39,20 @@ export function lintComposition(elements) {
   }
 
   // Tiles: rounded filled shapes holding one to three texts, at least one of them a figure.
+  const tiles = [];
   for (const s of els.filter((e) => e.type === 'shape' && (e.style?.radius || 0) > 0 && e.style?.fill && e.bounds[2] >= 240 && e.bounds[3] >= 100)) {
     // A text belongs to the tile when its centre does (a box drawn a little taller than its tile still counts).
     const t = box(s), centred = (e) => { const c = box(e), cx = c.x + c.w / 2, cy = c.y + c.h / 2; return cx > t.x && cx < t.r && cy > t.y && cy < t.b; };
     const held = texts.filter(centred);
     // A metric tile carries a big figure (40px or more, short); a text panel with numbers in its prose is not one.
-    const big = (e) => Math.max(e.style?.fontSize || 0, ...(e.runs || []).map((r) => r.style?.fontSize || 0)) >= 40 && /\d/.test(String(e.text)) && String(e.text).trim().length <= 14;
+    const big = (e) => Math.max(e.style?.fontSize || 0, ...(e.runs || []).map((r) => r.style?.fontSize || 0)) >= 40 && /\d/.test(String(e.text)) && String(e.text).replace(/^.*→\s*/, '').trim().length <= 14;
     if (!held.length || held.length > 3 || !held.some(big)) continue;
-    if (els.some((e) => (e.type === 'vector' || e.type === 'image') && inside(box(e), t))) continue;
     const right = Math.max(...held.map((e) => e.bounds[0] + Math.min(e.bounds[2], runsWidth(e))));
-    const spare = t.r - right;
-    if (spare >= Math.max(180, t.w * 0.3)) out.push({ kind: 'tile-spare-no-icon', elementId: s.id, spare: Math.round(spare), hint: '色块右侧空余较大：用 metricTiles（会自动补图标）或在空余处加图标' });
+    const spare = t.r - right, filled = spare < Math.max(180, t.w * 0.3) || els.some((e) => (e.type === 'vector' || e.type === 'image') && inside(box(e), t));
+    tiles.push({ id: s.id, row: `${t.y}:${t.w}:${t.h}`, spare, filled });
   }
+  // Equal tiles in one row are sized by the fullest of them, so a short figure beside a long one is not spare room.
+  for (const tile of tiles) if (!tile.filled && !tiles.some((o) => o.row === tile.row && o.filled)) out.push({ kind: 'tile-spare-no-icon', elementId: tile.id, spare: Math.round(tile.spare), hint: '色块右侧空余较大：按内容收窄色块，或用 metricTiles（会自动补图标）' });
 
   // Lines that start with spaces (manual hanging indent) or "01  " style numbering inside one text box.
   for (const e of texts) {

@@ -24,6 +24,8 @@ function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {
   const report = { revision: collection.revision, texts: 0, images: 0, shapes: 0, lines: 0, decorations: [], issues: [], fonts:collection.fonts||[], unsupported:[], rasterized:collection.slides.flatMap(slide=>slide.objects.filter(o=>o.type==='decoration').map(o=>({id:o.id,classification:o.classification,scope:'compatibility-preview',includesText:false}))) };
   for (const s of collection.slides) {
     const slide = pptx.addSlide();
+    // Speaker notes carry what to check before presenting (model-drafted content); the page itself never shows it.
+    if (s.notes) slide.addNotes(s.notes);
     for (const o of s.objects) {
       const [x, y, w, h] = o.bounds.map((v) => v / 144);
       if (w <= 0 || h <= 0) continue;

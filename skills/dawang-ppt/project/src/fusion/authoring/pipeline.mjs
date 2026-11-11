@@ -4,7 +4,7 @@ import {createAuthoredProject} from './create-project.mjs';import {stageMedia} f
 import {loadProject,saveProject} from '../project/store.mjs';import {renderProject} from '../scene/render-project.jsx';
 import {createFusionServer} from '../../../scripts/fusion-preview.jsx';import {measureProject} from '../qa/measure.mjs';
 import {validatePortableHtml} from '../portable/html.mjs';import {reviewKeyLines} from '../qa/key-lines.mjs';import {reviewVisualDecisions} from '../qa/visual-decisions.mjs';import {reviewRuleChecklist} from '../qa/rule-checklist.mjs';import {reviewGate} from '../qa/rules-review.mjs';import {checkDecisions,applyDecisions} from '../qa/user-decisions.mjs';
-import {missingContracts} from './outline-baseline.mjs';import {validateContentBaseline} from './content-baseline.mjs';
+import {missingContracts,draftedContent} from './outline-baseline.mjs';import {validateContentBaseline} from './content-baseline.mjs';
 const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 async function run({workspaceDir,outFile,reviewDraftFile,slideIds,screenshots}){
  const start=performance.now(),phases={};const project=loadProject(path.join(workspaceDir,'deck-project.json'));
@@ -53,7 +53,7 @@ async function run({workspaceDir,outFile,reviewDraftFile,slideIds,screenshots}){
    return {ok:true,releaseStatus:'ready',issues,warnings,decided,contentReview:content.review,visualReview:visual.review,ruleReview:rules.review,independentReview:gate.review,qa,exportRequests:requests};
   }finally{await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  });}catch(error){result={ok:false,releaseStatus:'needs-revision',issues:[{kind:'operation-failed',message:error.message}]};}
- const report={...result,projectId:project.requirements.projectId,revision:project.revision,workspaceDir,outFile,scope:slideIds?'slides':'all',deliveryProfile:'html-first',phases,durationMs:performance.now()-start,at:new Date().toISOString()};recordRun(workspaceDir,report);return report;
+ const drafted=draftedContent(project);const report={...result,...(drafted.length?{drafted}:{}),projectId:project.requirements.projectId,revision:project.revision,workspaceDir,outFile,scope:slideIds?'slides':'all',deliveryProfile:'html-first',phases,durationMs:performance.now()-start,at:new Date().toISOString()};recordRun(workspaceDir,report);return report;
 }
 export async function publishHtml(options){return run(options);}
 export async function checkProject(options){return run({...options,outFile:undefined});}
@@ -68,7 +68,8 @@ function newDeckIssues(project,inputFile){
 export async function makeHtml({inputFile,outFile,workspaceDir,screenshots}){
  const source=JSON.parse(fs.readFileSync(inputFile,'utf8')),p=createAuthoredProject(source);workspaceDir=workspacePath(p.requirements.projectId,workspaceDir);
  const gate=applyDecisions(p,newDeckIssues(p,inputFile));
- if(gate.open.length)return {ok:false,releaseStatus:'needs-revision',issues:gate.open,warnings:[],decided:gate.decided,projectId:p.requirements.projectId,workspaceDir,outFile};
- const file=path.join(workspaceDir,'deck-project.json');if(fs.existsSync(file))throw Error('工程已存在：'+workspaceDir+'；使用 patch:project / publish:html 保留修改。');
- const staged=stageMedia(p,path.dirname(inputFile),workspaceDir);const saved=saveProject(file,staged,null);if(!saved.ok)throw Error(JSON.stringify(saved));const report=await publishHtml({workspaceDir,outFile,screenshots});return gate.decided.length?{...report,decided:[...gate.decided,...(report.decided||[])]}:report;
+ if(gate.open.length)return {ok:false,releaseStatus:'needs-revision',issues:gate.open,warnings:[],decided:gate.decided,projectId:p.requirements.projectId,workspaceDir};
+ const file=path.join(workspaceDir,'deck-project.json'),marker=path.join(workspaceDir,'last-make.json');
+ if(fs.existsSync(file)){const mark=fs.existsSync(marker)?JSON.parse(fs.readFileSync(marker,'utf8')):null;let run={};try{run=JSON.parse(fs.readFileSync(path.join(workspaceDir,'run.json'),'utf8'));}catch{}if(mark?.revision!==loadProject(file).revision||run.ok===true)throw Error('工程已存在且已修改或已发布：'+workspaceDir+'；使用 patch:project / publish:html 保留修改，或换 projectId 另建。');for(const stale of [file,path.join(workspaceDir,'rules-review.json'),path.join(workspaceDir,'last-patch.json')])fs.rmSync(stale,{force:true});}
+ const staged=stageMedia(p,path.dirname(inputFile),workspaceDir);const saved=saveProject(file,staged,null);if(!saved.ok)throw Error(JSON.stringify(saved));const report=await publishHtml({workspaceDir,outFile,screenshots});fs.writeFileSync(marker,JSON.stringify({revision:loadProject(file).revision}));if(!fs.existsSync(outFile))delete report.outFile;return gate.decided.length?{...report,decided:[...gate.decided,...(report.decided||[])]}:report;
 }

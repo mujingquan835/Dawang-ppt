@@ -132,6 +132,27 @@
           }
         }
       ]
+    },
+    {
+      "id": "p5",
+      "role": "asks",
+      "keyLine": {
+        "text": "申请 Q4 活动预算 XX 万元",
+        "source": "created"
+      },
+      "data": [
+        {
+          "label": "Q4 活动预算",
+          "value": "XX",
+          "unit": "万元",
+          "role": "planned",
+          "status": "estimated",
+          "from": {
+            "locator": "用户授权补写",
+            "excerpt": "可以适当撰写"
+          }
+        }
+      ]
     }
   ]
 }

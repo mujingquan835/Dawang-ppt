@@ -148,6 +148,11 @@ export function reviewVisualDecisions(project) {
       const w = Math.max(...photos.map((x) => x.bounds[0] + x.bounds[2])) - Math.min(...photos.map((x) => x.bounds[0])), h = Math.max(...photos.map((x) => x.bounds[1] + x.bounds[3])) - Math.min(...photos.map((x) => x.bounds[1]));
       if (w < 0.7 * zw && h < 0.7 * zh) report({ kind: 'image-small-in-zone', ...where, elementIds: photos.map((x) => x.id), zone: z.id, hint: '图片明显小于所在分区：按分区画框，用 imageFrames 裁切填满' });
     }
+    // Composed report pages have a known body: content that leaves more than a quarter of it empty reads as floating.
+    if (zonesRequired && Array.isArray(decision.zones) && decision.zones.length && decision.zones.every((z) => validBounds(z.bounds)) && all.some((e) => e.id === 'hdr-rule') && all.some((e) => e.id === 'ftr-rule')) {
+      const span = Math.max(...decision.zones.map((z) => z.bounds[1] + z.bounds[3])) - Math.min(...decision.zones.map((z) => z.bounds[1])), blank = 1 - span / (1010 - 146);
+      if (blank > 0.25) warnings.push({ kind: 'page-body-loose', ...where, blank: +blank.toFixed(2), hint: '内容不足以铺满正文区，已上下居中：可补充已有材料或与相邻页合并，不要靠拉高色块填满' });
+    }
     // The page type the page started from, or free with the reason: the report page types are meant to be used.
     // In a report deck a freely composed page is still carried by at least one report component (answer block,
     // compare pair, contrast pair, period band, KPI strip, metric tiles, side panel). Cover, contents and divider

@@ -118,7 +118,7 @@ export function capacityFlow(spec) {
  validate(spec);checkItems(spec.steps);
  const {id,steps,bounds:[x,y,w],measurements}=spec,theme=spec.theme||createTheme();
  if(w/steps.length<100)throw new TypeError('flow slots too narrow: use another layout');
- const result=flow({id,x,y,width:w,steps,theme,titleSize:spec.titleSize??30,detailSize:spec.detailSize??24});
+ const result=flow({id,x,y,width:w,steps,theme,titleSize:spec.titleSize??30,detailSize:spec.detailSize??24,span:spec.span===true});
  for(let i=0;i<steps.length;i++){
   const nodeEl=result.elements.find(e=>e.id===`${id}-node-${i+1}`),numEl=result.elements.find(e=>e.id===`${id}-num-${i+1}`);
   const title=result.elements.find(e=>e.id===`${id}-title-${i+1}`),detail=result.elements.find(e=>e.id===`${id}-detail-${i+1}`);

@@ -6,29 +6,64 @@ import { checkOutline, suggestPattern } from '../../skills/dawang-ppt/project/sr
 
 const example = JSON.parse(fs.readFileSync(path.resolve('skills/dawang-ppt/examples/outline-work-report.json'), 'utf8'));
 
-test('a complete work-report outline has no gaps and only the optional asks warning', () => {
+test('a complete work-report outline passes and goes straight to the first version', () => {
   const r = checkOutline(example);
   assert.equal(r.ok, true);
   assert.deepEqual(r.gaps, []);
-  assert.deepEqual(r.warnings.map((w) => w.item), ['asks']);
-  assert.match(r.decision, /进入配色与制作/);
+  assert.deepEqual(r.warnings, []);
+  assert.match(r.decision, /第一版/);
 });
 
-test('missing conclusion, issues, plan and period are gaps with their cost, and the user is asked to decide', () => {
+test('missing conclusion, issues, plan and period are relation gaps that never stop the first version', () => {
   const r = checkOutline({ kind: 'report', scope: 'full', pages: [
     { id: 'a', role: 'actions', keyLine: { text: '梳理三条业务线支持方式' } },
     { id: 'b', role: 'results', keyLine: { text: '新签 20 单' }, data: [{ label: '新签', value: '20' }] }
   ] });
-  assert.deepEqual(r.gaps.map((g) => g.item).sort(), ['issues', 'period', 'plan', 'summary']);
-  assert(r.gaps.every((g) => g.ask && g.impact));
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.gaps, []);
+  const deck = r.relationGaps.filter((g) => g.level === 'deck').map((g) => g.item).sort();
+  assert.deepEqual(deck, ['issues', 'period', 'plan', 'summary']);
+  for (const g of r.relationGaps) for (const field of ['relation', 'have', 'question', 'whyItMatters', 'ask', 'afterFill', 'draftable', 'fallback']) assert(g[field], `${g.item} lacks ${field}`);
+  assert(r.relationGaps.every((g) => !/材料未提供|不做/.test(g.fallback)));
   assert(r.warnings.some((w) => w.item === 'keyLine' && w.page === 'a'));
   assert(r.warnings.some((w) => w.item === 'unit' && w.page === 'b'));
-  assert.match(r.decision, /只问一次/);
+  assert.match(r.decision, /不为这些关系缺口停下/);
 });
 
-test('performance reviews need duties, results, shortcomings and a plan', () => {
+test('performance reviews list duties, shortcomings, a plan and personal contribution as relations', () => {
   const r = checkOutline({ kind: 'review', scope: 'full', period: '2026年', pages: [{ id: 'a', role: 'results', keyLine: { text: '完成 12 个项目' }, data: [{ label: '项目', value: '12', unit: '个' }] }] });
-  assert.deepEqual(r.gaps.map((g) => g.item).sort(), ['duties', 'issues', 'plan']);
+  const items = r.relationGaps.map((g) => g.item);
+  for (const item of ['duties', 'issues', 'plan', 'contribution']) assert(items.includes(item), item);
+  assert.equal(r.ok, true);
+});
+
+test('each missing relation on a page is found, and an existing one is not reported', () => {
+  const gaps = (p, extra = {}) => checkOutline({ kind: 'report', pages: [{ id: 'p', ...p }], ...extra }).relationGaps.map((g) => g.item);
+  const data = [{ label: '新签', value: '48', unit: '单' }];
+  assert.deepEqual(gaps({ role: 'results', keyLine: { text: '新签 48 单' }, data }), ['target']);
+  assert.deepEqual(gaps({ role: 'results', keyLine: { text: '新签 48 单' }, data: [{ ...data[0], target: '50' }] }), []);
+  assert.deepEqual(gaps({ role: 'actions', keyLine: { text: '搭建案例库' }, items: [{ title: '搭建案例库' }] }), ['result']);
+  assert.deepEqual(gaps({ role: 'issues', keyLine: { text: '转化偏低' } }), ['cause', 'measure']);
+  assert.deepEqual(gaps({ role: 'issues', keyLine: { text: '回访慢导致转化偏低，已建立改进措施' } }), []);
+  assert.deepEqual(gaps({ role: 'plan', keyLine: { text: '建立回访机制' } }), ['owner-time']);
+  assert.deepEqual(gaps({ role: 'plan', keyLine: { text: '10月底前建立回访，负责人张三' } }), []);
+});
+
+test('non-report decks are not held to report relations', () => {
+  assert.deepEqual(checkOutline({ kind: 'training', pages: [{ id: 'p', role: 'issues', keyLine: { text: '常见错误' } }] }).relationGaps, []);
+});
+
+test('an XX placeholder counts as a figure', () => {
+  const r = checkOutline({ kind: 'report', pages: [{ id: 'p', role: 'results', keyLine: { text: '完成 XX 单' }, data: [{ label: '完成', value: 'XX', unit: '单', target: 'XX' }] }] });
+  assert(!r.warnings.some((w) => w.item === 'keyLine' || w.item === 'unit'));
+  assert.deepEqual(r.relationGaps, []);
+});
+
+test('only an outline with no pages asks the user for material', () => {
+  const r = checkOutline({ kind: 'report', pages: [] });
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.gaps.map((g) => g.item), ['pages']);
+  assert.match(r.decision, /向用户要材料/);
 });
 
 test('page type suggestions put data before photos', () => {
@@ -41,19 +76,21 @@ test('page type suggestions put data before photos', () => {
   assert.equal(suggestPattern({ table: { rows: [['a']] }, chains: [{}] }), 'tableWithPanel');
 });
 
-test('a partial job (the default) checks only its own pages and asks nothing when they are complete', () => {
+test('a partial job (the default) checks only its own pages, never deck-level pieces', () => {
   const pages = [
     { id: 'a', role: 'actions', keyLine: { text: '梳理三条业务线支持方式' } },
     { id: 'b', role: 'results', keyLine: { text: '新签 20 单' }, data: [{ label: '新签', value: '20', unit: '单' }] }
   ];
   const r = checkOutline({ kind: 'report', pages });
   assert.equal(r.scope, 'part');
-  assert.deepEqual(r.gaps, []);
-  assert.match(r.decision, /不要为内容再提问/);
+  assert.equal(r.ok, true);
+  assert(r.relationGaps.every((g) => g.level === 'page'));
   // The period is only a note on a partial job.
   assert(r.warnings.some((w) => w.item === 'period'));
-  // A page with no key line is still worth one question.
-  assert.deepEqual(checkOutline({ kind: 'report', pages: [{ id: 'c', role: 'results', data: [{ label: 'x', value: '1', unit: '单' }] }] }).gaps.map((g) => g.item), ['keyLine']);
+  // A page with no key line is the agent's to distill.
+  const noKey = checkOutline({ kind: 'report', pages: [{ id: 'c', role: 'results', data: [{ label: 'x', value: '1', unit: '单' }] }] });
+  assert.deepEqual(noKey.gaps, []);
+  assert(noKey.warnings.some((w) => w.item === 'keyLine'));
 });
 
 test('targets, comparisons and photos without items are pointed out so the report page types can be suggested', () => {
@@ -66,4 +103,11 @@ test('targets, comparisons and photos without items are pointed out so the repor
   assert(items(page({ photos: [photo, photo, photo] })).includes('items'));
   const acts = [1, 2, 3].map((i) => ({ title: `动作${i}`, detail: '活动前3天直播3场；核销到店2,310人' }));
   assert.equal(suggestPattern({ items: acts, photos: [photo, photo, photo], data: [{}] }), 'itemsWithPhotos');
+});
+
+test('the delivery note is written out in full, page by page', () => {
+  const r = checkOutline({ kind: 'report', pages: [{ id: 'x', role: 'other', keyLine: { text: 'a' } }, { id: 'y', role: 'results', keyLine: { text: '新签 48 单' }, data: [{ label: '新签', value: '48', unit: '单' }] }] });
+  assert.equal(r.deliveryNote.gaps.length, 1);
+  assert.match(r.deliveryNote.gaps[0], /^第 2 页，新签 48 单算好还是差？材料里有：.*例如.*补上后/);
+  assert.equal(checkOutline(example).deliveryNote?.gaps.length, checkOutline(example).relationGaps.length);
 });
