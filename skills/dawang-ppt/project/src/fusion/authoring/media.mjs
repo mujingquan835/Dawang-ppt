@@ -2,6 +2,17 @@ import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {hashFile} from "../project/store.mjs";
+// The staged name carries the file's real format: a JPEG saved as .png would otherwise be served and embedded as
+// image/png, which browsers forgive but a PPTX export does not.
+function realExt(file) {
+  const b = Buffer.alloc(12), fd = fs.openSync(file, "r");
+  try { fs.readSync(fd, b, 0, 12, 0); } finally { fs.closeSync(fd); }
+  if (b[0] === 0x89 && b.toString("latin1", 1, 4) === "PNG") return ".png";
+  if (b[0] === 0xff && b[1] === 0xd8) return ".jpg";
+  if (b.toString("latin1", 0, 3) === "GIF") return ".gif";
+  if (b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return ".webp";
+  return path.extname(file);
+}
 export function stageMedia(project, sourceDir, targetDir) {
   const media = [];
   const transform = (value, key = "") => {
@@ -17,7 +28,7 @@ export function stageMedia(project, sourceDir, targetDir) {
         if (fs.existsSync(existing)) return value;
         throw new Error("Required local image not found: " + value);
       }
-      const hash = hashFile(file), name = hash.slice(0, 20) + path.extname(file), rel = "assets/user-media/" + name;
+      const hash = hashFile(file), name = hash.slice(0, 20) + realExt(file), rel = "assets/user-media/" + name;
       fs.mkdirSync(path.join(targetDir, "assets/user-media"), { recursive: true });
       if (path.resolve(file) !== path.resolve(targetDir, rel)) fs.copyFileSync(file, path.join(targetDir, rel));
       media.push({ mediaId: hash, sha256: hash, source: file, src: rel });

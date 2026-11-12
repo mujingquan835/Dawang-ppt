@@ -1,3 +1,5 @@
+import { imageElement } from './elements.mjs';
+import { validImageCrop } from '../scene/image-crop.mjs';
 import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, createTheme, imageSize, kpiStrip, labelBand, metricTiles, photoGroup, readableInk, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
 import { comparePair, periodBand, periodTimeline } from './report-kit.mjs';
 import path from 'node:path';
@@ -138,10 +140,19 @@ export function layoutCandidates(page, zoneIds, limit = 48) {
 }
 
 const aspect = (src) => { const s = imageSize(src); return (s.width ?? s.w ?? s[0]) / (s.height ?? s.h ?? s[1]); };
+// A crop maps its region onto the frame on each axis separately, so a region of another shape would stretch the photo.
+// fitCrop trims the region (around its centre, or the focal point) to the frame's shape before it is used.
+export function fitCrop(crop, size, frameRatio, focal) {
+  const [cx, cy, cw, ch] = validImageCrop(crop) ? crop : [0, 0, 1, 1], r = (size.width * cw) / (size.height * ch);
+  const pct = (v, d) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.max(0, Math.min(1, n / 100)) : d; }, [fx, fy] = String(focal || '').split(/\s+/);
+  if (Math.abs(r - frameRatio) < 1e-3) return [cx, cy, cw, ch];
+  if (r > frameRatio) { const w = cw * frameRatio / r; return [cx + (cw - w) * pct(fx, 0.5), cy, w, ch]; }
+  const h = ch * r / frameRatio; return [cx, cy + (ch - h) * pct(fy, 0.4), cw, h];
+}
 
 // Portraits take a column each and landscapes stack in one column, so no picture is forced into the wrong shape.
 function photoColumns(photos) {
-  const cells = photos.map((ph, index) => ({ ...ph, index, r: aspect(ph.src) })), portrait = cells.filter((c) => c.r < 1), land = cells.filter((c) => c.r >= 1);
+  const cells = photos.map((ph, index) => ({ ...ph, index, r: validImageCrop(ph.crop) ? aspect(ph.src) * ph.crop[2] / ph.crop[3] : aspect(ph.src) })), portrait = cells.filter((c) => c.r < 1), land = cells.filter((c) => c.r >= 1);
   return [...portrait.map((c) => [c]), ...(land.length ? [land] : [])];
 }
 const singleColumns = (photos) => photoColumns(photos).flat().sort((a, b) => a.index - b.index).map((c) => [c]);
@@ -612,7 +623,7 @@ function pageWriter({ page, zones, theme, measurer }) {
         const cellH = Math.floor((H - col.length * CAP - (col.length - 1) * PHOTO_GAP) / col.length), share = cellH * (col.reduce((a, c) => a + c.r, 0) / col.length) * scale;
         const cw = ci === cols.length - 1 ? x + w - cx : Math.round(share);
         col.forEach((ph, ri) => {
-          const id = `ph${ph.index + 1}`, cy = y + ri * (cellH + CAP + PHOTO_GAP), g = photoGroup({ id, x: cx, y: cy, width: cw, height: cellH, theme, images: [{ src: ph.src, alt: ph.caption || '' }] });
+          const id = `ph${ph.index + 1}`, cy = y + ri * (cellH + CAP + PHOTO_GAP), g = ph.crop ? { elements: [imageElement({ id: `${id}-img-1`, src: ph.src, bounds: [cx, cy, cw, cellH], fit: 'cover', crop: fitCrop(ph.crop, imageSize(ph.src), cw / cellH, ph.focal), naturalSize: [imageSize(ph.src).width, imageSize(ph.src).height], style: { radius: theme.radius ?? 0 }, ...(ph.caption ? { alt: ph.caption } : {}) })] } : photoGroup({ id, x: cx, y: cy, width: cw, height: cellH, theme, images: [{ src: ph.src, alt: ph.caption || '', ...(ph.focal ? { focal: ph.focal } : {}) }] });
           elements.push(...g.elements); if (ph.caption) elements.push(text(`${id}-cap`, ph.caption, [cx, cy + cellH + 6, cw, 28], theme.roleStyle('caption', { lineHeight: 1.25 })));
           bindings.push({ ref: `${pid}:photo-${ph.index + 1}`, elementIds: g.elements.filter((e) => e.type === 'image').map((e) => e.id) });
         });
@@ -684,7 +695,7 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   if (!layout && sideAt >= 0) {
     let stack = GAP * (rows[sideAt].left.length - 1), rest = 0;
     for (const z of rows[sideAt].left) stack += (await render(z, { x: L, y: TOP, w: Math.round(W * 0.6) })).height;
-    for (const [i, r] of rows.entries()) if (i !== sideAt) rest += (await measureRow(r)).h + GAP;
+    for (const [i, r] of rows.entries()) if (i !== sideAt) rest += ((await measureRow(r)).h || 0) + GAP;
     const room = BOTTOM - TOP - rest;
     if (stack < room * 0.42 && naturalPhotoWidth(singleColumns(page.photos), room - stack - GAP) >= W * 0.85) rows.splice(sideAt, 1, ...rows[sideAt].left, 'photos');
   }
@@ -775,8 +786,9 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const firstClause = title.split('，')[0], focus = page.focus && title.includes(page.focus) ? page.focus : firstClause !== title ? firstClause : (title.match(/[\d.]+\s*[%％万元亿单个家张份人次]+/)?.[0] || title.slice(0, Math.min(8, Math.ceil(title.length / 2)))), at = title.indexOf(focus), runs = [title.slice(0, at) && { text: title.slice(0, at), style: { fontWeight: 600, color: p.ink } }, { text: focus, style: { fontWeight: 700, color: readableInk(p.accent, '#FFFFFF') } }, title.slice(at + focus.length) && { text: title.slice(at + focus.length), style: { fontWeight: 600, color: p.ink } }].filter(Boolean);
   const tagLabel = eyebrow || ROLE_TAG[page.role] || '', tagText = header === 'tag' && tagLabel ? `${tagLabel} | ${String(pageNo).padStart(2, '0')}` : '', tagStyle = theme.font(24, { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.3 });
   const [tagSize] = tagText ? await measurer.texts([{ id: 'hdr', type: 'text', text: tagText, bounds: [0, 0, 1200, 40], style: tagStyle }]) : [{ naturalWidth: 0 }], tagW = tagText ? Math.ceil(tagSize.naturalWidth) + 48 : 0, titleX = L + (tagText ? tagW + 24 : 0), titleW = W - (titleX - L);
-  const [wide] = await measurer.texts([{ id: 'title', type: 'text', text: title, bounds: [0, 0, 3000, 62], style: theme.roleStyle('pageTitle') }]);
-  const fitted = Math.floor(44 * titleW / wide.naturalWidth);
+  // Measured at the focus weight (700), the widest the title's runs get, and scaled from the scale's own title size.
+  const [wide] = await measurer.texts([{ id: 'title', type: 'text', text: title, bounds: [0, 0, 3000, 62], style: theme.roleStyle('pageTitle', { fontWeight: 700 }) }]);
+  const fitted = Math.floor(theme.roles.pageTitle.fontSize * titleW / wide.naturalWidth);
   if (fitted < 38) throw new Error(`report-deck: ${page.id} 标题太长，请压缩到约 ${Math.floor(title.length * fitted / 38)} 字以内`);
   const titleStyle = theme.roleStyle('pageTitle', wide.naturalWidth > titleW ? { fontSize: fitted } : {});
   // Header: a solid tag beside the title (or an eyebrow above it), closed by a rule whose thick stretch shows how far through the deck this page is.
@@ -805,49 +817,116 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   return { focusGuessed: !(page.focus && title.includes(page.focus)) && firstClause === title, fill: naturalUsed / (BOTTOM - TOP), blank: 1 - (end - start) / (BOTTOM - TOP), slide: { slideId: page.id, mode: 'composition', elements: [...chrome, ...elements] }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
 }
 
-// The cover: a solid colour field with the deck name, the one sentence that says how the period went and up to three
-// figures, beside a full-height photo when there is one. It carries no page number.
+// The cover: the deck name, the one sentence that says how the period went and up to three figures, with an optional
+// subtitle, a small note line and one photo. It carries no page number and it is only made when the outline has a page
+// with role 'cover': a deck can open straight on a content page.
+//
+// The photo decides the composition, not a fixed skeleton (the earlier hand-made covers did the same: a wide timeline ran
+// as a band across the foot of the page, an app screenshot sat large beside the words):
+//   band    – a wide photo (2:1 or wider) runs across the page under the words, shown whole;
+//   window  – a landscape photo or screenshot sits beside the words at its own shape, running off the right edge, shown whole;
+//   column  – an upright or square photo fills a full-height column on the right, framed close to its own shape.
+// photo.crop ([x, y, w, h] as shares of the image, the region worth showing) is applied first, so a screenshot can be
+// trimmed to the part that matters instead of being cut wherever a fixed frame happens to fall; photo.focal places a
+// column crop. page.coverLayout fixes the composition. The photo's caption is shown under it.
+const COVER_BAND = 2, COVER_COLUMN = 1.15;
+// Where the caption strip ends over a full-height column photo.
+const COLUMN_ZONE = 940;
+export function coverComposition(photo, override) {
+  if (!photo) return 'plain';
+  if (['band', 'window', 'column'].includes(override)) return override;
+  const s = imageSize(photo.src), [, , cw, ch] = validImageCrop(photo.crop) ? photo.crop : [0, 0, 1, 1], r = (s.width * cw) / (s.height * ch);
+  return r >= COVER_BAND ? 'band' : r >= COVER_COLUMN ? 'window' : 'column';
+}
 async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
-  const p = theme.palette, roles = colorRoles(p), fill = readableInk(roles.primary, '#FFFFFF'), photo = asList(page.photos)[0], panelW = photo ? 1180 : 1920, x = 96, w = panelW - 192, status = page.keyLine.text;
-  const name = page.name || deckTitle || '', [nameSize] = await measurer.texts([{ id: 'n', type: 'text', text: name, bounds: [0, 0, 3000, 110], style: theme.font(84, { fontWeight: 800 }) }]), nameFont = Math.max(56, Math.min(photo ? 84 : 112, Math.floor(84 * w / Math.max(1, nameSize.naturalWidth))));
-  const statusStyle = theme.font(photo ? 40 : 52, { fontWeight: 700, color: p.inverse, lineHeight: 1.45 }), [statusSize] = await measurer.texts([{ id: 's', type: 'text', text: status, bounds: [0, 0, w, 60], style: statusStyle }]);
-  const focus = page.focus && status.includes(page.focus) ? page.focus : null, at = focus ? status.indexOf(focus) : -1, pop = readableInk(lighten(roles.secondary, 0.2), fill) === fill ? '#FFFFFF' : lighten(roles.secondary, 0.2);
+  const p = theme.palette, roles = colorRoles(p), fill = readableInk(roles.primary, '#FFFFFF'), photo = asList(page.photos)[0], status = page.keyLine.text, data = asList(page.data);
+  if (data.length > 3) throw new Error(`report-deck: ${page.id} 封面最多放 3 个数字`);
+  const mode = coverComposition(photo, page.coverLayout), crop = photo && validImageCrop(photo.crop) ? photo.crop : null;
+  const size = photo ? imageSize(photo.src) : null, ratio = photo ? (size.width * (crop ? crop[2] : 1)) / (size.height * (crop ? crop[3] : 1)) : 1;
+  const soft = (k) => (readableInk(lighten(roles.secondary, k), fill) === fill ? '#FFFFFF' : lighten(roles.secondary, k));
+  const capStyle = theme.font(20, { fontWeight: 500, color: soft(0.45), lineHeight: 1.4 }), capH = 30;
+  // Where the words go: the left column beside a window or column photo, the full width above a band, the whole page without a photo.
+  const columnW = mode === 'column' ? Math.max(560, Math.min(900, Math.round(1080 * ratio))) : 0;
+  const x = 96, w = mode === 'window' ? 760 : mode === 'column' ? 1920 - columnW - 192 : 1728;
+  const name = page.name || deckTitle || '', cap = mode === 'plain' ? 112 : 84;
+  const [nameSize] = await measurer.texts([{ id: 'n', type: 'text', text: name, bounds: [0, 0, 3000, 110], style: theme.font(84, { fontWeight: 800 }) }]);
+  let nameFont = Math.min(cap, Math.floor(84 * w / Math.max(1, nameSize.naturalWidth))), nameLines = 1;
+  // A long name takes two lines rather than shrinking below 64px.
+  if (nameFont < 64) { nameFont = 72; const [m] = await measurer.texts([{ id: 'n2', type: 'text', text: name, bounds: [0, 0, w, 200], style: theme.font(72, { fontWeight: 800, lineHeight: 1.2 }), lastLine: true }]); nameLines = Math.min(2, m.lines || 2); if ((m.lines || 1) > 2) nameFont = 56; }
+  const statusStyle = theme.font(mode === 'plain' ? 52 : 40, { fontWeight: 700, color: p.inverse, lineHeight: 1.45 }), [statusSize] = await measurer.texts([{ id: 's', type: 'text', text: status, bounds: [0, 0, w, 60], style: statusStyle }]);
+  const subStyle = theme.font(mode === 'plain' ? 32 : 28, { fontWeight: 500, color: soft(0.55), lineHeight: 1.45 }), [subSize] = page.subtitle ? await measurer.texts([{ id: 'u', type: 'text', text: page.subtitle, bounds: [0, 0, w, 60], style: subStyle }]) : [null];
+  const focus = page.focus && status.includes(page.focus) ? page.focus : null, at = focus ? status.indexOf(focus) : -1, pop = soft(0.2);
   const runs = focus ? [status.slice(0, at) && { text: status.slice(0, at) }, { text: focus, style: { color: pop } }, status.slice(at + focus.length) && { text: status.slice(at + focus.length) }].filter(Boolean) : undefined;
-  const elements = [{ id: 'cover-panel', type: 'shape', bounds: [0, 0, panelW, 1080], style: { fill } }], design = { cover: { m: { frame: null, module: 'coverPanel', variant: 'status', title: photo ? 40 : 52, reason: '封面先说清这一期的整体状态', bindings: [{ ref: `${page.id}:status`, elementIds: ['title'] }] }, box: photo ? [x, 96, w, 560] : [x, 96, w, 888] } };
-  // Beside a photo the words hang from the top. Alone on the colour field, words and figures are one group centred on the page.
-  // Cover figures hug their content like the figures inside the deck: the figure as large as the status sentence allows, each tile
-  // only as wide as its words, the row starting under the status sentence. No filler icons (user decision 2026-11-10).
+  // Cover figures hug their content like the figures inside the deck: as large as the status sentence allows, each tile only as wide as its words. No filler icons (user decision 2026-11-10).
   const coverTiles = async (y) => {
-    const items = asList(page.data).map(coverItem), n = items.length, gap = 16, ls = 20, unitOf = (s) => Math.max(20, Math.round(s * 0.32));
+    const items = data.map(coverItem), n = items.length, gap = 16, ls = 20, unitOf = (s) => Math.max(20, Math.round(s * 0.32));
     const content = (s) => Math.max(...items.map((it) => Math.max(textWidth(it.label || '', ls), textWidth(it.note || '', ls), textWidth(String(it.value), s) + (it.unit ? textWidth(' ' + it.unit, unitOf(s)) : 0))));
     const widthAt = (s) => n * (Math.ceil(content(s)) + 72) + gap * (n - 1);
     // The status sentence must stay among the two largest sizes on the cover (key-line-not-prominent), so figures stop at its size.
-    let size = statusStyle.fontSize; while (size > 40 && widthAt(size) > w) size -= 4;
-    const common = { id: 'm', x, width: Math.min(w, widthAt(size)), size: 40, columns: n, gap, highlight: -1, fill: '#FFFFFF', theme, items };
-    for (; size > 40; size -= 2) {
-      const texts = metricTiles({ ...common, figureSize: size, y: 0 }).elements.filter((e) => e.type === 'text' && e.text), real = await measurer.texts(texts.map((e) => ({ ...e, bounds: [0, 0, 3000, e.bounds[3]] })));
+    let fs = statusStyle.fontSize; while (fs > 40 && widthAt(fs) > w) fs -= 4;
+    const common = { id: 'm', x, width: Math.min(w, widthAt(fs)), size: 40, columns: n, gap, highlight: -1, fill: '#FFFFFF', theme, items };
+    for (; fs > 40; fs -= 2) {
+      const texts = metricTiles({ ...common, figureSize: fs, y: 0 }).elements.filter((e) => e.type === 'text' && e.text), real = await measurer.texts(texts.map((e) => ({ ...e, bounds: [0, 0, 3000, e.bounds[3]] })));
       if (texts.every((e, i) => real[i].naturalWidth <= e.bounds[2])) break;
     }
-    return metricTiles({ ...common, figureSize: size, y });
+    return metricTiles({ ...common, figureSize: fs, y });
   };
-  const figures = asList(page.data), tileH = figures.length && figures.length <= 3 ? (await coverTiles(0)).height : 0;
-  const nameH = Math.ceil(nameFont * 1.3), eyebrowH = page.eyebrow ? 64 : 0, statusH = Math.ceil(statusSize.height), groupH = eyebrowH + nameH + 48 + statusH + (tileH ? 64 + tileH : 0), nameY = photo ? 176 : Math.round((1080 - groupH) / 2) + eyebrowH;
-  if (page.eyebrow) elements.push({ id: 'cover-eyebrow', type: 'text', text: page.eyebrow, bounds: [x, photo ? 112 : nameY - 64, w, 40], style: theme.font(28, { fontWeight: 600, color: readableInk(lighten(roles.secondary, 0.3), fill) === fill ? '#FFFFFF' : lighten(roles.secondary, 0.3) }) });
-  elements.push({ id: 'cover-name', type: 'text', text: name, bounds: [x, nameY, w, nameH], style: theme.font(nameFont, { fontWeight: 800, color: p.inverse, lineHeight: 1.25 }) });
-  const statusY = nameY + nameH + 48;
-  elements.push({ id: 'title', type: 'text', text: status, ...(runs ? { runs } : {}), bounds: [x, statusY, w, Math.ceil(statusSize.height)], style: statusStyle });
-  const data = asList(page.data);
+  const tileH = data.length ? (await coverTiles(0)).height : 0;
+  const eyebrowH = page.eyebrow ? 64 : 0, nameH = Math.ceil(nameFont * (nameLines > 1 ? 1.2 : 1.3) * nameLines), subH = subSize ? Math.ceil(subSize.height) + 20 : 0, statusH = Math.ceil(statusSize.height);
+  const groupH = eyebrowH + nameH + subH + 40 + statusH + (tileH ? 56 + tileH : 0), noteH = page.note ? 48 : 0;
+  // The photo frame. A band and a window keep the photo's whole shape (after photo.crop); a column frames it within a mild crop.
+  let frame = null, top;
+  if (mode === 'band') {
+    let bw = 1728, bh = Math.round(bw / ratio); const room = 1080 - 192 - groupH - 72 - capH - 8;
+    if (bh > room) { bh = Math.max(0, room); bw = Math.round(bh * ratio); }
+    if (bh < 200) return layoutCover({ page: { ...page, coverLayout: 'window' }, plan, theme, measurer, deckTitle });
+    // Words and band are one group, centred on the page, so a low band does not leave a hole in the middle.
+    const together = groupH + 72 + bh + capH + 8; top = Math.max(96, Math.round((1080 - together) / 2));
+    frame = [x + Math.round((1728 - bw) / 2), top + groupH + 72, bw, bh];
+  } else if (mode === 'window') {
+    const fx = x + w + 72, fw = 1920 - fx; let fh = Math.round(fw / ratio);
+    // With a note line at the foot, photo and caption end above it, so the note stays page chrome.
+    const tallest = page.note ? 1880 - 1080 - capH : 1080 - 192 - capH; if (fh > tallest) fh = tallest;
+    frame = [fx, Math.round((1080 - fh - capH) / 2), fw, fh];
+    top = Math.round((1080 - groupH) / 2);
+  } else if (mode === 'column') {
+    frame = [1920 - columnW, 0, columnW, 1080];
+    top = Math.round((1080 - groupH) / 2);
+  } else top = Math.round((1080 - groupH - noteH) / 2);
+  if (top < 72) throw new PageOverflow(`${page.id} 封面文字太多`);
+  const panelW = mode === 'column' ? 1920 - columnW : 1920, elements = [{ id: 'cover-panel', type: 'shape', bounds: [0, 0, panelW, 1080], style: { fill } }];
+  let y = top;
+  if (page.eyebrow) elements.push({ id: 'cover-eyebrow', type: 'text', text: page.eyebrow, bounds: [x, y, w, 40], style: theme.font(28, { fontWeight: 600, color: soft(0.3) }) });
+  y += eyebrowH;
+  elements.push({ id: 'cover-name', type: 'text', text: name, bounds: [x, y, w, nameH], style: theme.font(nameFont, { fontWeight: 800, color: p.inverse, lineHeight: nameLines > 1 ? 1.2 : 1.25 }) });
+  y += nameH;
+  if (subSize) { elements.push({ id: 'cover-subtitle', type: 'text', text: page.subtitle, bounds: [x, y + 20, w, Math.ceil(subSize.height)], style: subStyle }); y += subH; }
+  y += 40;
+  elements.push({ id: 'title', type: 'text', text: status, ...(runs ? { runs } : {}), bounds: [x, y, w, statusH], style: statusStyle });
+  y += statusH;
+  const design = { cover: { m: { frame: null, module: 'coverPanel', variant: 'status', title: statusStyle.fontSize, reason: '封面先说清这一期的整体状态', bindings: [{ ref: `${page.id}:status`, elementIds: ['title'] }] }, box: [x, top, w, y - top] } };
   if (data.length) {
-    if (data.length > 3) throw new Error(`report-deck: ${page.id} 封面最多放 3 个数字`);
-    const t = await coverTiles(0), ty = photo ? 1080 - 96 - t.height : statusY + statusH + 64, placed = await coverTiles(ty), tilesW = Math.max(...placed.elements.filter((e) => e.type === 'shape').map((e) => e.bounds[0] + e.bounds[2])) - x;
-    if (statusY + statusSize.height > ty - 24) throw new PageOverflow(`${page.id} 封面状态句太长`);
-    design.cover.box = photo ? [x, 96, w, ty - 24 - 96] : [x, nameY - eyebrowH, w, ty - 24 - (nameY - eyebrowH)]; elements.push(...placed.elements); design.metrics = { m: { frame: null, module: 'metricTiles', variant: `${data.length}-results`, title: placed.valueSize, sizes: [...new Set(placed.elements.filter((e) => /^m-value-\d+$/.test(e.id)).flatMap((e) => [e.style?.fontSize, ...(e.runs || []).map((r) => r.style?.fontSize)]).filter(Number.isFinite))], reason: '封面只放最关键的数字', bindings: data.map((d, i) => ({ ref: `${page.id}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(d.target != null ? [`m-note-${i + 1}`] : [])] })) }, box: [x, ty, tilesW, placed.height] };
+    const placed = await coverTiles(y + 56), tilesW = Math.max(...placed.elements.filter((e) => e.type === 'shape').map((e) => e.bounds[0] + e.bounds[2])) - x;
+    elements.push(...placed.elements);
+    design.metrics = { m: { frame: null, module: 'metricTiles', variant: `${data.length}-results`, title: placed.valueSize, sizes: [...new Set(placed.elements.filter((e) => /^m-value-\d+$/.test(e.id)).flatMap((e) => [e.style?.fontSize, ...(e.runs || []).map((r) => r.style?.fontSize)]).filter(Number.isFinite))], reason: '封面只放最关键的数字', bindings: data.map((d, i) => ({ ref: `${page.id}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(d.target != null ? [`m-note-${i + 1}`] : [])] })) }, box: [x, y + 56, tilesW, placed.height] };
   }
-  if (photo) { const g = photoGroup({ id: 'ph1', x: panelW, y: 0, width: 1920 - panelW, height: 1080, theme: { ...theme, radius: 0 }, images: [{ src: photo.src, alt: photo.caption || '' }] }); elements.push(...g.elements); design.photos = { m: { frame: null, module: 'photoGroup', variant: 'cover', title: theme.roles.caption.fontSize, reason: '封面主视觉', bindings: [{ ref: `${page.id}:photo-1`, elementIds: g.elements.filter((e) => e.type === 'image').map((e) => e.id) }] }, box: [panelW, 0, 1920 - panelW, 1080] }; }
+  // The note sits at the foot: in a band layout at the right end of the caption line, otherwise under the words.
+  if (page.note) elements.push({ id: 'cover-note', type: 'text', text: page.note, bounds: mode === 'band' ? [x + 868, frame[1] + frame[3] + 8, 860, capH] : [x, 1080 - 96 - 28, w, 32], style: mode === 'band' ? { ...capStyle, textAlign: 'right' } : capStyle });
+  if (photo) {
+    const [fx, fy, fw, fh] = frame, radius = theme.radius ?? 0;
+    elements.push(imageElement({ id: 'ph1-img-1', src: photo.src, bounds: frame, fit: 'cover', ...(crop || mode !== 'column' ? { crop: fitCrop(crop, size, fw / fh, photo.focal) } : { focal: photo.focal || '50% 40%' }), naturalSize: [size.width, size.height], alt: photo.caption || '', ...(mode === 'band' && radius ? { style: { radius } } : {}) }));
+    // Over a full-height column the caption sits on a dark strip above the footer line (y 1010), so it reads on any photo.
+    // Over a full-height column the caption sits on a dark strip near the foot of the photo, so it reads on any photo.
+    if (photo.caption && mode === 'column') { const cw = Math.min(fw - 64, Math.ceil(textWidth(photo.caption, 20)) + 32); elements.push({ id: 'ph1-caption-bg', type: 'shape', bounds: [fx + 32, COLUMN_ZONE - 24 - capH - 8, cw, capH + 8], style: { fill: 'rgba(0, 0, 0, 0.5)', radius: 4 } }, { id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [fx + 48, COLUMN_ZONE - 24 - capH - 4, cw - 32, capH], style: { ...capStyle, color: '#FFFFFF' } }); }
+    else if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [fx, fy + fh + 8, Math.min(fw, 860), capH], style: capStyle });
+    design.photos = { m: { frame: null, module: 'photoGroup', variant: `cover-${mode}`, title: theme.roles.caption.fontSize, reason: { band: '宽图横跨页面下部，完整展示', window: '横图按原比例放在文字旁，出血到右边', column: '竖图占满右侧整列' }[mode], bindings: [{ ref: `${page.id}:photo-1`, elementIds: ['ph1-img-1'] }] }, box: [fx, fy, fw, Math.min(1080 - fy, mode === 'column' ? fh : fh + (photo.caption ? capH + 8 : 0))] };
+  }
+  // Beside a full-height column every element must sit in a zone, so the last block of words reaches down over the note.
+  if (mode === 'column' && page.note) { const last = design.metrics || design.cover, bottom = 1080 - 96 - 28 + 32; last.box = [x, last.box[1], w, bottom - last.box[1]]; }
   for (const [z, { m, box }] of Object.entries(design)) { plan.visualDecision.zones.find((v) => v.id === z).bounds = box; Object.assign(plan.regions.find((r) => r.zoneId === z), { ...(m.frame ? { frameElementId: m.frame } : { frameElementId: undefined, openGroup: true, padding: 0 }), typography: { title: Math.max(m.title, theme.roles.body.fontSize), body: theme.roles.body.fontSize }, module: { name: m.module, variant: m.variant }, designReference: { source: '原创', principle: m.reason }, representation: m.variant, reason: m.reason, bindings: m.bindings }); }
   plan.typographyRoles = theme.roles;
   const basis = page.keyLine.from || '封面状态句'; if (page.keyLine.source === 'quoted') plan.keyLine.from = basis; else plan.keyLine.support = [basis];
-  Object.assign(plan.visualDecision, { pattern: '封面', focus: { elementId: 'title', ...(focus ? { text: focus } : {}) }, layout: ['整块主色放名称和状态句', data.length && (photo ? '数字压底' : '数字紧跟其后，整组上下居中'), photo && '主视觉照片占右侧'].filter(Boolean).join('，') });
+  Object.assign(plan.visualDecision, { pattern: '封面', focus: { elementId: 'title', ...(focus ? { text: focus } : {}) }, layout: [{ plain: '整页主色，名称、状态句和数字作一组上下居中', band: '名称和状态句在上，宽图横跨页面下部', window: '文字一组在左上下居中，横图按原比例出血到右边', column: '主色块放文字，竖图占满右侧整列' }[mode], data.length && '数字紧跟状态句'].filter(Boolean).join('，') });
   plan.composition = { alignments: [], gaps: [] };
   return { slide: { slideId: page.id, mode: 'composition', elements }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
 }
@@ -858,6 +937,7 @@ async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
 // Returns { theme, scales, anchors, sparse }: anchors[pageId] gives an element id per zone for ruleChecklist evidence, and
 // sparse lists pages still under 45% full, which should be merged or given more content rather than delivered as they are.
 // loose lists pages whose placed content still leaves more than a quarter of the body empty above and below.
+// narrow lists full-width item lists whose lines use little of the panel width.
 // focusGuessed lists pages whose title has no comma, so the accent was only a guess: set page.focus on them.
 // header: 'tag' (solid tag beside the title, the default) or 'eyebrow' (small label above the title). Words like 定稿 are working labels, so the footer drops them.
 // Which form a page's figure group takes (user decision 2026-11-11: pages must not all carry the same row of tiles).
@@ -943,16 +1023,17 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
   const footer = rawFooter && String(rawFooter).replace(/(定稿|终稿|初稿|修订)版?/g, '').replace(/\s*·\s*[^·]*规范\s*$/, '').replace(/[_\s]+/g, ' ').replace(/^[\s·\-]+|[\s·\-]+$/g, '').trim();
   const resolved = typeof palette === 'string' ? reportPalette(palette) : palette, plans = deck.contentPlan.slides;
   const dense = createTheme({ palette: resolved, roles: REPORT_ROLES }), comfy = createTheme({ palette: resolved, roles: REPORT_ROLES_COMFY }), roomy = createTheme({ palette: resolved, roles: REPORT_ROLES_ROOMY }), large = createTheme({ palette: resolved, roles: REPORT_ROLES_LARGE }), hero = createTheme({ palette: resolved, roles: REPORT_ROLES_HERO }), themes = { dense, comfy, roomy, large, hero };
-  const slides = [], anchors = {}, scales = {}, sparse = [], loose = [], focusGuessed = [], rearranged = [];
+  const slides = [], anchors = {}, scales = {}, sparse = [], loose = [], narrow = [], focusGuessed = [], rearranged = [];
   let lastForm = null, lastItems = null; const forms = [];
   const absolute = (raw) => (raw.photos ? { ...raw, photos: raw.photos.map((ph) => ({ ...ph, src: path.resolve(baseDir, ph.src) })) } : raw);
-  const numbered = outline.pages.filter((p) => p.role !== 'cover').length; let pageNo = 0;
+  // Pages are numbered by their place in the deck, as the editor, the PDF and the user's own outline count them
+  // ("第 2 页"): a cover is page 1 and only hides its number.
+  const numbered = outline.pages.length;
   for (const [i, rawPage] of outline.pages.entries()) {
     const raw = absolute(rawPage), plan = plans.find((s) => s.slideId === (raw.id || `p${i + 1}`)), page = { ...raw, id: plan.slideId };
     if (raw.role !== 'cover') { page.figureForm = figureForm(page, lastForm); page.itemForm = itemForm(page, lastItems); }
     if (page.role === 'cover') { const made = await layoutCover({ page, plan, theme: dense, measurer, deckTitle: outline.title }); slides.push(made.slide); anchors[plan.slideId] = made.modules; scales[plan.slideId] = 'cover'; continue; }
-    pageNo++;
-    const thisPage = pageNo;
+    const thisPage = i + 1;
     let chosen = layouts[plan.slideId];
     const attempt = (theme) => layoutPage({ page, plan, theme, measurer, layout: chosen, pageNo: thisPage, total: numbered, footer, header });
     let out;
@@ -1007,12 +1088,19 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
     if (drew) { lastForm = drew; if (page.figureForm === 'strip' || drew === 'strip') forms.push({ page: plan.slideId, form: drew }); }
     const listed = finished.slide.elements.some((e) => e.id === 'acts-card-1') ? 'cards' : finished.slide.elements.some((e) => e.id === 'acts-badge-1') ? 'list' : null;
     if (listed) { lastItems = listed; if (page.itemForm === 'cards' || listed === 'cards') forms.push({ page: plan.slideId, items: listed }); }
+    // A list whose every line is short leaves most of a full-width panel empty on the right (user review 2026-11-11):
+    // report it, so the maker drops a forced itemStyle:'list' and lets the items become cards, or adds to them.
+    const details = finished.slide.elements.filter((e) => e.type === 'text' && /^acts-detail-\d+$/.test(e.id));
+    if (details.length >= 2 && details[0].bounds[2] > W * 0.6) {
+      const used = Math.max(...details.map((e) => textWidth(plainText(e), e.style?.fontSize || 24) / e.bounds[2]));
+      if (used < 0.55) narrow.push({ page: plan.slideId, zone: 'items', used: Math.round(used * 100) / 100, hint: page.itemStyle === 'list' ? '去掉 itemStyle:\'list\'，让事项排成等宽卡片' : '事项都很短，可改成卡片或补充内容' });
+    }
     if (finished.fill < 0.45) sparse.push({ page: plan.slideId, fill: Math.round(finished.fill * 100) / 100 });
     if (finished.blank > LOOSE_BLANK) loose.push({ page: plan.slideId, blank: Math.round(finished.blank * 100) / 100 });
   }
   deck.slides = slides;
   const rewrapped = await balanceLineBreaks(slides, measurer);
-  return { theme: dense, scales, anchors, sparse, loose, focusGuessed, rearranged, rewrapped, forms };
+  return { theme: dense, scales, anchors, sparse, loose, narrow, focusGuessed, rearranged, rewrapped, forms };
 }
 
 // Fills the deck-level statements a report needs, from what was actually placed: the through-line and a management-report

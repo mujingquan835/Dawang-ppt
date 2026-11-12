@@ -4,7 +4,7 @@
 
 调用 `node <skill>/scripts/dawang.mjs rules:read management-report [--design <相对原规则路径>] [--format <路径> ...]` 获取按章节切分的原文、来源路径、SHA 与 apply/adapt/replaced 标注（`--full` 含 replaced 原文；`--allow-drift` 仅在用户同意时使用）。`rules:lock [--root <目录>] [--label <名称>]` 重新锁定规则版本并列出与旧锁的差异，属于维护操作。缓存不能代替本会话阅读。
 
-工作汇报默认用 `composeReportDeck`（照 `node <skill>/examples/report-modules.mjs <新目录>`）：大纲写内容和顺序，组版器生成全部页面和区域绑定，返回 `scales`、`anchors`、`sparse`（内容太少的页）、`loose`（上下留空超过四分之一的页）、`rearranged`（自动换了排法的页）；随后用 `draftDeckClaims({deck,outline,palette,projectId})` 生成定位句和规则清单草稿。参数：`layouts` 指定某页排法（通常不需要），`header:'tag'|'eyebrow'` 选页头样式，`footer` 写材料名称和时期。大纲字段：`statements`、`items`、`data[].highlight`、`table` 或 `tables:[{title,columns,rows,highlight,from}]`、`flows`/`chains`（可带 `returnTo:步骤序号`）、`compare`、`periods`、`photos`、`eyebrow`、`focus`。新稿完整示例：`node <skill>/examples/report-contract.mjs <新目录>`，生成的工程能通过 `make`，页面设计照它写。`examples/authored-minimal.mjs` 只演示元素写法，没有内容契约，`make` 会拦下。
+工作汇报默认用 `composeReportDeck`（照 `node <skill>/examples/report-modules.mjs <新目录>`）：大纲写内容和顺序，组版器生成全部页面和区域绑定，返回 `scales`、`anchors`、`sparse`（内容太少的页）、`loose`（上下留空超过四分之一的页）、`narrow`（整行事项列表每行都很短、右侧大半空着的页：去掉强制的 `itemStyle:'list'` 让事项排成卡片，或补充内容）、`rearranged`（自动换了排法的页）；随后用 `draftDeckClaims({deck,outline,palette,projectId})` 生成定位句和规则清单草稿。参数：`layouts` 指定某页排法（通常不需要），`header:'tag'|'eyebrow'` 选页头样式，`footer` 写材料名称和时期。大纲字段：`statements`、`items`、`data[].highlight`、`table` 或 `tables:[{title,columns,rows,highlight,from}]`、`flows`/`chains`（可带 `returnTo:步骤序号`）、`compare`、`periods`、`photos`、`eyebrow`、`focus`。新稿完整示例：`node <skill>/examples/report-contract.mjs <新目录>`，生成的工程能通过 `make`，页面设计照它写。`examples/authored-minimal.mjs` 只演示元素写法，没有内容契约，`make` 会拦下。
 推荐交付：`node <skill>/scripts/dawang.mjs make /tmp/authored.json /目标/报告.html`。
 已存工程用 `patch:project <工程目录> <patch.json>`，之后 `publish:html <工程目录> <报告.html>`；旧工程低层入口 `render:project <deck-project.json> <index.html>` 保留。
 
@@ -57,6 +57,7 @@ const title = text({role:'title',id:'claim',text:'材料支持的主张',bounds:
 - `kind`：`report`（工作汇报、复盘、阶段总结）或 `review`（述职）。
 - `scope`：`part`（默认，用户只要一部分页面或某一块）只检查所做页面；`full`（用户明确要完整汇报/述职）才检查整体结论、问题差距、下一步等整稿结构。authored 工程的 `requirements.scope` 同步填写，复核据此判断。没有缺口时不向用户提问。
 - `role`：summary 整体结论 / results 成果数据 / actions 关键动作 / resources 资源支持 / issues 问题差距 / causes 原因复盘 / plan 下一步 / asks 需支持或决策 / duties 职责定位（述职）/ other。
+- 封面 `role:'cover'` 不是默认页：只有要一份能单独拿出去讲的完整汇报、或大纲写了封面时才加，最多一页、放在最前面；只做其中几页或插进已有文稿的页时不加，第一页直接是内容页。封面字段：`name`、`eyebrow`、`subtitle`、`keyLine`（整体状态句）、`focus`、`note`（脚注一行）、最多 3 个 `data`、1 张 `photos`。封面照片按形状自动排：宽图（≥2:1）横跨下部、横图按原比例出血到右边、竖图占满右侧整列；`photos[].crop:[x,y,宽,高]`（占原图比例）圈出要展示的区域，`caption` 显示在照片下；`coverLayout:'band'|'window'|'column'` 可指定。内容页照片同样认 `crop` 和 `focal`。页码按整稿位置计，封面算第 1 页但不显示。
 - `flows` 是流程步骤（建议表格加流程色带），`chains` 是应用路径（建议表格加深色侧栏）。
 - 照片各对应一项时，事项写进 `items`（与 `photos` 同序同数量）：有说明或数字时建议 `itemsWithPhotos`（每项一栏、照片在正下方），文字很少、几乎无数据时建议 `photoPanels`。`outline:check` 会提醒：标签或重点句提到目标却没写 `target`、提到去年/同比却没有对照结构、有多张照片却没写事项。
 - `data[].target` 写目标值（两项以上时建议 `targetVsActual`）；`compare:{leftLabel,rightLabel,left:[…],right:[…],current?,paired?,badge?}` 写两侧（组版器里同名数字指标自动排成“前值 → 后值”的变化色块，`current` 指定本期一侧，`paired:false` 表示不逐行成对，`badge` 只在两方对立时写）（建议 `contrastColumns`）；`periods:[{label,title,points}]` 写按时期展开的工作（3 个以上时建议 `periodColumns`）。

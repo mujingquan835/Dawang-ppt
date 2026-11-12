@@ -2408,6 +2408,15 @@
     'rotate', 'rotation', 'angle', 'z', 'zIndex',
   ]);
   const vm = readJson(vmEl, {});
+  // A saved single-file deck stores each image once in #portable-assets; its slides carry short tokens (portable/html.mjs).
+  (function inflatePortableTokens(){
+    const pool = readJson(document.getElementById('portable-assets'), null);
+    if(!pool || !Array.isArray(vm.slides)) return;
+    const walk = value => Array.isArray(value) ? value.map(walk)
+      : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v)]))
+      : typeof value === 'string' && value.startsWith('portable-asset:') && pool[value] ? pool[value] : value;
+    vm.slides = walk(vm.slides);
+  })();
   vm.state = vm.state || {};
   const embeddedText = readJson(textEl, {});
   const baseState = {

@@ -49,7 +49,8 @@ export function reviewKeyLines(project) {
     basis(line, { ...where, elementId: element.id });
     const style = resolveSlideStyle(slide, project), size = sizeOf(element, style);
     const levels = [...new Set(texts.map((e) => sizeOf(e, style)))].sort((a, b) => b - a);
-    if (levels.indexOf(size) > 1) report({ kind: 'key-line-not-prominent', ...where, elementId: element.id, fontSize: size, topLevels: levels.slice(0, 2) });
+    // Name the elements that out-size the key line, so the fix is obvious (a large asMetric phrase was hard to trace).
+    if (levels.indexOf(size) > 1) { const larger = texts.filter((e) => sizeOf(e, style) > size).map((e) => ({ id: e.id, fontSize: sizeOf(e, style), text: String(e.text || '').slice(0, 20) })); report({ kind: 'key-line-not-prominent', ...where, elementId: element.id, fontSize: size, topLevels: levels.slice(0, 2), largerElements: larger.slice(0, 6), hint: '重点句必须是本页前两大字号：缩小 largerElements 里的数字或短语（如 asMetric 短语改为普通句子），或换用不放大数字的排法' }); }
     const text = String(element.text).trim();
     if ([...norm(text)].length > 40) warnings.push({ kind: 'key-line-long', ...where, elementId: element.id, length: [...norm(text)].length });
     review.keyLines.push({ ...where, elementId: element.id, text, source: line.source });

@@ -111,6 +111,13 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
       if (!d.unit && !/[%％]/.test(String(d.value))) warnings.push({ ...where, item: 'unit', ask: `「${d.label}」的单位`, impact: '数字无法读懂' });
       if (d.icon && !ICONS[d.icon]) warnings.push({ ...where, item: 'icon', ask: `「${d.label}」的 icon 取 ${Object.keys(ICONS).join(' / ')}`, impact: '名称不存在，会显示默认图标' });
     }
+    // A cover is optional and comes first; its figures should not repeat another page's figure group one for one.
+    if (p.role === 'cover') {
+      if (i > 0 || pages.filter((q) => q.role === 'cover').length > 1) warnings.push({ ...where, item: 'cover', ask: '封面只能有一页，放在最前面；中间的页面改成内容页角色', impact: '封面不在开头，整稿顺序混乱' });
+      const sig = (list) => (list || []).map((d) => `${d.label}|${d.value}`).sort().join(';'), mine = sig(p.data);
+      const twin = mine && pages.find((q) => q !== p && q.role !== 'cover' && sig(q.data) === mine);
+      if (twin) warnings.push({ ...where, item: 'cover-data', ask: `封面的数字和 ${twin.id || `第 ${pages.indexOf(twin) + 1} 页`} 的数字组完全一样：封面去掉 data，或只留一个最能说明整体状态的数字`, impact: '同一组数字连着出现两次，像套模板' });
+    }
     relationGaps.push(...pageRelationGaps(p, where, { kind, roles }));
     if ((p.periods || []).some((pd) => pd.lane) && (p.periods || []).some((pd) => !periodRange(pd.span || pd.label))) warnings.push({ ...where, item: 'periods', ask: '写了 lane 但有 label 不是日期：补 span，如 8月上旬—9月中旬', impact: '无法按时间排，只能退回等宽色带' });
     for (const ph of p.photos || []) {
@@ -132,7 +139,7 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
   // Source locations are the agent's to fill in; they never become a question for the user.
   const baselineIssues = outlineBaselineIssues(outline, { baseDir });
   // The delivery reply was repeatedly squeezed into "page N lacks X"; the wording is written here so it stays whole.
-  const content = pages.filter((p) => p.role !== 'cover'), pageNo = new Map(pages.map((p, i) => [p.id || `p${i + 1}`, content.indexOf(p) + 1]));
+  const pageNo = new Map(pages.map((p, i) => [p.id || `p${i + 1}`, i + 1]));
   const deliveryNote = relationGaps.length ? { lead: `第一版已做完。有 ${Math.min(relationGaps.length, 5)} 处关系材料里没写，我没有编：`, gaps: relationGaps.slice(0, 5).map((g) => `${g.page ? `第 ${pageNo.get(g.page)} 页` : '整稿'}，${g.question}材料里有：${g.have}。${g.whyItMatters}。给我${g.ask}。补上后：${g.afterFill}。`), closing: '这些我可以先按常见逻辑补上，你再改。' } : null;
   return { ok: !blocking, kind, scope: full ? 'full' : 'part', gaps, relationGaps, deliveryNote, warnings, suggestions, contentIssues, baselineIssues,
     next: baselineIssues.length ? '制作智能体补全 baselineIssues（来源位置与摘录）后运行 outline:baseline' : '运行 outline:baseline <outline.json> <新目录> 生成事实基线与工程骨架',

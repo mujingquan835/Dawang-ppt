@@ -563,10 +563,13 @@ export function labelBand({ id, x, y, width, label, text, theme, tone = 'primary
 // sentence on each row. items: [{ title, detail }]. stacked puts the sentence under its handle; height spreads the rows.
 // Element ids: `${id}-panel`, `${id}-title-n`, `${id}-detail-n`.
 export function actionPanel({ id, x, y, width, heading, items, theme, height, stacked = false, measurements, scale = 1 }) {
-  const p = theme.palette, pad = 24, badge = 26, elements = [];
+  const p = theme.palette, pad = 24, elements = [];
   const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), titleStyle = theme.roleStyle('stepTitle', { color: readableInk(p.accent, '#FFFFFF'), fontSize: grown('stepTitle') }), detailStyle = theme.roleStyle('stepDetail', { color: p.ink, fontSize: grown('stepDetail') });
-  const titleX = x + pad + badge + 10, titleH = Math.ceil(titleStyle.fontSize * titleStyle.lineHeight);
-  const titleW = stacked ? width - pad * 2 - badge - 10 : Math.max(...items.map((it) => textWidth(it.title, titleStyle.fontSize))) + 16;
+  // The number badge follows the item title's size and sits on the centre of its first line; its digit is centred by a
+  // line box exactly as tall as the badge (a fixed 26px badge sat high beside a 30px title and its digit overflowed).
+  const badge = Math.max(28, Math.round(titleStyle.fontSize * 0.9 / 2) * 2), numSize = Math.max(16, Math.round(badge * 0.6));
+  const titleX = x + pad + badge + 12, titleH = Math.ceil(titleStyle.fontSize * titleStyle.lineHeight), badgeDy = Math.round((titleH - badge) / 2);
+  const titleW = stacked ? width - pad * 2 - badge - 12 : Math.max(...items.map((it) => textWidth(it.title, titleStyle.fontSize))) + 16;
   const detailX = stacked ? titleX : titleX + titleW + 12, detailW = x + width - pad - detailX;
   const detailH = (it, i) => (it.detail ? Math.ceil(measurements?.get(`${id}-detail-${i + 1}`)?.height ?? textHeight(it.detail, detailStyle.fontSize, detailW, detailStyle.lineHeight)) : 0);
   const rows = items.map((it, i) => (stacked && it.detail ? titleH + 4 + detailH(it, i) : Math.max(titleH, detailH(it, i))));
@@ -579,8 +582,8 @@ export function actionPanel({ id, x, y, width, heading, items, theme, height, st
   cy += spare;
   items.forEach((it, i) => {
     const n = i + 1;
-    elements.push({ type: 'shape', id: `${id}-badge-${n}`, bounds: [x + pad, cy + 2, badge, badge], style: { fill: readableInk(p.accent, '#FFFFFF'), radius: badge / 2 } });
-    elements.push(textElement({ id: `${id}-num-${n}`, text: String(n), bounds: [x + pad, cy + 2, badge, badge], style: theme.roleStyle('caption', { color: p.inverse, fontWeight: 700, textAlign: 'center', lineHeight: 1.4 }) }));
+    elements.push({ type: 'shape', id: `${id}-badge-${n}`, bounds: [x + pad, cy + badgeDy, badge, badge], style: { fill: readableInk(p.accent, '#FFFFFF'), radius: badge / 2 } });
+    elements.push(textElement({ id: `${id}-num-${n}`, text: String(n), bounds: [x + pad, cy + badgeDy, badge, badge], style: theme.roleStyle('caption', { fontSize: numSize, color: p.inverse, fontWeight: 700, textAlign: 'center', lineHeight: badge / numSize }) }));
     elements.push(textElement({ id: `${id}-title-${n}`, text: it.title, bounds: [titleX, cy, titleW, titleH], style: titleStyle }));
     if (it.detail) elements.push(textElement({ id: `${id}-detail-${n}`, text: it.detail, bounds: [detailX, stacked ? cy + titleH + 4 : cy + 1, detailW, rows[i] - (stacked ? titleH + 4 : 0)], style: detailStyle }));
     if (n < items.length) elements.push({ type: 'shape', id: `${id}-rule-${n}`, bounds: [x + pad, cy + rows[i] + Math.round((rowGap + spare) / 2), width - pad * 2, 1], style: { fill: p.line } });

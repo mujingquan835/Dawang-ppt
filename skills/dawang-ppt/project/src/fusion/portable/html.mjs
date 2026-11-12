@@ -2,13 +2,14 @@ import {validateProject} from '../project/schema.mjs';
 const safeJson=value=>JSON.stringify(value).replaceAll('<','\\u003c');
 // Undo history repeats whole slides, so inlining media in the project grew the file by every image on each edit.
 // The embedded project keeps short tokens instead; each image is stored once in #portable-assets and expanded by the
-// two readers of #fusion-project (the editor boot and extractPortableProject). The page DOM and #deck-view-model,
-// read directly by the dashi runtime, keep their inline images.
+// two readers of #fusion-project (the editor boot and extractPortableProject) and by the template's view-model runtime
+// for #deck-view-model slides. The page DOM keeps its inline images.
 const MEDIA_KEYS=new Set(['src','image','images','imageSrc','imageUrl','heroImage','coverImage']),ASSET_PREFIX='portable-asset:';
 const mapStrings=(value,fn,key='')=>Array.isArray(value)?value.map(v=>mapStrings(v,fn,key)):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,mapStrings(v,fn,k)])):typeof value==='string'&&MEDIA_KEYS.has(key)?fn(value):value;
-export function poolProjectMedia(project){
- const pool={},tokens=new Map(),token=v=>{if(!v.startsWith('data:'))return v;if(!tokens.has(v)){const t=ASSET_PREFIX+(tokens.size+1);tokens.set(v,t);pool[t]=v;}return tokens.get(v);};
- return {project:mapStrings(project,token),pool};
+// shared: pass the result of an earlier call so a second tree reuses the same tokens and pool.
+export function poolProjectMedia(project,shared){
+ const pool=shared?.pool||{},tokens=shared?.tokens||new Map(),token=v=>{if(!v.startsWith('data:'))return v;if(!tokens.has(v)){const t=ASSET_PREFIX+(tokens.size+1);tokens.set(v,t);pool[t]=v;}return tokens.get(v);};
+ return {project:mapStrings(project,token),pool,tokens};
 }
 export function inflatePortableAssets(project,pool){return pool&&Object.keys(pool).length?mapStrings(project,v=>v.startsWith(ASSET_PREFIX)&&pool[v]?pool[v]:v):project;}
 function optionalBlock(html,id){try{return block(html,id);}catch{return null;}}
@@ -70,11 +71,13 @@ export async function serializePortableHtml({document:doc,project,resolveAsset,b
  for(const node of clone.querySelectorAll('a[href^="assets/"],link[href]'))node.setAttribute('href',await resource(node.getAttribute('href')));
  const put=(id,value)=>{let node=clone.querySelector('#'+id);if(!node){node=clone.ownerDocument.createElement('script');node.id=id;node.type='application/json';clone.querySelector('head').append(node);}node.textContent=safeJson(value);};
  const pooled=poolProjectMedia(p);
- put('portable-assets',pooled.pool);
  put('fusion-project',pooled.project);
  // VM composition props must agree with the embedded ProjectV2, including hidden slides.
  // The project itself lives once in #fusion-project; per-slide copies multiplied every embedded image by the page count.
- const vmNode=clone.querySelector('#deck-view-model');if(vmNode){const vm=await mapMedia(JSON.parse(vmNode.textContent));vm.state=structuredClone(p.editorState.legacy);for(const slide of vm.slides||[]){const s=p.slides.find(s=>s.slideId===slide.id);if(s?.mode==='composition'){const {fusionProject,...props}=slide.props||{};slide.props={...props,fusionSlide:s};}}put('deck-view-model',vm);}
+ // Its slides use the same image tokens as #fusion-project; the template's view-model runtime expands them from
+ // #portable-assets when it reads the block, so each image is stored once. state stays inline: the CLI reads it directly.
+ const vmNode=clone.querySelector('#deck-view-model');if(vmNode){const vm=await mapMedia(JSON.parse(vmNode.textContent));vm.state=structuredClone(p.editorState.legacy);for(const slide of vm.slides||[]){const s=p.slides.find(s=>s.slideId===slide.id);if(s?.mode==='composition'){const {fusionProject,...props}=slide.props||{};slide.props={...props,fusionSlide:s};}}vm.slides=poolProjectMedia(vm.slides||[],pooled).project;put('deck-view-model',vm);}
+ put('portable-assets',pooled.pool);
  put('embedded-text-state',p.editorState.legacy.text||{});
  const old=clone.querySelector('#portable-project-meta');const previous=old?JSON.parse(old.textContent):null;
  if(!runtimeFingerprint){const scripts=[...clone.querySelectorAll('script:not([type="application/json"])')].map(s=>s.textContent).join('\n');runtimeFingerprint=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(scripts)))).map(b=>b.toString(16).padStart(2,'0')).join('');}

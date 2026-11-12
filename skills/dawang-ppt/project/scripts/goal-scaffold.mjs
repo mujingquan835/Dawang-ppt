@@ -64,7 +64,10 @@ function run() {
   // 选页 seed:同分候选随机打散,让不同用户/不同次 scaffold 的骨架不再成片雷同;
   // --seed 显式传入时可复现同一份骨架。
   const seed = args.seed !== undefined && args.seed !== true ? String(args.seed) : String(Math.floor(Math.random() * 0xffffffff));
-  const slides = buildSlides({ themePack, pageCount, roles, mediaIntent, seed });
+  // A cover and a closing page are only added when the deck is meant to stand alone; pages made to drop into an
+  // existing deck pass --no-cover / --no-closing.
+  const cover = !args['no-cover'], closing = !args['no-closing'];
+  const slides = buildSlides({ themePack, pageCount, roles, mediaIntent, seed, cover, closing });
   const spec = {
     title,
     goal,
@@ -88,21 +91,22 @@ function run() {
   }));
 }
 
-function buildSlides({ themePack, pageCount, roles, mediaIntent, seed = null }) {
+function buildSlides({ themePack, pageCount, roles, mediaIntent, seed = null, cover = true, closing = true }) {
   const used = new Set();
   let mediaAssigned = false;
   const slides = Array.from({ length: pageCount }, (_, index) => {
-    const role = index === 0
+    const body = cover ? index - 1 : index;
+    const role = cover && index === 0
       ? 'cover'
-      : index === pageCount - 1 && pageCount > 2
+      : closing && index === pageCount - 1 && pageCount > 2
         ? 'closing'
-        : roles[(index - 1) % roles.length];
-    const useMediaIntent = Boolean(mediaIntent && !mediaAssigned && index > 0);
+        : roles[body % roles.length];
+    const useMediaIntent = Boolean(mediaIntent && !mediaAssigned && (!cover || index > 0));
     const layout = pickLayout({
       themePack,
       role: useMediaIntent ? 'image' : role,
       used,
-      body: index > 0,
+      body: role !== 'cover',
       mediaIntent: useMediaIntent ? mediaIntent : null,
       seed,
     });
@@ -236,5 +240,5 @@ function fillPlanPath(goalPath) {
 }
 
 function printUsage() {
-  console.error('Usage: node scripts/goal-scaffold.mjs --title <title> --goal <goal> --theme <themeXX> --pages <n> --out output/<deck>/goal.json [--roles statement,metrics,case] [--chunk-size 5]');
+  console.error('Usage: node scripts/goal-scaffold.mjs --title <title> --goal <goal> --theme <themeXX> --pages <n> --out output/<deck>/goal.json [--roles statement,metrics,case] [--chunk-size 5] [--no-cover] [--no-closing]');
 }
