@@ -341,3 +341,10 @@ test('an item list takes a list or equal cards by its items and by the page befo
   assert.equal(itemForm({ ...even, itemStyle: 'list' }, null), 'list');
   assert.equal(itemForm({ ...uneven, itemStyle: 'cards' }, 'cards'), 'cards');
 });
+
+test('page structure ignores sentence bands and treats flows and chains alike, so neighbours can be told apart', async () => {
+  const { layoutSignature } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/report-deck.mjs');
+  assert.equal(layoutSignature(['st-lead', 'table', ['flow-1', 'flow-2']]), layoutSignature(['table', ['chain-1', 'chain-2']]));
+  assert.equal(layoutSignature([{ left: ['problem', 'items', 'metrics'], right: 'photos' }, ['verdict', 'tool']]), 'side:items,metrics');
+  assert.notEqual(layoutSignature(['items', ['metrics', 'swap'], 'photos', 'verdict']), 'side:items,metrics');
+});

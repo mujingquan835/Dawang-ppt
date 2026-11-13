@@ -33,7 +33,7 @@ const EQUAL_HEIGHT_SHARE = 0.65;
 const PRIMARY_SHARES = [0.6, 0.56, 0.53];
 // The figure size of the second group of figures on a page, as a share of the first group's.
 const SECONDARY_FIGURES = 0.74;
-const LANE_MIN_COVERAGE = 0.75, SCALE_UP_BELOW = 0.86, MAX_FILL = 0.98, FILL_TARGET = 0.72, MIN_FILL_GAIN = 0.06, MAX_ALTERNATIVES = 12, LOOSE_BLANK = 0.25;
+const LANE_MIN_COVERAGE = 0.75, SCALE_UP_BELOW = 0.86, MAX_FILL = 0.98, FILL_TARGET = 0.72, MIN_FILL_GAIN = 0.06, MAX_ALTERNATIVES = 12, LOOSE_BLANK = 0.25, VARY_FILL_LOSS = 0.04;
 
 // Which side of a comparison stands for this period or the way forward (now), and whether one side leads to the other (onward).
 // The outline can say so with compare.current: 'left' | 'right'; otherwise the labels do (去年 → 今年, 问题 → 改进, 2025 → 2026).
@@ -110,6 +110,16 @@ export function defaultLayout(page, zoneIds) {
   rows.push(...pairs);
   if (bottoms.length) rows.push(bottoms.length > 1 ? bottoms : bottoms[0]);
   return rows;
+}
+
+// The structure a reader sees on a page: which kinds of module sit in which kind of row (full width, a pair, beside the
+// photos, a photo band). Sentence bands that open or close the page are left out, and flows and chains count as one kind.
+// Two neighbouring pages with the same structure look like one template filled twice (blind review 2026-11-12).
+const zoneKind = (z) => { const k = String(z).replace(/-\d+$/, ''); return k === 'chain' ? 'flow' : ['metrics', 'items', 'table', 'flow', 'compare', 'periods', 'photos'].includes(k) ? k : 'st'; };
+export function layoutSignature(rows) {
+  const kinds = (zs) => zs.flat().map(zoneKind).filter((k) => k !== 'st').join(',');
+  const parts = asList(rows).map((r) => (r === 'photos' ? 'band' : typeof r === 'string' ? zoneKind(r) : Array.isArray(r) ? (kinds(r) ? `pair:${kinds(r)}` : 'st') : `side:${kinds(r.left)}`));
+  return parts.filter((p) => p !== 'st').join('|');
 }
 
 // Every way to split a list, in order, into rows of one or two.
@@ -677,7 +687,8 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
     if (zones.includes('metrics') && zones.length === 2 && asList(page.data).length === 1) { const figure = soloFigureWidth(total - GAP); return zones.map((z) => (z === 'metrics' ? figure : total - GAP - figure)); }
     const texts = zones.map((z) => asList(page.statements).find((st, i) => (st.id || `statement-${i + 1}`) === z)), width = total - GAP * (zones.length - 1);
     // Beside a sentence a row of figures keeps the width its content needs, and the sentence takes the rest.
-    const figures = zones.includes('metrics') && zones.length === 2 && texts.some((t) => t && !t.asMetric) ? tightFiguresWidth(total) : null;
+    // A short phrase result (asMetric) takes the rest the same way, so the figures' slot never leaves a hole beside them.
+    const figures = zones.includes('metrics') && zones.length === 2 && texts.some(Boolean) ? tightFiguresWidth(total) : null;
     if (figures && total - GAP - figures >= sentenceRoom) return zones.map((z) => (z === 'metrics' ? figures : total - GAP - figures));
     if (texts.some((t) => !t)) return zones.length === 2 ? rankedWidths(zones, width) : zones.map(() => Math.floor(width / zones.length));
     const m = await measurer.texts(texts.map((t, i) => ({ id: `n${i}`, type: 'text', text: t.text, bounds: [0, 0, 2000, 40], style: theme.roleStyle('body', { fontWeight: 500 }) }))), need = m.map((r) => Math.ceil(r.naturalWidth) + 64), sum = need.reduce((a, b) => a + b, 0);
@@ -704,8 +715,18 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const measuredRows = []; for (const row of rows) measuredRows.push(await measureRow(row));
   const sumOthers = () => measuredRows.reduce((a, r) => a + (r.photo ? 0 : r.h), 0);
   const splitFor = (H) => { const cols = photoColumns(page.photos), rightW = Math.round(Math.max(W * 0.3, Math.min(W * 0.52, naturalPhotoWidth(cols, H)))); return { leftW: W - rightW - 28, rightW }; };
+  // A module beside the photos, or a pair of bands inside that column, is laid out by stackItem.
+  const stackItem = async (z, box) => { if (!Array.isArray(z)) return render(z, box); const ws = await bandWidths(z, box.w), natural = Math.max(...(await inOrder(z, (q, i) => render(q, { ...box, w: ws[i] }))).map((m) => m.height)); let cx = box.x; const parts = await inOrder(z, async (q, i) => { const m = await render(q, { ...box, x: cx, w: ws[i], h: natural }), part = { z: q, m, box: [cx, box.y, ws[i], m.height] }; cx += ws[i] + GAP; return part; }); return { height: natural, module: 'metricTiles', parts }; };
   // A pair of bands on a text-and-photo page follows the page's column split, so the divider lines up all the way down.
+  // The split is final before anything is placed: modules keep their own height beside photos and the photos narrow to
+  // the column instead, and that narrowing is applied here once, not later in place(), where bands would miss it.
   const sideRow = measuredRows.findIndex((r) => r.photo && !r.across), split = sideRow >= 0 ? splitFor(avail - sumOthers()) : null;
+  if (split) {
+    const left = rows[sideRow].left, cols = photoColumns(page.photos);
+    let natural = GAP * (left.length - 1); for (const z of left) natural += (await stackItem(z, { x: L, y: TOP, w: split.leftW })).height;
+    const narrowed = Math.round(Math.max(W * 0.3, Math.min(W * 0.52, naturalPhotoWidth(cols, natural))));
+    if (natural < Math.min(avail - sumOthers(), naturalPhotoHeight(cols, split.rightW)) && narrowed < split.rightW) { split.rightW = narrowed; split.leftW = W - narrowed - 28; }
+  }
   if (split) for (const [i, row] of rows.entries()) {
     if (!Array.isArray(row) || row.length !== 2 || !row.every((z) => asList(page.statements).some((st, n) => (st.id || `statement-${n + 1}`) === z))) continue;
     const ws = [split.leftW, split.rightW], ms = await inOrder(row, (z, n) => render(z, { x: L, y: TOP, w: ws[n] }));
@@ -751,11 +772,9 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
         y += tallest + gap; naturalUsed += info.h;
       } else {
         if (photoRowH < 200) throw new PageOverflow(`${page.id} 图文区只剩 ${photoRowH}px`);
-        const cols = photoColumns(page.photos), gaps = GAP * (row.left.length - 1), stackItem = async (z, box) => { if (!Array.isArray(z)) return render(z, box); const ws = await bandWidths(z, box.w), natural = Math.max(...(await inOrder(z, (q, i) => render(q, { ...box, w: ws[i] }))).map((m) => m.height)); let cx = box.x; const parts = await inOrder(z, async (q, i) => { const m = await render(q, { ...box, x: cx, w: ws[i], h: natural }), part = { z: q, m, box: [cx, box.y, ws[i], m.height] }; cx += ws[i] + GAP; return part; }); return { height: natural, module: 'metricTiles', parts }; }, stack = async (width) => { const out = []; for (const z of row.left) out.push(await stackItem(z, { x: L, y, w: width })); return out; }, heightOf = (ms) => ms.reduce((a, m) => a + m.height, 0) + gaps;
-        let { leftW, rightW } = split, probe = await stack(leftW), natural = heightOf(probe);
-        // Modules keep their own height beside photos. The photos follow the column instead: when they would stand taller, they narrow to its height.
-        const narrowed = Math.round(Math.max(W * 0.3, Math.min(W * 0.52, naturalPhotoWidth(cols, natural))));
-        if (natural < Math.min(photoRowH, naturalPhotoHeight(cols, rightW)) && narrowed < rightW) { rightW = narrowed; leftW = W - rightW - 28; probe = await stack(leftW); natural = heightOf(probe); }
+        const cols = photoColumns(page.photos), gaps = GAP * (row.left.length - 1), stack = async (width) => { const out = []; for (const z of row.left) out.push(await stackItem(z, { x: L, y, w: width })); return out; }, heightOf = (ms) => ms.reduce((a, m) => a + m.height, 0) + gaps;
+        // The split was settled before placing (see settleSplit), so bands elsewhere on the page share its divider.
+        const { leftW, rightW } = split, probe = await stack(leftW), natural = heightOf(probe);
         if (natural > photoRowH) throw new PageOverflow(`${page.id} 左栏超出 ${natural - photoRowH}px`);
         // A small gap is closed by a last module that can use it; figures in tiles cannot, so the photos stop level with them. A large gap centres the column.
         const photoH = Math.min(photoRowH, Math.max(natural, naturalPhotoHeight(cols, rightW))), slack = photoH - natural, centred = slack > 120, closes = !centred && !['metricTiles', 'comparePair'].includes(probe.at(-1).module), usedH = centred || closes ? photoH : natural;
@@ -815,7 +834,8 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const firstStack = (rows.find((r) => r.left)?.left || rows.filter((r) => typeof r === 'string' && r !== 'photos' && !centred.has(r))).map((z) => (Array.isArray(z) ? z[0] : z));
   Object.assign(plan.visualDecision, { pattern: `free：${rows.map((r) => (typeof r === 'string' ? r : Array.isArray(r) ? r.join('+') : `[${r.left.join('>')}|${r.right}]`)).join(' / ')}`, focus: { elementId: 'title', text: focus }, layout: '模块按阅读顺序排列，同行等高，整体对齐页边' });
   plan.composition = firstStack.length > 1 ? { alignments: [{ edge: 'left', zones: firstStack }], gaps: firstStack.slice(1).map((to, i) => ({ axis: 'vertical', from: firstStack[i], to, min: 12 })) } : { alignments: [], gaps: [] };
-  return { focusGuessed: !(page.focus && title.includes(page.focus)) && firstClause === title, fill: naturalUsed / (BOTTOM - TOP), blank: 1 - (end - start) / (BOTTOM - TOP), slide: { slideId: page.id, mode: 'composition', elements: [...chrome, ...elements] }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
+  const photoArea = elements.filter((e) => e.type === 'image').reduce((a, e) => a + e.bounds[2] * e.bounds[3], 0);
+  return { rows, photoArea, centred: centred.size, focusGuessed: !(page.focus && title.includes(page.focus)) && firstClause === title, fill: naturalUsed / (BOTTOM - TOP), blank: 1 - (end - start) / (BOTTOM - TOP), slide: { slideId: page.id, mode: 'composition', elements: [...chrome, ...elements] }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
 }
 
 // The cover: the deck name, the one sentence that says how the period went and up to three figures, with an optional
@@ -1025,7 +1045,7 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
   const resolved = typeof palette === 'string' ? reportPalette(palette) : palette, plans = deck.contentPlan.slides;
   const dense = createTheme({ palette: resolved, roles: REPORT_ROLES }), comfy = createTheme({ palette: resolved, roles: REPORT_ROLES_COMFY }), roomy = createTheme({ palette: resolved, roles: REPORT_ROLES_ROOMY }), large = createTheme({ palette: resolved, roles: REPORT_ROLES_LARGE }), hero = createTheme({ palette: resolved, roles: REPORT_ROLES_HERO }), themes = { dense, comfy, roomy, large, hero };
   const slides = [], anchors = {}, scales = {}, sparse = [], loose = [], narrow = [], focusGuessed = [], rearranged = [];
-  let lastForm = null, lastItems = null; const forms = [];
+  let lastForm = null, lastItems = null, lastShape = null; const forms = [], varied = [];
   const absolute = (raw) => (raw.photos ? { ...raw, photos: raw.photos.map((ph) => ({ ...ph, src: path.resolve(baseDir, ph.src) })) } : raw);
   // Pages are numbered by their place in the deck, as the editor, the PDF and the user's own outline count them
   // ("第 2 页"): a cover is page 1 and only hides its number.
@@ -1081,7 +1101,25 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
       // layoutPage writes its result into the plan, so the winner runs last.
       best.out = await attempt(themes[best.scale]);
     }
+    // A page whose structure repeats the page before it tries the other arrangements and takes the first that changes
+    // the structure without leaving the page noticeably emptier (within VARY_FILL_LOSS) or loose.
+    if (!layouts[plan.slideId] && lastShape && layoutSignature(best.out.rows) === lastShape) {
+      const zoneIds = plan.visualDecision.zones.map((z) => z.id), base = best;
+      for (const option of layoutCandidates(page, zoneIds, MAX_ALTERNATIVES)) {
+        chosen = option;
+        try {
+          const tried = await scaleUp(await attempt(dense));
+          // Variety never costs the page its evidence or its fill: photos keep most of their area and no module ends up floating alone in the middle of a row.
+          const ok = tried.out.fill >= base.out.fill - VARY_FILL_LOSS && tried.out.blank <= LOOSE_BLANK && tried.out.photoArea >= base.out.photoArea * 0.8 && tried.out.centred <= base.out.centred;
+          if (layoutSignature(tried.out.rows) !== lastShape && ok) { best = { ...tried, layout: option }; break; }
+        } catch (error) { if (!cannotFit(error)) throw error; }
+      }
+      chosen = best.layout;
+      if (best !== base) varied.push({ page: plan.slideId, from: lastShape, to: layoutSignature(best.out.rows) });
+      best.out = await attempt(themes[best.scale]);
+    }
     const { out: finished, scale } = best;
+    lastShape = layoutSignature(finished.rows);
     slides.push(finished.slide); anchors[plan.slideId] = finished.modules; scales[plan.slideId] = scale;
     if (finished.focusGuessed) focusGuessed.push(plan.slideId);
     // What this page drew for its figures decides the next figure page's form; a page without a figure group changes nothing.
@@ -1101,7 +1139,7 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
   }
   deck.slides = slides;
   const rewrapped = await balanceLineBreaks(slides, measurer);
-  return { theme: dense, scales, anchors, sparse, loose, narrow, focusGuessed, rearranged, rewrapped, forms };
+  return { theme: dense, scales, anchors, sparse, loose, narrow, focusGuessed, rearranged, rewrapped, forms, varied };
 }
 
 // Fills the deck-level statements a report needs, from what was actually placed: the through-line and a management-report
