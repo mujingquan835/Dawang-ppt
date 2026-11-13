@@ -71,12 +71,18 @@ try {
   const evidence = (...elementIds) => [{ slideId: 'p1', elementIds }];
   const applied = (how, ...elementIds) => ({ status: 'applied', how, evidence: evidence(...elementIds) });
   deck.contentPlan.ruleChecklist = { scenario: 'management-report', items: {
-    'general#Requirements': applied('readerTask 写明读者任务；只用合成材料，无外部事实，无图片', 'title', 'metrics-panel'),
-    'scenario#Clear and direct content; no empty talk': applied('标题陈述结果，数字取自材料', 'title', 'm-value-1'),
-    'scenario#Visualize information with structural diagrams': applied('流程用箭头表达先后，分工用表格表达分类', 'f-link-s1-s2', 't-header-rule'),
-    'scenario#Key Requirements': applied('标题用重点色分层；数字色块按 HS-01，并列指标等宽按 HS-02', 'title', 'm-tile-1'),
-    'scenario#Visual References': applied('单一字族靠字号和字重分层，结论固定在页头，圆角统一（HS-03），编号圆点作为母题', 'title', 'f-node-s1'),
-    'scenario#Color Palette Reference': applied('白底深蓝强调配暖金重点行（HS-04）', 'metrics-panel', 't-bg-row-1')
+    'general#内容真实': applied('只用合成材料，数字沿用原值，无外部事实', 'title', 'm-value-1'),
+    'general#读者与主线': applied('readerTask 写明读者任务，标题陈述本页结论', 'title'),
+    'general#版面底线': applied('面板按内容取高，文字与表格均可编辑', 'metrics-panel', 't-header-rule'),
+    'general#严禁': applied('正文未放进卡片，无阴影与渐变', 'title'),
+    'scenario#结论先行': applied('标题陈述结果，数字取自材料', 'title', 'm-value-1'),
+    'scenario#关系画出来': applied('流程用箭头表达先后，分工用表格表达分类', 'f-link-s1-s2', 't-header-rule'),
+    'scenario#数据呈现': applied('数值、单位、名称在数字色块里成组，并列指标同一层级', 'm-tile-1'),
+    'scenario#版式与模块': applied('数字色块与流程面板承担主视觉，并列指标等宽', 'm-tile-1', 'f-node-s1'),
+    'scenario#全稿统一': applied('单一字族靠字号和字重分层，结论固定在页头，圆角统一', 'title'),
+    'scenario#配色': applied('白底深蓝强调配暖金重点行', 'metrics-panel', 't-bg-row-1'),
+    'scenario#图片': { status: 'not-applicable', reason: '材料没有图片' },
+    'scenario#加分做法': applied('编号圆点作为母题', 'f-node-s1')
   } };
 
   deck.slides = [{ slideId: 'p1', mode: 'composition', elements: [

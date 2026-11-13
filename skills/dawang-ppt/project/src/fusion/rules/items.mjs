@@ -31,7 +31,8 @@ export function ruleItems(scenarioId, options = {}) {
     const seen = new Map();
     for (const section of doc.sections) {
       if (!['apply', 'adapt', 'unreviewed'].includes(section.disposition) || !section.text) continue;
-      if (key === 'general' && !GENERAL_SECTIONS.has(section.heading)) continue;
+      // The original rules' general document is long; only its Requirements list is checked. Bundled rules are all checkable.
+      if (key === 'general' && rules.source !== 'bundled' && !GENERAL_SECTIONS.has(section.heading)) continue;
       const parts = splitItems(section.text);
       if (!parts.length) continue;
       // Headings may contain "/", so ids use "#"; a repeated heading gets a counter.
@@ -43,5 +44,5 @@ export function ruleItems(scenarioId, options = {}) {
       }));
     }
   }
-  return { scenario: scenarioId, pin: { status: rules.pin.status, label: rules.pin.label }, sections, items };
+  return { scenario: scenarioId, source: rules.source || 'original', pin: { status: rules.pin.status, label: rules.pin.label }, sections, items };
 }

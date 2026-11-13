@@ -2,7 +2,7 @@
 
 自然语言任务由制作智能体完成材料理解、原文规则读取、内容策划和自主设计；不要求用户填写 JSON。
 
-调用 `node <skill>/scripts/dawang.mjs rules:read management-report [--design <相对原规则路径>] [--format <路径> ...]` 获取按章节切分的原文、来源路径、SHA 与 apply/adapt/replaced 标注（`--full` 含 replaced 原文；`--allow-drift` 仅在用户同意时使用）。`rules:lock [--root <目录>] [--label <名称>]` 重新锁定规则版本并列出与旧锁的差异，属于维护操作。缓存不能代替本会话阅读。
+调用 `node <skill>/scripts/dawang.mjs rules:read management-report` 获取按章节切分的内置汇报规则（来源路径与 SHA）。设置 `DAWANG_PPT_RULES_PROVIDER=original` 时改读外部原规则，可加 `--design <相对路径>`、`--format <路径>`、`--full`（含 replaced 原文）和 `--allow-drift`（仅在用户同意时使用）；`rules:lock [--root <目录>] [--label <名称>]` 重新锁定原规则版本，属于维护操作。缓存不能代替本会话阅读。
 
 工作汇报默认用 `composeReportDeck`（照 `node <skill>/examples/report-modules.mjs <新目录>`）：大纲写内容和顺序，组版器生成全部页面和区域绑定，返回 `scales`、`anchors`、`sparse`（内容太少的页）、`loose`（上下留空超过四分之一的页）、`narrow`（整行事项列表每行都很短、右侧大半空着的页：去掉强制的 `itemStyle:'list'` 让事项排成卡片，或补充内容）、`rearranged`（自动换了排法的页）；随后用 `draftDeckClaims({deck,outline,palette,projectId})` 生成定位句和规则清单草稿。参数：`layouts` 指定某页排法（通常不需要），`header:'tag'|'eyebrow'` 选页头样式，`footer` 写材料名称和时期。大纲字段：`statements`、`items`、`data[].highlight`、`table` 或 `tables:[{title,columns,rows,highlight,from}]`、`flows`/`chains`（可带 `returnTo:步骤序号`）、`compare`、`periods`、`photos`、`eyebrow`、`focus`。新稿完整示例：`node <skill>/examples/report-contract.mjs <新目录>`，生成的工程能通过 `make`，页面设计照它写。`examples/authored-minimal.mjs` 只演示元素写法，没有内容契约，`make` 会拦下。
 推荐交付：`node <skill>/scripts/dawang.mjs make /tmp/authored.json /目标/报告.html`。

@@ -32,12 +32,21 @@ test('drift is blocked; explicit audited override preserves unreviewed status',t
  assert.throws(()=>current.readAuthoringRules({scenarioId:'business-plan',root,lock}),/rules:lock/);
  const r=current.readAuthoringRules({scenarioId:'business-plan',root,lock,allowDrift:true});assert.equal(r.pin.status,'drift');assert(r.documents.find(d=>d.id==='general').sections.every(s=>s.disposition==='unreviewed'));
 });
-test('missing full rules are reported and prepare cannot substitute abbreviated bundled summaries',t=>{
- const home=temp(t),env={...process.env,HOME:home,CODEX_HOME:path.join(home,'codex'),DAWANG_PPT_RULES_DIR:path.join(home,'missing'),KIMI_PPT_SKILL_DIR:''};
+test('with the original provider chosen, missing rules are reported and prepare cannot substitute abbreviated bundled summaries',t=>{
+ const home=temp(t),env={...process.env,DAWANG_PPT_RULES_PROVIDER:'original',HOME:home,CODEX_HOME:path.join(home,'codex'),DAWANG_PPT_RULES_DIR:path.join(home,'missing'),KIMI_PPT_SKILL_DIR:''};
  const run=(...args)=>spawnSync(process.execPath,[cli,...args],{encoding:'utf8',timeout:60000,env});const d=run('doctor');const doctor=JSON.parse(d.stdout);assert.equal(doctor.rules.status,'missing');assert.equal(doctor.ready,false);
  const input=path.join(home,'input.md'),out=path.join(home,'prepared');fs.writeFileSync(input,'# 合成材料\n保留待核状态。');const r=run('prepare',input,out,'--scenario','tech-engineering');assert.notEqual(r.status,0);assert.equal(fs.existsSync(out),false);
 });
 test('new authored projects keep branded metadata and old saved projects remain readable',async()=>{
  const {createAuthoredProject}=await import('../../skills/dawang-ppt/project/src/fusion/authoring/create-project.mjs');const {validateProject}=await import('../../skills/dawang-ppt/project/src/fusion/project/schema.mjs');
  const p=createAuthoredProject({requirements:{title:'合成测试'},sources:{entries:[]},media:{entries:[]},contentPlan:{nodes:{}},designChoice:{styleId:'authored/custom'},slides:[{slideId:'s',elements:[{id:'t',type:'text',text:'合成测试',bounds:[100,100,1000,100]}]}]});assert.equal(p.slides[0].authoring.engine,'dawang-authored-v1');assert.deepEqual(validateProject(p),[]);p.slides[0].authoring.engine='kimi-authored-v1';assert.deepEqual(validateProject(p),[]);
+});
+test('bundled report rules are the default: ready without any external rule files, every chapter checkable',t=>{
+ const home=temp(t),env={...process.env,HOME:home,CODEX_HOME:path.join(home,'codex'),DAWANG_PPT_RULES_DIR:'',KIMI_PPT_SKILL_DIR:'',DAWANG_PPT_RULES_PROVIDER:''};
+ const d=spawnSync(process.execPath,[cli,'doctor'],{encoding:'utf8',timeout:60000,env});const doctor=JSON.parse(d.stdout);
+ assert.equal(doctor.rules.source,'bundled');assert.equal(doctor.rules.status,'pinned');assert.equal(doctor.ready,true);
+ const r=current.readAuthoringRules({scenarioId:'management-report',provider:'bundled'});
+ assert.equal(r.source,'bundled');assert(r.documents.every(doc=>doc.sections.some(s=>s.disposition==='apply')));
+ assert.throws(()=>current.readAuthoringRules({scenarioId:'business-plan',provider:'bundled'}),/DAWANG_PPT_RULES_PROVIDER=original/);
+ const text=r.documents.flatMap(doc=>doc.sections.map(s=>s.text)).join('\n');assert(!/\bKimi\b/i.test(text));
 });

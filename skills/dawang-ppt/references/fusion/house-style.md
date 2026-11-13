@@ -1,5 +1,7 @@
 # Dawang 版式例外
 
+只在使用外部原规则（`DAWANG_PPT_RULES_PROVIDER=original`）时适用；内置汇报规则已直接写明这些做法。
+
 原规则里被用户决定替换的个别条款，按子规则列出。复核者按这张表判断这些条款，同一章节的其他要求照常执行。写规则清单时，这些章节照常记为 `applied`，在 `how` 里引用编号（如“卡片类组件按 HS-01”），不要把整章记成 `user-override`。本文件由 `project/src/fusion/qa/house-style.mjs` 生成，改动请改那张表。
 
 | 编号 | 原规则条款 | 现在允许 | 仍然要求 | 依据 |

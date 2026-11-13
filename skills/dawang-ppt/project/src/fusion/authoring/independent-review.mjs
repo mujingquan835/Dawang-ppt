@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { loadProject } from '../project/store.mjs';
 import { ruleItems } from '../rules/items.mjs';
-import { buildReviewPacket, normalizeVerdict, writeReview, checklistHash, hasTieredReview, inspectReviewScope, REVIEW_FILE } from '../qa/rules-review.mjs';
+import { buildReviewPacket, normalizeVerdict, writeReview, checklistHash, hasTieredReview, inspectReviewScope, REVIEW_FILE, MAX_REVIEW_ROUNDS } from '../qa/rules-review.mjs';
 
 const CODEX_CANDIDATES = ['/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex', '/Applications/Codex.app/Contents/Resources/codex'];
 const onPath = (name) => (process.env.PATH || '').split(path.delimiter).map((dir) => path.join(dir, name)).find((file) => fs.existsSync(file));
@@ -33,10 +33,10 @@ function runReviewer(reviewer, packetDir, packet) {
 }
 
 // The result says what to do next, so a failed review continues inside the same turn instead of being reported.
-export const MAX_REVIEW_ROUNDS = 3;
+export { MAX_REVIEW_ROUNDS };
 export function nextStep(failed, round, { blockers = failed, advisories = 0, tiered = false } = {}) {
   if (!failed && !blockers) return '复核通过：运行 publish:html <workspaceDir> <交付.html>。';
-  if (tiered && !blockers && advisories > 0) return '无阻断问题（仅含审美/可选建议）：可运行 publish:html <workspaceDir> <交付.html>，并在交付回复中单独说明建议项。';
+  if (tiered && !blockers && advisories > 0) return '无阻断问题（仅含审美/可选建议）：现在直接运行 publish:html <workspaceDir> <交付.html>，不要为建议修改页面（任何修改都要重新复核），建议项在交付回复中单独列出。';
   const missing = '若 fail 要的是原材料没有的信息（整体目标、达成率、差距、决策事项等）：不要改措辞重试，也不要停下来问用户：清单该条改 not-applicable，理由写“材料未提供……，已在交付时说明”，继续复核，并把这项写进交付回复的关系缺口。用户已授权补写的，把缺的内容写上（数字用 XX 占位）。';
   if (round >= MAX_REVIEW_ROUNDS) {
     if (tiered && blockers > 0) {
@@ -44,6 +44,7 @@ export function nextStep(failed, round, { blockers = failed, advisories = 0, tie
     }
     return `已复核 ${round} 轮仍有 fail：向用户说明剩余 fail 理由，附截图与可选方案，请用户决定。` + missing;
   }
+  if (tiered) return `本轮继续，不要向用户汇报未通过：这是第 ${round} 轮，共 ${MAX_REVIEW_ROUNDS} 轮。按阻断问题（blockers）的 reason 一次改完（patch:project），能顺手改的审美建议在同一次修改里一起改，然后只再运行一次 review:rules；不为审美建议单独加轮次。版式、结构图类阻断要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。` + missing;
   return '本轮继续，不要向用户汇报未通过：按 failed[].reason 修改页面（patch:project）后再运行 review:rules。版式、精致度、结构图、视觉母题类 fail 要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。' + missing;
 }
 

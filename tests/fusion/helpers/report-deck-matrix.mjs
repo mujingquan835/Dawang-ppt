@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { ruleItems } from '../../../skills/dawang-ppt/project/src/fusion/rules/items.mjs';
 const S = new URL('../../../skills/dawang-ppt/project/src/fusion/', import.meta.url).href;
 const { buildOutlineBaseline } = await import(S + 'authoring/outline-baseline.mjs');
 const { composeReportDeck } = await import(S + 'authoring/report-deck.mjs');
@@ -56,7 +57,7 @@ try { r = await composeReportDeck({ outline, deck, palette, measurer, footer: '�
 deck.requirements.projectId = `matrix-${palette}-${Date.now().toString(36)}`;
 deck.contentPlan.throughLine = { placements: [{ slideId: 'p1', elementId: 'title' }], source: 'quoted', from: '合成' };
 const ok = { status: 'applied', how: '合成验证', evidence: [{ slideId: 'p1', elementIds: ['title'] }] };
-deck.contentPlan.ruleChecklist = { scenario: 'management-report', items: Object.fromEntries(['general#Requirements', 'scenario#Clear and direct content; no empty talk', 'scenario#Visualize information with structural diagrams', 'scenario#Key Requirements', 'scenario#Visual References', 'scenario#Color Palette Reference'].map((k) => [k, ok])) };
+deck.contentPlan.ruleChecklist = { scenario: 'management-report', items: Object.fromEntries(ruleItems('management-report').sections.map((s) => s.id).map((k) => [k, ok])) };
 fs.writeFileSync(path.join(dir, 'content-baseline.json'), JSON.stringify(baseline, null, 2));
 fs.writeFileSync(path.join(dir, 'authored.json'), JSON.stringify(deck, null, 2));
 console.log(JSON.stringify({ scales: r.scales, sparse: r.sparse, loose: r.loose, forms: r.forms }));

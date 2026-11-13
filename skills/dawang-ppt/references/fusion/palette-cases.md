@@ -1,6 +1,6 @@
 # 配色迁移：把颜色分工落到页面
 
-汇报稿的配色候选取[九组汇报配色](report-layout-logic.md#2-颜色职责一深一浅一跳)，选择流程见[配色推荐与确认](palette-selection.md)，与原规则冲突的条款见 [Dawang 版式例外](house-style.md) HS-04、HS-05。本页只说明选定配色后怎么落到每一页。用户要求参考 dashi 主题时，入口见 [dashi 主题索引](dashi-theme-references.md)，使用边界见[dashi 参考附录](visual-authoring.md#dashi-参考附录)。
+汇报稿的配色候选取[九组汇报配色](report-layout-logic.md#2-颜色职责一深一浅一跳)，选择流程见[配色推荐与确认](palette-selection.md)，配色要求见[汇报规则](../rules/work-report.md)的“配色”。本页只说明选定配色后怎么落到每一页。用户要求参考 dashi 主题时，入口见 [dashi 主题索引](dashi-theme-references.md)，使用边界见[dashi 参考附录](visual-authoring.md#dashi-参考附录)。
 
 ## 迁移到当前页面
 

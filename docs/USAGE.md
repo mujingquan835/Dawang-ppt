@@ -13,7 +13,7 @@
 | 每页怎样组织内容 | [4页完整图片与来源](SHOWCASE.md#四种内容关系四个页面) |
 | 怎么选择对象、改字、保存和导出 | [实际操作图解](SHOWCASE.md#实际操作图解) |
 | 怎样提需求、为什么先改文案再排版 | [制作思路](APPROACH.md) |
-| 让AI做自己的稿件 | 继续阅读下面的安装、完整规则配置与第一份稿件步骤 |
+| 让AI做自己的稿件 | 继续阅读下面的安装与第一份稿件步骤 |
 
 ## 1. 你需要安装吗？
 
@@ -32,7 +32,7 @@ Dawang-PPT 不是独立 AI 模型或在线生成服务，不附带模型账号�
 | 浏览器 | Chrome / Chromium / Edge；源文件保存推荐 Chrome / Edge |
 | AI 客户端 | 能读取本地 SKILL.md、执行本地命令并查看浏览器或截图 |
 | 网络 | 首次安装 npm 依赖需要网络；成稿 HTML 可离线使用 |
-| 制作规则 | 需单独提供与版本指纹一致的完整资料；公开包不附未获再分发许可的原文 |
+| 制作规则 | 已内置（`references/rules/`），不需要另外准备 |
 | 平台 | macOS 为主要实测环境；Windows / Linux 完整制作链路尚未验收 |
 
 Windows 的符号链接权限、CLI 启动器和字体可能需要适配，不能把成功解压等同于完整可用。仅查看、手动编辑交付 HTML 可先用 Chrome / Edge 验证。
@@ -82,40 +82,13 @@ node skills/dawang-ppt/scripts/install.mjs
 node skills/dawang-ppt/scripts/dawang.mjs doctor
 ```
 
-## 4. 配置完整规则资料并检查
+## 4. 制作规则与检查
 
-### 必须提供完整资料
+### 规则已内置
 
-本修正版保留此前完整规则与逐节适配机制。公开 ZIP 包含读取器、适配决定、版本锁及 Dawang-PPT 自有内容编辑和验收规则；**不包含完整原文资料**。请使用自己合法取得的匹配版本，并向维护者确认使用和分享范围；没有资料时不能按完整能力执行 AI 新稿制作，不能让 AI 用摘要或自行改写的短规则代替。仅查看或手动编辑交付 HTML 不需要这些资料。
+制作规则随 skill 分发：`references/rules/general.md`（通用要求）和 `references/rules/work-report.md`（工作汇报、述职与复盘），都是 Dawang-PPT 自己编写的。安装后不需要另外准备资料，也不需要设置环境变量。
 
-目录应完整保留以下结构（示意，不是全部文件清单）：
-
-```text
-完整规则目录/
-├── SKILL.md
-└── reference/
-    ├── slides_categories.md
-    ├── slides_categories/（7类场景）
-    ├── design_system/（完整设计资料）
-    └── 其他格式说明文件
-```
-
-本版锁定 73 份 Markdown 资料；完整 SHA-256 指纹为：
-
-```text
-788e1fc1498576ec6a858124b834121478d235f64a8a8d69a8c0ac7f59d27f9c
-```
-
-独立包在 skill 根目录配置：
-
-```sh
-export DAWANG_PPT_RULES_DIR="/你的实际路径/完整规则目录"
-node scripts/dawang.mjs doctor
-```
-
-export 只影响当前终端及其子进程。桌面 AI 客户端可能不继承它，需在客户端自己的启动环境中配置；也可将自己合法取得的完整资料放到默认目录 `~/.dawang-ppt/production-rules/`，使其直接包含 SKILL.md 与 reference/，不要多套一层文件夹。旧版已有的兼容资料安装仍可自动发现，不强迫迁移。
-
-明确设置的路径找不到资料时会报 missing，不悄悄切换另一份资料。doctor 会显示实际来源与指纹，历史来源路径可能保留原有名称，版权声明也继续保留。
+旧版用过外部原规则资料的用户，可以设置 `DAWANG_PPT_RULES_PROVIDER=original` 继续使用（资料位置仍由 `DAWANG_PPT_RULES_DIR` 或 `~/.dawang-ppt/production-rules/` 提供）。不设置时一律使用内置规则。
 
 ### 检查是否就绪
 
@@ -127,11 +100,11 @@ export 只影响当前终端及其子进程。桌面 AI 客户端可能不继承
   "defaultDeliverable": "html",
   "runtime": true,
   "ready": true,
-  "rules": {"provider": "dawang-ppt", "status": "pinned"}
+  "rules": {"provider": "dawang-ppt", "source": "bundled", "status": "pinned"}
 }
 ```
 
-实际结果还包含路径、指纹和各客户端入口。`runtime: false` 表示运行依赖未就绪；规则为 `missing` 表示未找到完整资料；`drift` / `unpinned` / `error` 表示版本不符、锁缺失或读取失败，不能继续当作完整安装。doctor 的退出码保留兼容行为，必须看 ready 和 rules 状态，不能仅据退出码判断。核对完整资料与锁文件，不让 AI 自行改锁或加 --allow-drift 绕过检查。
+实际结果还包含路径、指纹和各客户端入口。`runtime: false` 表示运行依赖未就绪；规则为 `missing` 表示安装不完整（内置规则文件缺失），请重新解压 ZIP；使用 `original` 原规则时，`drift` / `unpinned` / `error` 表示资料版本不符、锁缺失或读取失败。doctor 的退出码保留兼容行为，必须看 ready 和 rules 状态，不能仅据退出码判断。不让 AI 自行改锁或加 --allow-drift 绕过检查。
 
 `usesThisSkill` 只表示相应客户端入口是否指向当前正在检查的 skill。源码目录和独立安装目录不同，可能显示 false；应从实际安装入口再次核对。
 
@@ -205,7 +178,7 @@ export 只影响当前终端及其子进程。桌面 AI 客户端可能不继承
 |---|---|
 | node / npm 找不到 | 安装 Node.js 22+，重开终端与客户端 |
 | runtime 为 false | 独立包执行 `npm ci --prefix project`；源码安装使用较长路径 |
-| rules 为 missing | 按第4节配置完整资料；不能只安装 ZIP 就忽略这个状态 |
+| rules 为 missing | 重新解压完整 ZIP；用 original 原规则时按第4节提供资料 |
 | rules 为 drift / unpinned / error | 核对资料版本和锁文件或联系维护者；不自行改锁 |
 | Chrome executable not found | 安装 Chrome，或将 CHROME_PATH 指向真实可执行文件 |
 | AI 没用此 skill | 新开会话，明确指定 dawang-ppt 并确认它读取正确 SKILL.md |
@@ -255,6 +228,8 @@ node scripts/install.mjs --uninstall
 `v0.2.0-preview.20261027` 曾错误地以短规则替代完整读取，不能视为原能力等价版。请使用 `.1` 修正版或之后的预览版（本说明对应 `v0.2.0-preview.20261104`）；不要用旧版 ZIP 继续传播“无需资料即可完整制作”的说法。
 
 修正版恢复了逐节 apply / adapt / replaced / unreviewed 状态、可选设计与格式资料、完整原文 --full 查看、版本漂移阻断及既有用户覆盖边界。公开说明统一产品表述，技术路径、出处与必要版权信息不伪造。程序通过和模型输出相同是两件事；规则对照证据见 [完整规则对照](RULES-PARITY.md)。
+
+之后的版本改用 Dawang-PPT 自己编写的内置汇报规则（`references/rules/`），不再需要外部资料；外部原规则作为可选来源保留（`DAWANG_PPT_RULES_PROVIDER=original`）。
 
 ## 12. 校验下载与反馈
 

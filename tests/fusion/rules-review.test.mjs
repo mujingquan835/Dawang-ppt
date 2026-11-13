@@ -83,13 +83,14 @@ test('failed reviews count rounds and tell the author to keep fixing until the l
   const dir = workspace(t), p = project();
   const fail = [{ id: 'scenario#Visual#1', verdict: 'fail', reason: '缺结构图', status: 'applied' }];
   assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 1);
-  assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 2);
-  assert.equal(reviewGate(p, dir).issues[0].round, 2);
-  assert.match(nextStep(1, 2), /本轮继续/);
+  assert.equal(reviewGate(p, dir).issues[0].round, 1);
+  assert.match(nextStep(1, 1), /本轮继续/);
+  assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, MAX_REVIEW_ROUNDS);
+  assert.equal(reviewGate(p, dir).warnings.find((w) => w.kind === 'rules-review-open').round, MAX_REVIEW_ROUNDS);
   assert.match(nextStep(1, MAX_REVIEW_ROUNDS), /请用户决定/);
   // Missing material is the user's call at any round: the hint says to ask, never to decide or stop alone.
-  for (const r of [1, 2, MAX_REVIEW_ROUNDS]) assert.match(nextStep(1, r), /不要停下来问用户.*not-applicable/);
-  assert.match(nextStep(0, 2), /publish:html/);
+  for (const r of [1, MAX_REVIEW_ROUNDS]) assert.match(nextStep(1, r), /不要停下来问用户.*not-applicable/);
+  assert.match(nextStep(0, 1), /publish:html/);
   writeReview(dir, p, { reviewer: 'fake', items: fail.map((i) => ({ ...i, verdict: 'pass' })) });
   assert.equal(writeReview(dir, p, { reviewer: 'fake', items: fail }).round, 1);
 });
@@ -172,9 +173,8 @@ test('W4 V11: tiered review classifies three categories, keeps blockers blocking
   assert.equal(normalized[2].severity, 'advisory');
   assert.equal(normalized[2].suggestedAction, 'local-polish-or-user-decision');
 
-  // Even after MAX_REVIEW_ROUNDS (3 rounds), blockers must NOT auto-pass into warnings.
-  writeReview(dir, p, { reviewer: 'fake', items: normalized, claims });
-  writeReview(dir, p, { reviewer: 'fake', items: normalized, claims });
+  // Even after MAX_REVIEW_ROUNDS, blockers must NOT auto-pass into warnings.
+  for (let k = 1; k < MAX_REVIEW_ROUNDS; k++) writeReview(dir, p, { reviewer: 'fake', items: normalized, claims });
   const r3 = writeReview(dir, p, { reviewer: 'fake', items: normalized, claims });
   assert.equal(r3.round, MAX_REVIEW_ROUNDS);
 
@@ -186,6 +186,8 @@ test('W4 V11: tiered review classifies three categories, keeps blockers blocking
   assert.equal(gate.warnings[0].kind, 'rules-review-advisory');
   assert.deepEqual(gate.warnings[0].items.map((i) => i.id), ['scenario#Directions']);
   assert.match(nextStep(3, MAX_REVIEW_ROUNDS, { blockers: 2, advisories: 1, tiered: true }), /needs-revision/);
+  assert.equal(MAX_REVIEW_ROUNDS, 2);
+  assert.match(nextStep(2, 1, { blockers: 2, advisories: 1, tiered: true }), /只再运行一次 review:rules/);
 
   // Once blockers are resolved and only the advisory remains, releaseStatus becomes ready with advisory warning.
   const onlyAdvisory = [
@@ -293,4 +295,13 @@ test('W4 V10: page-level image/text patch invalidates only affected page claims 
   assert.deepEqual(scopeGlobal.invalidatedSlideIds, ['s1', 's2']);
   assert.deepEqual(scopeGlobal.reusableSlideIds, []);
   assert.equal(previousRound(dir, afterGlobal), null);
+});
+
+test('a review with advisories only does not restart the round count', async (t) => {
+  const dir = workspace(t), p = project();
+  const advisory = [{ id: 'scenario#Visual#1', verdict: 'fail', reason: '可选润色', status: 'applied', category: 'design', severity: 'advisory' }];
+  assert.equal(writeReview(dir, p, { reviewer: 'fake', items: advisory }).round, 1);
+  assert.equal(writeReview(dir, p, { reviewer: 'fake', items: advisory }).round, 2);
+  writeReview(dir, p, { reviewer: 'fake', items: advisory.map((i) => ({ ...i, verdict: 'pass' })) });
+  assert.equal(writeReview(dir, p, { reviewer: 'fake', items: advisory }).round, 1);
 });

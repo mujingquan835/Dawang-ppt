@@ -10,7 +10,9 @@ import { houseStylePrompt } from './house-style.mjs';
 
 // After this many consecutive rounds, legacy findings stop blocking, whereas tiered-review (W4) keeps blockers active
 // as needs-revision and only allows advisories to pass with disclosure.
-export const MAX_REVIEW_ROUNDS = 3;
+// Two rounds: the first review, then one recheck of what was fixed. Each reviewer call costs about 70 s whatever its
+// effort, so the round count is what decides how long a deck takes (speed decision 2026-11-12).
+export const MAX_REVIEW_ROUNDS = 2;
 export const hasTieredReview = (project) => Boolean(
   hasPageDesignContract(project) ||
   hasSemanticContract(project) ||
@@ -108,7 +110,7 @@ export function classifyFinding(item, claim, project) {
   else if (!severity) {
     if (category === 'content' || category === 'render') severity = 'blocker';
     else if (
-      (String(claim?.id || '').startsWith('scenario#Directions') || /可选|建议|偏好|装饰|润色|更精致|微调/.test(reason)) &&
+      (/^scenario#(Directions|加分做法)/.test(String(claim?.id || '')) || /可选|建议|偏好|装饰|润色|更精致|微调/.test(reason)) &&
       !/阅读任务|看不出|主次不清|勉强对应|缺乏结构/.test(reason)
     ) severity = 'advisory';
     else severity = 'blocker';
@@ -195,7 +197,8 @@ export function buildReviewPacket({ project, rules, pages, only }) {
     '- status=not-applicable 或 user-override：理由是否成立。规则明显适用于本稿内容却被跳过，判 fail。',
     '- id 以 page-design# 开头时：按声明中的页面任务、事实和关系检查截图；绑定只用于定位，不代表表达已正确。检查每个条件、返回路径、成员对应和数据限定；不能因为有色块或箭头就判 pass。',
     '- status=visual：按给出的视觉标准逐页看图，任一页明显不符判 fail；reason 写出页码和具体问题（例如“第2页：流程说明与节点错位”）。',
-    HOUSE_STYLE,
+    // Bundled rules already state the user's house style; the exception table only applies to the original rules.
+    ...(rules.source === 'bundled' ? [] : [HOUSE_STYLE]),
     decisions.length ? '用户决定（用户原话，优先于规则、视觉标准和你的个人判断）：带 userDecision 的声明，只要页面做法与用户决定一致就判 pass；不得因用户已明确接受的做法判 fail（例如用户说“图片仅作示意”，就不得要求图片内容与说明对应）。决定之外的问题照常判断。' : '',
     // A partial job is judged on its own pages: deck-level demands do not apply to a section someone asked AI to make.
     project.requirements?.scope === 'full'
@@ -274,8 +277,11 @@ export function writeReview(workspaceDir, project, { reviewer, items, claims = [
     if (!tiered && !item.category && !item.severity && !item.pageIds) return item;
     return classifyFinding(item, claimById.get(item.id) || item, project);
   });
-  const passedBefore = previous && previous.items?.every((i) => i.verdict === 'pass' || i.severity === 'advisory');
-  const round = previous && !passedBefore ? (previous.round || 1) + 1 : 1;
+  // Only a clean pass, or a review from an earlier sitting (over 6 hours old), starts the count again. A review with
+  // advisories only still counts: editing for them and reviewing again is another round, not a fresh start.
+  const passedBefore = previous && previous.items?.every((i) => i.verdict === 'pass');
+  const earlier = previous && Date.now() - Date.parse(previous.at || 0) > 6 * 3600 * 1000;
+  const round = previous && !passedBefore && !earlier ? (previous.round || 1) + 1 : 1;
   const record = {
     revision: project.revision,
     checklistHash: checklistHash(project),

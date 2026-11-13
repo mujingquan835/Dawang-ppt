@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { ruleItems } from '../../skills/dawang-ppt/project/src/fusion/rules/items.mjs';
 import { periodRange, periodTimeline } from '../../skills/dawang-ppt/project/src/fusion/authoring/report-kit.mjs';
 import { ICONS } from '../../skills/dawang-ppt/project/src/fusion/authoring/icons.mjs';
 import { defaultLayout, draftDeckClaims, figureForm, layoutCandidates } from '../../skills/dawang-ppt/project/src/fusion/authoring/report-deck.mjs';
@@ -172,7 +173,7 @@ test('the drafted checklist cites elements that exist', () => {
     assert.equal(run.status, 0, run.stderr);
     const deck = JSON.parse(fs.readFileSync(path.join(dir, 'x', 'authored.json'), 'utf8'));
     const items = Object.values(deck.contentPlan.ruleChecklist.items);
-    assert.equal(items.length, 6);
+    assert.equal(items.length, ruleItems('management-report').sections.length);
     for (const item of items) for (const { slideId, elementIds } of item.evidence) for (const id of elementIds) assert(deck.slides.find((s) => s.slideId === slideId).elements.some((e) => e.id === id), `${slideId}/${id}`);
     assert(deck.contentPlan.throughLine.placements.length);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }

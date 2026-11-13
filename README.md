@@ -15,10 +15,10 @@
 | 你现在想做什么 | 从这里开始 |
 |---|---|
 | 先看效果，手动改一页试试 | [下载示例 HTML](https://github.com/mujingquan835/Dawang-ppt/releases/download/v0.2.0-preview.20261104/dawang-ppt-editable-showcase.html)，用 Chrome / Edge 打开。无需 Node.js、AI 账号或 skill 安装 |
-| 让 AI 根据自己的材料制作 | 先准备 Node.js 22+、本地 AI 客户端和**匹配的完整规则资料**，再按[安装说明](docs/USAGE.md)配置 |
+| 让 AI 根据自己的材料制作 | 先准备 Node.js 22+ 和本地 AI 客户端，再按[安装说明](docs/USAGE.md)配置 |
 | 理解怎么提需求、怎么把稿件做好 | 阅读[制作思路](docs/APPROACH.md)与[案例拆解](docs/SHOWCASE.md) |
 
-**安装前先知道：**公开 skill ZIP 不附未获再分发许可的完整规则原文。AI 新稿制作须另外合法取得并配置匹配资料，`doctor` 显示 `ready: true` 才算就绪。没有资料时可以先体验示例 HTML 的查看和手动编辑；[资料结构与配置步骤在这里](docs/USAGE.md#4-配置完整规则资料并检查)。
+**安装前先知道：**制作规则已随 skill 内置（`references/rules/`），不需要另外准备资料；`doctor` 显示 `ready: true` 就可以开始。
 
 ## 它适合怎样的工作
 
@@ -66,11 +66,10 @@ Dawang-PPT 是 AI 客户端中的本地制作 skill。模型、账号与权限�
 ```sh
 npm ci --prefix project
 node scripts/install.mjs
-export DAWANG_PPT_RULES_DIR="/你的实际路径/完整规则目录"
 node scripts/dawang.mjs doctor
 ```
 
-确认 `runtime: true`、`rules.status: "pinned"`、`ready: true`。桌面客户端不一定继承终端环境变量，具体配置及其他客户端入口见[详细说明](docs/USAGE.md)。主要实测环境为 macOS + Chrome；Windows / Linux 完整制作链路仍需分别验证。
+确认 `runtime: true`、`rules.source: "bundled"`、`rules.status: "pinned"`、`ready: true`。桌面客户端不一定继承终端环境变量，具体配置及其他客户端入口见[详细说明](docs/USAGE.md)。主要实测环境为 macOS + Chrome；Windows / Linux 完整制作链路仍需分别验证。
 
 新开 AI 会话，附上材料，然后这样说：
 

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { capacityFlow, capacityTable, flowEdgeBindings, measureModule } from './capacity-kit.mjs';
 import { reportPalette } from './report-palettes.mjs';
 import { figuresIn } from './wording.mjs';
+import { rulesProvider } from '../rules/index.mjs';
 
 // Whole-deck composer for work reports. The agent decides content and reading order in the outline; this code does the
 // geometry, the equal heights, the fit to the page and the region bindings, so a deck comes out the same way whichever
@@ -1118,13 +1119,33 @@ export function draftDeckClaims({ deck, outline, palette = 'blue-gold', projectI
   const first = slides[0], last = slides[slides.length - 1], titles = [{ slideId: first.slideId, elementIds: ['title'] }, ...(last === first ? [] : [{ slideId: last.slideId, elementIds: ['title'] }])], key = outline.pages[0].keyLine, basis = key.from || '第 1 页标题';
   deck.contentPlan.throughLine = { placements: [{ slideId: first.slideId, elementId: 'title' }], source: key.source, ...(key.source === 'quoted' ? { from: basis } : { support: [basis] }) };
   const ok = (how, evidence) => ({ status: 'applied', how, evidence });
-  deck.contentPlan.ruleChecklist = { scenario: 'management-report', items: {
+  // The checklist answers the chapters of whichever rules are active: the bundled report rules by default,
+  // the original rules (with the house-style exception ids) when DAWANG_PPT_RULES_PROVIDER=original.
+  const original = {
     'general#Requirements': ok('每页写明读者任务；只用用户材料，未补造事实' + (hasSource ? '；页脚标明来源' : ''), [{ slideId: first.slideId, elementIds: ['title', ...(first.elements.some((e) => e.id === 'src') ? ['src'] : [])] }]),
     'scenario#Clear and direct content; no empty talk': ok('每页标题陈述状态或结论' + (hasFigures ? '，数字沿用材料原值' : ''), titles),
     'scenario#Visualize information with structural diagrams': ok(parts.map((x) => x.how).join('，') || '按内容关系分区排列', parts.map((x) => x.hit).concat(parts.length ? [] : [titles[0]])),
     'scenario#Key Requirements': ok((modules.map((x) => x.how).join('、') || '模块') + '按 HS-01；' + (parallel ? '并列项等宽按 HS-02；' : '') + '其余层级靠字号、字重和细线', modules.map((x) => x.hit).concat(modules.length ? [] : [titles[0]])),
     'scenario#Visual References': ok((scaleCount > 1 ? '字阶随内容量取档且比例不变' : '全稿同一字阶') + '；结论固定在标题位' + (hasSource ? '，来源放页脚' : '') + '；圆角统一按 HS-03；' + (has(/^hdr-tag$/) ? '页头标签与进度线' : '页头进度线') + '作全稿母题', [{ slideId: first.slideId, elementIds: ['title'] }, find(/^hdr-progress$/)].filter(Boolean)),
     'scenario#Color Palette Reference': ok('用九组汇报配色的' + named + '：主色 ' + colours.primary + ' 承担页头、结构和重点，辅色 ' + colours.secondary + (secondaryUses.length ? ' 用于' + secondaryUses.join('、') : ' 本稿只作点缀') + (judged ? '，跳色 ' + colours.pop + ' 只给判断类结论' : '，跳色本稿未用') + '，按 HS-04', [find(/^hdr-progress$/) || { slideId: first.slideId, elementIds: ['title'] }])
-  } };
+  };
+  const photo = (() => { for (const s of slides) { const e = s.elements.find((x) => x.type === 'image'); if (e) return { slideId: s.slideId, elementIds: [e.id] }; } return null; })();
+  const motif = find(/^hdr-progress$/) || find(/^hdr-tag$/), figure = find(/-tile-1$/) || find(/^m-cp-after$/) || find(/^kpi/);
+  const skip = (reason) => ({ status: 'not-applicable', reason });
+  const bundled = {
+    'general#内容真实': original['general#Requirements'],
+    'general#读者与主线': ok('每页写明读者任务，标题陈述本页结论，连起来是全稿主线', titles),
+    'general#版面底线': ok('模块按内容取高，内容不足时整组居中；文字、形状、表格均可编辑，溢出与叠压由 make 程序检查', titles),
+    'general#严禁': ok('正文不放进普通卡片，无阴影、3D 和渐变文字' + (hasSource ? '，页脚只放来源与页码' : ''), [{ slideId: first.slideId, elementIds: ['title', ...(first.elements.some((e) => e.id === 'src') ? ['src'] : [])] }]),
+    'scenario#结论先行': original['scenario#Clear and direct content; no empty talk'],
+    'scenario#关系画出来': original['scenario#Visualize information with structural diagrams'],
+    'scenario#数据呈现': hasFigures && figure ? ok((has(/^m-cp-after$/) ? '目标与实际成对比较，' : '') + '数值、单位、名称成组，并列指标同一层级', [figure]) : skip('本稿没有可成组的数据'),
+    'scenario#版式与模块': ok((modules.map((x) => x.how).join('、') || '模块') + '承担主视觉' + (parallel ? '，并列项等宽' : '') + '，正文层级靠字号、字重和细线', modules.map((x) => x.hit).concat(modules.length ? [] : [titles[0]])),
+    'scenario#全稿统一': ok((scaleCount > 1 ? '字阶随内容量取档且比例不变' : '全稿同一字阶') + '；结论固定在标题位' + (hasSource ? '，来源放页脚' : '') + '；色块与照片共用一种圆角', [{ slideId: first.slideId, elementIds: ['title'] }, motif].filter(Boolean)),
+    'scenario#配色': ok('用九组汇报配色的' + named + '：主色 ' + colours.primary + ' 承担页头、结构和重点，辅色 ' + colours.secondary + (secondaryUses.length ? ' 用于' + secondaryUses.join('、') : ' 本稿只作点缀') + (judged ? '，跳色 ' + colours.pop + ' 只给判断类结论' : '，跳色本稿未用'), [motif || titles[0]]),
+    'scenario#图片': photo ? ok('照片按版面画框后裁切填满，说明紧靠对应照片', [photo]) : skip('材料没有照片'),
+    'scenario#加分做法': motif ? ok((has(/^hdr-tag$/) ? '页头标签与进度线' : '页头进度线') + '作全稿母题', [motif]) : skip('本稿没有全稿母题'),
+  };
+  deck.contentPlan.ruleChecklist = { scenario: 'management-report', items: rulesProvider() === 'original' ? original : bundled };
   return deck.contentPlan.ruleChecklist;
 }

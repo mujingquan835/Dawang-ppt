@@ -37,3 +37,7 @@ The active authoring entry now reads bundled Dawang-PPT production rules from `r
 ## Sharing preview correction (2026-10-27, revision 1)
 
 The previous sharing preview substituted shortened rule documents and did not preserve the complete authoring-rule behavior. Revision `v0.2.0-preview.20261027.1` restores the complete pinned rule reader, section dispositions and original reference fingerprint; presentation terminology is normalized without replacing the underlying rules. Version-matched original documents remain an external prerequisite and are not redistributed without confirmed permission. Earlier statements that no external references were required apply only to the superseded, non-equivalent preview. Historical short drafts are archived and excluded from the skill package.
+
+## Bundled report rules (tapwang-ppt branch, 2026-11-12)
+
+The default authoring rules are now `skills/dawang-ppt/references/rules/`, written independently by the Dawang-PPT maintainer for work reports, performance reviews and retrospectives. They do not copy, translate or paraphrase the external reference documents. The external rule reader is kept as an optional provider (`DAWANG_PPT_RULES_PROVIDER=original`) that reads only a user's own local installation; its text is still not redistributed.
