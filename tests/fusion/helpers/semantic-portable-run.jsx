@@ -31,7 +31,7 @@ try {
  const edited=await offline.evaluate(()=>window.__fusionEditor.getProject());assert(checkCoverage(edited).some(i=>i.kind==='bound-content-needs-reconciliation'));
  await offline.evaluate(()=>window.__fusionEditor.undo());assert.deepEqual(checkCoverage(await offline.evaluate(()=>window.__fusionEditor.getProject())),[]);
  await offline.evaluate(()=>window.__fusionEditor.redo());
- await offline.locator('#deck > .active [data-fusion-element="ea"]').fill('人工修改核对步骤（二）');
+ await offline.locator('#deck > .active [data-fusion-element="ea"]').dblclick();await offline.locator('#deck > .active [data-fusion-element="ea"]').fill('人工修改核对步骤（二）');
  const changed=await offline.evaluate(()=>window.__fusionEditor.serializeHtml());const snapshot=extractPortableProject(changed);assert.equal(snapshot.slides[0].elements[0].text,'人工修改核对步骤（二）');assert.deepEqual(snapshot.contentPlan.slides[0].regions,project.contentPlan.slides[0].regions);
  fs.writeFileSync(path.join(dir,'edited.html'),changed);await offline.goto(pathToFileURL(path.join(dir,'edited.html')).href);await offline.waitForFunction(()=>window.__fusionEditor);await offline.evaluate(()=>window.__fusionEditor.ready());
  assert.equal(await offline.locator('#deck > .active [data-fusion-element="ea"]').innerText(),'人工修改核对步骤（二）');

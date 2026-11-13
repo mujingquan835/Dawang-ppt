@@ -6,7 +6,7 @@ async function measureProject(url,project,{chrome='/Applications/Google Chrome.a
  const browser=injectedPage?null:await chromium.launch({executablePath:chrome,headless:true});
  try{
   const page=injectedPage||await browser.newPage({viewport}),errors=[];const onError=e=>errors.push(e.message);page.on('pageerror',onError);
-  if(url)await page.goto(url);await page.waitForFunction(()=>window.__fusionEditor&&window.__renderRuntimeSlide);await page.evaluate(()=>window.__fusionEditor.ready());
+  if(url)await page.goto(url);await page.waitForFunction(()=>window.__fusionEditor&&window.__getVisibleSlides);await page.evaluate(()=>window.__fusionEditor.ready());
   const report={revision:project.revision,pages:[],browserErrors:errors,coverageIssues:checkCoverage(project),aestheticAcceptance:'requires-human-review',readiness:{ready:false},finiteBounds:false};
   const visible=project.editorState.slideOrder.filter(id=>!project.editorState.deletedSlides.includes(id)&&!project.editorState.skippedSlides.includes(id));
   for(const id of visible.filter(id=>!slideIds||slideIds.includes(id))){
@@ -14,7 +14,7 @@ async function measureProject(url,project,{chrome='/Applications/Google Chrome.a
    try{readiness=await prepareSlideForExport(page,id,{timeout:readinessTimeout});}
    catch(error){report.pages.push({slideId:id,elements:[],issues:error.readiness?.issues||[{kind:'layout-not-ready',message:error.message}],readiness:error.readiness||{ready:false},finiteBounds:false});continue;}
    const result=await page.evaluate(id=>{
-    const slide=[...document.querySelectorAll('#deck > .slide')].find(s=>s.dataset.vmSlideId===id),root=slide.querySelector('.fusion-root,.imported-theme-root')||slide;
+    const slide=[...document.querySelectorAll('#deck > .slide')].find(s=>s.dataset.slideId===id),root=slide.querySelector('.fusion-root,.imported-theme-root')||slide;
     const box=root.getBoundingClientRect(),scale=box.width/1920,issues=[],elements=[];
     for(const el of root.querySelectorAll('[data-fusion-element]')){
      const r=el.getBoundingClientRect(),bounds=[(r.x-box.x)/scale,(r.y-box.y)/scale,r.width/scale,r.height/scale],type=el.dataset.elementType;

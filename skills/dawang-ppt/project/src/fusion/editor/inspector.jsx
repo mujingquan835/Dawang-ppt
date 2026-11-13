@@ -18,7 +18,7 @@ function mountInspector(panel, selection, api) {
   box.id = "fusion-inspector";
   box.dataset.selection = selection.slideId + "/" + selection.elementId;
   if (restoreFocus !== null) queueMicrotask(() => { if (box.isConnected) focusables(box)[restoreFocus]?.focus(); });
-  box.style.cssText = "display:grid;gap:16px;padding-top:12px;font:500 13px/1.4 var(--sans-zh);color:var(--pp-fg)";
+  box.style.cssText = "display:grid;gap:16px;padding-top:12px;font:500 13px/1.4 var(--ui-font);color:var(--ui-fg)";
   panel.append(box);
   let container = box;
   const section = (id, title, open = false) => {
@@ -42,7 +42,7 @@ function mountInspector(panel, selection, api) {
   if (drafted.length) {
     const note = document.createElement("div");
     note.id = "fusion-drafted-note";
-    note.style.cssText = "padding:10px 12px;border-left:3px solid #C9A227;background:rgba(201,162,39,.12);font:500 13px/1.5 var(--sans-zh);color:var(--pp-fg)";
+    note.style.cssText = "padding:10px 12px;border-left:3px solid #C9A227;background:rgba(201,162,39,.12);font:500 13px/1.5 var(--ui-font);color:var(--ui-fg)";
     const kinds = new Set(drafted.map((d) => d.kind));
     note.textContent = (kinds.has("drafted") ? "模型补写" : "制作时展开") + "，请核对：" + drafted.map((d) => d.text).join("；") + (drafted.some((d) => d.placeholder) ? "（XX 处填实际数字）" : "") + "。已写入本页演讲备注，投屏时不显示。";
     box.append(note);
@@ -50,7 +50,7 @@ function mountInspector(panel, selection, api) {
   const button = (label, fn) => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "preview-prop-choice fusion-action";
+    b.className = "deck-prop-choice fusion-action";
     b.textContent = label;
     b.onclick = fn;
     container.append(b);
@@ -58,7 +58,7 @@ function mountInspector(panel, selection, api) {
   };
   const field = (label, value, fn, type = "text") => {
     const row = document.createElement("label");
-    row.className = "preview-prop-row";
+    row.className = "deck-prop-row";
     const caption = document.createElement("span");
     caption.textContent = label;
     row.append(caption);
@@ -92,7 +92,7 @@ function mountInspector(panel, selection, api) {
   };
   const select = (label, value, options, fn) => {
     const row = document.createElement("label");
-    row.className = "preview-prop-row";
+    row.className = "deck-prop-row";
     const caption = document.createElement("span");
     caption.textContent = label;
     row.append(caption);
@@ -121,7 +121,7 @@ function mountInspector(panel, selection, api) {
   if (!document.getElementById("fusion-inspector-css")) {
     const css = document.createElement("style");
     css.id = "fusion-inspector-css";
-    css.textContent = "#fusion-inspector summary{cursor:pointer;font-weight:650;color:var(--pp-fg)}#fusion-inspector details{border-top:1px solid var(--pp-border);padding-top:12px}#fusion-inspector .fusion-action{width:100%;justify-content:center;min-height:36px;padding:8px 12px;font:500 12px/1.3 var(--sans-zh);border:1px solid var(--pp-border);border-radius:8px;background:var(--pp-chip);color:var(--pp-fg);cursor:pointer}#fusion-inspector .fusion-action:hover{background:var(--pp-blue-soft)}#fusion-inspector .fusion-input{height:38px;border:1px solid var(--pp-border);border-radius:8px;background:var(--pp-bg);color:var(--pp-fg);padding:0 10px;font:500 13px/1.3 var(--sans-zh)}#fusion-inspector select{height:38px;font:500 12px/1.3 var(--sans-zh);padding:0 28px 0 10px}#fusion-inspector .fusion-input:focus{outline:2px solid var(--pp-blue-soft);border-color:var(--pp-blue)}";
+    css.textContent = "#fusion-inspector summary{cursor:pointer;font-weight:650;color:var(--ui-fg)}#fusion-inspector details{border-top:1px solid var(--ui-border);padding-top:12px}#fusion-inspector .fusion-action{width:100%;justify-content:center;min-height:36px;padding:8px 12px;font:500 12px/1.3 var(--ui-font);border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-chip);color:var(--ui-fg);cursor:pointer}#fusion-inspector .fusion-action:hover{background:var(--ui-accent-soft)}#fusion-inspector .fusion-input{height:38px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-bg);color:var(--ui-fg);padding:0 10px;font:500 13px/1.3 var(--ui-font)}#fusion-inspector select{height:38px;font:500 12px/1.3 var(--ui-font);padding:0 28px 0 10px}#fusion-inspector .fusion-input:focus{outline:2px solid var(--ui-accent-soft);border-color:var(--ui-accent)}";
     document.head.append(css);
   }
   const group = select("选择范围", api.selectionMode(), [["group", "整组"], ["element", "子对象"]], (value) => {

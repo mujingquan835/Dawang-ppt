@@ -1,6 +1,6 @@
 // Shared browser snapshot: no imports/closures so it can be passed to page.evaluate.
 export function inspectReadinessInDom(slideId) {
- const slide=[...document.querySelectorAll('#deck > .slide')].find(s=>s.dataset.vmSlideId===slideId);
+ const slide=[...document.querySelectorAll('#deck > .slide')].find(s=>s.dataset.slideId===slideId);
  const root=slide?.querySelector('.fusion-root,.imported-theme-root')||slide;
  const rect=root?.getBoundingClientRect(),scale=(rect?.width||0)/1920,issues=[],warnings=[],strictFonts=['dawang-authored-v1','kimi-authored-v1'].includes(root?.dataset.authoringEngine);
  const finiteBounds=!!rect&&[rect.x,rect.y,rect.width,rect.height,scale].every(Number.isFinite)&&scale>0&&rect.height>0;
@@ -35,8 +35,8 @@ export async function waitForSlideReady(page,slideId,{timeout=10000}={}){
 }
 export async function screenshotSlide(page,slideId,file){
  await waitForSlideReady(page,slideId);
- let locator=page.locator(`#deck > [data-vm-slide-id="${slideId}"] .fusion-root,#deck > [data-vm-slide-id="${slideId}"] .imported-theme-root`).first();
- if(!await locator.count())locator=page.locator(`#deck > [data-vm-slide-id="${slideId}"]`);
+ let locator=page.locator(`#deck > [data-slide-id="${slideId}"] .fusion-root,#deck > [data-slide-id="${slideId}"] .imported-theme-root`).first();
+ if(!await locator.count())locator=page.locator(`#deck > [data-slide-id="${slideId}"]`);
  const viewport=page.viewportSize(),token='qa-'+crypto.randomUUID();
  try{
   await page.setViewportSize({width:1920,height:1080});

@@ -33,8 +33,8 @@ try {
   });
   assert.equal(await page.evaluate(() => window.__fusionEditor.getProject().slides[0].objects[0].data.nodes[0].label), "步骤 1");
   const untouched = await page.evaluate(() => JSON.stringify(window.__fusionEditor.getProject().slides[0]));
-  await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').fill("浏览器节点修改");
-  await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/shape"]').click({ position: { x: 5, y: 5 } });
+  await page.locator('#deck [data-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').dblclick();await page.locator('#deck [data-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').fill("浏览器节点修改");
+  await page.locator('#deck [data-slide-id="theme13-process"] [data-fusion-element="process/node/n0/shape"]').click({ position: { x: 5, y: 5 } });
   await page.getByRole("button", { name: "添加节点", exact: true }).click();
   assert.equal(await page.evaluate(() => window.__fusionEditor.getProject().slides[2].objects[0].data.nodes.length), 4);
   await page.evaluate(() => window.__fusionEditor.apply({ slideId: "theme13-process", objectId: "process", type: "object-geometry", bounds: [180, 310, 1500, 600] }));
@@ -46,7 +46,7 @@ try {
   await page.reload();
   await page.waitForFunction(() => window.__fusionEditor);
   await page.evaluate(() => window.go(2, { animate: false, force: true }));
-  assert.equal(await page.locator('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').textContent(), "浏览器节点修改");
+  assert.equal(await page.locator('#deck [data-slide-id="theme13-process"] [data-fusion-element="process/node/n0/label"]').textContent(), "浏览器节点修改");
   const saved = loadProject(pf);
   assert.equal(saved.slides[2].objects[0].data.nodes.length, 4);
   assert.deepEqual(saved.slides[2].objects[0].bounds, [180, 310, 1500, 600]);

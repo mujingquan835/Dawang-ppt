@@ -18,26 +18,24 @@ import { mountInspector } from "./inspector.jsx";
 import { collectSlideInDom } from "../export/collect.mjs";
 import { composeEditablePptx } from "../export/pptx-core.mjs";
 import { slideNotes } from "../authoring/drafted.mjs";
+import { mountDeckRuntime } from "../shell/runtime.mjs";
 const seed = document.getElementById("fusion-project");
 if (seed) {
+  const runtime = mountDeckRuntime({ onOrderChange: (next) => reorder(next), status: (text) => status(text) });
   let saveControls = null;
   const saveKey = () => { const p = sync(); return JSON.stringify([p.slides,p.contentPlan,p.media,p.editorState]); };
   document.body.classList.add('fusion-editor');
   const syncEditorMode = () => document.body.classList.toggle('fusion-composition-active',!!document.querySelector('#deck > .fusion-slide.active'));
   syncEditorMode();
-  // Selected element properties precede the optional full-deck font controls.
-  const propsField = document.getElementById('preview-props-field');
-  document.getElementById('preview-typography')?.before(propsField);
   let scheduleDraft = function() {
     saveControls?.changed();
     clearTimeout(draftTimer);
     draftTimer = setTimeout(() => persistDraft().catch((error) => status("本地草稿保存失败，当前内容仍在页面中：" + error.message)), 100);
   }, sync = function() {
-    const state = window.__deckViewModel?.getState();
-    if (state) project = mergeEditorState(project, state, { bump: false });
+    project = mergeEditorState(project, { ...project.editorState.legacy, ...runtime.orderState() }, { bump: false });
     for (const section of sections()) {
       if (!section.classList.contains("active")) continue;
-      const slide = project.slides.find((s) => s.slideId === section.dataset.vmSlideId);
+      const slide = project.slides.find((s) => s.slideId === section.dataset.slideId);
       if (!slide) continue;
       for (const e of materializeElements(slide, project)) {
         if (e.type !== "text") continue;
@@ -62,11 +60,11 @@ if (seed) {
     if (!el) {
       el = document.createElement("div");
       el.id = "fusion-status";
-      document.getElementById("preview-panel")?.append(el);
+      document.getElementById("deck-panel")?.prepend(el);
     }
     el.textContent = text;
   }, redraw = function(id) {
-    const slide = project.slides.find((s) => s.slideId === id), el = sections().find((el2) => el2.dataset.vmSlideId === id);
+    const slide = project.slides.find((s) => s.slideId === id), el = sections().find((el2) => el2.dataset.slideId === id);
     if (!slide || !el) return;
     let root = roots.get(el);
     if (!root) {
@@ -75,9 +73,8 @@ if (seed) {
     }
     flushSync(() => root.render(<SceneRoot slide={slide} project={project} />));
     syncCompositionTextState(project);
-    window.__replaceEditableTextState?.(project.editorState.legacy.text);
-    window.__initEditableText?.(el);
-    window.__markOverviewThumbDirty?.(el);
+    runtime.initEditable(el);
+    runtime.refreshThumb(el);
     refreshSelection();
   }, restore = function(snapshot) {
     if(exportBusy)return false;
@@ -87,10 +84,9 @@ if (seed) {
       const previousSelection = selected;
       project = structuredClone(snapshot);
       project.revision = savedRevision;
-      applySnapshot(project.editorState.legacy);
+      applySnapshot(project.editorState);
       selected = previousSelection;
       for (const s of project.slides) if (s.mode === "composition") redraw(s.slideId);
-      window.__deckViewModel?.persist();
       scheduleDraft();
     } finally {
       restoring = false;
@@ -115,10 +111,6 @@ if (seed) {
     }
     if (JSON.stringify([before.slides,before.contentPlan.nodes,before.media.entries]) === JSON.stringify([r.project.slides,r.project.contentPlan.nodes,r.project.media.entries])) return {...r,project};
     project = r.project;
-    if (command.type === 'style' && 'fontFamily' in (command.style || {})) {
-      window.__deckViewModel?.setTypography?.({mode:'individual'});
-      project.editorState.legacy = window.__deckViewModel.getState();
-    }
     redraw(command.slideId);
     // Repeated nudges of the same selection within a second share one undo step.
     const now = Date.now();
@@ -126,36 +118,18 @@ if (seed) {
       lastMerge.at = now;
       redoSnapshots = [];
     } else {
-      window.__dashiUndo.push({ label: "组合对象修改", undo: () => restore(before) });
+      window.__deckUndo.push({ label: "组合对象修改", undo: () => restore(before) });
       lastMerge = options.mergeKey ? { key: options.mergeKey, at: now } : null;
     }
-    window.__deckViewModel?.persist();
     scheduleDraft();
     return r;
   }, applySnapshot = function(state, currentIndex) {
-    const vm = window.__deckViewModel;
-    Object.assign(vm.model.state, state);
-    window.__replaceEditableTextState?.(state.text || {});
-    for (const [id, props] of Object.entries(state.props || {})) {
-      vm.setProps(id, props);
-      const el = [...document.querySelectorAll("#deck > .slide")].find((e) => e.dataset.vmSlideId === id);
-      if (el) window.__renderRuntimeSlide?.(el, props, { trusted: true });
-    }
-    vm.setTypography?.(state.typography || {});
-    vm.setSlideOrder(state.slideOrder || []);
-    vm.setSkippedSlides(state.skippedSlides || []);
-    vm.setDeletedSlides(state.deletedSlides || []);
-    for (const id of state.slideOrder || []) {
-      const el = [...document.querySelectorAll("#deck > .slide")].find((e) => e.dataset.vmSlideId === id);
-      if (el) document.getElementById("deck").append(el);
-    }
-    window.__refreshFusionCatalog?.();
-    window.__initEditableText?.(document.getElementById("deck"));
+    runtime.applyOrder({ slideOrder: state.slideOrder || [], skippedSlides: state.skippedSlides || [], deletedSlides: state.deletedSlides || [] });
     if (currentIndex !== void 0) window.go(currentIndex, { animate: false, force: true });
   }, refreshSelection = function() {
     document.querySelectorAll("#deck .fusion-selection").forEach((e) => e.remove());
     if (!selected) return;
-    const slide = project.slides.find((s) => s.slideId === selected.slideId), el = sections().find((s) => s.dataset.vmSlideId === selected.slideId);
+    const slide = project.slides.find((s) => s.slideId === selected.slideId), el = sections().find((s) => s.dataset.slideId === selected.slideId);
     if (!slide || !el) return;
     const element = materializeElements(slide, project).find((e) => e.id === selected.elementId), object = slide.objects?.find((o) => o.objectId === element?.parentId);
     if (!element) return;
@@ -166,26 +140,26 @@ if (seed) {
     const overlay = document.createElement("div");
     overlay.className = "fusion-selection";
     overlay.dataset.editableSkip = "true";
-    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;outline:${u(2)}px solid var(--pp-blue,#0e9f6e);pointer-events:none;z-index:10000`;
+    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;outline:${u(2)}px solid var(--ui-accent,#0e9f6e);pointer-events:none;z-index:10000`;
     for (const dir of HANDLES) {
       const handle = document.createElement("button");
       handle.type = "button";
       handle.setAttribute("aria-label", "缩放选中对象（" + dir + "）");
       handle.dataset.fusionResize = dir;
       const size = u(10), x = dir.includes("w") ? 0 : dir.includes("e") ? 100 : 50, y = dir.includes("n") ? 0 : dir.includes("s") ? 100 : 50;
-      handle.style.cssText = `position:absolute;left:calc(${x}% - ${size / 2}px);top:calc(${y}% - ${size / 2}px);width:${size}px;height:${size}px;padding:0;cursor:${HANDLE_CURSORS[dir]};pointer-events:auto;background:#fff;border:${u(1.5)}px solid var(--pp-blue,#0e9f6e);border-radius:${u(2)}px`;
+      handle.style.cssText = `position:absolute;left:calc(${x}% - ${size / 2}px);top:calc(${y}% - ${size / 2}px);width:${size}px;height:${size}px;padding:0;cursor:${HANDLE_CURSORS[dir]};pointer-events:auto;background:#fff;border:${u(1.5)}px solid var(--ui-accent,#0e9f6e);border-radius:${u(2)}px`;
       overlay.append(handle);
     }
     root.append(overlay);
-    const field = document.getElementById("preview-props-field");
+    const field = document.getElementById("deck-props-field");
     field.classList.remove("is-hidden");
-    mountInspector(document.getElementById("preview-props"), selected, api);
+    mountInspector(document.getElementById("deck-props"), selected, api);
   };
   function clearSelection() {
     selected = null;
     document.querySelectorAll("#deck .fusion-selection").forEach((e) => e.remove());
     document.getElementById("fusion-inspector")?.remove();
-    const field = document.getElementById("preview-props-field"), panel = document.getElementById("preview-props");
+    const field = document.getElementById("deck-props-field"), panel = document.getElementById("deck-props");
     if (field && panel && !panel.children.length) field.classList.add("is-hidden");
   }
   let cropEditor = null, exportBusy=false, lastMerge = null;
@@ -200,13 +174,13 @@ if (seed) {
     }).then(() => draftStore.put(record));
     try{await draftQueue;}catch(error){draftStore=null;status("本地草稿不可用，仍可下载HTML："+error.message);}
   }
-  const stockUndo = window.__dashiUndo.undo.bind(window.__dashiUndo), stockPush = window.__dashiUndo.push.bind(window.__dashiUndo);
+  const stockUndo = window.__deckUndo.undo.bind(window.__deckUndo), stockPush = window.__deckUndo.push.bind(window.__deckUndo);
   const sections = () => [...document.querySelectorAll("#deck > .fusion-slide")];
-  window.__dashiUndo.push = (action) => {
+  window.__deckUndo.push = (action) => {
     if (!restoring) redoSnapshots = [];
     stockPush(action);
   };
-  window.__dashiUndo.undo = () => {
+  window.__deckUndo.undo = () => {
     if(exportBusy)return false;
     lastMerge = null;
     const after = sync();
@@ -237,7 +211,6 @@ if (seed) {
     if (result.mediaMap) {
       const reconcile = (value) => typeof value === "string" ? result.mediaMap[value] || value : Array.isArray(value) ? value.map(reconcile) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, reconcile(v)])) : value;
       project = reconcile(project);
-      window.__deckViewModel.model.state = reconcile(window.__deckViewModel.model.state);
     }
     savedRevision = result.revision;
     project.revision = savedRevision;
@@ -261,7 +234,7 @@ if (seed) {
     if(!window.__canEditDeck?.())return;
     const p=sync(),slide=p.slides.find(s=>s.slideId===selection.slideId);
     const element=slide&&materializeElements(slide,p).find(e=>e.id===selection.elementId);
-    const root=sections().find(s=>s.dataset.vmSlideId===selection.slideId)?.querySelector('.fusion-root');
+    const root=sections().find(s=>s.dataset.slideId===selection.slideId)?.querySelector('.fusion-root');
     const node=root&&[...root.querySelectorAll('[data-fusion-element]')].find(e=>e.dataset.fusionElement===selection.elementId);
     const image=node?.tagName==='IMG'?node:node?.querySelector('img');
     if(element?.type!=='image'||!image?.complete||!image.naturalWidth){status('图片尚未加载完成，请稍后重试。');return;}
@@ -272,7 +245,7 @@ if (seed) {
     await ready;
     sync();
     await persistDraft();
-  }, getProject: sync, apply, save: (options={}) => (location.protocol==='file:'||document.getElementById('portable-project-meta'))&&!options.fileHandle ? saveControls.run() : save(options), undo: () => window.__dashiUndo.undo(), redo, selectionMode: (value) => {
+  }, getProject: sync, apply, save: (options={}) => (location.protocol==='file:'||document.getElementById('portable-project-meta'))&&!options.fileHandle ? saveControls.run() : save(options), undo: () => window.__deckUndo.undo(), redo, selectionMode: (value) => {
     if (value) selectionMode = value;
     return selectionMode;
   }, refreshSelection, acceptRevision: (r) => {
@@ -288,7 +261,6 @@ if (seed) {
     if(typeof onSnapshot === 'function')onSnapshot(saveKey(),p.revision);
     const usedFontFamilies=collectUsedFontFamilies(document,p);
     const clone=document.documentElement.cloneNode(true);
-    await window.__preparePortableClone?.(clone);
     const html=await serializePortableHtml({document:clone,project:p,baseRevision:savedRevision,usedFontFamilies});
     return html;
   }
@@ -314,7 +286,6 @@ if (seed) {
   }
   api.serializeHtml=portableHtml;
   window.__exportDeckHtml=()=>withSnapshot(downloadHtml);
-  document.getElementById('preview-export-image')?.addEventListener('click',()=>window.__exportDeckImage());
   saveControls=mountSaveControls({portable:portable(),getKey:saveKey,save,validateSource:async handle=>{
     const file=await handle.getFile();
     if(location.protocol==='file:' && file.name!==htmlFilename())throw Error('请选择当前打开的原HTML：'+htmlFilename());
@@ -323,7 +294,7 @@ if (seed) {
   }});
   mountHistoryControls();
   function mountHistoryControls(){
-    const actions=document.querySelector('#deck-topbar .pp-topbar-actions');
+    const actions=document.querySelector('#deck-topbar .deck-actions');
     if(!actions)return;
     document.getElementById('fusion-history-controls')?.remove();
     const box=document.createElement('div');
@@ -332,7 +303,7 @@ if (seed) {
     const make=(id,label,title,fn)=>{
       const b=document.createElement('button');
       b.type='button';b.id=id;b.textContent=label;b.title=title;b.setAttribute('aria-label',label);
-      b.style.cssText='height:34px;padding:0 10px;border:1px solid var(--pp-border);border-radius:6px;cursor:pointer;background:var(--pp-chip);color:var(--pp-fg);font:500 13px/1 var(--sans-zh);white-space:nowrap';
+      b.className='deck-button';
       b.addEventListener('click',()=>{if(!fn())status(id==='fusion-undo'?'没有可撤销的操作。':'没有可重做的操作。');});
       box.append(b);
     };
@@ -369,8 +340,8 @@ if (seed) {
         await document.fonts.ready;
         await Promise.all([...el.querySelectorAll("img")].map((img) => img.decode().catch(() => {
         })));
-        await waitReady(el.dataset.vmSlideId);
-        const collected = collectSlideInDom(el.dataset.vmSlideId);
+        await waitReady(el.dataset.slideId);
+        const collected = collectSlideInDom(el.dataset.slideId);
         for (const o of collected.objects) if (o.type === "image" && !o.src.startsWith("data:")) {
           const blob = await (await fetch(o.src)).blob();
           o.src = await new Promise((resolve) => {
@@ -379,7 +350,7 @@ if (seed) {
             f.readAsDataURL(blob);
           });
         }
-        const notes = slideNotes(p, el.dataset.vmSlideId);
+        const notes = slideNotes(p, el.dataset.slideId);
         if (notes) collected.notes = notes;
         collection.slides.push(collected);
       }
@@ -420,11 +391,11 @@ if (seed) {
   window.__exportDeckPptx = () => withSnapshot(()=>portable()?window.__exportDeckPptxInBrowser():exportFile());
   window.__exportDeckPdf = () => withSnapshot(async()=>{
     if(!portable())return exportFile(true);
-    for(const [index,el] of window.__getVisibleSlides().entries()){window.go(index,{animate:false,force:true});await waitReady(el.dataset.vmSlideId);}
+    for(const [index,el] of window.__getVisibleSlides().entries()){window.go(index,{animate:false,force:true});await waitReady(el.dataset.slideId);}
     return window.__exportDeckPdfInBrowser();
   });
   window.__exportDeckImage = () => withSnapshot(async()=>{
-    const el=window.__getVisibleSlides()[window.__currentSlideIndex||0];await waitReady(el.dataset.vmSlideId);
+    const el=window.__getVisibleSlides()[window.__currentSlideIndex||0];await waitReady(el.dataset.slideId);
     if(!window.htmlToImage){const script=document.createElement('script');script.src='assets/vendor/html-to-image.js';await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;document.head.append(script);});}
     const root=el.querySelector('.fusion-root,.imported-theme-root')||el;
     const blob=await window.htmlToImage.toBlob(root,{width:1920,height:1080,pixelRatio:1,style:{transform:'none',left:'0',top:'0'},filter:node=>!node.classList?.contains('fusion-selection')&&!node.classList?.contains('fusion-guide')&&!node.classList?.contains('fusion-crop-editor')});
@@ -478,9 +449,9 @@ if (seed) {
     if(ev.target.closest?.('.fusion-crop-editor,.fusion-selection'))return;
     const el = ev.target.closest?.("#deck [data-fusion-element]");
     // Empty slide space has no pointer target of its own, so clicks there reach body.
-    if (!el && selected && !ev.target.closest?.('#preview-panel,#deck-topbar,[role="dialog"],[role="menu"]')) return clearSelection();
+    if (!el && selected && !ev.target.closest?.('#deck-panel,#deck-rail,#deck-topbar,[role="dialog"],[role="menu"]')) return clearSelection();
     if (!el || !window.__canEditDeck?.()) return;
-    selected = { slideId: el.closest(".slide").dataset.vmSlideId, elementId: el.dataset.fusionElement };
+    selected = { slideId: el.closest(".slide").dataset.slideId, elementId: el.dataset.fusionElement };
     refreshSelection();
   });
   let drag = null, suppressClick = false;
@@ -514,11 +485,11 @@ if (seed) {
     const resize=ev.target.closest?.('[data-fusion-resize]');
     // Text drags like any object; only a text already in edit mode keeps native caret behaviour.
     if(ev.button!==0 || !window.__canEditDeck?.() || (!resize&&(!target || isEditingText(target))))return;
-    if(target&&!resize)selected={slideId:target.closest('.slide').dataset.vmSlideId,elementId:target.dataset.fusionElement};
+    if(target&&!resize)selected={slideId:target.closest('.slide').dataset.slideId,elementId:target.dataset.fusionElement};
     if(!selected)return;
     const g=selectionGeometry(sync(),selected);
     if(!g)return;
-    const root=sections().find(el=>el.dataset.vmSlideId===selected.slideId).querySelector('.fusion-root');
+    const root=sections().find(el=>el.dataset.slideId===selected.slideId).querySelector('.fusion-root');
     const scale=root.getBoundingClientRect().width/1920;
     if(!Number.isFinite(scale)||scale<=0)return;
     if(!resize)refreshSelection();
@@ -597,7 +568,7 @@ if (seed) {
     const step=ARROWS[ev.key];
     if(!step||!selected||drag||cropEditor||ev.metaKey||ev.ctrlKey||ev.altKey||typing(ev.target)||!window.__canEditDeck?.())return;
     const active=document.querySelector('#deck > .fusion-slide.active');
-    if(active?.dataset.vmSlideId!==selected.slideId)return;
+    if(active?.dataset.slideId!==selected.slideId)return;
     // Arrows nudge the selection instead of turning the page.
     ev.preventDefault();ev.stopImmediatePropagation();
     const g=selectionGeometry(sync(),selected);
@@ -607,10 +578,19 @@ if (seed) {
       {mergeKey:'nudge:'+selected.slideId+'/'+(g.object?.objectId||selected.elementId)});
   },true);
   addEventListener('blur',cancelDrag);
-  addEventListener("swiss-slide-change", () => {
+  addEventListener("deck-slide-change", () => {
     cropEditor?.cancel();
     cancelDrag();
     syncEditorMode();
     clearSelection();
   });
+  // Page list actions (move, skip, delete) are edits like any other: undoable and saved.
+  function reorder(next) {
+    if (exportBusy) return;
+    const before = sync();
+    runtime.applyOrder(next);
+    sync();
+    window.__deckUndo.push({ label: "页面顺序", undo: () => restore(before) });
+    scheduleDraft();
+  }
 }

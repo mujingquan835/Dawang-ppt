@@ -110,7 +110,7 @@ test('render:authored stages local media, preserves sources, rerenders saved pro
   assert(p.sources.entries.some(e => e.kind === 'authored-input' && e.sha256));
   assert(fs.existsSync(path.join(dir, 'deck', p.media.entries.find(e => e.mediaId === 'hero').src)));
   assert.equal(p.slides[0].elements[1].fit, 'cover');
-  assert.match(fs.readFileSync(html, 'utf8'), /fusion-composition/);
+  assert.match(fs.readFileSync(html, 'utf8'), /class="slide fusion-slide"/);
   const before = fs.readFileSync(projectFile, 'utf8');
   const second = run('render:authored', file, html);
   assert.notEqual(second.status, 0);

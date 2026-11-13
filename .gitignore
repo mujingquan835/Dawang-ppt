@@ -31,3 +31,6 @@ node_modules
 
 # Local-only Kimi source documents (metadata and original adaptations remain public)
 skills/dawang-ppt/references/kimi/
+
+# Built editor bundles (cached by source fingerprint)
+skills/dawang-ppt/project/dist/

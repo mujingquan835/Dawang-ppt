@@ -11,9 +11,6 @@ import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { THEME_PACK_OPTIONS } from "../src/options.jsx";
-import { composeDeck } from "../src/deckComposer.jsx";
-import { validateGoalSpec } from "./validate-goal-spec.mjs";
 import { createAuthoredProject } from "../src/fusion/authoring/create-project.mjs";
 import { importGoal } from "../src/fusion/project/import-goal.mjs";
 import { loadProject, saveProject, hashFile } from "../src/fusion/project/store.mjs";
@@ -130,9 +127,6 @@ async function main(args = process.argv.slice(2)) {
   if(mode==='rules:lock') {const flag=name=>args.includes(name)?args[args.indexOf(name)+1]:undefined;console.log(JSON.stringify(writeRulesLock({root:flag('--root')&&absolute(flag('--root')),label:flag('--label')}),null,2));return;}
   if(mode==='text:measure') {const m=await createLayoutMeasurer();try{const i=args.indexOf('--project'),p=i<0?null:loadProject(path.join(absolute(args[i+1]),'deck-project.json'));const specs=JSON.parse(fs.readFileSync(absolute(input),'utf8'));const results=[];for(const spec of specs)results.push(...await m.texts([spec],p?resolveSlideStyle(p.slides.find(s=>s.slideId===spec.slideId)||p.slides[0],p):undefined));console.log(JSON.stringify(results,null,2));}finally{await m.close();}return;}
   if (mode === "styles") { console.log(JSON.stringify(listAppearances(),null,2)); return; }
-  if (mode === "templates") {
-    console.log(JSON.stringify(Object.entries(THEME_PACK_OPTIONS).map(([key,s])=>({id:key,name:s.label||s.name,mode:"template"})),null,2)); return;
-  }
   if (mode === "styles:grid") {
     if (!input || !output) throw new Error('Usage: styles:grid <scenario> <output.html>');
     const options=buildStyleOptions({primary:input});
@@ -141,8 +135,8 @@ async function main(args = process.argv.slice(2)) {
     fs.writeFileSync(file.replace(/\.html$/i,'')+'.json',JSON.stringify(options,null,2));
     console.log(JSON.stringify({file,options}));return;
   }
-  if (!input) throw new Error("Usage: dawang <outline:check|outline:baseline|make|review:rules|publish:html|patch:project|rules:read|rules:checklist|render:authored|render:goal|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
-  if (["render:authored", "render:goal", "render:brief", "render:project"].includes(mode)) {
+  if (!input) throw new Error("Usage: dawang <outline:check|outline:baseline|make|review:rules|publish:html|patch:project|rules:read|rules:checklist|render:authored|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
+  if (["render:authored", "render:brief", "render:project"].includes(mode)) {
     if (!output) throw new Error("Output HTML path required");
     const file = absolute(input), outFile = absolute(output), dir2 = path.dirname(outFile), pf2 = path.join(dir2, "deck-project.json");
     if (mode === "render:project") {
@@ -160,22 +154,7 @@ async function main(args = process.argv.slice(2)) {
     const source = JSON.parse(fs.readFileSync(file, "utf8"));
     let project;
     if (mode === "render:authored") project = createAuthoredProject(source);
-    else if (mode === "render:brief") project = await createPlannedProjectFromBrief(source, {sourceDir:path.dirname(file)});
-    else {
-      const issues = validateGoalSpec(source);
-      if (issues.length) throw new Error(issues.join("\n"));
-      let state = null;
-      const fromFlag = args.indexOf("--from-html");
-      if (fromFlag >= 0) {
-        const text = fs.readFileSync(absolute(args[fromFlag + 1]), "utf8");
-        const block = /<script id="deck-view-model" type="application\/json">([\s\S]*?)<\/script>/.exec(text);
-        if (!block) throw new Error("Embedded original editor state missing");
-        state = JSON.parse(block[1]).state;
-        const textState = /<script id="embedded-text-state" type="application\/json">([\s\S]*?)<\/script>/.exec(text);
-        if (textState) state.text = { ...state.text, ...JSON.parse(textState[1]) };
-      }
-      project = importGoal({ ...composeDeck(source), audience: source.audience, goal: source.goal }, state);
-    }
+    else project = await createPlannedProjectFromBrief(source, {sourceDir:path.dirname(file)});
     if (mode === "render:authored") project.sources.entries.push({ sourceId: "authored-input:" + hashFile(file), kind: "authored-input", source: file, sha256: hashFile(file) });
     else project.sources.entries[0] = { sourceId: "goal", kind: "input", source: file, sha256: hashFile(file) };
     project = stageMedia(project, path.dirname(file), dir2);

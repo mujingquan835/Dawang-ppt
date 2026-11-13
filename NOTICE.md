@@ -41,3 +41,7 @@ The previous sharing preview substituted shortened rule documents and did not pr
 ## Bundled report rules (tapwang-ppt branch, 2026-11-12)
 
 The default authoring rules are now `skills/dawang-ppt/references/rules/`, written independently by the Dawang-PPT maintainer for work reports, performance reviews and retrospectives. They do not copy, translate or paraphrase the external reference documents. The external rule reader is kept as an optional provider (`DAWANG_PPT_RULES_PROVIDER=original`) that reads only a user's own local installation; its text is still not redistributed.
+
+## Own deck runtime (tapwang-ppt branch, 2026-11-12)
+
+The deck page, browser runtime (navigation, page list, presenting, text editing, undo, export menu, in-browser PDF) and preview-server helpers are now independently written in `skills/dawang-ppt/project/src/fusion/shell/`. The upstream editing shell (`template-swiss.html`), view-model, theme runtime and template themes, prebuilt theme bundles, legacy workflow scripts, demo assets, and the bundled copy of the upstream skill (`skills/dashiai-ppt`) have been removed from this branch, as has the historical `runtime/` prototype that drove them. Earlier versions of this repository were based on chuspeeism/dashi-ppt-skill (AGPL-3.0); this branch remains distributed under AGPL-3.0 and keeps that attribution. Open-licence fonts formerly shipped with the upstream template are no longer bundled; OPPO Sans 4.0 is shipped whole under its own licence in `skills/dawang-ppt/project/assets/fonts/`.

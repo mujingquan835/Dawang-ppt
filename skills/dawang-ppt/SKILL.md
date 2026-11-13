@@ -53,8 +53,12 @@ description: 制作、编辑和返工中文工作汇报类演示文稿（工作�
    - **字阶：** 板块高度贴合内容，不为铺满页面把色块、表格、流程拉高。同一行并排的板块：内容量接近的画成等高；一句话标签这类内容少得多的（自身高度不到这一行的 65%）按内容取高，上下居中。两种不同模块并排时分主次：标题里的数字或 `focus` 落在哪个模块，哪个模块占宽栏（约 53%–60%）；标题没提到时内容多的占宽栏；同类模块（两张表、两条流程）仍等宽。一页有两组数字色块时，含标题数字的一组保持原字号，另一组数字缩到约四分之三；标题都没提到时成果数字为主。页面有余量时整页提高一档字号（20、22、24、26，内容极少时 30），选放得下的最大一档，层级比例不变。放得下但偏空的页会自动试其他排法。返回的 `sparse`（内容太少）和 `loose`（上下留空超过四分之一，`make` 同样提醒 `page-body-loose`）列出仍然偏空的页，要合并页面或补内容，不直接交付。所有排法都放不下时才报错，这时按提示拆页或减少模块，用户指定过页数的先看能否精简模块。
    - **规则清单和定位句：** 组版后调用 `draftDeckClaims({deck,outline,palette,projectId})`，按实际放置的元素生成 `throughLine` 和 management-report 的规则清单（证据指向真实元素，不要手写元素编号）。生成的是草稿，要按成稿逐条核对 `how`，不成立的改掉；其他场景按 `rules:checklist` 写。
    - **大纲写法是结构信号，不是版面：** “导语：”“业务问题：”这类标签不印成句首前缀，转成模块标签；括号说明去掉括号做小字；箭头链写成流程。
-7. **生成与检查：** `make <authored.json> <用户命名.html> --screenshots <临时目录> --summary`。`make` 只接受声明了四项内容契约、同目录有 `content-baseline.json` 的新稿，否则以 `new-deck-contracts-required` 或 `content-baseline-file-missing` 拦下，不建工程。逐页实际看图，按 [复核清单](references/fusion/visual-review.md) 修正（局部修改用 `patch:project`）。新稿首次 `make` 会以 `rules-review-missing` 停下，然后进入独立复核。工程建好后没有经过 `patch:project` 或网页编辑时，可以用同一个 `projectId` 重跑 `make`；有人工修改或已正式发布时 `make` 会拒绝，防止覆盖。`ok:false` 时没有 `outFile`，表示 HTML 还没写出。
-8. **独立复核（同一轮内闭环）：** `review:rules <workspaceDir>`。有 fail 时不结束本轮、不向用户汇报“未通过/还不能交付”：按阻断问题（blockers）的理由一次改完（`patch:project`），能顺手改的审美建议同一次改掉，再运行一次 `review:rules`，共 2 轮。审美建议（advisories）不单独加轮次，随交付列出。涉及版式、精致度、结构图、视觉母题的 fail 必须重新构图（换布局、加结构图或母题、调整图片面积），并更新 `visualDecision.layout`；只改措辞、行距或字号不算修正。通过后 `publish:html <workspaceDir> <交付.html>`（见“独立复核”）。
+7. **生成与检查：** `make <authored.json> <用户命名.html> --screenshots <临时目录> --summary`。`make` 只接受声明了四项内容契约、同目录有 `content-baseline.json` 的新稿，否则以 `new-deck-contracts-required` 或 `content-baseline-file-missing` 拦下，不建工程。逐页实际看图，按 [复核清单](references/fusion/visual-review.md) 修正（局部修改用 `patch:project`）。新稿首次 `make` 会以 `rules-review-missing` 停下，然后进入独立复核。复核前发现问题可以用同一个 `projectId` 重跑 `make`（工程未经 `patch:project` 或网页编辑时）；复核后的修改一律用 `patch:project`。有人工修改或已正式发布时 `make` 会拒绝，防止覆盖。`ok:false` 时没有 `outFile`，表示 HTML 还没写出。
+8. **独立复核（同一轮内闭环）：** `review:rules <workspaceDir>`，按结果分三种情况：
+   - **通过，或只有审美建议（advisories）、没有阻断问题：** 立刻 `publish:html`，不再改页面（任何修改都要重新复核），审美建议原样写进交付回复，请用户决定。
+   - **有阻断问题（blockers）：** 只改阻断问题，用 `patch:project` 一次改完，再运行一次 `review:rules`，共 2 轮；审美建议不改。不要为修改重跑 `make`：`patch:project` 只让改动的页重新复核。
+   - **第 2 轮后仍有阻断：** 按“独立复核”一节输出审阅稿。
+   不向用户汇报“未通过/还不能交付”。阻断问题涉及版式、结构图、视觉母题时必须重新构图（换布局、加结构图或母题、调整图片面积），并更新 `visualDecision.layout`；只改措辞、行距或字号不算修正。通过后 `publish:html <workspaceDir> <交付.html>`（见“独立复核”）。
 9. **交付：** 只交付一个 HTML（见“交付与保存”）。回复开头依次写（关系缺口直接用 `outline:check` 的 `deliveryNote` 段落，只删不成立的条目，不改写成一句话摘要）：
    - **关系缺口**（未授权时）：挑最影响判断的几条，不用字段名，不压缩成“第 N 页缺 X”。每条单独成段，写清四件事：哪一页、材料里有什么、缺的关系用读者的问题说出来、补上后页面会变成什么。例如：“第 3 页，48 单算好还是差？材料只有实际数，没有目标或去年数，领导没法判断。给我目标值就行，比如目标 50 单，这页就能改成目标与实际对照。”最后加一句可以先按常见逻辑补上、用户再改。
    - **补写清单**（已授权时）：按 `publish:html` 结果的 `drafted` 逐页列出补写的实际文字和 `XX` 占位，不只写类别（写“第 3 页原因：客户需求分层不够细”，不写“第 3 页：原因分析”），请用户核对修改，并告诉用户编辑器侧栏和导出 PPTX 的演讲备注里也标了这些内容。
@@ -126,7 +130,7 @@ description: 制作、编辑和返工中文工作汇报类演示文稿（工作�
 
 - 新入口只约束 `make` 新建的稿件。旧工程不自动补声明，继续按原检查修改和发布。
 - 局部修改：`patch:project` 后 `publish:html`，保留稳定 ID 与历史；严禁删除工程重建覆盖人工修改。
-- ProjectV2：`render:project <deck-project.json> <index.html>`；历史 brief：`render:brief`；用户指定 dashi 原样模板：`templates` / `render:goal`（见 [旧主题与返工](references/legacy-and-revision.md)）。不承诺任意 HTML/PPTX 无损导入。
+- ProjectV2：`render:project <deck-project.json> <index.html>`；历史 brief：`render:brief`（返工细则见 [返工](references/legacy-and-revision.md)）。只支持组版页，旧模板页工程请用旧版本打开。不承诺任意 HTML/PPTX 无损导入。
 - 不支持原生数据图表、SmartArt、任意 SVG/动画；用文字、runs、图片、形状、线条和受控 vector 构建，不静默改成整页图片。
 
 `run.json` 记最新诊断，`runs.jsonl` 追加程序阶段计时；模型思考、平台等待与返工另记，无法区分时标未知。

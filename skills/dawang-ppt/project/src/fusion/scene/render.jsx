@@ -1,7 +1,6 @@
 import { VectorElement } from './vector.jsx';
 import React from "react";
 import { resolveStyle, resolveSlideStyle } from "../styles/registry.mjs";
-import { useSlideViewModel } from "../../view-model/context.jsx";
 import { materializeElements } from "./model.mjs";
 import { materializeElements as materializeElements2 } from "./model.mjs";
 import { cssFontStack } from "../styles/css-font.mjs";
@@ -33,12 +32,7 @@ function SceneElement({ element: e, styleDefinition: s }) {
   if (e.type === "line") return <svg {...props} style={{ ...st, overflow: "visible" }} viewBox={`0 0 ${w || 1} ${h || 1}`}><line x1={e.x1 ?? 0} y1={e.y1 ?? 0} x2={e.x2 ?? w} y2={e.y2 ?? h} stroke={e.style?.stroke || s.palette.accent} strokeWidth={e.style?.strokeWidth || 3} markerEnd={e.endArrow ? `url(#${markerId})` : ""} /><defs><marker id={markerId} markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="14" refX="14" refY="7" orient="auto" overflow="visible"><path d="M0,0 L16,7 L0,14 Z" fill={e.style?.stroke || s.palette.accent} /></marker></defs></svg>;
   return <div {...props} style={{ ...st, background: e.style?.fill || e.style?.background || "transparent", border: e.style?.stroke ? `${e.style.strokeWidth || 2}px solid ${e.style.stroke}` : void 0, borderRadius: e.style?.radius || 0 }} />;
 }
-function CompositionPage(props) {
-  const vm = useSlideViewModel();
-  return <section className="slide fusion-slide" data-layout="fusion-composition" data-vm-slide-id={vm.id} data-vm-slide-key={vm.key} data-vm-layout="fusion-composition" data-vm-index={vm.index} data-label={vm.label}><SceneRoot slide={props.fusionSlide} project={props.fusionProject} /></section>;
-}
 export {
-  CompositionPage,
   SceneElement,
   SceneRoot,
   materializeElements2 as materializeElements

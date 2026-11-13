@@ -11,7 +11,6 @@
     "qa": "node skills/dawang-ppt/scripts/dawang.mjs qa:project",
     "examples": "node examples/matrix.mjs",
     "test:fusion": "node --test tests/fusion/*.test.mjs tests/fusion/*.spec.mjs",
-    "historical:build": "node runtime/cli.mjs build",
     "export:pdf": "node skills/dawang-ppt/scripts/dawang.mjs export:pdf"
   },
   "dependencies": {

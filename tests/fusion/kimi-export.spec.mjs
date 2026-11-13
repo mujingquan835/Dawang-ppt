@@ -29,7 +29,7 @@ test('non-finite geometry and unsupported information produce a report-bearing e
 });
 test('DOM rich spans become one editable rich text object, not separately positioned fragments',async t=>{
  const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});t.after(()=>browser.close());const page=await browser.newPage();
- await page.setContent('<style>body{margin:0}.fusion-root{width:1920px;height:1080px}</style><div id="deck"><section class="slide" data-vm-slide-id="s"><div class="fusion-root"><div data-element-type="text" data-fusion-element="rich" style="font-size:40px;width:500px;height:180px"><span data-fusion-run="0">先看结构，</span><span data-fusion-run="1" style="color:#B6D8D1;font-weight:700">再剪辑</span></div></div></section></div>');
+ await page.setContent('<style>body{margin:0}.fusion-root{width:1920px;height:1080px}</style><div id="deck"><section class="slide" data-slide-id="s"><div class="fusion-root"><div data-element-type="text" data-fusion-element="rich" style="font-size:40px;width:500px;height:180px"><span data-fusion-run="0">先看结构，</span><span data-fusion-run="1" style="color:#B6D8D1;font-weight:700">再剪辑</span></div></div></section></div>');
  const result=await page.evaluate(collectSlideInDom,'s');const text=result.objects.filter(o=>o.type==='text');assert.equal(text.length,1);assert.equal(text[0].runs.length,2);assert.equal(text[0].runs[1].style.color.toUpperCase(),'#B6D8D1');
 });
 

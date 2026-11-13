@@ -4,29 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "layout:query": "node scripts/layout-query.mjs",
-    "theme:grid": "node scripts/build-theme-style-grid.mjs",
-    "inspect:layout": "node scripts/inspect-layout.mjs",
-    "media:stage": "node scripts/stage-media.mjs",
-    "props:safe": "node scripts/write-safe-props.mjs",
-    "goal:scaffold": "node scripts/goal-scaffold.mjs",
-    "goal:revise": "node scripts/revise-goal.mjs",
-    "validate:goal-spec": "node scripts/validate-goal-spec.mjs",
-    "render:goal": "tsx scripts/fusion-cli.jsx render:goal",
-    "preview:https": "node scripts/serve-preview-https.mjs",
     "preview:start": "tsx scripts/fusion-cli.jsx preview:start",
-    "validate:swiss": "node scripts/validate-swiss-deck.mjs",
-    "validate:goal-copy": "node scripts/validate-goal-copy.mjs",
     "export:pptx": "tsx scripts/fusion-cli.jsx export:pptx",
     "export:pdf": "tsx scripts/fusion-cli.jsx export:pdf",
-    "render:brief": "tsx scripts/fusion-cli.jsx render:brief",
     "render:project": "tsx scripts/fusion-cli.jsx render:project",
     "qa:project": "tsx scripts/fusion-cli.jsx qa:project"
   },
   "dependencies": {
-    "gsap": "3.15.0",
     "html-to-image": "1.11.13",
     "jszip": "3.10.1",
+    "pdf-lib": "1.17.1",
     "pptxgenjs": "4.0.1",
     "react": "18.3.1",
     "react-dom": "18.3.1"
@@ -35,7 +22,6 @@
     "tsx": "4.22.3",
     "esbuild": "0.28.0",
     "pngjs": "7.0.0",
-    "playwright-core": "1.60.0",
-    "pdf-lib": "1.17.1"
+    "playwright-core": "1.60.0"
   }
 }

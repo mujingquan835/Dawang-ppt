@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { writeScreenshotPdf } from '../src/fusion/export/from-url.mjs';
-import { extractDataUrlMedia } from "./persist-deck-state.mjs";
+import { extractDataUrlMedia, contentType, resolveInside } from "../src/fusion/shell/serve.mjs";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,13 +10,10 @@ import { mergeEditorState } from "../src/fusion/project/import-goal.mjs";
 import { renderProject } from "../src/fusion/scene/render-project.jsx";
 import { collectExportObjects, prepareSlideForExport } from "../src/fusion/export/collect.mjs";
 import { exportEditablePptx } from "../src/fusion/export/pptx.mjs";
-import { contentType } from "./preview/mime.mjs";
-import { createFileResolver } from "./preview/static-serve.mjs";
 function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" }) {
   dir = path.resolve(dir);
   const projectFile = path.join(dir, "deck-project.json");
   const html = path.join(dir, "index.html");
-  const resolveFile = createFileResolver({ lexicalServeRoot: dir, realServeRoot: fs.realpathSync(dir) });
   let busy = false;
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
@@ -66,7 +63,7 @@ function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chro
             browser = await chromium.launch({ executablePath: chrome, headless: true });
             const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
             await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
-            await page.waitForFunction(() => window.__fusionEditor && window.__renderRuntimeSlide);
+            await page.waitForFunction(() => window.__fusionEditor && window.__getVisibleSlides);
             const collected = await collectExportObjects(page, project);
             const pdf = url.pathname === "/api/export-pdf";
             const name = pdf ? "presentation.pdf" : "presentation.pptx";
@@ -86,8 +83,8 @@ function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chro
         }
         return json(404, { ok: false, issues: ["Unknown operation"] });
       }
-      const file = resolveFile(path.join(dir, decodeURIComponent(url.pathname)));
-      if (!file || url.pathname.split("/").some((s) => s.startsWith(".")) || file.endsWith("deck-project.json")) {
+      const file = resolveInside(dir, url.pathname);
+      if (!file || file.endsWith("deck-project.json")) {
         res.writeHead(404);
         return res.end();
       }

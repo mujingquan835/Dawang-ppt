@@ -7,7 +7,7 @@ async function captureUrl(browser, url, { snapshot, expectedRevision, onProgress
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, ignoreHTTPSErrors: true });
   try {
     await page.goto(url);
-    await page.waitForFunction(() => window.__deckViewModel && window.__getVisibleSlides);
+    await page.waitForFunction(() => window.__fusionEditor && window.__getVisibleSlides);
     await page.evaluate(async () => {
       await window.__fusionEditor?.ready();
       await document.fonts.ready;

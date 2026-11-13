@@ -5,13 +5,13 @@ import {pathToFileURL} from 'node:url';
 import {chromium} from 'playwright-core';
 import {resolveSlideStyle} from '../styles/registry.mjs';
 import {cssFontStack} from '../styles/css-font.mjs';
+import {fontFaceCss} from '../shell/assets.mjs';
 
 // The same local @font-face declarations and CSS text properties used by the editor.
 // Measurement performs no network requests and does not mutate a saved project.
 async function createLayoutMeasurer({chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}={}) {
   const root=path.resolve(import.meta.dirname,'../../..');
-  const template=fs.readFileSync(path.join(root,'assets/template-swiss.html'),'utf8');
-  const fonts=(template.match(/@font-face\s*\{[^}]*\}/g)||[]).join('\n').replace(/url\(['"]?([^)'"\s]+)['"]?\)/g,(_,src)=>`url('${pathToFileURL(path.join(root,src)).href}')`);
+  const fonts=fontFaceCss(pathToFileURL(path.join(root,'assets/fonts'))+'/');
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dawang-layout-'));
   const file=path.join(dir,'measure.html');
   fs.writeFileSync(file,`<!doctype html><meta charset="utf-8"><style>${fonts}body{margin:0}</style><div id="measure"></div>`);

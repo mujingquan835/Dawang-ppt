@@ -44,7 +44,7 @@ export function nextStep(failed, round, { blockers = failed, advisories = 0, tie
     }
     return `已复核 ${round} 轮仍有 fail：向用户说明剩余 fail 理由，附截图与可选方案，请用户决定。` + missing;
   }
-  if (tiered) return `本轮继续，不要向用户汇报未通过：这是第 ${round} 轮，共 ${MAX_REVIEW_ROUNDS} 轮。按阻断问题（blockers）的 reason 一次改完（patch:project），能顺手改的审美建议在同一次修改里一起改，然后只再运行一次 review:rules；不为审美建议单独加轮次。版式、结构图类阻断要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。` + missing;
+  if (tiered) return `本轮继续，不要向用户汇报未通过：这是第 ${round} 轮，共 ${MAX_REVIEW_ROUNDS} 轮。只改阻断问题（blockers），用 patch:project 一次改完（不要重跑 make），审美建议不改；然后只再运行一次 review:rules。版式、结构图类阻断要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。` + missing;
   return '本轮继续，不要向用户汇报未通过：按 failed[].reason 修改页面（patch:project）后再运行 review:rules。版式、精致度、结构图、视觉母题类 fail 要重新构图并更新 visualDecision.layout，只改措辞或行距不算修正。' + missing;
 }
 

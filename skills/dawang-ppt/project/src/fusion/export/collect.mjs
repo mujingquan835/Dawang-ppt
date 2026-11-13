@@ -3,7 +3,7 @@ import { cssDecoration, cssTextGradient } from "./css-paint.mjs";
 import { checkCoverage } from "../qa/coverage.mjs";
 import { slideNotes } from "../authoring/drafted.mjs";
 function collectSlideInDom(slideId) {
-  const slide = [...document.querySelectorAll("#deck > .slide")].find((s) => s.dataset.vmSlideId === slideId);
+  const slide = [...document.querySelectorAll("#deck > .slide")].find((s) => s.dataset.slideId === slideId);
   if (!slide) throw new Error("Slide not materialized: " + slideId);
   const root = slide.querySelector(".fusion-root,.imported-theme-root") || slide;
   const box = root.getBoundingClientRect();
@@ -243,7 +243,7 @@ function collectSlideInDom(slideId) {
 async function prepareSlideForExport(page, id, options = {}) {
   await page.evaluate(async (id2) => {
     const slides = window.__getVisibleSlides?.() || [];
-    const slide = slides.find((s) => s.dataset.vmSlideId === id2);
+    const slide = slides.find((s) => s.dataset.slideId === id2);
     if (!slide) throw new Error("Missing export slide: " + id2);
     window.go(slides.indexOf(slide), { force: true, animate: false });
     await window.__ensureRuntimeSlideRendered?.(slide);

@@ -17,9 +17,6 @@ try{
  const ready=async()=>{await page.waitForFunction(()=>window.__fusionEditor);await page.evaluate(()=>window.__fusionEditor.ready());await page.evaluate(()=>window.__exitPresentMode());await page.waitForFunction(()=>!window.__getDeckNavigationState?.().locked);};
  const read=()=>page.evaluate(()=>window.__fusionEditor.getProject());
  await page.goto(url);await ready();
- assert.equal(await page.locator('.preview-author-name').textContent(),'Jingquan');
- assert.equal(await page.locator('.preview-author-links a').count(),1);
- assert.equal(await page.locator('.preview-author-links a').getAttribute('data-platform'),'github');
  assert.equal(await page.locator('#deck [data-fusion-run]').count(),2);
  await page.locator('#deck [data-fusion-element="title"]').click();
  await page.locator('#fusion-text-runs summary').click();
@@ -30,6 +27,7 @@ try{
  await page.evaluate(()=>window.__fusionEditor.undo());assert.equal((await read()).slides[0].elements[0].runs[0].text,'先看结构');
  await page.evaluate(()=>window.__fusionEditor.redo());assert.equal((await read()).slides[0].elements[0].runs[0].text,'先听懂结构');
  // Exercise actual canvas typing into one styled span.
+ await page.locator('#deck [data-fusion-run="0"]').dblclick();
  await page.locator('#deck [data-fusion-run="0"]').evaluate(span=>{const range=document.createRange();range.selectNodeContents(span);const s=getSelection();s.removeAllRanges();s.addRange(range);span.parentElement.focus();});
  await page.keyboard.insertText('先看音乐结构');
  await page.waitForFunction(()=>window.__fusionEditor.getProject().slides[0].elements[0].runs[0].text==='先看音乐结构');

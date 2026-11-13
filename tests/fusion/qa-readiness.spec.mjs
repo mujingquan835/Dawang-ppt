@@ -5,7 +5,7 @@ import {collectSlideInDom,prepareSlideForExport} from '../../skills/dawang-ppt/p
 const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 async function fixture(t,html,viewport={width:640,height:480}){
  const browser=await chromium.launch({executablePath:chrome,headless:true});t.after(()=>browser.close());const page=await browser.newPage({viewport});
- await page.setContent(`<style>body{margin:0}.fusion-root{width:600px;height:337.5px;position:relative}</style><div id="deck"><section class="slide" data-vm-slide-id="s"><div class="fusion-root">${html}</div></section></div>`);
+ await page.setContent(`<style>body{margin:0}.fusion-root{width:600px;height:337.5px;position:relative}</style><div id="deck"><section class="slide" data-slide-id="s"><div class="fusion-root">${html}</div></section></div>`);
  await page.evaluate(()=>{window.__getVisibleSlides=()=>[document.querySelector('.slide')];window.go=()=>{};});return page;
 }
 test('zero-scale collection fails explicitly without NaN objects',async t=>{

@@ -15,7 +15,7 @@ async function handleStore(operation, handle) {
   } finally {db.close();}
 }
 export function mountSaveControls({portable, getKey, save, validateSource}) {
-  const actions = document.querySelector('#deck-topbar .pp-topbar-actions');
+  const actions = document.querySelector('#deck-topbar .deck-actions');
   if (!actions) return null;
   document.getElementById('fusion-save-controls')?.remove();
   const box = document.createElement('div');
@@ -24,8 +24,8 @@ export function mountSaveControls({portable, getKey, save, validateSource}) {
   const button = document.createElement('button');
   button.id = 'fusion-save-html';
   button.type = 'button';
-  button.className = 'pp-present';
-  button.style.cssText = 'height:34px;padding:0 14px;border:0;border-radius:6px;cursor:pointer;background:var(--pp-blue);color:#fff;font:600 13px/1 var(--sans-zh);white-space:nowrap';
+  button.className = "deck-button deck-primary";
+  button.style.cssText = 'height:34px;padding:0 14px;border:0;border-radius:6px;cursor:pointer;background:var(--ui-accent);color:#fff;font:600 13px/1 var(--ui-font);white-space:nowrap';
   button.textContent = portable ? '保存' : '保存工程';
   button.title = portable ? '保存回源文件（⌘S / Ctrl+S）；首次需要选择当前打开的原HTML授权' : '保存工程（⌘S / Ctrl+S）';
   const state = document.createElement('span');
@@ -39,8 +39,8 @@ export function mountSaveControls({portable, getKey, save, validateSource}) {
     fileButton = document.createElement('button');
     fileButton.id = 'fusion-save-as';
     fileButton.type = 'button';
-    fileButton.className = 'pp-reset';
-    fileButton.style.cssText = 'height:34px;padding:0 12px;border:1px solid var(--pp-border);border-radius:6px;cursor:pointer;background:var(--pp-chip);color:var(--pp-fg);font:500 13px/1 var(--sans-zh);white-space:nowrap';
+    fileButton.className = "deck-button";
+    fileButton.style.cssText = 'height:34px;padding:0 12px;border:1px solid var(--ui-border);border-radius:6px;cursor:pointer;background:var(--ui-chip);color:var(--ui-fg);font:500 13px/1 var(--ui-font);white-space:nowrap';
     fileButton.textContent = '关联源文件';
     fileButton.title = '选择已经存在的原HTML；以后保存都覆盖该文件，不创建副本';
     box.append(fileButton);
@@ -113,7 +113,7 @@ export function mountSaveControls({portable, getKey, save, validateSource}) {
     if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 's') return;
     event.preventDefault(); event.stopImmediatePropagation(); run();
   }, true);
-  window.addEventListener('dashi-deck-change', () => queueMicrotask(changed));
+  window.addEventListener('deck-change', () => queueMicrotask(changed));
   show(portable ? '首次保存需关联原HTML' : '工程已打开', 'clean');
   if (portable) {
     restoringHandle=true;button.disabled=true;

@@ -28,7 +28,7 @@ const variants = [
   ['images', { images: [{ mediaId: 'synthetic', kind: 'photo', src: 'synthetic.png' }] }]
 ];
 const skins = ['theme14', 'theme06', 'theme13', 'theme17'];
-const slides = [{ slideId: 'legacy', layout: 'theme13_page001', props: {} }, ...skins.flatMap(key => variants.map(([kind, data]) =>
+const slides = [...skins.flatMap(key => variants.map(([kind, data]) =>
   composeContentSlide({ slideId: key + '-' + kind, kind, title: '合成结构检查 · ' + kind, scope: '只验证结构，不代表真实业绩', explanation: '每种外观复用可编辑对象。', source: '来源：公开合成夹具', data }, resolveStyle('legacy/' + key))
 ))];
 const pf = path.join(dir, 'deck-project.json');
@@ -50,18 +50,17 @@ try {
   const templateFont = await page.evaluate(async () => {
     window.go(1, { animate: false, force: true });
     await document.fonts.ready;
-    return getComputedStyle(document.querySelector('#deck [data-vm-slide-id="theme14-process"] .fusion-title')).fontFamily;
+    return getComputedStyle(document.querySelector('#deck [data-slide-id="theme14-process"] .fusion-title')).fontFamily;
   });
   assert.match(templateFont, /OPPO Sans 4\.0/, 'template font family must survive CSS parsing');
   await page.evaluate(() => window.__exitPresentMode());
-  await page.waitForFunction(() => !window.__getDeckNavigationState().locked);
-  await page.evaluate(() => window.go(window.__getVisibleSlides().findIndex(s => s.dataset.vmSlideId === 'theme13-process'), { animate: false, force: true }));
-  await page.waitForFunction(() => document.querySelector('#deck > [data-vm-slide-id="theme13-process"]').classList.contains('active'));
+  await page.evaluate(() => window.go(window.__getVisibleSlides().findIndex(s => s.dataset.slideId === 'theme13-process'), { animate: false, force: true }));
+  await page.waitForFunction(() => document.querySelector('#deck > [data-slide-id="theme13-process"]').classList.contains('active'));
   const behavior = await page.evaluate(`(async () => {
     const api = window.__fusionEditor, slideId = 'theme13-process';
     const settle = async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); };
     const apply = command => { const r = api.apply({ slideId, ...command }); if (!r.ok) throw new Error(JSON.stringify(r.conflicts)); };
-    const bounds = () => [...document.querySelectorAll('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element]')].map(e => {
+    const bounds = () => [...document.querySelectorAll('#deck [data-slide-id="theme13-process"] [data-fusion-element]')].map(e => {
       const b = e.getBoundingClientRect(); return [e.dataset.fusionElement, b.x, b.y, b.width, b.height];
     });
     apply({ type: 'text', elementId: 'title', text: '浏览器换肤后保留文字' });
@@ -69,8 +68,8 @@ try {
     apply({ type: 'style', elementId: 'title', style: { color: '#ac3456', fontSize: 58 } });
     await settle();
     const before = bounds();
-    const titleNode = document.querySelector('#deck [data-vm-slide-id="theme13-process"] [data-fusion-element="title"]');
-    const titleDiagnostic = { html: titleNode.outerHTML, display: getComputedStyle(titleNode).display, active: window.__getVisibleSlides().filter(e => e.classList.contains('active')).map(e => e.dataset.vmSlideId) };
+    const titleNode = document.querySelector('#deck [data-slide-id="theme13-process"] [data-fusion-element="title"]');
+    const titleDiagnostic = { html: titleNode.outerHTML, display: getComputedStyle(titleNode).display, active: window.__getVisibleSlides().filter(e => e.classList.contains('active')).map(e => e.dataset.slideId) };
     for (const theme of ['theme14', 'theme06', 'theme17', 'theme13']) {
       apply({ type: 'appearance', styleId: 'legacy/' + theme });
       await settle();

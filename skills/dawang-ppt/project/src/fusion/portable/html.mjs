@@ -2,8 +2,7 @@ import {validateProject} from '../project/schema.mjs';
 const safeJson=value=>JSON.stringify(value).replaceAll('<','\\u003c');
 // Undo history repeats whole slides, so inlining media in the project grew the file by every image on each edit.
 // The embedded project keeps short tokens instead; each image is stored once in #portable-assets and expanded by the
-// two readers of #fusion-project (the editor boot and extractPortableProject) and by the template's view-model runtime
-// for #deck-view-model slides. The page DOM keeps its inline images.
+// two readers of #fusion-project (the editor boot and extractPortableProject). The page DOM keeps its inline images.
 const MEDIA_KEYS=new Set(['src','image','images','imageSrc','imageUrl','heroImage','coverImage']),ASSET_PREFIX='portable-asset:';
 const mapStrings=(value,fn,key='')=>Array.isArray(value)?value.map(v=>mapStrings(v,fn,key)):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,mapStrings(v,fn,k)])):typeof value==='string'&&MEDIA_KEYS.has(key)?fn(value):value;
 // shared: pass the result of an earlier call so a second tree reuses the same tokens and pool.
@@ -53,11 +52,10 @@ export async function serializePortableHtml({document:doc,project,resolveAsset,b
  const mapMedia=async(value,key='')=>{if(Array.isArray(value))return Promise.all(value.map(v=>mapMedia(v,key)));if(value&&typeof value==='object')return Object.fromEntries(await Promise.all(Object.entries(value).map(async([k,v])=>[k,await mapMedia(v,k)])));if(typeof value==='string'&&value&&mediaKeys.has(key))return resource(value);return value;};
  const p=await mapMedia(structuredClone(project));
  clone.querySelectorAll('.fusion-selection,.fusion-guide,.fusion-crop-editor,.deck-export-overlay,.page-transition-stage,#fusion-save-controls,#fusion-history-controls,#fusion-status').forEach(n=>n.remove());
- // The runtime rebuilds the slide rail (with its image thumbnails) and appends a new context menu on every load;
- // saving them made each save cycle carry extra image copies and one more empty menu.
- clone.querySelectorAll('.rail-context-menu').forEach(n=>n.remove());
- clone.querySelector('#slide-rail-list')?.replaceChildren();
- clone.querySelector('body')?.classList.remove('exporting-deck');
+ // The runtime rebuilds the page list (with its thumbnails) on every load; saving it would copy every image again.
+ clone.querySelectorAll('.deck-busy').forEach(n=>n.remove());
+ clone.querySelector('#deck-rail-list')?.replaceChildren();
+ const body=clone.querySelector('body');if(body){body.classList.remove('deck-presenting');body.classList.add('deck-editing');}
  // Include lazy dependencies now. No network is needed when the user later clicks export.
  for(const src of ['assets/vendor/html-to-image.js','assets/vendor/pdf-lib.min.js','assets/vendor/pptxgen.bundle.js']){
   if(clone.querySelector('script[data-portable-vendor="'+src+'"]'))continue;
@@ -72,13 +70,7 @@ export async function serializePortableHtml({document:doc,project,resolveAsset,b
  const put=(id,value)=>{let node=clone.querySelector('#'+id);if(!node){node=clone.ownerDocument.createElement('script');node.id=id;node.type='application/json';clone.querySelector('head').append(node);}node.textContent=safeJson(value);};
  const pooled=poolProjectMedia(p);
  put('fusion-project',pooled.project);
- // VM composition props must agree with the embedded ProjectV2, including hidden slides.
- // The project itself lives once in #fusion-project; per-slide copies multiplied every embedded image by the page count.
- // Its slides use the same image tokens as #fusion-project; the template's view-model runtime expands them from
- // #portable-assets when it reads the block, so each image is stored once. state stays inline: the CLI reads it directly.
- const vmNode=clone.querySelector('#deck-view-model');if(vmNode){const vm=await mapMedia(JSON.parse(vmNode.textContent));vm.state=structuredClone(p.editorState.legacy);for(const slide of vm.slides||[]){const s=p.slides.find(s=>s.slideId===slide.id);if(s?.mode==='composition'){const {fusionProject,...props}=slide.props||{};slide.props={...props,fusionSlide:s};}}vm.slides=poolProjectMedia(vm.slides||[],pooled).project;put('deck-view-model',vm);}
  put('portable-assets',pooled.pool);
- put('embedded-text-state',p.editorState.legacy.text||{});
  const old=clone.querySelector('#portable-project-meta');const previous=old?JSON.parse(old.textContent):null;
  if(!runtimeFingerprint){const scripts=[...clone.querySelectorAll('script:not([type="application/json"])')].map(s=>s.textContent).join('\n');runtimeFingerprint=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(scripts)))).map(b=>b.toString(16).padStart(2,'0')).join('');}
  put('portable-project-meta',{version:1,projectId:p.requirements.projectId,baseRevision:previous?.baseRevision||baseRevision||p.revision,snapshotRevision:p.revision,runtimeFingerprint});

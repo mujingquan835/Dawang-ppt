@@ -18,7 +18,7 @@ const text=(id,bounds,style,content='示例文字 Sample')=>`<div data-fusion-el
 async function measure(t,engine){
  const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});t.after(()=>browser.close());
  const page=await browser.newPage({viewport:{width:1280,height:720}});
- await page.setContent(`<style>body{margin:0}.fusion-root{width:1920px;height:1080px;transform:scale(.5);transform-origin:0 0;position:relative;background:#ffffff}</style><div id="deck"><section class="slide" data-vm-slide-id="s"><div class="fusion-root" data-authoring-engine="${engine}">`
+ await page.setContent(`<style>body{margin:0}.fusion-root{width:1920px;height:1080px;transform:scale(.5);transform-origin:0 0;position:relative;background:#ffffff}</style><div id="deck"><section class="slide" data-slide-id="s"><div class="fusion-root" data-authoring-engine="${engine}">`
   +text('invisible',[40,40,800,80],'font-size:40px;color:#F2F0EB')
   +`<div data-fusion-element="panel" data-element-type="shape" style="position:absolute;left:40px;top:160px;width:900px;height:120px;background:#161618"></div>`
   +text('on-panel',[60,180,800,80],'font-size:40px;color:#F2F0EB')
@@ -27,7 +27,7 @@ async function measure(t,engine){
   +text('on-photo',[60,440,800,80],'font-size:40px;color:#FFFFFF')
   +text('light-run',[40,600,900,80],'font-size:40px;color:#111111','<span data-fusion-run="0">深色 </span><span data-fusion-run="1" style="color:#EEEEEE">浅色</span>')
   +`</div></section></div>`);
- await page.evaluate(()=>{window.__fusionEditor={ready:()=>{}};window.__renderRuntimeSlide=()=>{};window.__getVisibleSlides=()=>[document.querySelector('.slide')];window.go=()=>{};});
+ await page.evaluate(()=>{window.__fusionEditor={ready:()=>{}};window.__getVisibleSlides=()=>[document.querySelector('.slide')];window.go=()=>{};});
  const p={revision:'x',requirements:{},contentPlan:{nodes:{},slides:[]},media:{entries:[]},slides:[],editorState:{slideOrder:['s'],deletedSlides:[],skippedSlides:[]}};
  return measureProject(null,p,{page});
 }

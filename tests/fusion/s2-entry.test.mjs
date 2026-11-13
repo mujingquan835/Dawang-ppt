@@ -15,8 +15,7 @@ test('styles command exposes only usable appearances and templates are explicit'
  const styles=JSON.parse(execFileSync(process.execPath,[cli,'styles'],{encoding:'utf8'}));
  assert(styles.length>=1&&styles.length<=9);
  assert(styles.every(s=>s.id.startsWith('legacy/')&&s.layoutEngine==='content-first'));
- const templates=JSON.parse(execFileSync(process.execPath,[cli,'templates'],{encoding:'utf8'}));
- assert.equal(templates.length,17);
+ assert.throws(()=>execFileSync(process.execPath,[cli,'templates'],{encoding:'utf8',stdio:'pipe'}));
 });
 test('historical content planning remains explicit after authored build migration',()=>{
  const source=fs.readFileSync(cli,'utf8');
