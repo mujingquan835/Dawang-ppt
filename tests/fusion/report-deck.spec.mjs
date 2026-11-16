@@ -348,3 +348,9 @@ test('page structure ignores sentence bands and treats flows and chains alike, s
   assert.equal(layoutSignature([{ left: ['problem', 'items', 'metrics'], right: 'photos' }, ['verdict', 'tool']]), 'side:items,metrics');
   assert.notEqual(layoutSignature(['items', ['metrics', 'swap'], 'photos', 'verdict']), 'side:items,metrics');
 });
+
+test('a mirrored text-and-photo page reads as a different structure', async () => {
+  const { layoutSignature } = await import('../../skills/dawang-ppt/project/src/fusion/authoring/report-deck.mjs');
+  const rows = [{ left: ['items', 'metrics'], right: 'photos' }, 'verdict'];
+  assert.notEqual(layoutSignature(rows), layoutSignature([{ ...rows[0], photosLeft: true }, 'verdict']));
+});

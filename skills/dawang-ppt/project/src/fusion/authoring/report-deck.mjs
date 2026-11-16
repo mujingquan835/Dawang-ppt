@@ -33,7 +33,7 @@ const EQUAL_HEIGHT_SHARE = 0.65;
 const PRIMARY_SHARES = [0.6, 0.56, 0.53];
 // The figure size of the second group of figures on a page, as a share of the first group's.
 const SECONDARY_FIGURES = 0.74;
-const LANE_MIN_COVERAGE = 0.75, SCALE_UP_BELOW = 0.86, MAX_FILL = 0.98, FILL_TARGET = 0.72, MIN_FILL_GAIN = 0.06, MAX_ALTERNATIVES = 12, LOOSE_BLANK = 0.25, VARY_FILL_LOSS = 0.04;
+const LANE_MIN_COVERAGE = 0.75, SCALE_UP_BELOW = 0.86, MAX_FILL = 0.98, FILL_TARGET = 0.72, MIN_FILL_GAIN = 0.06, MAX_ALTERNATIVES = 12, LOOSE_BLANK = 0.25, VARY_FILL_LOSS = 0.04, MAX_PHOTO_UPSCALE = 1.5;
 
 // Which side of a comparison stands for this period or the way forward (now), and whether one side leads to the other (onward).
 // The outline can say so with compare.current: 'left' | 'right'; otherwise the labels do (去年 → 今年, 问题 → 改进, 2025 → 2026).
@@ -118,7 +118,7 @@ export function defaultLayout(page, zoneIds) {
 const zoneKind = (z) => { const k = String(z).replace(/-\d+$/, ''); return k === 'chain' ? 'flow' : ['metrics', 'items', 'table', 'flow', 'compare', 'periods', 'photos'].includes(k) ? k : 'st'; };
 export function layoutSignature(rows) {
   const kinds = (zs) => zs.flat().map(zoneKind).filter((k) => k !== 'st').join(',');
-  const parts = asList(rows).map((r) => (r === 'photos' ? 'band' : typeof r === 'string' ? zoneKind(r) : Array.isArray(r) ? (kinds(r) ? `pair:${kinds(r)}` : 'st') : `side:${kinds(r.left)}`));
+  const parts = asList(rows).map((r) => (r === 'photos' ? 'band' : typeof r === 'string' ? zoneKind(r) : Array.isArray(r) ? (kinds(r) ? `pair:${kinds(r)}` : 'st') : `${r.photosLeft ? 'side-left' : 'side'}:${kinds(r.left)}`));
   return parts.filter((p) => p !== 'st').join('|');
 }
 
@@ -649,7 +649,7 @@ function pageWriter({ page, zones, theme, measurer }) {
   return { render, zones, soloFigureWidth, tightFiguresWidth, tightWidth, heroFor };
 }
 
-async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, footer, header }) {
+async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, footer, header, mirror = false }) {
   const { render, soloFigureWidth, tightFiguresWidth, tightWidth: tightZoneWidth, heroFor } = pageWriter({ page, zones: plan.visualDecision.zones.map((z) => z.id), theme, measurer }), p = theme.palette;
   // Figures that hug their content and leave at least 480px of the line take the sentence next to them; a hand-written layout is kept as written.
   const sentenceRoom = 480, zoneIds = plan.visualDecision.zones.map((z) => z.id);
@@ -729,7 +729,7 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   }
   if (split) for (const [i, row] of rows.entries()) {
     if (!Array.isArray(row) || row.length !== 2 || !row.every((z) => asList(page.statements).some((st, n) => (st.id || `statement-${n + 1}`) === z))) continue;
-    const ws = [split.leftW, split.rightW], ms = await inOrder(row, (z, n) => render(z, { x: L, y: TOP, w: ws[n] }));
+    const ws = mirror ? [split.rightW, split.leftW] : [split.leftW, split.rightW], ms = await inOrder(row, (z, n) => render(z, { x: L, y: TOP, w: ws[n] }));
     measuredRows[i] = { ...measuredRows[i], h: Math.max(...ms.map((m) => m.height)), ws, gap: 28 };
   }
   const others = sumOthers();
@@ -778,10 +778,12 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
         if (natural > photoRowH) throw new PageOverflow(`${page.id} 左栏超出 ${natural - photoRowH}px`);
         // A small gap is closed by a last module that can use it; figures in tiles cannot, so the photos stop level with them. A large gap centres the column.
         const photoH = Math.min(photoRowH, Math.max(natural, naturalPhotoHeight(cols, rightW))), slack = photoH - natural, centred = slack > 120, closes = !centred && !['metricTiles', 'comparePair'].includes(probe.at(-1).module), usedH = centred || closes ? photoH : natural;
+        // mirror puts the photos on the left and the words on the right; sizes stay the same.
+        const textX = mirror ? L + rightW + 28 : L, photoX = mirror ? L : L + leftW + 28;
         let ly = y + (centred ? Math.round(slack / 2) : 0);
-        for (const [i, z] of row.left.entries()) { const m = await stackItem(z, { x: L, y: ly, w: leftW, ...(i === row.left.length - 1 && closes ? { h: y + usedH - ly } : {}) }); if (m.parts) m.parts.forEach((part) => placeModule(part.m, part.z, part.box)); else placeModule(m, z, [L, ly, m.width || leftW, m.height]); ly += m.height + GAP; }
-        const ph = await render(row.right, { x: L + leftW + 28, y, w: rightW, h: usedH });
-        placeModule(ph, row.right, [L + leftW + 28, y, rightW, usedH]); y += usedH + gap; naturalUsed += usedH;
+        for (const [i, z] of row.left.entries()) { const m = await stackItem(z, { x: textX, y: ly, w: leftW, ...(i === row.left.length - 1 && closes ? { h: y + usedH - ly } : {}) }); if (m.parts) m.parts.forEach((part) => placeModule(part.m, part.z, part.box)); else placeModule(m, z, [textX, ly, m.width || leftW, m.height]); ly += m.height + GAP; }
+        const ph = await render(row.right, { x: photoX, y, w: rightW, h: usedH });
+        placeModule(ph, row.right, [photoX, y, rightW, usedH]); y += usedH + gap; naturalUsed += usedH;
       }
     }
     return y - gap;
@@ -834,8 +836,10 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const firstStack = (rows.find((r) => r.left)?.left || rows.filter((r) => typeof r === 'string' && r !== 'photos' && !centred.has(r))).map((z) => (Array.isArray(z) ? z[0] : z));
   Object.assign(plan.visualDecision, { pattern: `free：${rows.map((r) => (typeof r === 'string' ? r : Array.isArray(r) ? r.join('+') : `[${r.left.join('>')}|${r.right}]`)).join(' / ')}`, focus: { elementId: 'title', text: focus }, layout: '模块按阅读顺序排列，同行等高，整体对齐页边' });
   plan.composition = firstStack.length > 1 ? { alignments: [{ edge: 'left', zones: firstStack }], gaps: firstStack.slice(1).map((to, i) => ({ axis: 'vertical', from: firstStack[i], to, min: 12 })) } : { alignments: [], gaps: [] };
-  const photoArea = elements.filter((e) => e.type === 'image').reduce((a, e) => a + e.bounds[2] * e.bounds[3], 0);
-  return { rows, photoArea, centred: centred.size, focusGuessed: !(page.focus && title.includes(page.focus)) && firstClause === title, fill: naturalUsed / (BOTTOM - TOP), blank: 1 - (end - start) / (BOTTOM - TOP), slide: { slideId: page.id, mode: 'composition', elements: [...chrome, ...elements] }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
+  const images = elements.filter((e) => e.type === 'image'), photoArea = images.reduce((a, e) => a + e.bounds[2] * e.bounds[3], 0);
+  // How far the most enlarged photo is blown up past its own pixels (1 = shown at its size or smaller).
+  const maxUpscale = images.reduce((most, e) => { try { const s = imageSize(e.src), nw = (s.width ?? s.w ?? s[0]) * (Array.isArray(e.crop) ? e.crop[2] : 1); return nw > 0 ? Math.max(most, e.bounds[2] / nw) : most; } catch { return most; } }, 1);
+  return { rows: mirror ? rows.map((r) => (r && r.left ? { ...r, photosLeft: true } : r)) : rows, photoArea, maxUpscale, centred: centred.size, focusGuessed: !(page.focus && title.includes(page.focus)) && firstClause === title, fill: naturalUsed / (BOTTOM - TOP), blank: 1 - (end - start) / (BOTTOM - TOP), slide: { slideId: page.id, mode: 'composition', elements: [...chrome, ...elements] }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
 }
 
 // The cover: the deck name, the one sentence that says how the period went and up to three figures, with an optional
@@ -1056,7 +1060,8 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
     if (page.role === 'cover') { const made = await layoutCover({ page, plan, theme: dense, measurer, deckTitle: outline.title }); slides.push(made.slide); anchors[plan.slideId] = made.modules; scales[plan.slideId] = 'cover'; continue; }
     const thisPage = i + 1;
     let chosen = layouts[plan.slideId];
-    const attempt = (theme) => layoutPage({ page, plan, theme, measurer, layout: chosen, pageNo: thisPage, total: numbered, footer, header });
+    let mirror = false;
+    const attempt = (theme) => layoutPage({ page, plan, theme, measurer, layout: chosen, pageNo: thisPage, total: numbered, footer, header, mirror });
     let out;
     try { out = await attempt(dense); } catch (error) {
       if (!cannotFit(error)) throw error;
@@ -1105,16 +1110,19 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
     // the structure without leaving the page noticeably emptier (within VARY_FILL_LOSS) or loose.
     if (!layouts[plan.slideId] && lastShape && layoutSignature(best.out.rows) === lastShape) {
       const zoneIds = plan.visualDecision.zones.map((z) => z.id), base = best;
-      for (const option of layoutCandidates(page, zoneIds, MAX_ALTERNATIVES)) {
-        chosen = option;
+      // Mirroring a text-and-photo page (photos on the left) changes the structure and keeps every size; it is tried first.
+      const tries = [...(best.out.rows.some((r) => r && r.left) ? [{ layout: base.layout, mirror: true }] : []), ...layoutCandidates(page, zoneIds, MAX_ALTERNATIVES).map((option) => ({ layout: option, mirror: false }))];
+      for (const { layout: option, mirror: flip } of tries) {
+        chosen = option; mirror = flip;
         try {
           const tried = await scaleUp(await attempt(dense));
-          // Variety never costs the page its evidence or its fill: photos keep most of their area and no module ends up floating alone in the middle of a row.
-          const ok = tried.out.fill >= base.out.fill - VARY_FILL_LOSS && tried.out.blank <= LOOSE_BLANK && tried.out.photoArea >= base.out.photoArea * 0.8 && tried.out.centred <= base.out.centred;
-          if (layoutSignature(tried.out.rows) !== lastShape && ok) { best = { ...tried, layout: option }; break; }
+          // Variety never costs the page its evidence or its fill: photos keep most of their area without being blown up
+          // past their own pixels, and no module ends up floating alone in the middle of a row.
+          const ok = tried.out.fill >= base.out.fill - VARY_FILL_LOSS && tried.out.blank <= LOOSE_BLANK && tried.out.photoArea >= base.out.photoArea * 0.8 && tried.out.centred <= base.out.centred && tried.out.maxUpscale <= Math.max(base.out.maxUpscale, MAX_PHOTO_UPSCALE);
+          if (layoutSignature(tried.out.rows) !== lastShape && ok) { best = { ...tried, layout: option, mirror: flip }; break; }
         } catch (error) { if (!cannotFit(error)) throw error; }
       }
-      chosen = best.layout;
+      chosen = best.layout; mirror = Boolean(best.mirror);
       if (best !== base) varied.push({ page: plan.slideId, from: lastShape, to: layoutSignature(best.out.rows) });
       best.out = await attempt(themes[best.scale]);
     }
