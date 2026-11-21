@@ -465,7 +465,7 @@ function pageWriter({ page, zones, theme, measurer }) {
     const sized = new Map((await measurer.texts(probes)).map((m) => [m.id, Math.ceil(m.height)]));
     // A title over two lines means the cards are too narrow for these items: the list keeps them readable.
     if (items.some((_, i) => sized.get(`t${i}`) > Math.ceil(titleStyle.fontSize * titleStyle.lineHeight * 2) + 2)) return null;
-    const numH = Math.ceil(numSize * 1.1), titleH = Math.max(...items.map((_, i) => sized.get(`t${i}`))), body = (i) => (items[i].detail ? sized.get(`d${i}`) : 0);
+    const numH = Math.ceil(numSize * 1.25), titleH = Math.max(...items.map((_, i) => sized.get(`t${i}`))), body = (i) => (items[i].detail ? sized.get(`d${i}`) : 0);
     const headH = heading ? headBox + 12 : 0, cardNatural = 6 + pad + numH + 10 + titleH + (items.some((it) => it.detail) ? 10 + Math.max(...items.map((_, i) => body(i))) : 0) + pad;
     const natural = 16 + headH + cardNatural + 16, height = Math.max(natural, h || 0), cardH = height - 32 - headH, cardY = y + 16 + headH, r = colorRoles(p), elements = [];
     if (heading) elements.push(text('acts-heading', heading, [x + 24, y + 16, inner - 16, headBox], headStyle));
@@ -829,11 +829,16 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
     }
     return y - gap;
   };
-  let start = TOP, end = await place(TOP, GAP);
+  let usedGap = GAP, start = TOP, end = await place(TOP, usedGap);
+  // Auto-fit mild vertical overflow (<= 72px) by gently tightening inter-row gap instead of throwing and forcing LLM retries.
+  if (end > BOTTOM && end - BOTTOM <= 72) {
+    usedGap = Math.max(8, GAP - Math.ceil((end - BOTTOM) / Math.max(1, rows.length - 1)));
+    end = await place(TOP, usedGap);
+  }
   if (end > BOTTOM) throw new PageOverflow(`${page.id} 超出 ${end - BOTTOM}px`);
   // A page that does not fill the body sits in the middle of it, with the same space above and below.
   const leftover = BOTTOM - end;
-  if (leftover >= 16) { start = TOP + Math.round(leftover / 2); end = await place(start, GAP); }
+  if (leftover >= 16) { start = TOP + Math.round(leftover / 2); end = await place(start, usedGap); }
 
   // Whatever the layout, modules stay inside the body and never overlap.
   const placedBoxes = Object.entries(design).map(([z, { box }]) => ({ z, box }));
@@ -856,7 +861,7 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   // Measured at the focus weight, and scaled from the scale's own title size.
   const [wide] = await measurer.texts([{ id: 'title', type: 'text', text: title, bounds: [0, 0, 3000, 62], style: theme.roleStyle('pageTitle', { fontWeight: useDisplayTitle ? 400 : 900, ...titleFontExtra }) }]);
   const fitted = Math.floor(theme.roles.pageTitle.fontSize * titleW / wide.naturalWidth);
-  if (fitted < 38) throw new Error(`report-deck: ${page.id} 标题太长，请压缩到约 ${Math.floor(title.length * fitted / 38)} 字以内`);
+  if (fitted < 32) throw new Error(`report-deck: ${page.id} 标题太长，请压缩到约 ${Math.floor(title.length * fitted / 34)} 字以内`);
   const titleStyle = theme.roleStyle('pageTitle', { ...titleFontExtra, ...(wide.naturalWidth > titleW ? { fontSize: fitted } : {}) });
   // Header: a solid tag beside the title (or an eyebrow above it), closed by a rule whose thick stretch shows how far through the deck this page is.
   const ruleY = 124, tone = p.dark ? p.primary : readableInk(p.accent, p.bg || '#FFFFFF'), titleY = header === 'tag' || !eyebrow ? 46 : 54;

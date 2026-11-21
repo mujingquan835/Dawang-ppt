@@ -34,3 +34,4 @@ skills/dawang-ppt/references/kimi/
 
 # Built editor bundles (cached by source fingerprint)
 skills/dawang-ppt/project/dist/
+__pycache__/

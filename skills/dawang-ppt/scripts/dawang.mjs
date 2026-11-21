@@ -19,7 +19,16 @@ if (args[0] === "build" && args[1]) {
   }
 }
 if (aliases[args[0]]) args[0] = aliases[args[0]];
-if (args[0] === "doctor") {
+if (args[0] === "ingest") {
+  const caller = process.env.INIT_CWD || process.cwd();
+  if (!args[1] || !args[2]) {
+    console.error("Usage: dawang ingest <source-dir-or-file> <output-dir>");
+    process.exit(1);
+  }
+  const pyScript = path.join(project, "scripts/ingest-folder.py");
+  const result = spawnSync("python3", [pyScript, path.resolve(caller, args[1]), path.resolve(caller, args[2])], { stdio: "inherit" });
+  process.exitCode = result.status ?? 1;
+} else if (args[0] === "doctor") {
   const ok = fs.existsSync(path.join(project, "node_modules/.bin/tsx"));
   // Hosts are checked independently: a host without an entry is "not-installed", not an error.
   const hosts = [["codex", path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "skills/dawang-ppt")], ["workbuddy", path.join(os.homedir(), ".workbuddy/skills/dawang-ppt")], ["agents", path.join(os.homedir(), ".agents/skills/dawang-ppt")]];

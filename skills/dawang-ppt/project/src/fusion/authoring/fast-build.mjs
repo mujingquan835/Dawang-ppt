@@ -11,6 +11,7 @@ import { saveProject, loadProject } from '../project/store.mjs';
 import { writePortableDeckHtml } from '../shell/page.jsx';
 import { exportProjectPptxHeadless } from '../export/pptx.mjs';
 import { reportPalette } from './report-palettes.mjs';
+import { renderPreviewGrid } from './preview-grid.mjs';
 
 function slugifyProjectId(title) {
   const ascii = String(title || 'deck')
@@ -145,6 +146,7 @@ export async function fastBuildDeck({
   inputFile,
   outFile,
   pptxFile = null,
+  previewFile = null,
   palette = null,
   header = 'tag',
   footer,
@@ -247,6 +249,16 @@ export async function fastBuildDeck({
     };
   }
 
+  // Optional 1-image visual overview grid + real DOM overflow audit
+  let previewResult = null;
+  if (previewFile) {
+    previewResult = await renderPreviewGrid({
+      htmlFile: absOut,
+      previewFile: path.resolve(previewFile),
+    });
+    phases.previewMs = previewResult.previewMs;
+  }
+
   return {
     ok: true,
     mode: 'fast-build-node',
@@ -260,6 +272,7 @@ export async function fastBuildDeck({
     embeddedFonts: htmlResult.fonts,
     pooledAssets: htmlResult.assets,
     ...(pptxResult ? { pptx: pptxResult } : {}),
+    ...(previewResult ? { preview: previewResult } : {}),
     ...(composeInfo ? { compose: composeInfo } : {}),
     phases,
     durationMs: Math.round(performance.now() - start),

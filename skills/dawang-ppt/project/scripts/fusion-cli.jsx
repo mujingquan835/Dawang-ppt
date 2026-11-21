@@ -11,6 +11,7 @@ import {exportProjectPptxHeadless} from "../src/fusion/export/pptx.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { createAuthoredProject } from "../src/fusion/authoring/create-project.mjs";
@@ -115,13 +116,21 @@ async function main(args = process.argv.slice(2)) {
   if(mode==='rules:list'){console.log(JSON.stringify(SCENARIOS.map(({id,zh})=>({id,name:zh})),null,2));return;}
   if(mode==='prepare'&&input&&path.extname(input).toLowerCase()==='.pptx'&&output){const {pptxToMarkdown}=await import('../src/fusion/authoring/pptx-source.mjs');const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'dawang-pptx-'));try{const c=await pptxToMarkdown(absolute(input),tmp);const i=args.indexOf('--scenario');console.log(JSON.stringify({convertedFrom:absolute(input),slides:c.slides,images:c.images,skippedImages:c.skippedImages,...prepareMaterial({inputFile:c.markdown,outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]})},null,2));}finally{fs.rmSync(tmp,{recursive:true,force:true});}return;}
   if(mode==='prepare'){if(!input||!output)throw Error('prepare <material.pptx|html|json|md|txt> <new-directory> [--scenario id]');const i=args.indexOf('--scenario');console.log(JSON.stringify(prepareMaterial({inputFile:absolute(input),outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]}),null,2));return;}
+  if(mode==='ingest'){
+   if(!input||!output)throw Error('Usage: ingest <source-dir-or-file> <output-dir>');
+   const pyScript=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'ingest-folder.py');
+   const res=spawnSync('python3',[pyScript,absolute(input),absolute(output)],{stdio:'inherit'});
+   if(res.status!==0)process.exitCode=res.status??1;
+   return;
+  }
   if(mode==='fast:build'){
-   if(!input||!output)throw Error('Usage: fast:build <outline.json|authored.json|deck-project.json> <output.html> [--pptx <output.pptx>] [--palette <id>] [--font <bodyFont>] [--title-font <displayFont>] [--workspace <dir>]');
+   if(!input||!output)throw Error('Usage: fast:build <outline.json|authored.json|deck-project.json> <output.html> [--pptx <output.pptx>] [--preview <overview.png>] [--palette <id>] [--font <bodyFont>] [--title-font <displayFont>] [--workspace <dir>]');
    const flag=name=>args.includes(name)?args[args.indexOf(name)+1]:undefined;
    const r=await fastBuildDeck({
     inputFile:absolute(input),
     outFile:absolute(output),
     pptxFile:flag('--pptx')&&absolute(flag('--pptx')),
+    previewFile:flag('--preview')&&absolute(flag('--preview')),
     palette:flag('--palette')||null,
     header:flag('--header')||'tag',
     footer:flag('--footer'),
@@ -154,7 +163,7 @@ async function main(args = process.argv.slice(2)) {
     fs.writeFileSync(file.replace(/\.html$/i,'')+'.json',JSON.stringify(options,null,2));
     console.log(JSON.stringify({file,options}));return;
   }
-  if (!input) throw new Error("Usage: dawang <fast:build|outline:check|outline:baseline|make|review:rules|publish:html|patch:project|rules:read|rules:checklist|render:authored|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
+  if (!input) throw new Error("Usage: dawang <ingest|fast:build|outline:check|outline:baseline|make|review:rules|publish:html|patch:project|rules:read|rules:checklist|render:authored|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
   if (["render:authored", "render:brief", "render:project"].includes(mode)) {
     if (!output) throw new Error("Output HTML path required");
     const file = absolute(input), outFile = absolute(output), dir2 = path.dirname(outFile), pf2 = path.join(dir2, "deck-project.json");
