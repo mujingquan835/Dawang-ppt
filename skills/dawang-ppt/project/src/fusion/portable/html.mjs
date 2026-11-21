@@ -270,7 +270,7 @@ export async function serializePortablePartsFast({
 }) {
   // 1. Clean slide markup: clone ONLY #deck (tiny: ~50-200 KB without base64 images) and swap blob: -> portable-asset: token
   const deckClone = doc.getElementById('deck').cloneNode(true);
-  deckClone.querySelectorAll('.fusion-selection,.fusion-guide,.fusion-crop-editor').forEach((n) => n.remove());
+  deckClone.querySelectorAll('.fusion-selection,.fusion-multi-box,.fusion-marquee,.fusion-guide,.fusion-hud,.fusion-crop-editor').forEach((n) => n.remove());
   deckClone.querySelectorAll('[contenteditable]').forEach((n) => n.removeAttribute('contenteditable'));
   const PLACEHOLDER_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
   deckClone.querySelectorAll('img[data-asset-token]').forEach((img) => {

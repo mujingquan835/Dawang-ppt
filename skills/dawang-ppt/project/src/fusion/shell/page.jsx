@@ -5,13 +5,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { buildSync } from 'esbuild';
 import { SceneRoot } from '../scene/render.jsx';
 import { validateProject } from '../project/schema.mjs';
-import { PROJECT_ROOT, FONT_FILES, VENDOR_FILES, fontFaceCss, buildPortableFontEntries } from './assets.mjs';
+import { PROJECT_ROOT, FONT_FILES, VENDOR_FILES, fontFaceCss, buildPortableFontEntries, selectFontPacks } from './assets.mjs';
 import { AssetPool, MEDIA_KEYS } from '../portable/asset-pool.mjs';
 import { assemblePortableHtmlParts, collectUsedFontFamilies } from '../portable/html.mjs';
 
@@ -161,12 +162,107 @@ export function writeDeck(project, outFile) {
   return { revision: project.revision, slides: project.slides.length, outFile };
 }
 
+function collectProjectText(project) {
+  const chunks = [project?.requirements?.title || ''];
+  const walk = (v) => {
+    if (typeof v === 'string') {
+      if (v.length <= 2000 && !v.startsWith('data:') && !v.startsWith('portable-asset:')) chunks.push(v);
+    } else if (Array.isArray(v)) {
+      for (const x of v) walk(x);
+    } else if (v && typeof v === 'object') {
+      for (const [k, val] of Object.entries(v)) {
+        if (k === 'text' || k === 'label' || k === 'title' || k === 'alt' || k === 'runs' || k === 'elements' || k === 'objects' || k === 'slides' || k === 'data' || k === 'nodes' || k === 'rows' || k === 'columns') {
+          walk(val);
+        }
+      }
+    }
+  };
+  walk(project.slides);
+  return [...new Set(chunks.join(''))].join('');
+}
+
+function optimizePortableResources({ usedFamilies, deckText, localImages, dataImages }) {
+  const pyScript = path.join(PROJECT_ROOT, 'scripts/optimize-portable.py');
+  if (!fs.existsSync(pyScript)) return null;
+  const packs = selectFontPacks(usedFamilies, PROJECT_ROOT);
+  const weightDescFor = (p) =>
+    p.family === 'Source Han Sans SC'
+      ? p.weight === 300 ? '100 350' : p.weight === 400 ? '351 550' : p.weight === 700 ? '551 799' : '800 900'
+      : p.family === 'YouSheBiaoTiHei' ? '100 900' : String(p.weight);
+  const fonts = packs
+    .filter((p) => p.format === 'woff2')
+    .map((p) => ({
+      family: p.family,
+      weight: weightDescFor(p),
+      style: p.style,
+      format: p.format,
+      file: path.join(PROJECT_ROOT, p.from),
+      text: deckText,
+    }));
+  const images = [
+    ...localImages.map(({ key, abs, mime }) => ({ key, path: abs, mime, maxDim: 2200, quality: 86 })),
+    ...dataImages.map(({ key, dataUrl, mime }) => ({ key, dataUrl, mime, maxDim: 2200, quality: 86 })),
+  ];
+  if (!fonts.length && !images.length) return null;
+  const res = spawnSync('python3', [pyScript], {
+    input: JSON.stringify({ fonts, images }),
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (res.status !== 0 || !res.stdout) return null;
+  try {
+    const parsed = JSON.parse(res.stdout);
+    return parsed?.ok ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 // Pure-Node single-file portable HTML builder (no Chrome launch, detached WOFF2 FontFace payload, pooled images).
-export function buildPortableDeckHtmlInNode(project, { baseDir = process.cwd(), fontEntries = null } = {}) {
+export function buildPortableDeckHtmlInNode(project, { baseDir = process.cwd(), fontEntries = null, optimizeAssets = true } = {}) {
   const issues = validateProject(project);
   if (issues.length) throw new Error(issues.join('\n'));
   const legacy = project.slides.filter((s) => s.mode !== 'composition');
   if (legacy.length) throw new Error('这份工程含旧模板页（' + legacy.map((s) => s.slideId).join('、') + '），当前版本只支持组版页。');
+
+  // Collect all unique local/data media first so we can optimize them in parallel alongside dynamic font subsetting
+  const localByAbs = new Map();
+  const dataByRaw = new Map();
+  const collectMedia = (value, key = '') => {
+    if (Array.isArray(value)) return value.forEach((v) => collectMedia(v, key));
+    if (value && typeof value === 'object') return Object.entries(value).forEach(([k, v]) => collectMedia(v, k));
+    if (typeof value === 'string' && value && MEDIA_KEYS.has(key)) {
+      if (value.startsWith('portable-asset:')) return;
+      if (value.startsWith('data:')) {
+        if (!dataByRaw.has(value)) {
+          const mime = /^data:([^;,]+)/i.exec(value)?.[1] || 'image/png';
+          dataByRaw.set(value, { key: `d${dataByRaw.size}`, dataUrl: value, mime });
+        }
+        return;
+      }
+      const abs = value.startsWith('file:') ? fileURLToPath(value) : path.resolve(baseDir, value);
+      if (fs.existsSync(abs) && !localByAbs.has(abs)) {
+        localByAbs.set(abs, { key: `f${localByAbs.size}`, abs, mime: mimeForExt(abs) });
+      }
+    }
+  };
+  collectMedia(project);
+
+  const used = collectUsedFontFamilies(null, project);
+  // Always ensure both dual-font families are embedded by default so offline editing can switch freely
+  if (!used.has('oppo sans 4.0')) {
+    used.add('source han sans sc');
+    used.add('youshebiaotihei');
+  }
+
+  const opt = optimizeAssets && !fontEntries
+    ? optimizePortableResources({
+        usedFamilies: used,
+        deckText: collectProjectText(project),
+        localImages: [...localByAbs.values()],
+        dataImages: [...dataByRaw.values()],
+      })
+    : null;
 
   const pool = new AssetPool();
   const resolveLocalMedia = (value, key = '') => {
@@ -178,11 +274,16 @@ export function buildPortableDeckHtmlInNode(project, { baseDir = process.cwd(), 
     }
     if (typeof value === 'string' && value && MEDIA_KEYS.has(key)) {
       if (value.startsWith('portable-asset:')) return value;
-      if (value.startsWith('data:')) return pool.register(value);
+      if (value.startsWith('data:')) {
+        const entry = dataByRaw.get(value);
+        const finalUrl = (opt && entry && opt.images?.[entry.key]) || value;
+        return pool.register(finalUrl);
+      }
       const abs = value.startsWith('file:') ? fileURLToPath(value) : path.resolve(baseDir, value);
       if (fs.existsSync(abs)) {
-        const dataUrl = `data:${mimeForExt(abs)};base64,${fs.readFileSync(abs).toString('base64')}`;
-        return pool.register(dataUrl);
+        const entry = localByAbs.get(abs);
+        const finalUrl = (opt && entry && opt.images?.[entry.key]) || `data:${mimeForExt(abs)};base64,${fs.readFileSync(abs).toString('base64')}`;
+        return pool.register(finalUrl);
       }
     }
     return value;
@@ -194,13 +295,7 @@ export function buildPortableDeckHtmlInNode(project, { baseDir = process.cwd(), 
     .map((s) => slideMarkup(s, tokenizedProject, skipped.has(s.slideId)))
     .join('');
 
-  const used = collectUsedFontFamilies(null, tokenizedProject);
-  // Always ensure both dual-font families are embedded by default so offline editing can switch freely
-  if (!used.has('oppo sans 4.0')) {
-    used.add('source han sans sc');
-    used.add('youshebiaotihei');
-  }
-  const fonts = fontEntries || buildPortableFontEntries(used, PROJECT_ROOT);
+  const fonts = fontEntries || (opt?.fonts?.length ? opt.fonts : buildPortableFontEntries(used, PROJECT_ROOT));
 
   const editorCode = fs.readFileSync(editorBundle(), 'utf8');
   const vendorScripts = VENDOR_FILES.map(({ from, to }) => {

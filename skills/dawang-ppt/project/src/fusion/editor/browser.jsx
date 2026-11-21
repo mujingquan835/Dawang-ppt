@@ -16,7 +16,7 @@ import { SceneRoot } from '../scene/render.jsx';
 import { materializeElements, syncCompositionTextState } from '../scene/model.mjs';
 import { mergeEditorState } from '../project/import-goal.mjs';
 import { applyEditCommand } from './commands.mjs';
-import { mountInspector, mountDeckPanel } from './inspector.jsx';
+import { mountInspector, mountDeckPanel, mountMultiInspector } from './inspector.jsx';
 import { collectProjectFromIr } from '../export/ir-collect.mjs';
 import { composeEditablePptx } from '../export/pptx-core.mjs';
 import { mountDeckRuntime } from '../shell/runtime.mjs';
@@ -68,7 +68,19 @@ if (seed) {
 
   const sections = () => [...document.querySelectorAll('#deck > .fusion-slide')];
   let cropEditor = null, exportBusy = false, lastMerge = null;
-  let selected = null, selectionMode = 'group', redoSnapshots = [], restoring = false, saveQueue = Promise.resolve();
+  let selected = null, selectedList = [], selectionMode = 'group', redoSnapshots = [], restoring = false, saveQueue = Promise.resolve();
+  const setSelectionList = (list) => {
+    const seen = new Set();
+    selectedList = (list || []).filter((item) => {
+      if (!item?.slideId || !item?.elementId) return false;
+      const k = item.slideId + '/' + item.elementId;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    selected = selectedList[0] || null;
+  };
+  const isBackdropBounds = (b) => Array.isArray(b) && b[0] <= 2 && b[1] <= 2 && b[2] >= 1916 && b[3] >= 1076;
   const roots = new Map();
   let draftStore = null, draftTimer = null, inputTimer = null, draftQueue = Promise.resolve(), ready = Promise.resolve();
   let pendingTextSync = false;
@@ -191,13 +203,13 @@ if (seed) {
     cropEditor?.cancel();
     restoring = true;
     try {
-      const previousSelection = selected;
+      const previousSelection = [...selectedList];
       project = assetPool.tokenizeProject(structuredClone(snapshot));
       project.revision = savedRevision;
       editVersion++;
       ensureSlideSections();
       applySnapshot(project.editorState);
-      selected = previousSelection;
+      setSelectionList(previousSelection);
       for (const s of project.slides) if (s.mode === 'composition') redraw(s.slideId);
       runtime.renderRail();
       refreshSelection();
@@ -245,8 +257,12 @@ if (seed) {
     }
     project = r.project;
     editVersion++;
-    if (normalizedCmd.type === 'add-slide' || normalizedCmd.type === 'duplicate-slide') {
-      selected = null;
+    if (normalizedCmd.type === 'switch-palette') {
+      for (const s of project.slides) if (s.mode === 'composition') redraw(s.slideId);
+      runtime.renderRail();
+      refreshSelection();
+    } else if (normalizedCmd.type === 'add-slide' || normalizedCmd.type === 'duplicate-slide') {
+      setSelectionList([]);
       ensureSlideSections();
       applySnapshot(project.editorState);
       if (r.newSlideId) {
@@ -256,9 +272,11 @@ if (seed) {
         if (targetSec) runtime.show(targetSec, { force: true });
       }
     } else {
-      if (normalizedCmd.type === 'delete-element') selected = null;
+      if (normalizedCmd.type === 'delete-element' || normalizedCmd.type === 'batch-delete') setSelectionList([]);
       else if ((normalizedCmd.type === 'add-element' || normalizedCmd.type === 'duplicate-element') && normalizedCmd.elementId) {
-        selected = { slideId: normalizedCmd.slideId, elementId: normalizedCmd.elementId };
+        setSelectionList([{ slideId: normalizedCmd.slideId, elementId: normalizedCmd.elementId }]);
+      } else if (normalizedCmd.type === 'batch-duplicate' && Array.isArray(normalizedCmd.newElementIds)) {
+        setSelectionList(normalizedCmd.newElementIds.map((elementId) => ({ slideId: normalizedCmd.slideId, elementId })));
       }
       redraw(normalizedCmd.slideId);
     }
@@ -296,51 +314,81 @@ if (seed) {
   }
 
   function refreshSelection() {
-    document.querySelectorAll('#deck .fusion-selection').forEach((e) => e.remove());
-    if (!selected) {
+    document.querySelectorAll('#deck .fusion-selection,#deck .fusion-multi-box').forEach((e) => e.remove());
+    if (!selectedList.length) {
       document.getElementById('fusion-inspector')?.remove();
       const field = document.getElementById('deck-props-field'), panel = document.getElementById('deck-props');
       if (field && panel && !panel.children.length) field.classList.add('is-hidden');
       refreshEmptyPanel();
       return;
     }
-    const slide = project.slides.find((s) => s.slideId === selected.slideId);
-    const el = sections().find((s) => s.dataset.slideId === selected.slideId);
+    const slideId = selectedList[0].slideId;
+    const slide = project.slides.find((s) => s.slideId === slideId);
+    const el = sections().find((s) => s.dataset.slideId === slideId);
     if (!slide || !el) return;
-    const element = materializeElements(slide, project).find((e) => e.id === selected.elementId);
-    const object = slide.objects?.find((o) => o.objectId === element?.parentId);
-    if (!element) {
+    const allElements = materializeElements(slide, project);
+    const valid = selectedList.filter((item) => item.slideId === slideId && allElements.some((e) => e.id === item.elementId));
+    if (!valid.length) {
       clearSelection();
       return;
     }
-    const b = selectionMode === 'group' && object ? object.bounds : element.bounds;
+    setSelectionList(valid);
     const root = el.querySelector('.fusion-root');
     const scale = root.getBoundingClientRect().width / 1920;
     const u = (px) => px / (scale > 0 ? scale : 1);
-    const overlay = document.createElement('div');
-    overlay.className = 'fusion-selection';
-    overlay.dataset.editableSkip = 'true';
-    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;outline:${u(2)}px solid var(--ui-accent,#23338B);pointer-events:none;z-index:10000`;
-    for (const dir of HANDLES) {
-      const handle = document.createElement('button');
-      handle.type = 'button';
-      handle.setAttribute('aria-label', '缩放选中对象（' + dir + '）');
-      handle.dataset.fusionResize = dir;
-      const isCorner = dir.length === 2;
-      const size = u(isCorner ? 11 : 9), x = dir.includes('w') ? 0 : dir.includes('e') ? 100 : 50, y = dir.includes('n') ? 0 : dir.includes('s') ? 100 : 50;
-      handle.style.cssText = `position:absolute;left:calc(${x}% - ${size / 2}px);top:calc(${y}% - ${size / 2}px);width:${size}px;height:${size}px;padding:0;cursor:${HANDLE_CURSORS[dir]};pointer-events:auto;background:#fff;border:${u(1.8)}px solid var(--ui-accent,#23338B);border-radius:${isCorner ? '50%' : u(2) + 'px'};box-shadow:0 ${u(1)}px ${u(3)}px rgba(15,23,42,.25)`;
-      overlay.append(handle);
+
+    if (selectedList.length === 1) {
+      const element = allElements.find((e) => e.id === selected.elementId);
+      const object = slide.objects?.find((o) => o.objectId === element?.parentId);
+      const b = selectionMode === 'group' && object ? object.bounds : element.bounds;
+      const overlay = document.createElement('div');
+      overlay.className = 'fusion-selection';
+      overlay.dataset.editableSkip = 'true';
+      overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;outline:${u(2)}px solid var(--ui-accent,#23338B);pointer-events:none;z-index:10000`;
+      for (const dir of HANDLES) {
+        const handle = document.createElement('button');
+        handle.type = 'button';
+        handle.setAttribute('aria-label', '缩放选中对象（' + dir + '）');
+        handle.dataset.fusionResize = dir;
+        const isCorner = dir.length === 2;
+        const size = u(isCorner ? 11 : 9), x = dir.includes('w') ? 0 : dir.includes('e') ? 100 : 50, y = dir.includes('n') ? 0 : dir.includes('s') ? 100 : 50;
+        handle.style.cssText = `position:absolute;left:calc(${x}% - ${size / 2}px);top:calc(${y}% - ${size / 2}px);width:${size}px;height:${size}px;padding:0;cursor:${HANDLE_CURSORS[dir]};pointer-events:auto;background:#fff;border:${u(1.8)}px solid var(--ui-accent,#23338B);border-radius:${isCorner ? '50%' : u(2) + 'px'};box-shadow:0 ${u(1)}px ${u(3)}px rgba(15,23,42,.25)`;
+        overlay.append(handle);
+      }
+      root.append(overlay);
+      const field = document.getElementById('deck-props-field');
+      field?.classList.remove('is-hidden');
+      document.getElementById('deck-empty-panel')?.classList.add('is-hidden');
+      mountInspector(document.getElementById('deck-props'), selected, api);
+    } else {
+      const items = selectedList.map((s) => allElements.find((e) => e.id === s.elementId)).filter(Boolean);
+      const minX = Math.min(...items.map((e) => e.bounds[0]));
+      const minY = Math.min(...items.map((e) => e.bounds[1]));
+      const maxX = Math.max(...items.map((e) => e.bounds[0] + e.bounds[2]));
+      const maxY = Math.max(...items.map((e) => e.bounds[1] + e.bounds[3]));
+      const groupBox = document.createElement('div');
+      groupBox.className = 'fusion-multi-box';
+      groupBox.dataset.editableSkip = 'true';
+      groupBox.style.cssText = `position:absolute;left:${minX}px;top:${minY}px;width:${maxX - minX}px;height:${maxY - minY}px;border-width:${u(1.5)}px`;
+      root.append(groupBox);
+      for (const item of items) {
+        const b = item.bounds;
+        const ov = document.createElement('div');
+        ov.className = 'fusion-selection';
+        ov.dataset.editableSkip = 'true';
+        ov.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;outline:${u(1.8)}px solid var(--ui-accent,#23338B);pointer-events:none;z-index:10000`;
+        root.append(ov);
+      }
+      const field = document.getElementById('deck-props-field');
+      field?.classList.remove('is-hidden');
+      document.getElementById('deck-empty-panel')?.classList.add('is-hidden');
+      mountMultiInspector(document.getElementById('deck-props'), selectedList, api);
     }
-    root.append(overlay);
-    const field = document.getElementById('deck-props-field');
-    field?.classList.remove('is-hidden');
-    document.getElementById('deck-empty-panel')?.classList.add('is-hidden');
-    mountInspector(document.getElementById('deck-props'), selected, api);
   }
 
   function clearSelection() {
-    selected = null;
-    document.querySelectorAll('#deck .fusion-selection').forEach((e) => e.remove());
+    setSelectionList([]);
+    document.querySelectorAll('#deck .fusion-selection,#deck .fusion-multi-box').forEach((e) => e.remove());
     document.getElementById('fusion-inspector')?.remove();
     const field = document.getElementById('deck-props-field'), panel = document.getElementById('deck-props');
     if (field && panel && !panel.children.length) field.classList.add('is-hidden');
@@ -492,6 +540,11 @@ if (seed) {
     apply({ type: 'duplicate-slide', slideId: target, afterSlideId: target });
     status('已复制当前页面。');
   }
+  function switchPalette(paletteId) {
+    if (!window.__canEditDeck?.()) return;
+    const res = apply({ type: 'switch-palette', paletteId });
+    if (res?.ok) status(`已切换全稿配色：${res.name || paletteId}（⌘Z 可撤销）`);
+  }
 
   const api = {
     isExporting: () => exportBusy,
@@ -508,6 +561,7 @@ if (seed) {
     activeSlideId,
     addSlide,
     duplicateSlide,
+    switchPalette,
     apply,
     save: (options = {}) => (portable() && !options.fileHandle ? saveControls.run() : save(options)),
     undo: () => window.__deckUndo.undo(),
@@ -906,16 +960,29 @@ if (seed) {
   document.addEventListener('click', (ev) => {
     if (ev.target.closest?.('.fusion-crop-editor,.fusion-selection')) return;
     const el = ev.target.closest?.('#deck [data-fusion-element]');
-    if (!el && selected && !ev.target.closest?.('#deck-panel,#deck-rail,#deck-topbar,[role="dialog"],[role="menu"]')) return clearSelection();
+    if (!el && selectedList.length && !ev.target.closest?.('#deck-panel,#deck-rail,#deck-topbar,#deck-dock,[role="dialog"],[role="menu"]')) return clearSelection();
     if (!el || !window.__canEditDeck?.()) return;
-    selected = { slideId: el.closest('.slide').dataset.slideId, elementId: el.dataset.fusionElement };
+    const slideId = el.closest('.slide').dataset.slideId;
+    const elementId = el.dataset.fusionElement;
+    const slide = project.slides.find((s) => s.slideId === slideId);
+    const hitEl = slide && materializeElements(slide, project).find((x) => x.id === elementId);
+    if (hitEl?.type === 'shape' && isBackdropBounds(hitEl.bounds)) {
+      if (selectedList.length) clearSelection();
+      return;
+    }
+    if (ev.shiftKey && selectedList.length && selectedList[0].slideId === slideId) {
+      const exists = selectedList.some((s) => s.elementId === elementId);
+      setSelectionList(exists ? selectedList.filter((s) => s.elementId !== elementId) : [...selectedList, { slideId, elementId }]);
+    } else {
+      setSelectionList([{ slideId, elementId }]);
+    }
     refreshSelection();
   });
 
-  // GPU-composited rAF drag & resize preview
-  let drag = null, suppressClick = false, dragRaf = 0, latestDragEvent = null;
+  // GPU-composited rAF drag, resize & rubber-band marquee selection
+  let drag = null, marquee = null, suppressClick = false, dragRaf = 0, latestDragEvent = null;
   const restorePreview = (d) => d.nodes.forEach(({ node, css }) => { node.style.cssText = css; });
-  const clearGuides = () => document.querySelectorAll('#deck .fusion-guide,#deck .fusion-hud').forEach((e) => e.remove());
+  const clearGuides = () => document.querySelectorAll('#deck .fusion-guide,#deck .fusion-hud,#deck .fusion-marquee').forEach((e) => e.remove());
   const updateHud = (d) => {
     let hud = d.root.querySelector('.fusion-hud');
     if (!hud) {
@@ -932,6 +999,11 @@ if (seed) {
     hud.style.transform = `scale(${inv})`;
   };
   const cancelDrag = () => {
+    if (marquee) {
+      marquee.box?.remove();
+      if (marquee.capture?.hasPointerCapture?.(marquee.pointerId)) marquee.capture.releasePointerCapture(marquee.pointerId);
+      marquee = null;
+    }
     if (!drag) return;
     if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
     latestDragEvent = null;
@@ -970,18 +1042,118 @@ if (seed) {
   }, true);
 
   document.addEventListener('pointerdown', (ev) => {
-    if (cropEditor) return;
-    const target = ev.target.closest?.('#deck [data-fusion-element]');
+    if (cropEditor || ev.button !== 0 || !window.__canEditDeck?.()) return;
     const resize = ev.target.closest?.('[data-fusion-resize]');
-    if (ev.button !== 0 || !window.__canEditDeck?.() || (!resize && (!target || isEditingText(target)))) return;
-    if (target && !resize) selected = { slideId: target.closest('.slide').dataset.slideId, elementId: target.dataset.fusionElement };
-    if (!selected) return;
-    const g = selectionGeometry(syncInPlace(), selected);
-    if (!g) return;
-    const root = sections().find((el) => el.dataset.slideId === selected.slideId).querySelector('.fusion-root');
+    const target = ev.target.closest?.('#deck [data-fusion-element]');
+    if (!resize && target && isEditingText(target)) return;
+
+    const activeSlideEl = document.querySelector('#deck > .fusion-slide.active');
+    const activeRoot = activeSlideEl?.querySelector('.fusion-root');
+
+    // Check whether user clicked empty canvas or a full-slide backdrop shape -> start rubber-band marquee!
+    let hitIsBackdrop = false;
+    if (target && !resize) {
+      const sId = target.closest('.slide').dataset.slideId;
+      const eId = target.dataset.fusionElement;
+      const sl = project.slides.find((s) => s.slideId === sId);
+      const hitEl = sl && materializeElements(sl, project).find((x) => x.id === eId);
+      if (hitEl?.type === 'shape' && isBackdropBounds(hitEl.bounds)) hitIsBackdrop = true;
+    }
+
+    if (!resize && (!target || hitIsBackdrop)) {
+      const inViewport = ev.target.closest?.('#deck-viewport') && !ev.target.closest?.('#deck-dock');
+      if (!inViewport || !activeRoot) return;
+      const rect = activeRoot.getBoundingClientRect();
+      const scale = rect.width / 1920;
+      if (!Number.isFinite(scale) || scale <= 0) return;
+      const sx = (ev.clientX - rect.left) / scale;
+      const sy = (ev.clientY - rect.top) / scale;
+      marquee = {
+        slideId: activeSlideEl.dataset.slideId,
+        root: activeRoot,
+        rect,
+        scale,
+        sx,
+        sy,
+        cx: sx,
+        cy: sy,
+        box: null,
+        moved: false,
+        pointerId: ev.pointerId,
+        capture: ev.target,
+        additive: ev.shiftKey,
+      };
+      ev.target.setPointerCapture?.(ev.pointerId);
+      ev.preventDefault();
+      window.getSelection?.()?.removeAllRanges?.();
+      return;
+    }
+
+    // Shift+click toggles selection without starting a drag
+    if (target && !resize && ev.shiftKey) return;
+
+    const targetSlideId = target ? target.closest('.slide').dataset.slideId : selected?.slideId;
+    const targetElId = target ? target.dataset.fusionElement : selected?.elementId;
+    if (!targetSlideId || !targetElId) return;
+
+    // Multi-selection drag if clicking an already-selected element inside a >=2 multi-selection
+    const inMulti = !resize && selectedList.length >= 2 && selectedList.some((s) => s.slideId === targetSlideId && s.elementId === targetElId);
+    if (!resize && !inMulti) {
+      setSelectionList([{ slideId: targetSlideId, elementId: targetElId }]);
+      refreshSelection();
+    }
+
+    const p = syncInPlace();
+    const root = sections().find((el) => el.dataset.slideId === targetSlideId)?.querySelector('.fusion-root');
+    if (!root) return;
     const scale = root.getBoundingClientRect().width / 1920;
     if (!Number.isFinite(scale) || scale <= 0) return;
-    if (!resize) refreshSelection();
+
+    if (inMulti) {
+      const sl = p.slides.find((s) => s.slideId === targetSlideId);
+      const all = materializeElements(sl, p);
+      const idSet = new Set(selectedList.map((s) => s.elementId));
+      const picked = all.filter((e) => idSet.has(e.id));
+      if (picked.length < 2) return;
+      const minX = Math.min(...picked.map((e) => e.bounds[0]));
+      const minY = Math.min(...picked.map((e) => e.bounds[1]));
+      const maxX = Math.max(...picked.map((e) => e.bounds[0] + e.bounds[2]));
+      const maxY = Math.max(...picked.map((e) => e.bounds[1] + e.bounds[3]));
+      const groupBounds = [minX, minY, maxX - minX, maxY - minY];
+      const nodes = [...root.querySelectorAll('[data-fusion-element]')]
+        .filter((node) => idSet.has(node.dataset.fusionElement))
+        .map((node) => ({ node, css: node.style.cssText, b: picked.find((e) => e.id === node.dataset.fusionElement).bounds }));
+      for (const ov of root.querySelectorAll('.fusion-selection,.fusion-multi-box')) {
+        nodes.push({ node: ov, css: ov.style.cssText, b: groupBounds });
+      }
+      const others = all.filter((e) => !idSet.has(e.id) && !isBackdropBounds(e.bounds)).map((e) => e.bounds);
+      drag = {
+        multi: true,
+        slideId: targetSlideId,
+        picked: picked.map((e) => ({ id: e.id, bounds: [...e.bounds] })),
+        x: ev.clientX,
+        y: ev.clientY,
+        b: [...groupBounds],
+        next: [...groupBounds],
+        scale,
+        root,
+        targets: snapTargets(others),
+        objectId: null,
+        handle: null,
+        nodes,
+        selection: { ...selected },
+        pointerId: ev.pointerId,
+        capture: ev.target,
+        moved: false,
+      };
+      ev.target.setPointerCapture?.(ev.pointerId);
+      ev.preventDefault();
+      ev.stopPropagation();
+      return;
+    }
+
+    const g = selectionGeometry(p, selected);
+    if (!g) return;
     const b = g.bounds;
     const nodes = [...root.querySelectorAll('[data-fusion-element]')]
       .filter((node) => g.ids.has(node.dataset.fusionElement))
@@ -989,10 +1161,11 @@ if (seed) {
     const overlay = root.querySelector('.fusion-selection');
     if (overlay) nodes.push({ node: overlay, css: overlay.style.cssText, b: [...b] });
     const others = [
-      ...g.elements.filter((e) => !g.ids.has(e.id)).map((e) => e.bounds),
+      ...g.elements.filter((e) => !g.ids.has(e.id) && !isBackdropBounds(e.bounds)).map((e) => e.bounds),
       ...(g.slide.objects || []).filter((o) => o.objectId !== g.object?.objectId).map((o) => o.bounds),
     ];
     drag = {
+      multi: false,
       x: ev.clientX,
       y: ev.clientY,
       b: [...b],
@@ -1070,6 +1243,24 @@ if (seed) {
   };
 
   document.addEventListener('pointermove', (ev) => {
+    if (marquee && ev.pointerId === marquee.pointerId) {
+      const m = marquee;
+      m.cx = (ev.clientX - m.rect.left) / m.scale;
+      m.cy = (ev.clientY - m.rect.top) / m.scale;
+      if (!m.moved && Math.hypot((m.cx - m.sx) * m.scale, (m.cy - m.sy) * m.scale) < 5) return;
+      m.moved = true;
+      ev.preventDefault();
+      if (!m.box) {
+        m.box = document.createElement('div');
+        m.box.className = 'fusion-marquee';
+        m.box.dataset.editableSkip = 'true';
+        m.root.append(m.box);
+      }
+      const x = Math.min(m.sx, m.cx), y = Math.min(m.sy, m.cy);
+      const w = Math.abs(m.cx - m.sx), h = Math.abs(m.cy - m.sy);
+      m.box.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;border-width:${1.5 / m.scale}px`;
+      return;
+    }
     if (!drag || ev.pointerId !== drag.pointerId) return;
     ev.preventDefault();
     latestDragEvent = ev;
@@ -1086,6 +1277,35 @@ if (seed) {
   }, { passive: false });
 
   document.addEventListener('pointerup', (ev) => {
+    if (marquee && ev.pointerId === marquee.pointerId) {
+      const m = marquee;
+      marquee = null;
+      m.box?.remove();
+      if (m.capture?.hasPointerCapture?.(m.pointerId)) m.capture.releasePointerCapture(m.pointerId);
+      if (m.moved) {
+        suppressClick = true;
+        setTimeout(() => { suppressClick = false; }, 0);
+        const rx1 = Math.min(m.sx, m.cx), ry1 = Math.min(m.sy, m.cy);
+        const rx2 = Math.max(m.sx, m.cx), ry2 = Math.max(m.sy, m.cy);
+        const sl = project.slides.find((s) => s.slideId === m.slideId);
+        const all = sl ? materializeElements(sl, project) : [];
+        const hits = all
+          .filter((e) => !isBackdropBounds(e.bounds))
+          .filter((e) => {
+            const [ex, ey, ew, eh] = e.bounds;
+            return ex < rx2 && ex + ew > rx1 && ey < ry2 && ey + eh > ry1;
+          })
+          .map((e) => ({ slideId: m.slideId, elementId: e.id }));
+        if (m.additive && selectedList.length && selectedList[0].slideId === m.slideId) {
+          setSelectionList([...selectedList, ...hits]);
+        } else {
+          setSelectionList(hits);
+        }
+        refreshSelection();
+        if (selectedList.length >= 2) status(`已框选 ${selectedList.length} 个对象`);
+      }
+      return;
+    }
     if (!drag || ev.pointerId !== drag.pointerId) return;
     if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
     latestDragEvent = null;
@@ -1098,12 +1318,29 @@ if (seed) {
     if (!d.moved) return;
     suppressClick = true;
     setTimeout(() => { suppressClick = false; }, 0);
-    apply({
-      ...d.selection,
-      type: d.objectId ? 'object-geometry' : 'geometry',
-      objectId: d.objectId,
-      bounds: d.next.map((v) => Math.round(v * 100) / 100),
-    });
+    if (d.multi) {
+      const tx = d.next[0] - d.b[0], ty = d.next[1] - d.b[1];
+      apply({
+        slideId: d.slideId,
+        type: 'batch-geometry',
+        updates: d.picked.map((item) => ({
+          elementId: item.id,
+          bounds: [
+            Math.round((item.bounds[0] + tx) * 100) / 100,
+            Math.round((item.bounds[1] + ty) * 100) / 100,
+            item.bounds[2],
+            item.bounds[3],
+          ],
+        })),
+      });
+    } else {
+      apply({
+        ...d.selection,
+        type: d.objectId ? 'object-geometry' : 'geometry',
+        objectId: d.objectId,
+        bounds: d.next.map((v) => Math.round(v * 100) / 100),
+      });
+    }
   });
   document.addEventListener('pointercancel', cancelDrag);
 
@@ -1142,71 +1379,110 @@ if (seed) {
     clearSelection();
   });
 
-  // Delete / Backspace deletes selected element when not typing text
+  // Delete / Backspace deletes single or multi-selected elements when not typing text
   document.addEventListener('keydown', (ev) => {
-    if ((ev.key !== 'Delete' && ev.key !== 'Backspace') || !selected || drag || cropEditor || ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev.target) || !window.__canEditDeck?.()) return;
+    if ((ev.key !== 'Delete' && ev.key !== 'Backspace') || !selectedList.length || drag || cropEditor || ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev.target) || !window.__canEditDeck?.()) return;
     const active = document.querySelector('#deck > .fusion-slide.active');
     if (active?.dataset.slideId !== selected.slideId) return;
     ev.preventDefault();
     ev.stopImmediatePropagation();
-    const g = selectionGeometry(syncInPlace(), selected);
-    apply({ ...selected, type: 'delete-element', objectId: g?.object?.objectId });
+    if (selectedList.length >= 2) {
+      apply({ slideId: selected.slideId, type: 'batch-delete', elementIds: selectedList.map((s) => s.elementId) });
+      status(`已删除 ${selectedList.length} 个对象`);
+    } else {
+      const g = selectionGeometry(syncInPlace(), selected);
+      apply({ ...selected, type: 'delete-element', objectId: g?.object?.objectId });
+    }
   }, true);
 
   const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   document.addEventListener('keydown', (ev) => {
     const step = ARROWS[ev.key];
-    if (!step || !selected || drag || cropEditor || ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev.target) || !window.__canEditDeck?.()) return;
+    if (!step || !selectedList.length || drag || cropEditor || ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev.target) || !window.__canEditDeck?.()) return;
     const active = document.querySelector('#deck > .fusion-slide.active');
     if (active?.dataset.slideId !== selected.slideId) return;
     ev.preventDefault();
     ev.stopImmediatePropagation();
+    const n = ev.shiftKey ? 10 : 1;
+    if (selectedList.length >= 2) {
+      const p = syncInPlace();
+      const sl = p.slides.find((s) => s.slideId === selected.slideId);
+      const all = sl ? materializeElements(sl, p) : [];
+      const updates = selectedList
+        .map((s) => all.find((e) => e.id === s.elementId))
+        .filter(Boolean)
+        .map((e) => ({ elementId: e.id, bounds: [e.bounds[0] + step[0] * n, e.bounds[1] + step[1] * n, e.bounds[2], e.bounds[3]] }));
+      apply({ slideId: selected.slideId, type: 'batch-geometry', updates }, { mergeKey: 'nudge:multi:' + selected.slideId });
+      return;
+    }
     const g = selectionGeometry(syncInPlace(), selected);
     if (!g) return;
-    const n = ev.shiftKey ? 10 : 1, b = g.bounds;
+    const b = g.bounds;
     apply(
       { ...selected, type: g.object ? 'object-geometry' : 'geometry', objectId: g.object?.objectId, bounds: [b[0] + step[0] * n, b[1] + step[1] * n, b[2], b[3]] },
       { mergeKey: 'nudge:' + selected.slideId + '/' + (g.object?.objectId || selected.elementId) }
     );
   }, true);
 
-  // Duplicate (⌘D) & Copy/Paste (⌘C / ⌘V) selected elements across slides
-  let clipboardElement = null;
+  // Duplicate (⌘D) & Copy/Paste (⌘C / ⌘V) single or multi-selected elements across slides
+  let clipboardElements = [];
   document.addEventListener('keydown', (ev) => {
     const key = String(ev.key || '').toLowerCase();
     if (!(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || typing(ev.target) || !window.__canEditDeck?.()) return;
-    if (key === 'd' && selected) {
+    if (key === 'd' && selectedList.length) {
       ev.preventDefault();
       ev.stopImmediatePropagation();
-      apply({ ...selected, type: 'duplicate-element' });
-      status('已复制对象');
-    } else if (key === 'c' && selected) {
+      if (selectedList.length >= 2) {
+        apply({ slideId: selected.slideId, type: 'batch-duplicate', elementIds: selectedList.map((s) => s.elementId) });
+        status(`已复制 ${selectedList.length} 个对象`);
+      } else {
+        apply({ ...selected, type: 'duplicate-element' });
+        status('已复制对象');
+      }
+    } else if (key === 'c' && selectedList.length) {
       const selText = String(window.getSelection?.() || '');
       if (selText) return;
-      const g = selectionGeometry(syncInPlace(), selected);
-      if (!g?.element) return;
+      const p = syncInPlace();
+      const sl = p.slides.find((s) => s.slideId === selected.slideId);
+      if (!sl) return;
+      const all = materializeElements(sl, p);
+      clipboardElements = selectedList
+        .map((s) => sl.elements.find((x) => x.id === s.elementId) || all.find((x) => x.id === s.elementId))
+        .filter(Boolean)
+        .map((rawEl) => {
+          const copy = structuredClone(rawEl);
+          delete copy.id;
+          delete copy.parentId;
+          delete copy.contentRef;
+          delete copy.sourceContentRef;
+          return copy;
+        });
+      if (!clipboardElements.length) return;
       ev.preventDefault();
-      const rawEl = g.slide.elements.find((x) => x.id === g.element.id) || g.element;
-      clipboardElement = structuredClone(rawEl);
-      delete clipboardElement.id;
-      delete clipboardElement.parentId;
-      delete clipboardElement.contentRef;
-      delete clipboardElement.sourceContentRef;
-      status('已复制对象，可按 ⌘V 粘贴到当前页或其他页');
-    } else if (key === 'v' && clipboardElement) {
+      status(clipboardElements.length > 1 ? `已复制 ${clipboardElements.length} 个对象，可按 ⌘V 粘贴` : '已复制对象，可按 ⌘V 粘贴到当前页或其他页');
+    } else if (key === 'v' && clipboardElements.length) {
       const slideId = activeSlideId();
       if (!slideId) return;
       ev.preventDefault();
-      const pasted = structuredClone(clipboardElement);
-      pasted.bounds = [
-        Math.min(1920 - pasted.bounds[2], Math.max(0, pasted.bounds[0] + 24)),
-        Math.min(1080 - pasted.bounds[3], Math.max(0, pasted.bounds[1] + 24)),
-        pasted.bounds[2],
-        pasted.bounds[3],
-      ];
-      clipboardElement.bounds = [...pasted.bounds];
-      apply({ slideId, type: 'add-element', element: pasted });
-      status('已粘贴对象');
+      const newIds = [];
+      for (const item of clipboardElements) {
+        const pasted = structuredClone(item);
+        pasted.bounds = [
+          Math.min(1920 - pasted.bounds[2], Math.max(0, pasted.bounds[0] + 24)),
+          Math.min(1080 - pasted.bounds[3], Math.max(0, pasted.bounds[1] + 24)),
+          pasted.bounds[2],
+          pasted.bounds[3],
+        ];
+        item.bounds = [...pasted.bounds];
+        const cmd = { slideId, type: 'add-element', element: pasted };
+        const res = apply(cmd);
+        if (res?.ok && cmd.elementId) newIds.push({ slideId, elementId: cmd.elementId });
+      }
+      if (newIds.length) {
+        setSelectionList(newIds);
+        refreshSelection();
+      }
+      status(newIds.length > 1 ? `已粘贴 ${newIds.length} 个对象` : '已粘贴对象');
     }
   }, true);
 

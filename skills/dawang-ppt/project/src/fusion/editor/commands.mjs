@@ -6,9 +6,16 @@ import { layoutObject, deriveSlideElements } from "../objects/index.mjs";
 import { resolveStyle, resolveSlideStyle } from "../styles/registry.mjs";
 import { syncCompositionTextState } from "../scene/model.mjs";
 import { changeSlideAppearance } from "../styles/appearance.mjs";
+import { applyPaletteToProject } from "./palette-switch.mjs";
 const boundsValid = (b) => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0;
 function applyEditCommand(project, command) {
   const p = clone(project);
+  if (command.type === "switch-palette") {
+    const info = applyPaletteToProject(p, command.paletteId);
+    p.revision = revision();
+    syncCompositionTextState(p);
+    return { ok: true, project: p, ...info };
+  }
   if (command.type === "add-slide" || command.type === "duplicate-slide") {
     const afterIdx = command.afterSlideId
       ? p.slides.findIndex((x) => x.slideId === command.afterSlideId)
@@ -59,7 +66,41 @@ function applyEditCommand(project, command) {
   const e = deriveSlideElements(s, style).find((e2) => e2.id === command.elementId);
   const beforeSlide = clone(s), beforeNodes = clone(p.contentPlan.nodes), beforeEdits = p.sources.userEdits.length;
   try {
-    if (command.type === "slide-bg") {
+    if (command.type === "batch-geometry") {
+      const updates = Array.isArray(command.updates) ? command.updates : [];
+      for (const u of updates) {
+        if (!boundsValid(u.bounds)) continue;
+        const base = s.elements.find((x) => x.id === u.elementId);
+        if (base) base.bounds = clone(u.bounds);
+      }
+    } else if (command.type === "batch-duplicate") {
+      const ids = Array.isArray(command.elementIds) ? command.elementIds : [];
+      const dx = command.dx ?? 24, dy = command.dy ?? 24;
+      const newIds = [];
+      let topLayer = Math.max(0, ...(s.elements || []).map((t) => t.layer || 0), ...(s.objects || []).map((t) => t.layer || 0));
+      for (const id of ids) {
+        const srcEl = (s.elements || []).find((x) => x.id === id);
+        if (!srcEl) continue;
+        const copy = clone(srcEl);
+        delete copy.parentId;
+        delete copy.contentRef;
+        delete copy.sourceContentRef;
+        copy.id = `user-${copy.type}-${revision().slice(0, 8)}`;
+        copy.bounds = [
+          Math.min(1920 - copy.bounds[2], Math.max(0, copy.bounds[0] + dx)),
+          Math.min(1080 - copy.bounds[3], Math.max(0, copy.bounds[1] + dy)),
+          copy.bounds[2],
+          copy.bounds[3],
+        ];
+        copy.layer = ++topLayer;
+        s.elements.push(copy);
+        newIds.push(copy.id);
+      }
+      command.newElementIds = newIds;
+    } else if (command.type === "batch-delete") {
+      const drop = new Set(Array.isArray(command.elementIds) ? command.elementIds : []);
+      s.elements = (s.elements || []).filter((x) => !drop.has(x.id));
+    } else if (command.type === "slide-bg") {
       s.elements = s.elements || [];
       const bgEl = s.elements.find((x) => x.type === "shape" && Array.isArray(x.bounds) && x.bounds[0] <= 2 && x.bounds[1] <= 2 && x.bounds[2] >= 1916 && x.bounds[3] >= 1076);
       if (bgEl) {

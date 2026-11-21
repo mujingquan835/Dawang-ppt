@@ -1,5 +1,6 @@
 import { materializeElements } from "../scene/model.mjs";
 import { draftedShownBy } from "../authoring/drafted.mjs";
+import { REPORT_PALETTES } from "./palette-switch.mjs";
 
 const inspectorSections = new Map();
 const FOCUSABLE = "input,select,button,summary";
@@ -134,7 +135,35 @@ export function mountDeckPanel(container, api) {
   pageSec.append(pageBtns);
   container.append(pageSec);
 
-  // Card 2: Shortcuts Cheat-Sheet
+  // Card 2: One-Click Whole-Deck Palette Switcher (all 9+2 official 3-tone palettes)
+  const palSec = document.createElement("div");
+  palSec.className = "deck-panel-section";
+  const palTitle = document.createElement("div");
+  palTitle.className = "deck-panel-sec-title";
+  palTitle.innerHTML = "<span>全稿主题配色</span><span>一键换肤</span>";
+  palSec.append(palTitle);
+
+  const curPal = project.designChoice?.appearance?.palette || {};
+  const curPalId = project.designChoice?.appearance?.paletteId;
+  const curPri = String(curPal.primary || curPal.accent || "").toLowerCase();
+  const palGrid = document.createElement("div");
+  palGrid.className = "fi-palette-grid";
+  for (const entry of REPORT_PALETTES) {
+    const p = entry.palette;
+    const isActive = curPalId ? curPalId === entry.id : curPri === String(p.primary).toLowerCase() && Boolean(curPal.dark) === Boolean(p.dark);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "fi-pal-card" + (p.dark ? " is-dark" : "") + (isActive ? " is-active" : "");
+    btn.dataset.paletteId = entry.id;
+    btn.title = `${entry.name}：${entry.fit}`;
+    btn.innerHTML = `<span class="fi-pal-dots"><i style="background:${p.primary}"></i><i style="background:${p.secondary}"></i><i style="background:${p.pop}"></i></span><span class="fi-pal-name">${entry.name}</span>`;
+    btn.onclick = () => api.switchPalette?.(entry.id);
+    palGrid.append(btn);
+  }
+  palSec.append(palGrid);
+  container.append(palSec);
+
+  // Card 3: Shortcuts Cheat-Sheet
   const scSec = document.createElement("div");
   scSec.className = "deck-panel-section";
   const scTitle = document.createElement("div");
@@ -146,6 +175,7 @@ export function mountDeckPanel(container, api) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
   const mod = isMac ? "⌘" : "Ctrl+";
   const items = [
+    ["拉框 / ⇧点击", "多选元素"],
     ["双击文本", "直接改字"],
     ["方向键 / ⇧方向", "1px / 10px 微调"],
     ["⇧ + 拖拽", "水平/垂直锁定"],
@@ -749,6 +779,117 @@ function mountInspector(panel, selection, api) {
   if (o.kind === "images") {
     select("图片组合", o.data.arrangement || "single", [["single", "单图"], ["text-photo", "图文并排"], ["primary-secondary", "主图＋副图"], ["grid", "网格"], ["full-bleed", "满版出血"]], (arrangement) => semantic({ ...current().data, arrangement }));
   }
+}
+
+export function mountMultiInspector(panel, selectedList, api) {
+  panel.querySelector("#fusion-inspector")?.remove();
+  const box = document.createElement("div");
+  box.id = "fusion-inspector";
+  box.style.cssText = "display:grid;gap:12px;font:500 12.5px/1.4 var(--ui-font);color:var(--ui-fg)";
+  panel.append(box);
+
+  const slideId = selectedList[0]?.slideId;
+  const project = api.getProject();
+  const slide = project.slides.find((s) => s.slideId === slideId);
+  if (!slide) return;
+  const all = materializeElements(slide, project);
+  const ids = selectedList.map((s) => s.elementId);
+  const items = ids.map((id) => all.find((e) => e.id === id)).filter(Boolean);
+  if (items.length < 2) return;
+
+  const minX = Math.min(...items.map((e) => e.bounds[0]));
+  const minY = Math.min(...items.map((e) => e.bounds[1]));
+  const maxX = Math.max(...items.map((e) => e.bounds[0] + e.bounds[2]));
+  const maxY = Math.max(...items.map((e) => e.bounds[1] + e.bounds[3]));
+  const groupW = maxX - minX, groupH = maxY - minY;
+
+  // Header
+  const header = document.createElement("div");
+  header.className = "fi-header";
+  header.innerHTML = `<div class="fi-badge"><span class="fi-badge-tag">已选 ${items.length} 个对象</span></div>`;
+  const quick = document.createElement("div");
+  quick.className = "fi-quick-bar";
+  const qBtn = (svg, title, fn, danger = false) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "fi-icon-btn" + (danger ? " is-danger" : "");
+    b.innerHTML = svg;
+    b.title = title;
+    b.onclick = fn;
+    quick.append(b);
+  };
+  qBtn(ICONS.dup, "批量复制（⌘D）", () => api.apply({ slideId, type: "batch-duplicate", elementIds: ids }));
+  qBtn(ICONS.del, "批量删除（Delete）", () => api.apply({ slideId, type: "batch-delete", elementIds: ids }), true);
+  header.append(quick);
+  box.append(header);
+
+  const commitBatch = (updates) => api.apply({ slideId, type: "batch-geometry", updates });
+
+  // Relative Align Card
+  const alSec = document.createElement("div");
+  alSec.className = "deck-panel-section";
+  alSec.innerHTML = '<div class="deck-panel-sec-title"><span>互相对齐</span><span>相对选区</span></div>';
+  const alignBar = document.createElement("div");
+  alignBar.className = "fi-grid-6";
+  const aligns = [
+    [ICONS.alL, "左对齐", () => commitBatch(items.map((e) => ({ elementId: e.id, bounds: [minX, e.bounds[1], e.bounds[2], e.bounds[3]] })))],
+    [ICONS.alC, "水平居中对齐", () => commitBatch(items.map((e) => ({ elementId: e.id, bounds: [Math.round(minX + (groupW - e.bounds[2]) / 2), e.bounds[1], e.bounds[2], e.bounds[3]] })))],
+    [ICONS.alR, "右对齐", () => commitBatch(items.map((e) => ({ elementId: e.id, bounds: [maxX - e.bounds[2], e.bounds[1], e.bounds[2], e.bounds[3]] })))],
+    [ICONS.alT, "顶对齐", () => commitBatch(items.map((e) => ({ elementId: e.id, bounds: [e.bounds[0], minY, e.bounds[2], e.bounds[3]] })))],
+    [ICONS.alM, "垂直居中对齐", () => commitBatch(items.map((e) => ({ elementId: e.id, bounds: [e.bounds[0], Math.round(minY + (groupH - e.bounds[3]) / 2), e.bounds[2], e.bounds[3]] })))],
+    [ICONS.alB, "底对齐", () => commitBatch(items.map((e) => ({ elementId: e.id, bounds: [e.bounds[0], maxY - e.bounds[3], e.bounds[2], e.bounds[3]] })))],
+  ];
+  for (const [svg, tip, fn] of aligns) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = svg;
+    b.title = tip;
+    b.onclick = fn;
+    alignBar.append(b);
+  }
+  alSec.append(alignBar);
+
+  // Equal Distribute Row (horizontal / vertical)
+  const distRow = document.createElement("div");
+  distRow.className = "fi-grid-2";
+  const distBtn = (label, axis) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "deck-prop-choice";
+    b.textContent = label;
+    b.disabled = items.length < 3;
+    b.title = items.length < 3 ? "需至少选中 3 个对象" : label;
+    b.onclick = () => {
+      const idx = axis === "x" ? 0 : 1, dim = axis === "x" ? 2 : 3;
+      const sorted = [...items].sort((a, c) => a.bounds[idx] - c.bounds[idx]);
+      const first = sorted[0].bounds[idx];
+      const lastEnd = sorted.at(-1).bounds[idx] + sorted.at(-1).bounds[dim];
+      const totalDim = sorted.reduce((acc, el) => acc + el.bounds[dim], 0);
+      const gap = (lastEnd - first - totalDim) / (sorted.length - 1);
+      let cursor = first;
+      const updates = sorted.map((el) => {
+        const next = [...el.bounds];
+        next[idx] = Math.round(cursor);
+        cursor += el.bounds[dim] + gap;
+        return { elementId: el.id, bounds: next };
+      });
+      commitBatch(updates);
+    };
+    return b;
+  };
+  distRow.append(distBtn("水平等距分布", "x"), distBtn("垂直等距分布", "y"));
+  alSec.append(distRow);
+  box.append(alSec);
+
+  // Group Bounds Readout
+  const boxSec = document.createElement("div");
+  boxSec.className = "deck-panel-section";
+  boxSec.innerHTML = `<div class="deck-panel-sec-title"><span>组合选区边界</span><span>${Math.round(groupW)} × ${Math.round(groupH)}</span></div>`;
+  const hint = document.createElement("p");
+  hint.className = "deck-panel-hint";
+  hint.textContent = "可直接拖拽任意选中对象成组移动，或使用方向键（Shift 10px）批量微调。";
+  boxSec.append(hint);
+  box.append(boxSec);
 }
 
 export { mountInspector };

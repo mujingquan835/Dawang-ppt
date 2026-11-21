@@ -162,16 +162,34 @@ button,input,select{font:inherit;color:inherit}
 .fi-sc-row{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:var(--ui-muted)}
 .fi-sc-row kbd{font-family:var(--ui-font);font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:5px;background:var(--ui-surface);border:1px solid var(--ui-border);color:var(--ui-fg);box-shadow:0 1px 0 var(--ui-border)}
 
+/* One-click whole-deck palette cards */
+.fi-palette-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fi-pal-card{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-surface);cursor:pointer;text-align:left;transition:all .14s}
+.fi-pal-card:hover{border-color:var(--ui-accent);background:var(--ui-accent-soft)}
+.fi-pal-card.is-active{border-color:var(--ui-accent);box-shadow:0 0 0 1.5px var(--ui-accent);background:var(--ui-accent-soft)}
+.fi-pal-card.is-dark{background:#151E30;color:#F8FAFC;border-color:#2A3956}
+.fi-pal-card.is-dark:hover,.fi-pal-card.is-dark.is-active{border-color:#F59E0B;box-shadow:0 0 0 1.5px #F59E0B}
+.fi-pal-dots{display:inline-flex;align-items:center;flex:none}
+.fi-pal-dots i{width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;margin-left:-3px;display:inline-block}
+.fi-pal-dots i:first-child{margin-left:0}
+.fi-pal-card.is-dark .fi-pal-dots i{border-color:#151E30}
+.fi-pal-name{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Marquee rubber-band selection & multi-select outer frame */
+.fusion-marquee{position:absolute;z-index:10003;pointer-events:none;background:rgba(35,51,139,.10);border:1.5px solid #23338B;border-radius:2px}
+.fusion-multi-box{position:absolute;z-index:9999;pointer-events:none;border:1.5px dashed rgba(35,51,139,.65);background:rgba(35,51,139,.03)}
+
 .deck-prop-row{display:grid;gap:4px}
 .deck-prop-row>span{font-size:11.5px;font-weight:550;color:var(--ui-muted)}
 .deck-prop-choice{padding:6px 10px;border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-surface);cursor:pointer;font-size:12px;font-weight:550;transition:all .12s}
 .deck-prop-choice:hover{background:var(--ui-chip);border-color:var(--ui-border-strong)}
 
 /* Canvas element hover & editing states */
+body.deck-editing #deck{user-select:none;-webkit-user-select:none}
+body.deck-editing #deck [contenteditable="true"]{user-select:text;-webkit-user-select:text;cursor:text!important;outline:2px solid #3B82F6!important;outline-offset:2px;background:rgba(59,130,246,.04);border-radius:3px}
 body.deck-editing #deck [data-fusion-element]{cursor:grab;transition:outline-color .1s}
 body.deck-editing #deck [data-fusion-element]:hover{outline:1.5px dashed rgba(35,51,139,.45);outline-offset:1px}
 body.deck-editing #deck [data-fusion-element][data-element-type="text"]{cursor:default}
-body.deck-editing #deck [contenteditable="true"]{cursor:text!important;outline:2px solid #3B82F6!important;outline-offset:2px;background:rgba(59,130,246,.04);border-radius:3px}
 
 /* Presenting mode */
 body.deck-presenting{grid-template-rows:0 1fr;background:#000}
