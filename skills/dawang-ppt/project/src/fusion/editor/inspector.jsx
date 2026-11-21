@@ -132,10 +132,20 @@ function mountInspector(panel, selection, api) {
   if (e.type === "text") {
     container = section('fusion-text-properties','文字属性',true);
     const textStyle = style => apply({type:'style',style,textScope:'all-runs'});
-    const families = ['OPPO Sans 4.0','Arial','Microsoft YaHei','SimSun','SimHei','DengXian','Source Han Sans SC','PingFang SC','KaiTi','Times New Roman'];
+    const families = [
+      ['Source Han Sans SC', '思源黑体（正文 / 多字重）'],
+      ['YouSheBiaoTiHei', '优设标题黑（艺术标题）'],
+      ['OPPO Sans 4.0', 'OPPO Sans 4.0'],
+      ['PingFang SC', '苹方 PingFang SC'],
+      ['Microsoft YaHei', '微软雅黑'],
+      ['Songti SC', '宋体 Songti SC'],
+      ['KaiTi', '楷体 KaiTi'],
+      ['Arial', 'Arial'],
+    ];
     const currentFont = e.manualStyle?.fontFamily || e.style?.fontFamily || '';
-    const fonts = [...new Set([currentFont,...families].filter(Boolean))];
-    select('字体',currentFont, [['','跟随全稿字体'],...fonts.map(font => [font,font])], fontFamily => textStyle({fontFamily}));
+    const fontOpts = [['', '跟随全稿字体'], ...families];
+    if (currentFont && !families.some(([f]) => f === currentFont)) fontOpts.push([currentFont, currentFont]);
+    select('字体', currentFont, fontOpts, fontFamily => textStyle({ fontFamily }));
     field('自定义本机字体',currentFont,fontFamily => textStyle({fontFamily:fontFamily.trim().replace(/[;{}<>]/g,'')}));
     const mixed = key => e.runs && new Set(e.runs.map(run => run.style?.[key] ?? e.style?.[key])).size > 1;
     const effectiveSize = e.runs?.[0]?.style?.fontSize ?? e.style?.fontSize ?? 34;
@@ -147,9 +157,10 @@ function mountInspector(panel, selection, api) {
     if(mixed('color')){
       const note=document.createElement('small');note.textContent='当前为多种颜色；修改文字颜色将统一整段。';container.append(note);
     }
-    const weightOptions = [['300','Light · 细体 (300)'],['400','Regular · 常规 (400)'],['500','Medium · 中黑 (500)'],['600','SemiBold · 中粗 (600)'],['700','Bold · 粗体 (700)']];
-    const effectiveWeight = String(e.runs?.[0]?.style?.fontWeight ?? e.style?.fontWeight ?? 400);
-    select('字重',weightOptions.some(([w])=>w===effectiveWeight)?effectiveWeight:'400',weightOptions,value=>textStyle({fontWeight:Number(value)}));
+    const weightOptions = [['300','Light · 细体 (300)'],['400','Regular · 常规 (400)'],['700','Bold · 粗体 (700)'],['900','Heavy · 特粗 (900)']];
+    const rawWeight = Number(e.runs?.[0]?.style?.fontWeight ?? e.style?.fontWeight ?? 400);
+    const mappedWeight = rawWeight >= 800 ? '900' : rawWeight >= 551 ? '700' : rawWeight <= 350 ? '300' : '400';
+    select('字重', mappedWeight, weightOptions, value => textStyle({ fontWeight: Number(value) }));
     select('对齐',e.style.textAlign || 'left', [['left','左对齐'],['center','居中'],['right','右对齐']], textAlign => textStyle({textAlign}));
     if(e.runs){
       container = section('fusion-text-runs','分段文字与样式');
@@ -193,9 +204,10 @@ function mountInspector(panel, selection, api) {
     });
     button('裁切图片',()=>api.beginCrop(selection));
   }
-  container = section('fusion-layers','图层');
+  container = section('fusion-layers','图层与删除');
   button("置于前层", () => apply({ type: "layer", direction: "front", objectId: o?.objectId }));
   button("置于后层", () => apply({ type: "layer", direction: "back", objectId: o?.objectId }));
+  button("删除选中对象", () => apply({ type: "delete-element", objectId: o?.objectId }));
   container = box;
   if (!o) return;
   const editItem = (key, id, idField, fieldName, value) => {

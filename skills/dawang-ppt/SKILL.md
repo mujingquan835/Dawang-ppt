@@ -4,6 +4,28 @@ description: 制作、编辑和返工中文工作汇报类演示文稿（工作�
 ---
 # Dawang-PPT
 
+## 极速出稿主路径（默认推荐，不拖累大模型）
+
+收到用户材料后，优先走**单层语义大纲 → 纯 Node 确定性编排**链路（全程不启动浏览器、不强跑多轮外部复核，1 秒内出稿）：
+
+1. **读材料并提炼 `outline.json`**：只需写出顶层 `title`、`period`、`palette` 和每页 `pages[]`（`id`、`role`、`eyebrow`、`keyLine`、`focus`、`data`、`items`、`compare`、`periods`、`table`、`flows`、`statements`、`photos`）。不手算坐标、不写冗长合规清单。
+   - **配色按三色协同体系选择**（默认首选 **`blue-gold` 蓝金色**；所有 9 组色板均采用「主色 + 辅色冷暖双色成对交替 + 亮色点睛」的三色协同渲染）：
+     - **默认首选**：`blue-gold`（**蓝金色**：皇家宝蓝 `#23338B` + 香槟暖金 `#E2B898` 双色交替 + 活力橙 `#FA6500` 点睛，稳重高级且极富层次）
+     - **商务与项目汇报**：`stone-gold`（皓石金）、`business-gold`（商务金）、`jade-gold`（翡翠金）、`blue-cyan`（蓝青色）
+     - **营销复盘与对比冲刺**：`purple-gold-orange`（紫金橙）、`green-red-gold`（绿红金）、`red-gold`（红金色）、`primary-colors`（三原色）
+     - **深色旗舰（按需）**：`midnight-gold`（星夜曜金）、`cyber-cyan`（黑曜电青）。
+   - **版面与图带原则**：当一页同时包含核心数据指标（3–5 个数字）、动作要点与 3–4 张现场/视觉素材时，引擎默认采用**全宽通栏纵向节奏**（导语带 → 横跨全宽的 KPI 指标带 → 动作列表 → 底部全宽图带）；不同比例的横图（如海报总览、现场全景）与竖图（如客户特写）可以自然混排成一条底部 3–4 图视觉长带，不要轻易丢弃代表整体视觉氛围的横向总览图。
+   - **克制收束**：一页单总结已有清晰导语、指标、动作和实拍图带时，不必硬塞额外暖色判断条把页面挤满，保持留白与通透感。
+2. **一步生成单文件离线 HTML（及可选原生可编辑 PPTX）**：
+   ```bash
+   node <skill>/scripts/dawang.mjs fast:build <outline.json> <输出.html> [--pptx <输出.pptx>] [--palette <配色id>]
+   ```
+   - **双字体自动配对**：正文、标签、单位、图注使用清秀透气的**思源黑体 300 Light**，表格首列用 **400 Regular**，小标题与重点词用 **700 Bold**，主标题核心句与大号 KPI 数字用 **900 Heavy**（四档字重真实粗细跨度达 2.35 倍）；封面大标题与简短主题主标题（≤ 10 字）自动使用艺术展示字体**优设标题黑（YouSheBiaoTiHei）**点睛；WOFF2 常用字子集通过 `FontFace API` 惰性加载（`<style>` 零 base64）。
+   - **自由编辑与零卡顿保存**：打开输出 HTML 即可自由拖拽、缩放、双击改字、切换字体/字重、`+ 文本/+ 色块/+ 图片`、删除元素、撤销重做、零拷贝极速保存源文件，以及一键导出原生可编辑 PPTX / PDF / PNG。
+3. **按需精修与深度复核**：仅当用户明确要求像素级审查或外部复核时，再按需运行 `check` / `review:rules` / `patch:project`。
+
+---
+
 ## 分工
 
 - **设计依据：** 内置汇报规则 `references/rules/`（[通用要求](references/rules/general.md) 与 [工作汇报、述职与复盘](references/rules/work-report.md)），随技能分发，不需要另装资料。`rules:read management-report` 按章节输出，每章都要照做。

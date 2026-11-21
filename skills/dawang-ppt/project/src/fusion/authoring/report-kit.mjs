@@ -15,7 +15,7 @@ const fitSize = (text, width, max, min = 28) => {
   const em = Math.max(1, textWidth(String(text), 1));
   return Math.max(min, Math.min(max, Math.floor((width * 0.92) / em)));
 };
-const valueRuns = (value, unit, size, color) => [{ text: String(value), style: { fontSize: size, fontWeight: 800, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: Math.max(20, Math.round(size * 0.4)), fontWeight: 700, color } }] : [])];
+const valueRuns = (value, unit, size, color) => [{ text: String(value), style: { fontSize: size, fontWeight: 900, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: Math.max(20, Math.round(size * 0.4)), fontWeight: 300, color } }] : [])];
 
 export function answerBlock({ id, x, y, width, height, label, value, unit, note, theme, fill }) {
   const p = theme.palette, r = colorRoles(p), pad = 36, iw = width - pad * 2;

@@ -1,8 +1,16 @@
 function pickFont(stack, text, weight) {
   if (/Archivo/.test(stack || "")) return Number(weight) >= 850 ? "Archivo SemiBold Black" : Number(weight) >= 750 ? "Archivo SemiBold ExtraBold" : "Archivo SemiBold";
-  const fonts = (stack || "Arial").split(",").map((f) => f.replaceAll('"', "").trim());
-  const aliases = { "Songti SC": "宋体-简", "PingFang SC": "苹方-简", "Hiragino Sans GB": "冬青黑体简体中文" };
-  const chosen = /[\u3400-\u9fff]/.test(text) ? fonts.find((f) => /SC|CJK|MiSans|OPPO|SimSun|SimHei|Microsoft YaHei|DengXian|KaiTi/i.test(f)) || fonts[0] : fonts[0];
+  const fonts = (stack || "Source Han Sans SC").split(",").map((f) => f.replaceAll('"', "").replaceAll("'", "").trim());
+  const aliases = {
+    "Songti SC": "宋体-简",
+    "PingFang SC": "苹方-简",
+    "Hiragino Sans GB": "冬青黑体简体中文",
+    "Source Han Sans SC": "思源黑体 CN",
+    "YouSheBiaoTiHei": "优设标题黑",
+  };
+  const chosen = /[\u3400-\u9fff]/.test(text)
+    ? fonts.find((f) => /YouShe|Source\s*Han|SC|CJK|MiSans|OPPO|SimSun|SimHei|Microsoft YaHei|DengXian|KaiTi|思源|优设/i.test(f)) || fonts[0]
+    : fonts[0];
   return aliases[chosen] || chosen;
 }
 function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {}) {

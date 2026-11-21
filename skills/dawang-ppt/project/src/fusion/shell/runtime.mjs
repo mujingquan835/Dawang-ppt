@@ -106,7 +106,7 @@ export function mountDeckRuntime({ onOrderChange, status = () => {} } = {}) {
   const dirty = new Set(); let dirtyTimer = null;
   function refreshThumb(section) {
     dirty.add(section); clearTimeout(dirtyTimer);
-    dirtyTimer = setTimeout(() => { for (const s of dirty) { const old = [...list.children].find((i) => i.dataset.slideId === s.dataset.slideId); if (old) old.replaceWith(thumb(s)); } dirty.clear(); numberRail(); scaleThumbs(); }, 120);
+    dirtyTimer = setTimeout(() => { for (const s of dirty) { const old = [...list.children].find((i) => i.dataset.slideId === s.dataset.slideId); if (old) old.replaceWith(thumb(s)); } dirty.clear(); numberRail(); scaleThumbs(); }, 280);
   }
 
   // Order changes go through the editor so they are undoable and saved.

@@ -6,6 +6,8 @@ import {readAuthoringRules,writeRulesLock,SCENARIOS} from '../src/fusion/rules/i
 import {importPortableHtml} from "../src/fusion/portable/import.mjs";
 import {stageMedia} from "../src/fusion/authoring/media.mjs";
 import {makeHtml,publishHtml,checkProject} from "../src/fusion/authoring/pipeline.mjs";
+import {fastBuildDeck} from "../src/fusion/authoring/fast-build.mjs";
+import {exportProjectPptxHeadless} from "../src/fusion/export/pptx.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -113,6 +115,23 @@ async function main(args = process.argv.slice(2)) {
   if(mode==='rules:list'){console.log(JSON.stringify(SCENARIOS.map(({id,zh})=>({id,name:zh})),null,2));return;}
   if(mode==='prepare'&&input&&path.extname(input).toLowerCase()==='.pptx'&&output){const {pptxToMarkdown}=await import('../src/fusion/authoring/pptx-source.mjs');const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'dawang-pptx-'));try{const c=await pptxToMarkdown(absolute(input),tmp);const i=args.indexOf('--scenario');console.log(JSON.stringify({convertedFrom:absolute(input),slides:c.slides,images:c.images,skippedImages:c.skippedImages,...prepareMaterial({inputFile:c.markdown,outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]})},null,2));}finally{fs.rmSync(tmp,{recursive:true,force:true});}return;}
   if(mode==='prepare'){if(!input||!output)throw Error('prepare <material.pptx|html|json|md|txt> <new-directory> [--scenario id]');const i=args.indexOf('--scenario');console.log(JSON.stringify(prepareMaterial({inputFile:absolute(input),outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]}),null,2));return;}
+  if(mode==='fast:build'){
+   if(!input||!output)throw Error('Usage: fast:build <outline.json|authored.json|deck-project.json> <output.html> [--pptx <output.pptx>] [--palette <id>] [--font <bodyFont>] [--title-font <displayFont>] [--workspace <dir>]');
+   const flag=name=>args.includes(name)?args[args.indexOf(name)+1]:undefined;
+   const r=await fastBuildDeck({
+    inputFile:absolute(input),
+    outFile:absolute(output),
+    pptxFile:flag('--pptx')&&absolute(flag('--pptx')),
+    palette:flag('--palette')||null,
+    header:flag('--header')||'tag',
+    footer:flag('--footer'),
+    fontFamily:flag('--font')||'Source Han Sans SC',
+    displayFamily:flag('--title-font')||'YouSheBiaoTiHei',
+    workspaceDir:flag('--workspace')&&absolute(flag('--workspace'))
+   });
+   console.log(JSON.stringify(r,null,2));
+   return;
+  }
   if(['make','publish:html','check'].includes(mode)){
    const flag=name=>args.includes(name)?args[args.indexOf(name)+1]:undefined;
    const screenshots=flag('--screenshots')&&absolute(flag('--screenshots'));
@@ -135,7 +154,7 @@ async function main(args = process.argv.slice(2)) {
     fs.writeFileSync(file.replace(/\.html$/i,'')+'.json',JSON.stringify(options,null,2));
     console.log(JSON.stringify({file,options}));return;
   }
-  if (!input) throw new Error("Usage: dawang <outline:check|outline:baseline|make|review:rules|publish:html|patch:project|rules:read|rules:checklist|render:authored|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
+  if (!input) throw new Error("Usage: dawang <fast:build|outline:check|outline:baseline|make|review:rules|publish:html|patch:project|rules:read|rules:checklist|render:authored|render:brief|render:project|preview:start|export:pptx|export:pdf|qa:project> <file-or-project-directory> [output.html|output.pptx|port]");
   if (["render:authored", "render:brief", "render:project"].includes(mode)) {
     if (!output) throw new Error("Output HTML path required");
     const file = absolute(input), outFile = absolute(output), dir2 = path.dirname(outFile), pf2 = path.join(dir2, "deck-project.json");
@@ -171,6 +190,14 @@ async function main(args = process.argv.slice(2)) {
   if (mode === "preview:start") {
     const server2 = await createFusionServer({ dir, port: output===undefined?0:Number(output) });
     console.log(`Dawang-PPT http://127.0.0.1:${server2.address().port}/index.html`);
+    return;
+  }
+  if (mode === "export:pptx") {
+    const exportsDir = path.join(dir, "exports");
+    fs.mkdirSync(exportsDir, { recursive: true });
+    const targetFile = output ? absolute(output) : path.join(exportsDir, "presentation.pptx");
+    const report = await exportProjectPptxHeadless(p, { fileName: targetFile, baseDir: dir, title: p.requirements.title });
+    console.log(JSON.stringify({ ok: true, mode: "ir-headless", revision: p.revision, file: targetFile, report }));
     return;
   }
   const server = await createFusionServer({ dir });

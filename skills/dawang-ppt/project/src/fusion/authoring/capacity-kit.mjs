@@ -91,8 +91,8 @@ export function capacityTable(spec) {
     e.style.fontWeight=600;if(col.emphasize||col.key==='value')e.style.color=theme.palette.accent;
    }else{
     if(col.emphasize){e.style.fontWeight=col.weight??600;e.style.color=col.color||theme.palette.accent;}
-    else if(j===0){e.style.fontWeight=col.weight??500;e.style.color=col.color||theme.palette.ink;}
-    else{e.style.fontWeight=col.weight??400;e.style.color=col.color||theme.palette.body||theme.palette.ink;}
+    else if(j===0){e.style.fontWeight=col.weight??400;e.style.color=col.color||theme.palette.ink;}
+    else{e.style.fontWeight=col.weight??300;e.style.color=col.color||theme.palette.body||theme.palette.ink;}
    }
    if(row.styles?.[col.key])Object.assign(e.style,row.styles[col.key]);
   });
@@ -391,7 +391,7 @@ export function capacityBranch(spec) {
   const numEl=text(`${id}-num-${sid}`,String(step.num??`0${i+1}`),sx,topY,nodeSize,28,theme,measurements,{fontWeight:700,color:'#FFFFFF',textAlign:'center',lineHeight:1.15});
   numEl.bounds[1]=topY+Math.round((nodeSize-numEl.bounds[3])/2);
   const tEl=text(`${id}-title-${sid}`,step.title,sx,topY+nodeSize+14,slotW,titleSize,theme,measurements,{fontWeight:700,color:step.highlight?mainColor:theme.palette.ink});
-  const dEl=step.detail?text(`${id}-detail-${sid}`,step.detail,sx,topY+nodeSize+14+tEl.bounds[3]+8,slotW,detailSize,theme,measurements,{fontWeight:400,color:theme.palette.body||theme.palette.muted}):null;
+  const dEl=step.detail?text(`${id}-detail-${sid}`,step.detail,sx,topY+nodeSize+14+tEl.bounds[3]+8,slotW,detailSize,theme,measurements,{fontWeight:300,color:theme.palette.body||theme.palette.muted}):null;
   const bottom=dEl?dEl.bounds[1]+dEl.bounds[3]:tEl.bounds[1]+tEl.bounds[3];
   return {step,sid,sx,numEl,tEl,dEl,bottom};
  });

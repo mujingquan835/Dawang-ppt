@@ -9,7 +9,7 @@ import { loadProject, saveProject } from "../src/fusion/project/store.mjs";
 import { mergeEditorState } from "../src/fusion/project/import-goal.mjs";
 import { renderProject } from "../src/fusion/scene/render-project.jsx";
 import { collectExportObjects, prepareSlideForExport } from "../src/fusion/export/collect.mjs";
-import { exportEditablePptx } from "../src/fusion/export/pptx.mjs";
+import { exportEditablePptx, exportProjectPptxHeadless } from "../src/fusion/export/pptx.mjs";
 function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" }) {
   dir = path.resolve(dir);
   const projectFile = path.join(dir, "deck-project.json");
@@ -59,20 +59,23 @@ function createFusionServer({ dir, port = 0, chrome = "/Applications/Google Chro
           try {
             const project = loadProject(projectFile);
             if (data.expectedRevision && data.expectedRevision !== project.revision) return json(409, { ok: false, issues: ["Revision mismatch"] });
-            renderProject(project, html);
-            browser = await chromium.launch({ executablePath: chrome, headless: true });
-            const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-            await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
-            await page.waitForFunction(() => window.__fusionEditor && window.__getVisibleSlides);
-            const collected = await collectExportObjects(page, project);
             const pdf = url.pathname === "/api/export-pdf";
             const name = pdf ? "presentation.pdf" : "presentation.pptx";
             const exportsDir = path.join(dir, "exports");
             fs.mkdirSync(exportsDir, { recursive: true });
             let report;
             if (pdf) {
-              report=await writeScreenshotPdf(page,project,collected,path.join(exportsDir,name));
-            } else report = await exportEditablePptx(collected, { fileName: path.join(exportsDir, name), title: project.requirements.title });
+              renderProject(project, html);
+              browser = await chromium.launch({ executablePath: chrome, headless: true });
+              const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+              await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
+              await page.waitForFunction(() => window.__fusionEditor && window.__getVisibleSlides);
+              const collected = await collectExportObjects(page, project);
+              report = await writeScreenshotPdf(page, project, collected, path.join(exportsDir, name));
+            } else {
+              // Fast headless IR-to-PPTX export: no Chrome launch needed.
+              report = await exportProjectPptxHeadless(project, { fileName: path.join(exportsDir, name), baseDir: dir, title: project.requirements.title });
+            }
             if(loadProject(projectFile).revision!==project.revision)throw new Error("Revision mismatch: project changed during export");
             exportResult={ ok: true, revision: project.revision, report, downloadName: name, downloadUrl: "/exports/" + name };
           } finally {

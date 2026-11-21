@@ -44,6 +44,32 @@ function applyEditCommand(project, command) {
       const target = o || s.elements.find((e2) => e2.id === command.elementId);
       if (!target) throw new Error("Layer target missing");
       target.layer = command.direction === "front" ? Math.max(0, ...targets.map((t) => t.layer || 0)) + 1 : Math.min(0, ...targets.map((t) => t.layer || 0)) - 1;
+    } else if (command.type === "add-element") {
+      const el = clone(command.element || {});
+      if (!el.type || !boundsValid(el.bounds)) throw new Error("Invalid element to add");
+      el.id = el.id || `user-${el.type}-${revision().slice(0, 8)}`;
+      if (el.type === "image" && el.src) {
+        let media = p.media.entries.find((m) => m.src === el.src);
+        if (!media) {
+          media = { mediaId: "upload/" + revision(), src: el.src, kind: "user-image" };
+          p.media.entries.push(media);
+        }
+        el.mediaRef = media.mediaId;
+        delete el.src;
+      }
+      const targets = [...(s.elements || []), ...(s.objects || [])];
+      el.layer = Math.max(0, ...targets.map((t) => t.layer || 0)) + 1;
+      s.elements = s.elements || [];
+      s.elements.push(el);
+      command.elementId = el.id;
+    } else if (command.type === "delete-element") {
+      if (o && command.objectId) {
+        s.objects = (s.objects || []).filter((x) => x.objectId !== o.objectId);
+      } else {
+        const beforeLen = (s.elements || []).length;
+        s.elements = (s.elements || []).filter((x) => x.id !== command.elementId);
+        if (s.elements.length === beforeLen) throw new Error("无法删除该组合内子元素，请切换为整组删除");
+      }
     } else {
       if (!e) return { ok: false, conflicts: [{ kind: "missing-element" }] };
       const base = s.elements.find((x) => x.id === e.id);

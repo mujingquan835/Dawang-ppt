@@ -10,31 +10,35 @@ import { pickIcon, iconElements } from './icons.mjs';
 export const CANVAS = { width: 1920, height: 1080 };
 
 // radius: one corner radius shared by tiles, panels and photos, so rounded components read as one family.
-// roles: position-aware OPPO Sans 4.0 typography scale driving eyebrows, page titles, hero metrics, units, section titles, item titles, key numbers, tables, body and captions.
-export function createTheme({ palette = {}, fontFamily = 'OPPO Sans 4.0', headingFamily, radius = 14, roles = {} } = {}) {
+// roles: dual-font typography scale:
+//   - Body & structured hierarchy: Source Han Sans SC (400 Regular / 500 Medium / 700 Bold / 900 Heavy)
+//   - Display / artistic titles:   YouSheBiaoTiHei (cover titles, page main titles, hero highlights)
+export function createTheme({ palette = {}, fontFamily = 'Source Han Sans SC', headingFamily, displayFamily = 'YouSheBiaoTiHei', radius = 14, roles = {} } = {}) {
   const p = { bg: '#FFFFFF', ink: '#14213D', accent: '#E8590C', gold: '#B58A42', body: '#4B5563', muted: '#5C6B7A', line: '#D9DEE5', pale: '#F2F4F7', highlightBg: '#F7F0E3', inverse: '#FFFFFF', ...palette };
   const hFamily = headingFamily || fontFamily;
+  const dFamily = displayFamily || hFamily;
   const defaultRoles = {
-    eyebrow: { fontFamily, fontSize: 20, fontWeight: 500, color: p.accent, lineHeight: 1.3, letterSpacing: 0.6 },
-    pageTitle: { fontFamily: hFamily, fontSize: 52, fontWeight: 600, color: p.ink, lineHeight: 1.25, letterSpacing: -0.6 },
-    pageTitleFocus: { fontFamily: hFamily, fontSize: 52, fontWeight: 700, color: p.accent, lineHeight: 1.25, letterSpacing: -0.6 },
-    heroMetric: { fontFamily: hFamily, fontSize: 80, fontWeight: 700, color: p.accent, lineHeight: 1.25, letterSpacing: -1.5 },
-    subHeroMetric: { fontFamily: hFamily, fontSize: 54, fontWeight: 700, color: p.accent, lineHeight: 1.25, letterSpacing: -0.8 },
-    metricUnit: { fontFamily, fontSize: 26, fontWeight: 500, color: p.accent, lineHeight: 1.3 },
-    sectionTitle: { fontFamily: hFamily, fontSize: 30, fontWeight: 600, color: p.accent, lineHeight: 1.32, letterSpacing: -0.2 },
-    keyNumber: { fontFamily: hFamily, fontSize: 34, fontWeight: 700, color: p.accent, lineHeight: 1.25, letterSpacing: -0.4 },
-    itemTitle: { fontFamily: hFamily, fontSize: 28, fontWeight: 600, color: p.ink, lineHeight: 1.32 },
-    stepTitle: { fontFamily: hFamily, fontSize: 26, fontWeight: 600, color: p.ink, lineHeight: 1.32 },
-    roleSubtitle: { fontFamily, fontSize: 22, fontWeight: 500, color: p.accent, lineHeight: 1.32 },
+    eyebrow: { fontFamily, fontSize: 20, fontWeight: 400, color: p.accent, lineHeight: 1.3, letterSpacing: 0.6 },
+    coverTitle: { fontFamily: dFamily, fontSize: 84, fontWeight: 400, color: p.inverse, lineHeight: 1.22, letterSpacing: 0.5, wordSpacing: '-0.18em' },
+    pageTitle: { fontFamily: hFamily, fontSize: 52, fontWeight: 700, color: p.ink, lineHeight: 1.25, letterSpacing: -0.6 },
+    pageTitleFocus: { fontFamily: hFamily, fontSize: 52, fontWeight: 900, color: p.accent, lineHeight: 1.25, letterSpacing: -0.6 },
+    heroMetric: { fontFamily: hFamily, fontSize: 80, fontWeight: 900, color: p.accent, lineHeight: 1.2, letterSpacing: -1.5 },
+    subHeroMetric: { fontFamily: hFamily, fontSize: 54, fontWeight: 900, color: p.accent, lineHeight: 1.25, letterSpacing: -0.8 },
+    metricUnit: { fontFamily, fontSize: 26, fontWeight: 300, color: p.accent, lineHeight: 1.3 },
+    sectionTitle: { fontFamily: hFamily, fontSize: 30, fontWeight: 700, color: p.accent, lineHeight: 1.32, letterSpacing: -0.2 },
+    keyNumber: { fontFamily: hFamily, fontSize: 34, fontWeight: 900, color: p.accent, lineHeight: 1.25, letterSpacing: -0.4 },
+    itemTitle: { fontFamily: hFamily, fontSize: 28, fontWeight: 700, color: p.ink, lineHeight: 1.32 },
+    stepTitle: { fontFamily: hFamily, fontSize: 26, fontWeight: 700, color: p.ink, lineHeight: 1.32 },
+    roleSubtitle: { fontFamily, fontSize: 22, fontWeight: 400, color: p.accent, lineHeight: 1.32 },
     badge: { fontFamily, fontSize: 28, fontWeight: 700, color: p.inverse, lineHeight: 1.15 },
-    tagBadge: { fontFamily, fontSize: 20, fontWeight: 600, color: p.inverse, lineHeight: 1.2, letterSpacing: 0.4 },
-    body: { fontFamily, fontSize: 24, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.42 },
-    tableHeader: { fontFamily, fontSize: 20, fontWeight: 600, color: p.muted, lineHeight: 1.3, letterSpacing: 0.4 },
-    tableKey: { fontFamily, fontSize: 24, fontWeight: 500, color: p.ink, lineHeight: 1.36 },
-    tableBody: { fontFamily, fontSize: 22, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.38 },
-    stepDetail: { fontFamily, fontSize: 22, fontWeight: 400, color: p.body || p.ink, lineHeight: 1.38 },
-    tableEmphasis: { fontFamily, fontSize: 24, fontWeight: 600, color: p.accent, lineHeight: 1.36 },
-    caption: { fontFamily, fontSize: 20, fontWeight: 400, color: p.muted, lineHeight: 1.35 },
+    tagBadge: { fontFamily, fontSize: 20, fontWeight: 700, color: p.inverse, lineHeight: 1.2, letterSpacing: 0.4 },
+    body: { fontFamily, fontSize: 24, fontWeight: 300, color: p.body || p.ink, lineHeight: 1.45 },
+    tableHeader: { fontFamily, fontSize: 20, fontWeight: 400, color: p.muted, lineHeight: 1.3, letterSpacing: 0.4 },
+    tableKey: { fontFamily, fontSize: 24, fontWeight: 400, color: p.ink, lineHeight: 1.36 },
+    tableBody: { fontFamily, fontSize: 22, fontWeight: 300, color: p.body || p.ink, lineHeight: 1.4 },
+    stepDetail: { fontFamily, fontSize: 22, fontWeight: 300, color: p.body || p.ink, lineHeight: 1.42 },
+    tableEmphasis: { fontFamily, fontSize: 24, fontWeight: 700, color: p.accent, lineHeight: 1.36 },
+    caption: { fontFamily, fontSize: 20, fontWeight: 300, color: p.muted, lineHeight: 1.35 },
     lightNote: { fontFamily, fontSize: 20, fontWeight: 300, color: p.muted, lineHeight: 1.36 }
   };
   const resolvedRoles = Object.fromEntries(Object.keys({ ...defaultRoles, ...roles }).map((k) => [k, { ...(defaultRoles[k] || { fontFamily, color: p.ink, fontWeight: 400, lineHeight: 1.4 }), ...(roles[k] || {}) }]));
@@ -52,7 +56,7 @@ export function createTheme({ palette = {}, fontFamily = 'OPPO Sans 4.0', headin
     const runs = [{ text: String(value), style: { fontFamily: vs.fontFamily, fontSize: vs.fontSize, fontWeight: vs.fontWeight, color: vs.color } }, ...(unit ? [{ text: gap + unit, style: { fontFamily: us.fontFamily, fontSize: us.fontSize, fontWeight: us.fontWeight, color: us.color } }] : [])];
     return { text: String(value) + (unit ? gap + unit : ''), runs, style: vs };
   };
-  return { palette: p, fontFamily, headingFamily: hFamily, font, roles: resolvedRoles, roleStyle, metricRuns, radius };
+  return { palette: p, fontFamily, headingFamily: hFamily, displayFamily: dFamily, font, roles: resolvedRoles, roleStyle, metricRuns, radius };
 }
 
 export function createGrid({ margin = 96, columns = 12, gutter = 32, width = CANVAS.width } = {}) {
@@ -282,14 +286,26 @@ export const lighten = (hex, k = 0.85) => '#' + [0, 2, 4].map((i) => Math.round(
 // Palettes without these keys fall back to ink (primary), an accent tint (secondary) and accent (pop).
 export function colorRoles(p) {
   const primary = p.primary || p.ink, secondary = p.secondary || lighten(p.accent, 0.55);
-  return { primary, secondary, pop: p.pop || p.accent, band: p.band || lighten(primary, 0.94), soft: lighten(secondary, 0.8), secondaryInk: darken(secondary, 0.45), onSecondary: darken(secondary, 0.62) };
+  if (p.dark) {
+    return {
+      primary,
+      secondary,
+      pop: p.pop || p.accent,
+      band: p.band || '#152238',
+      soft: p.pale || '#1B2A44',
+      secondaryInk: secondary,
+      onSecondary: '#0D1526',
+    };
+  }
+  return { primary, secondary, pop: p.pop || p.accent, band: p.band || lighten(primary, 0.94), soft: lighten(secondary, 0.84), secondaryInk: darken(secondary, 0.35), onSecondary: darken(secondary, 0.55) };
 }
 
 // Value with a smaller unit in one text element, centred in its column.
+// Heavy (900) figure paired with Light (300) unit creates clear typographic hierarchy.
 const centredValue = ({ id, x, y, width, value, unit, size, color, theme }) => {
   const unitSize = Math.max(20, Math.round(size * 0.42));
-  const runs = [{ text: String(value), style: { fontSize: size, fontWeight: 700, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: unitSize, fontWeight: 700, color } }] : [])];
-  return textElement({ id, text: String(value) + (unit ? ' ' + unit : ''), runs, bounds: [x, y, width, Math.round(size * 1.25)], style: theme.font(size, { fontWeight: 700, color, textAlign: 'center', lineHeight: 1.15 }) });
+  const runs = [{ text: String(value), style: { fontSize: size, fontWeight: 900, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: unitSize, fontWeight: 300, color } }] : [])];
+  return textElement({ id, text: String(value) + (unit ? ' ' + unit : ''), runs, bounds: [x, y, width, Math.round(size * 1.25)], style: theme.font(size, { fontWeight: 900, color, textAlign: 'center', lineHeight: 1.15 }) });
 };
 
 // KPI strip: one solid anchor block holds the summary figure (整体完成度, 年度合计), its peers follow on a tinted band
@@ -300,19 +316,25 @@ export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, 
   const n = items.length, colW = (width - aw) / n, valueH = Math.round(size * 1.25), labelH = Math.round(labelSize * 1.4 * labelLines);
   elements.push({ type: 'shape', id: `${id}-band`, component: 'kpiStrip', bounds: [x + aw, y, width - aw, height], style: { fill: r.band } });
   if (anchor) {
-    elements.push({ type: 'shape', id: `${id}-anchor`, bounds: [x, y, aw, height], style: { fill: r.primary } });
+    elements.push({ type: 'shape', id: `${id}-anchor`, bounds: [x, y, aw, height], style: { fill: r.primary, radius: theme.radius ? Math.min(theme.radius, 12) : 0 } });
+    // Subtle secondary-gold accent bar along the anchor's top edge (echoing blue-gold dual-tone craftsmanship)
+    elements.push({ type: 'shape', id: `${id}-anchor-trim`, bounds: [x, y, aw, 5], style: { fill: r.secondary } });
     const block = labelH + 6 + valueH, ay = y + Math.round((height - block) / 2);
-    elements.push(textElement({ id: `${id}-anchor-label`, text: anchor.label, bounds: [x + 12, ay, aw - 24, labelH], style: theme.font(labelSize, { color: p.inverse, textAlign: 'center' }) }));
+    elements.push(textElement({ id: `${id}-anchor-label`, text: anchor.label, bounds: [x + 12, ay, aw - 24, labelH], style: theme.font(labelSize, { fontWeight: 300, color: p.inverse, textAlign: 'center' }) }));
     elements.push(centredValue({ id: `${id}-anchor-value`, x: x + 12, y: ay + labelH + 6, width: aw - 24, value: anchor.value, unit: anchor.unit, size: anchorSize ?? Math.round(size * 1.05), color: p.inverse, theme }));
   }
   const columns = [];
+  const popInk = p.dark ? r.pop : readableInk(r.pop, r.band, 3.1);
+  const secInk = p.dark ? r.secondary : readableInk(r.secondaryInk || r.secondary, r.band, 3.2);
   items.forEach((it, i) => {
     const cx = Math.round(x + aw + i * colW), cw = Math.round(colW), text = it.note ?? it.label ?? '';
     const block = valueH + (text ? 6 + labelH : 0), top = y + Math.round((height - block) / 2);
     const vy = labelPosition === 'above' && text ? top + labelH + 6 : top;
-    if (text) elements.push(textElement({ id: `${id}-label-${i + 1}`, text, bounds: [cx + 12, labelPosition === 'above' ? top : top + valueH + 6, cw - 24, labelH], style: theme.font(labelSize, { color: p.muted, textAlign: 'center' }) }));
-    elements.push(centredValue({ id: `${id}-value-${i + 1}`, x: cx + 12, y: vy, width: cw - 24, value: it.value, unit: it.unit, size, color: it.color || color || r.primary, theme }));
-    if (i > 0) elements.push(lineElement({ id: `${id}-rule-${i}`, from: [cx, y + Math.round(height * 0.28)], to: [cx, y + Math.round(height * 0.72)], style: { stroke: p.line, strokeWidth: 2 } }));
+    // Three-tone rhythm across peer figures: first peer spotlights pop accent, alternating primary & warm secondary
+    const figColor = it.color || color || (i === 0 ? popInk : i % 2 === 1 ? r.primary : secInk);
+    if (text) elements.push(textElement({ id: `${id}-label-${i + 1}`, text, bounds: [cx + 12, labelPosition === 'above' ? top : top + valueH + 6, cw - 24, labelH], style: theme.font(labelSize, { fontWeight: 300, color: p.muted, textAlign: 'center' }) }));
+    elements.push(centredValue({ id: `${id}-value-${i + 1}`, x: cx + 12, y: vy, width: cw - 24, value: it.value, unit: it.unit, size, color: figColor, theme }));
+    if (i > 0) elements.push(lineElement({ id: `${id}-rule-${i}`, from: [cx, y + Math.round(height * 0.28)], to: [cx, y + Math.round(height * 0.72)], style: { stroke: p.dark ? p.line : r.secondary, strokeWidth: 2 } }));
     columns.push([cx, cw]);
   });
   return { elements, height, columns };
@@ -347,16 +369,23 @@ export function metricTiles({ id, x, y, width, items, theme, size = 72, columns,
     // A tile without a note beside tiles that have one keeps its label and figure in the middle, not over an empty line.
     const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), lift = inset + (noteH && !it.note ? Math.round(noteH / 2) : 0), on = i === highlight, solid = on && highlightStyle === 'solid';
     const roles = colorRoles(p), ink = solid ? p.inverse : null;
-    elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, component: solid ? 'highlightTile' : 'metricTiles', bounds: [tx, ty, tileW, tileH], style: { fill: solid ? roles.primary : tileFill, radius: theme.radius ?? 14 } });
-    if (on && !solid) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
-    elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + lift + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 700, color: ink || p.muted }) }));
+    // Dual-tone pairing: highlighted tile takes solid primary; the immediate partner tile pairs warm secondary cap + soft tint.
+    const isPartner = !on && items.length >= 2 && (highlight >= 0 ? i === (highlight + 1) % items.length : i % 2 === 1);
+    const thisTileFill = solid ? roles.primary : isPartner && !p.dark ? roles.soft : tileFill;
+    const valColor = ink || (on ? p.accent : isPartner ? (p.dark ? roles.secondary : readableInk(roles.secondaryInk || roles.secondary, thisTileFill, 3.2)) : roles.primary);
+    elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, component: solid ? 'highlightTile' : 'metricTiles', bounds: [tx, ty, tileW, tileH], style: { fill: thisTileFill, radius: theme.radius ?? 14 } });
+    if (solid) elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [tx + 20, ty, tileW - 40, 4], style: { fill: roles.secondary, radius: 2 } });
+    else if (isPartner) elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [tx + 20, ty, tileW - 40, 4], style: { fill: roles.secondary, radius: 2 } });
+    else if (on && !solid) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
+    else elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [tx + 20, ty, tileW - 40, 4], style: { fill: roles.primary, radius: 2 } });
+    elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + lift + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 300, color: ink || p.muted }) }));
     const lead = it.before != null ? `${it.before} → ` : '';
-    const runs = [...(lead ? [{ text: lead, style: { fontSize: beforeOf(valueSize), fontWeight: 600, color: ink || p.muted } }] : []), { text: String(it.value), style: { fontSize: valueSize, fontWeight: 700, color: ink || (on ? p.accent : p.ink) } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 700, color: ink || p.muted } }] : [])];
+    const runs = [...(lead ? [{ text: lead, style: { fontSize: beforeOf(valueSize), fontWeight: 400, color: ink || p.muted } }] : []), { text: String(it.value), style: { fontSize: valueSize, fontWeight: 900, color: valColor } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 300, color: ink || p.muted } }] : [])];
     const name = (typeof it.icon === 'string' && it.icon) || pickIcon(`${it.label || ''}${it.unit || ''}`);
     const withIcon = name && everyIcon;
     const textW = withIcon ? tileW - 44 - iconS - 16 : tileW - 44;
-    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: lead + String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + lift + 24 + labelH + 4, textW, Math.round(valueSize * 1.32)], style: theme.font(valueSize, { fontWeight: 700, lineHeight: 1.15, color: ink || (on ? p.accent : p.ink) }) }));
-    if (it.note) elements.push(textElement({ id: `${id}-note-${i + 1}`, text: it.note, bounds: [tx + 28, ty + lift + 24 + labelH + 4 + Math.round(valueSize * 1.32) + 2, textW, labelH], style: theme.font(labelSize, { fontWeight: 500, lineHeight: 1.3, color: ink || p.muted }) }));
+    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: lead + String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + lift + 24 + labelH + 4, textW, Math.round(valueSize * 1.32)], style: theme.font(valueSize, { fontWeight: 900, lineHeight: 1.15, color: valColor }) }));
+    if (it.note) elements.push(textElement({ id: `${id}-note-${i + 1}`, text: it.note, bounds: [tx + 28, ty + lift + 24 + labelH + 4 + Math.round(valueSize * 1.32) + 2, textW, labelH], style: theme.font(labelSize, { fontWeight: 300, lineHeight: 1.3, color: ink || p.muted }) }));
     if (withIcon) elements.push(...iconElements({ id: `${id}-tile-${i + 1}`, name, bounds: [tx + tileW - iconS - 20, ty + Math.round((tileH - iconS) / 2), iconS], color: ink || (on ? p.accent : p.muted), disc: solid ? 'rgba(255, 255, 255, 0.16)' : rgba(on ? p.accent : p.ink, on ? 0.12 : 0.06) }));
   });
   const rows = Math.ceil(items.length / cols);
@@ -509,9 +538,20 @@ export const REPORT_ROLES = {
   tableBody: { fontSize: 20 }, tableEmphasis: { fontSize: 22 }, caption: { fontSize: 18 }, lightNote: { fontSize: 18 }
 };
 
-// The same hue, darkened until it reads as small text on white or a pale tint. Light palette accents stay on fills.
-const luminance = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
-export const readableInk = (hex, bg = '#F3F5FA') => { let c = hex, k = 0; const ratio = (a) => (luminance(bg) + 0.05) / (luminance(a) + 0.05); while (ratio(c) < 4.6 && k < 12) { k += 1; c = darken(hex, k * 0.07); } return c; };
+// Preserve vivid saturated primary/accent hues while ensuring crisp legibility on both light and dark surfaces.
+const luminance = (hex) => { const h = String(hex || '#FFFFFF').replace('#', ''); const c = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+export const readableInk = (hex, bg = '#F3F5FA', minRatio = 3.1) => {
+  let c = hex, k = 0;
+  const bgL = luminance(bg);
+  if (bgL < 0.18) {
+    const ratio = (a) => (luminance(a) + 0.05) / (bgL + 0.05);
+    while (ratio(c) < Math.max(minRatio, 4.5) && k < 12) { k += 1; c = lighten(hex, k * 0.08); }
+    return c;
+  }
+  const ratio = (a) => (bgL + 0.05) / (luminance(a) + 0.05);
+  while (ratio(c) < minRatio && k < 10) { k += 1; c = darken(hex, k * 0.06); }
+  return c;
+};
 
 // A roomier scale for decks with little content on each page; composeReportDeck picks whichever fits every page.
 // For pages with very little on them: larger still, same ratios.
@@ -547,12 +587,14 @@ export const REPORT_ROLES_ROOMY = {
 // A labelled statement: tinted band, colour bar, short label, then one sentence. It lets a reader get the page's logic
 // from the labels alone. tone 'judgment' (warm) is for the review verdict only, so it stays the one warm band on a page.
 export function labelBand({ id, x, y, width, label, text, theme, tone = 'primary', height, measurements, scale = 1 }) {
-  const p = theme.palette, r = colorRoles(p), judgment = tone === 'judgment', warm = p.pop || p.gold, ink = judgment ? readableInk(darken(warm, 0.3), lighten(warm, 0.88)) : readableInk(p.accent, r.band);
-  const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), labelStyle = theme.roleStyle('stepTitle', { color: ink, lineHeight: 1.2, fontSize: grown('stepTitle') }), textStyle = theme.roleStyle('body', { fontWeight: 500, color: p.ink, fontSize: grown('body') });
+  const p = theme.palette, r = colorRoles(p), judgment = tone === 'judgment', warm = p.pop || p.gold;
+  const bandFill = p.dark ? (p.surface || '#152238') : (judgment ? lighten(warm, 0.9) : r.band);
+  const ink = p.dark ? (judgment ? warm : p.accent) : (judgment ? readableInk(warm, bandFill, 3.2) : readableInk(p.accent, bandFill, 3.2));
+  const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), labelStyle = theme.roleStyle('stepTitle', { color: ink, lineHeight: 1.2, fontSize: grown('stepTitle') }), textStyle = theme.roleStyle('body', { fontWeight: 300, color: p.ink, fontSize: grown('body') });
   const tw = width - 48, labelH = Math.ceil(labelStyle.fontSize * 1.34), th = Math.ceil(measurements?.get(`${id}-text`)?.height ?? textHeight(text, textStyle.fontSize, tw, textStyle.lineHeight));
   const need = labelH + 6 + th, h = Math.max(need + 28, height || 0), top = y + Math.round((h - need) / 2);
   return { height: h, elements: [
-    { type: 'shape', id: `${id}-bar`, component: 'labelBand', bounds: [x, y, width, h], style: { fill: judgment ? lighten(warm, 0.88) : r.band, radius: theme.radius ?? 0 } },
+    { type: 'shape', id: `${id}-bar`, component: 'labelBand', bounds: [x, y, width, h], style: { fill: bandFill, ...(p.dark ? { stroke: p.line, strokeWidth: 1 } : {}), radius: theme.radius ?? 0 } },
     { type: 'shape', id: `${id}-mark`, bounds: [x, y, 6, h], style: { fill: judgment ? warm : p.accent } },
     textElement({ id: `${id}-label`, text: label, bounds: [x + 24, top, tw, labelH], style: labelStyle }),
     textElement({ id: `${id}-text`, text, bounds: [x + 24, top + labelH + 6, tw, th], style: textStyle })
@@ -563,8 +605,9 @@ export function labelBand({ id, x, y, width, label, text, theme, tone = 'primary
 // sentence on each row. items: [{ title, detail }]. stacked puts the sentence under its handle; height spreads the rows.
 // Element ids: `${id}-panel`, `${id}-title-n`, `${id}-detail-n`.
 export function actionPanel({ id, x, y, width, heading, items, theme, height, stacked = false, measurements, scale = 1 }) {
-  const p = theme.palette, pad = 24, elements = [];
-  const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), titleStyle = theme.roleStyle('stepTitle', { color: readableInk(p.accent, '#FFFFFF'), fontSize: grown('stepTitle') }), detailStyle = theme.roleStyle('stepDetail', { color: p.ink, fontSize: grown('stepDetail') });
+  const p = theme.palette, pad = 24, elements = [], cardBg = p.surface || '#FFFFFF';
+  const accentInk = readableInk(p.accent, cardBg);
+  const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), titleStyle = theme.roleStyle('stepTitle', { color: accentInk, fontSize: grown('stepTitle') }), detailStyle = theme.roleStyle('stepDetail', { color: p.ink, fontSize: grown('stepDetail') });
   // The number badge follows the item title's size and sits on the centre of its first line; its digit is centred by a
   // line box exactly as tall as the badge (a fixed 26px badge sat high beside a 30px title and its digit overflowed).
   const badge = Math.max(28, Math.round(titleStyle.fontSize * 0.9 / 2) * 2), numSize = Math.max(16, Math.round(badge * 0.6));
@@ -573,18 +616,23 @@ export function actionPanel({ id, x, y, width, heading, items, theme, height, st
   const detailX = stacked ? titleX : titleX + titleW + 12, detailW = x + width - pad - detailX;
   const detailH = (it, i) => (it.detail ? Math.ceil(measurements?.get(`${id}-detail-${i + 1}`)?.height ?? textHeight(it.detail, detailStyle.fontSize, detailW, detailStyle.lineHeight)) : 0);
   const rows = items.map((it, i) => (stacked && it.detail ? titleH + 4 + detailH(it, i) : Math.max(titleH, detailH(it, i))));
-  const headingStyle = theme.roleStyle('sectionTitle', { color: readableInk(p.accent, '#FFFFFF'), lineHeight: 1.3 }), headingBox = heading ? Math.ceil(measurements?.get(`${id}-heading`)?.height ?? textHeight(heading, headingStyle.fontSize, width - pad * 2, headingStyle.lineHeight)) : 0;
+  const headingStyle = theme.roleStyle('sectionTitle', { color: accentInk, lineHeight: 1.3 }), headingBox = heading ? Math.ceil(measurements?.get(`${id}-heading`)?.height ?? textHeight(heading, headingStyle.fontSize, width - pad * 2, headingStyle.lineHeight)) : 0;
   const headH = heading ? headingBox + 12 : 0, rowGap = 21, need = (pad - 6) * 2 + headH + rows.reduce((a, b) => a + b, 0) + (items.length - 1) * rowGap, h = Math.max(need, height || 0);
   const spare = Math.floor((h - need) / (items.length + 1));
-  elements.push({ type: 'shape', id: `${id}-panel`, component: 'actionPanel', bounds: [x, y, width, h], style: { fill: '#FFFFFF', stroke: p.line, strokeWidth: 1.5, radius: theme.radius ?? 0 } });
+  elements.push({ type: 'shape', id: `${id}-panel`, component: 'actionPanel', bounds: [x, y, width, h], style: { fill: cardBg, stroke: p.line, strokeWidth: 1.5, radius: theme.radius ?? 0 } });
   let cy = y + pad - 6;
   if (heading) { elements.push(textElement({ id: `${id}-heading`, text: heading, bounds: [x + pad, cy, width - pad * 2, headingBox], style: headingStyle })); cy += headH; }
   cy += spare;
+  const roles = colorRoles(p);
+  const secBadgeFill = p.dark ? roles.secondary : roles.secondary;
+  const secBadgeInk = p.dark ? roles.onSecondary : readableInk(roles.onSecondary || roles.secondaryInk, roles.secondary, 3.2);
+  const secTitleInk = p.dark ? roles.secondary : readableInk(roles.secondaryInk || roles.secondary, cardBg, 3.2);
   items.forEach((it, i) => {
     const n = i + 1;
-    elements.push({ type: 'shape', id: `${id}-badge-${n}`, bounds: [x + pad, cy + badgeDy, badge, badge], style: { fill: readableInk(p.accent, '#FFFFFF'), radius: badge / 2 } });
-    elements.push(textElement({ id: `${id}-num-${n}`, text: String(n), bounds: [x + pad, cy + badgeDy, badge, badge], style: theme.roleStyle('caption', { fontSize: numSize, color: p.inverse, fontWeight: 700, textAlign: 'center', lineHeight: badge / numSize }) }));
-    elements.push(textElement({ id: `${id}-title-${n}`, text: it.title, bounds: [titleX, cy, titleW, titleH], style: titleStyle }));
+    const isAlt = i % 2 === 1;
+    elements.push({ type: 'shape', id: `${id}-badge-${n}`, bounds: [x + pad, cy + badgeDy, badge, badge], style: { fill: isAlt ? secBadgeFill : accentInk, radius: badge / 2 } });
+    elements.push(textElement({ id: `${id}-num-${n}`, text: String(n), bounds: [x + pad, cy + badgeDy, badge, badge], style: theme.roleStyle('caption', { fontSize: numSize, color: isAlt ? secBadgeInk : p.inverse, fontWeight: 700, textAlign: 'center', lineHeight: badge / numSize }) }));
+    elements.push(textElement({ id: `${id}-title-${n}`, text: it.title, bounds: [titleX, cy, titleW, titleH], style: { ...titleStyle, color: isAlt ? secTitleInk : accentInk } }));
     if (it.detail) elements.push(textElement({ id: `${id}-detail-${n}`, text: it.detail, bounds: [detailX, stacked ? cy + titleH + 4 : cy + 1, detailW, rows[i] - (stacked ? titleH + 4 : 0)], style: detailStyle }));
     if (n < items.length) elements.push({ type: 'shape', id: `${id}-rule-${n}`, bounds: [x + pad, cy + rows[i] + Math.round((rowGap + spare) / 2), width - pad * 2, 1], style: { fill: p.line } });
     cy += rows[i] + rowGap + spare;

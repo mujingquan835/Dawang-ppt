@@ -90,18 +90,43 @@ function pairSoloFigure(page, rows, tightGroup = false) {
 
 export function defaultLayout(page, zoneIds) {
   const { has, tops, bottoms, core, flows, order } = pageParts(page, zoneIds), pairs = [];
+  const photos = asList(page.photos);
+  // Full-width band preference: when 3+ photos can form a balanced bottom visual strip,
+  // or when a full-width KPI strip (3–5 figures) coexists with items/table and photos,
+  // stacking full-width rows keeps the KPI strip wide and expansive instead of squeezing it into a narrow side column.
+  const preferFullBand = has('photos') && (photos.length >= 3 || (has('metrics') && asList(page.data).length >= 3 && (has('items') || has('table'))));
   if (order.length) {
-    // Modules follow the stated order; neighbouring flows share a row, and the non-flow modules sit beside the photos.
+    // Modules follow the stated order; neighbouring flows share a row.
     const at = (z) => order.indexOf(z) < 0 ? 999 : order.indexOf(z), seq = [...core, ...flows].sort((a, b) => at(a) - at(b)), isFlow = (z) => flows.includes(z), mid = [];
     for (const z of seq) { const last = mid[mid.length - 1]; if (isFlow(z) && Array.isArray(last) && last.length === 1 && isFlow(last[0])) last.push(z); else mid.push(isFlow(z) ? [z] : z); }
     const flat = mid.map((r) => (Array.isArray(r) && r.length === 1 ? r[0] : r));
-    if (has('photos')) { const firstCore = flat.findIndex((r) => core.includes(r)), rows = [...tops, ...flat.slice(0, Math.max(firstCore, 0)).filter(Boolean)], rest = flat.slice(Math.max(firstCore, 0)), beside = rest.filter((r) => core.includes(r)), after = rest.filter((r) => !core.includes(r)); rows.push({ left: beside.length ? beside : after.splice(0, 1).flat(), right: 'photos' }, ...after); if (bottoms.length) rows.push(bottoms.length > 1 ? bottoms : bottoms[0]); return rows; }
+    if (has('photos')) {
+      if (preferFullBand || order.includes('photos')) {
+        const ordered = [...tops, ...flat, 'photos', ...bottoms].sort((a, b) => {
+          const za = Array.isArray(a) ? a[0] : a, zb = Array.isArray(b) ? b[0] : b;
+          const ia = order.indexOf(za), ib = order.indexOf(zb);
+          if (ia >= 0 && ib >= 0) return ia - ib;
+          return 0;
+        });
+        return ordered;
+      }
+      const firstCore = flat.findIndex((r) => core.includes(r)), rows = [...tops, ...flat.slice(0, Math.max(firstCore, 0)).filter(Boolean)], rest = flat.slice(Math.max(firstCore, 0)), beside = rest.filter((r) => core.includes(r)), after = rest.filter((r) => !core.includes(r));
+      rows.push({ left: beside.length ? beside : after.splice(0, 1).flat(), right: 'photos' }, ...after);
+      if (bottoms.length) rows.push(bottoms.length > 1 ? bottoms : bottoms[0]);
+      return rows;
+    }
     return [...tops, ...flat, ...(bottoms.length ? [bottoms.length > 1 ? bottoms : bottoms[0]] : [])];
   }
   for (let i = 0; i < flows.length; i += 2) pairs.push(flows.length - i > 1 ? [flows[i], flows[i + 1]] : flows[i]);
   const rows = [];
-  if (has('photos')) rows.push({ left: [...tops, ...core], right: 'photos' });
-  else {
+  if (has('photos')) {
+    if (preferFullBand) {
+      rows.push(...tops, ...core, ...pairs, 'photos');
+      if (bottoms.length) rows.push(bottoms.length > 1 ? bottoms : bottoms[0]);
+      return rows;
+    }
+    rows.push({ left: [...tops, ...core], right: 'photos' });
+  } else {
     rows.push(...tops);
     const side = core.includes('items') && core.includes('metrics') && !core.includes('table');
     if (side) rows.push(['items', 'metrics']);
@@ -175,9 +200,13 @@ const naturalPhotoWidth = (cols, H) => cols.reduce((w, col) => w + ((H - col.len
 const naturalPhotoHeight = (cols, width) => { let lo = 80, hi = 834; for (let i = 0; i < 18; i++) { const mid = (lo + hi) / 2; if (naturalPhotoWidth(cols, mid) > width) hi = mid; else lo = mid; } return Math.round(lo); };
 
 function pageWriter({ page, zones, theme, measurer }) {
-  const pid = page.id, p = theme.palette, readableTheme = { ...theme, palette: { ...p, accent: readableInk(readableInk(p.accent, '#FFFFFF'), p.highlightBg || '#F7F0E3') } }, solidFill = readableInk(colorRoles(p).primary, '#FFFFFF'), solidTheme = { ...theme, palette: { ...p, primary: solidFill } }, roles = theme.roles, body = roles.body.fontSize, label = roles.stepTitle.fontSize, metricSize = body >= 30 ? 88 : body >= 26 ? 64 : body >= 24 ? 56 : body >= 22 ? 46 : 40, typography = (title = label) => ({ title: Math.max(title, body), body });
+  const pid = page.id, p = theme.palette, surf = p.surface || '#FFFFFF', pageBg = p.bg || '#FFFFFF';
+  const readableTheme = { ...theme, palette: { ...p, accent: readableInk(p.accent, surf) } };
+  const solidFill = p.dark ? p.primary : readableInk(colorRoles(p).primary, pageBg);
+  const solidTheme = { ...theme, palette: { ...p, primary: solidFill } };
+  const roles = theme.roles, body = roles.body.fontSize, label = roles.stepTitle.fontSize, metricSize = body >= 30 ? 88 : body >= 26 ? 64 : body >= 24 ? 56 : body >= 22 ? 46 : 40, typography = (title = label) => ({ title: Math.max(title, body), body });
   const statement = (z) => asList(page.statements).find((st, i) => (st.id || `statement-${i + 1}`) === z);
-  const panel = (id, bounds, white) => ({ id, type: 'shape', bounds, style: white ? { fill: '#FFFFFF', stroke: p.line, strokeWidth: 1.5, radius: theme.radius } : { fill: p.pale, radius: theme.radius } });
+  const panel = (id, bounds, white) => ({ id, type: 'shape', bounds, style: white ? { fill: surf, stroke: p.line, strokeWidth: 1.5, radius: theme.radius } : { fill: p.pale, ...(p.dark ? { stroke: p.line, strokeWidth: 1 } : {}), radius: theme.radius } });
   const text = (id, t, bounds, style) => ({ id, type: 'text', text: t, bounds, style });
   // A module heading is one line of the section-title size; its box follows that size, so larger type scales do not spill out of it.
   const headBox = Math.max(40, Math.ceil(roles.sectionTitle.fontSize * 1.3) + 2);
@@ -196,7 +225,7 @@ function pageWriter({ page, zones, theme, measurer }) {
   const tileGroups = (asList(page.data).length ? 1 : 0) + asList(page.statements).filter((st) => st.asMetric).length + (page.compare && changeItems(page.compare) ? 1 : 0);
   const tiles = (id, x, y, w, items, h, stretch = 0, highlight = 0, { size = metricSize, grow = tileGroups === 1 } = {}) => {
     const cols = items.length <= 5 && w >= 240 * items.length ? items.length : items.length > 6 ? 4 : items.length % 3 === 0 || items.length === 5 ? 3 : 2;
-    const columns = Math.min(cols, items.length), common = { id, x: x + 16, width: w - 32, size, columns, gap: 12, highlight, highlightStyle: items.length > 1 ? 'solid' : 'bar', fill: '#FFFFFF', theme: solidTheme, items, growValue: grow, iconCap: 96 };
+    const columns = Math.min(cols, items.length), common = { id, x: x + 16, width: w - 32, size, columns, gap: 12, highlight, highlightStyle: items.length > 1 ? 'solid' : 'bar', fill: surf, theme: solidTheme, items, growValue: grow, iconCap: 96 };
     const probe = metricTiles({ ...common, y: 0 }), rows = Math.ceil(items.length / columns), natural = probe.height + 32, height = Math.max(natural + stretch, h || 0);
     const real = metricTiles({ ...common, y: y + 16, tileHeight: (height - 32 - (rows - 1) * 12) / rows });
     return { natural, height, elements: real.elements, valueSize: real.valueSize };
@@ -315,7 +344,7 @@ function pageWriter({ page, zones, theme, measurer }) {
   };
   // Steps are cards whenever each has the width for one, so a short line of text is never left bare in a wide panel. room is set only in a row of equal heights.
   const flowCards = async ({ fid, x, y, w, steps, room }) => {
-    const n = steps.length, gap = 44, cardW = Math.floor((w - gap * (n - 1)) / n), pad = 24, badge = 44, ink = readableInk(p.accent, '#FFFFFF');
+    const n = steps.length, gap = 44, cardW = Math.floor((w - gap * (n - 1)) / n), pad = 24, badge = 44, ink = readableInk(p.accent, surf);
     if (cardW < 240) return null;
     for (const scale of room ? [...TEXT_GROWTH, 1] : [1]) {
       const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, lineHeight: 1.3, fontSize: evenSize(label * scale) }), detailStyle = theme.roleStyle('stepDetail', { color: p.body || p.muted, lineHeight: 1.45, fontSize: evenSize(body * scale) });
@@ -327,7 +356,16 @@ function pageWriter({ page, zones, theme, measurer }) {
       steps.forEach((s, i) => {
         const cx = x + i * (cardW + gap), title = titles[i], detail = details[i];
         Object.assign(title, { bounds: [cx + pad + badge + 14, top + Math.round((head - title.bounds[3]) / 2), title.bounds[2], title.bounds[3]] });
-        elements.push({ type: 'shape', id: `${fid}-card-${s.id}`, bounds: [cx, y, cardW, cardH], style: { fill: '#FFFFFF', radius: theme.radius ?? 0 } }, { type: 'shape', id: `${fid}-node-${s.id}`, bounds: [cx + pad, top + Math.round((head - badge) / 2), badge, badge], style: { fill: ink, radius: badge / 2 } }, text(`${fid}-num-${s.id}`, String(i + 1).padStart(2, '0'), [cx + pad, top + Math.round((head - badge) / 2) + 8, badge, 28], theme.font(20, { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.4 })), title);
+        const rFlow = colorRoles(p), altStep = i % 2 === 1;
+        const stepBadgeFill = altStep ? rFlow.secondary : ink;
+        const stepNumInk = altStep ? (p.dark ? rFlow.onSecondary : readableInk(rFlow.onSecondary || rFlow.secondaryInk, rFlow.secondary, 3.2)) : p.inverse;
+        elements.push(
+          { type: 'shape', id: `${fid}-card-${s.id}`, bounds: [cx, y, cardW, cardH], style: { fill: surf, ...(p.dark ? { stroke: p.line, strokeWidth: 1 } : {}), radius: theme.radius ?? 0 } },
+          { type: 'shape', id: `${fid}-cap-${s.id}`, bounds: [cx + 16, y, cardW - 32, 4], style: { fill: stepBadgeFill, radius: 2 } },
+          { type: 'shape', id: `${fid}-node-${s.id}`, bounds: [cx + pad, top + Math.round((head - badge) / 2), badge, badge], style: { fill: stepBadgeFill, radius: badge / 2 } },
+          text(`${fid}-num-${s.id}`, String(i + 1).padStart(2, '0'), [cx + pad, top + Math.round((head - badge) / 2) + 8, badge, 28], theme.font(20, { fontWeight: 700, color: stepNumInk, textAlign: 'center', lineHeight: 1.4 })),
+          title
+        );
         if (detail) { detail.bounds[0] = cx + pad; detail.bounds[1] = top + head + 12; elements.push(detail); }
         if (i < n - 1) elements.push({ type: 'vector', id: `${fid}-link-${s.id}-${steps[i + 1].id}`, bounds: [cx + cardW + 10, y + Math.round(cardH / 2) - 20, 24, 40], viewBox: [0, 0, 28, 48], path: 'M4,4 L24,24 L4,44', style: { fill: 'none', stroke: ink, strokeWidth: 5 } });
       });
@@ -390,7 +428,7 @@ function pageWriter({ page, zones, theme, measurer }) {
     const fits = (sz) => valueAt(page.data[k], sz) <= inner - pad * 2 && others.every((i) => valueAt(page.data[i], sz) <= (inner - pad * 2) * 0.6);
     let size = Math.min(fit?.size ?? metricSize, metricSize); while (size > 32 && !fits(size)) size -= 2;
     if (!fits(size)) return null;
-    const valueH = Math.round(size * 1.25), valueRun = (d, color, align) => ({ type: 'text', text: `${d.value}${d.unit ? ' ' + d.unit : ''}`, runs: [{ text: String(d.value), style: { fontSize: size, fontWeight: 700, color } }, ...(d.unit ? [{ text: ' ' + d.unit, style: { fontSize: unitOf(size), fontWeight: 700, color } }] : [])], style: theme.font(size, { fontWeight: 700, color, textAlign: align, lineHeight: 1.15 }) });
+    const valueH = Math.round(size * 1.25), valueRun = (d, color, align) => ({ type: 'text', text: `${d.value}${d.unit ? ' ' + d.unit : ''}`, runs: [{ text: String(d.value), style: { fontSize: size, fontWeight: 900, color } }, ...(d.unit ? [{ text: ' ' + d.unit, style: { fontSize: unitOf(size), fontWeight: 300, color } }] : [])], style: theme.font(size, { fontWeight: 900, color, textAlign: align, lineHeight: 1.15 }) });
     // Figure widths are measured, not estimated: a right-aligned figure box has to hold its figure exactly.
     const real = await measurer.texts(page.data.map((d, i) => ({ ...valueRun(d, p.ink, 'left'), id: `fig-${i}`, bounds: [0, 0, 3000, valueH] }))), figW = (i) => Math.ceil(real[i].naturalWidth) + 8;
     if (others.some((i) => figW(i) > (inner - pad * 2) * 0.6) || figW(k) > inner - pad * 2) return null;
@@ -402,13 +440,13 @@ function pageWriter({ page, zones, theme, measurer }) {
     const natural = 32 + anchorH + others.reduce((t, i) => t + rowNatural(i), 0), height = Math.max(natural, h || 0), extra = Math.floor((height - natural) / Math.max(1, others.length));
     const r = colorRoles(solidTheme.palette), elements = [], ax = x + 16, ay = y + 16;
     elements.push({ type: 'shape', id: 'm-anchor', bounds: [ax, ay, inner, anchorH], style: { fill: r.primary } });
-    elements.push(text(`m-label-${k + 1}`, page.data[k].label || '', [ax + pad, ay + pad, inner - pad * 2, lines[k] * lineH], theme.font(ls, { color: p.inverse })));
+    elements.push(text(`m-label-${k + 1}`, page.data[k].label || '', [ax + pad, ay + pad, inner - pad * 2, lines[k] * lineH], theme.font(ls, { fontWeight: 300, color: p.inverse })));
     elements.push({ ...valueRun(page.data[k], p.inverse, 'left'), id: `m-value-${k + 1}`, bounds: [ax + pad, ay + pad + lines[k] * lineH + 6, inner - pad * 2, valueH] });
     let ry = ay + anchorH;
     others.forEach((i, j) => {
       const rh = rowNatural(i) + extra, vw = figW(i), lh = lines[i] * lineH;
       if (j > 0) elements.push({ type: 'shape', id: `m-rule-${j}`, bounds: [ax + pad, ry, inner - pad * 2, 2], style: { fill: p.line } });
-      elements.push(text(`m-label-${i + 1}`, page.data[i].label || '', [ax + pad, ry + Math.round((rh - lh) / 2), labelRoom(i), lh], theme.font(ls, { color: p.muted })));
+      elements.push(text(`m-label-${i + 1}`, page.data[i].label || '', [ax + pad, ry + Math.round((rh - lh) / 2), labelRoom(i), lh], theme.font(ls, { fontWeight: 300, color: p.muted })));
       elements.push({ ...valueRun(page.data[i], r.primary, 'right'), id: `m-value-${i + 1}`, bounds: [ax + inner - pad - vw, ry + Math.round((rh - valueH) / 2), vw, valueH] });
       ry += rh;
     });
@@ -420,8 +458,8 @@ function pageWriter({ page, zones, theme, measurer }) {
   // look alike (user decision 2026-11-11). Cards are peers, so they share one width and one height (HS-02).
   const itemCards = async (items, x, y, w, h) => {
     const n = items.length, gap = 16, pad = 24, inner = w - 32, cardW = Math.floor((inner - gap * (n - 1)) / n), textW = cardW - pad * 2;
-    const heading = page.itemsHeading, headStyle = theme.roleStyle('sectionTitle', { color: readableInk(p.accent, '#FFFFFF'), lineHeight: 1.3 });
-    const numSize = Math.round(roles.stepTitle.fontSize * 1.6 / 2) * 2, numStyle = theme.font(numSize, { fontWeight: 700, color: readableInk(p.accent, '#FFFFFF'), lineHeight: 1.1 });
+    const heading = page.itemsHeading, headStyle = theme.roleStyle('sectionTitle', { color: readableInk(p.accent, surf), lineHeight: 1.3 });
+    const numSize = Math.round(roles.stepTitle.fontSize * 1.6 / 2) * 2, numStyle = theme.font(numSize, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.1 });
     const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, lineHeight: 1.32 }), detailStyle = theme.roleStyle('stepDetail', { color: p.body || p.ink, lineHeight: 1.45 });
     const probes = items.flatMap((it, i) => [text(`t${i}`, it.title, [0, 0, textW, 40], titleStyle), ...(it.detail ? [text(`d${i}`, it.detail, [0, 0, textW, 40], detailStyle)] : [])]);
     const sized = new Map((await measurer.texts(probes)).map((m) => [m.id, Math.ceil(m.height)]));
@@ -433,7 +471,7 @@ function pageWriter({ page, zones, theme, measurer }) {
     if (heading) elements.push(text('acts-heading', heading, [x + 24, y + 16, inner - 16, headBox], headStyle));
     items.forEach((it, i) => {
       const cx = x + 16 + i * (cardW + gap), m = i + 1;
-      elements.push({ type: 'shape', id: `acts-card-${m}`, bounds: [cx, cardY, cardW, cardH], style: { fill: '#FFFFFF' } });
+      elements.push({ type: 'shape', id: `acts-card-${m}`, bounds: [cx, cardY, cardW, cardH], style: { fill: surf } });
       elements.push({ type: 'shape', id: `acts-cap-${m}`, bounds: [cx, cardY, cardW, 6], style: { fill: i % 2 ? r.secondary : r.primary } });
       elements.push(text(`acts-num-${m}`, String(m).padStart(2, '0'), [cx + pad, cardY + 6 + pad, textW, numH], numStyle));
       elements.push(text(`acts-title-${m}`, it.title, [cx + pad, cardY + 6 + pad + numH + 10, textW, titleH], titleStyle));
@@ -456,7 +494,7 @@ function pageWriter({ page, zones, theme, measurer }) {
     let big = fit.size; if (!fits(big)) return null;
     const cap = Math.min(120, Math.round(fit.size * 2)); while (big + 2 <= cap && fits(big + 2)) big += 2;
     const { otherW, heroW } = widths(big);
-    const one = (it, width, figureSize, on) => ({ id: 'm', x: 0, width, size: metricSize, figureSize, columns: 1, gap: 0, highlight: on ? 0 : -1, highlightStyle: 'solid', fill: '#FFFFFF', theme: solidTheme, items: [it], ...(on ? {} : { iconCap: 0 }) });
+    const one = (it, width, figureSize, on) => ({ id: 'm', x: 0, width, size: metricSize, figureSize, columns: 1, gap: 0, highlight: on ? 0 : -1, highlightStyle: 'solid', fill: surf, theme: solidTheme, items: [it], ...(on ? {} : { iconCap: 0 }) });
     big = Math.min(await measuredSize(one(items[k], heroW, big, true)), await measuredSize({ ...one(items[others[0]], otherW * others.length + gap * (others.length - 1), big, false), columns: others.length, gap, items: others.map((i) => items[i]) }));
     const small = big;
     const sizeOf = (i) => (i === k ? big : small), widthOf = (i) => (i === k ? heroW : otherW), naturalOf = (i) => metricTiles({ ...one(items[i], widthOf(i), sizeOf(i), i === k), y: 0 }).height;
@@ -507,14 +545,14 @@ function pageWriter({ page, zones, theme, measurer }) {
       }
       // Beside its sentence a lone figure is one solid rectangle: no panel around it, and no taller than the figure needs, so the sentence is not stretched to match.
       if (solo && w < 760) {
-        const tile = metricTiles({ id: 'm', x, y, width: w, size: Math.round(metricSize * 1.15), columns: 1, gap: 0, highlight: 0, highlightStyle: 'solid', fill: '#FFFFFF', theme: solidTheme, items: [tileItem(page.data[0], false)], ...(h ? { tileHeight: h } : {}), iconCap: 0 }), bindings = [{ ref: `${pid}:data-1`, elementIds: ['m-value-1'] }], sizes = sizesOf(tile.elements, bindings[0].elementIds);
+        const tile = metricTiles({ id: 'm', x, y, width: w, size: Math.round(metricSize * 1.15), columns: 1, gap: 0, highlight: 0, highlightStyle: 'solid', fill: surf, theme: solidTheme, items: [tileItem(page.data[0], false)], ...(h ? { tileHeight: h } : {}), iconCap: 0 }), bindings = [{ ref: `${pid}:data-1`, elementIds: ['m-value-1'] }], sizes = sizesOf(tile.elements, bindings[0].elementIds);
         return { height: tile.height, elements: tile.elements, frame: 'm-tile-1', module: 'metricTiles', variant: 'figure-beside-sentence', title: tile.valueSize, sizes, reason: '单个数字突出，话术紧跟其后', bindings };
       }
       const items = page.data.map((d) => tileItem(d, goals.length > 1)), fit = figureRow(items, w, { base: baseSize('metrics') });
       if (page.figureForm === 'strip' && !goals.length) { const made = w >= W - 1 ? await stripRow(fit, x, y, w, h) : await stripColumn(fit, x, y, w, h); if (made) return made; }
       if (fit && hero) { const made = await heroRow(items, fit, x, y, w, h); if (made) return made; }
       if (fit) {
-        const common = { id: 'm', x: x + 16, width: fit.width - 32, size: metricSize, figureSize: fit.size, columns: items.length, gap: 12, highlight: metricFocus(page.data), highlightStyle: 'solid', fill: '#FFFFFF', theme: solidTheme, items, iconCap: fit.icons ? 64 : 0 };
+        const common = { id: 'm', x: x + 16, width: fit.width - 32, size: metricSize, figureSize: fit.size, columns: items.length, gap: 12, highlight: metricFocus(page.data), highlightStyle: 'solid', fill: surf, theme: solidTheme, items, iconCap: fit.icons ? 64 : 0 };
         await settleFigures('metrics', common);
         const natural = metricTiles({ ...common, y: 0 }).height + 32, height = Math.max(natural, h || 0), real = metricTiles({ ...common, y: y + 16, tileHeight: height - 32 });
         const bindings = page.data.map((d, i) => ({ ref: `${pid}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(goals.length > 1 && d.target != null ? [`m-note-${i + 1}`] : [])] })), sizes = sizesOf(real.elements, bindings.flatMap((b) => b.elementIds));
@@ -528,7 +566,7 @@ function pageWriter({ page, zones, theme, measurer }) {
       // The same measures on both sides, each a figure: the change is the point, so each pair is one tile reading "before → after" with the later figure large.
       const change = changeRow(w);
       if (change) {
-        const { items, fit, width, heading } = change, headH = 20 + headBox, common = { id: 'cmp', x: x + 16, width: fit.width - 32, size: metricSize, figureSize: fit.size, columns: items.length, gap: 12, highlight: metricFocus(items), highlightStyle: 'solid', fill: '#FFFFFF', theme: solidTheme, items, iconCap: 0 };
+        const { items, fit, width, heading } = change, headH = 20 + headBox, common = { id: 'cmp', x: x + 16, width: fit.width - 32, size: metricSize, figureSize: fit.size, columns: items.length, gap: 12, highlight: metricFocus(items), highlightStyle: 'solid', fill: surf, theme: solidTheme, items, iconCap: 0 };
         await settleFigures('compare', common);
         const natural = metricTiles({ ...common, y: 0 }).height + headH + 16, height = Math.max(natural, h || 0), real = metricTiles({ ...common, y: y + headH, tileHeight: height - headH - 16 }), ids = (k) => [`cmp-label-${k + 1}`, `cmp-value-${k + 1}`];
         const bindings = [...left.map((_, k) => ({ ref: `${pid}:compare-l${k + 1}`, elementIds: ids(k) })), ...right.map((_, k) => ({ ref: `${pid}:compare-r${k + 1}`, elementIds: ids(k) })), ...left.map((_, k) => ({ ref: `${pid}:compare`, rowId: `row-${k + 1}`, elementIds: ids(k) }))];
@@ -537,12 +575,12 @@ function pageWriter({ page, zones, theme, measurer }) {
       }
       // Otherwise two sides. Rows that pair up share a height and are tied by an arrow (one leads to the other) or a number (row by row); sides that do not pair each keep their own rows.
       const mid = paired || c.badge ? 64 : 28, sideW = Math.floor((w - mid) / 2), rightX = x + sideW + mid, capH = 56, pad = 24, innerW = sideW - pad * 2;
-      const cell = (id, it, cx) => ({ id, type: 'text', text: [it.title, it.detail].filter(Boolean).join('：'), ...(it.title && it.detail ? { runs: [{ text: it.title, style: { fontWeight: 700 } }, { text: '：' + it.detail }] } : {}), bounds: [cx + pad, 0, innerW, 40], style: theme.roleStyle('body', { color: p.ink, lineHeight: 1.45 }) });
+      const cell = (id, it, cx) => ({ id, type: 'text', text: [it.title, it.detail].filter(Boolean).join('：'), ...(it.title && it.detail ? { runs: [{ text: it.title, style: { fontWeight: 700 } }, { text: '：' + it.detail, style: { fontWeight: 300 } }] } : {}), bounds: [cx + pad, 0, innerW, 40], style: theme.roleStyle('body', { fontWeight: 300, color: p.ink, lineHeight: 1.45 }) });
       const cellsL = left.map((it, k) => cell(`cmp-l-${k + 1}`, it, x)), cellsR = right.map((it, k) => cell(`cmp-r-${k + 1}`, it, rightX)), all = [...cellsL, ...cellsR], sizes = await measurer.texts(all); all.forEach((e, k) => { e.bounds[3] = Math.ceil(sizes[k].height); });
       const need = (e) => e.bounds[3] + 28, sum = (list) => list.reduce((a, b) => a + b, 0), together = paired ? cellsL.map((e, k) => Math.max(need(e), need(cellsR[k]))) : null, needL = together || cellsL.map(need), needR = together || cellsR.map(need);
       const natural = capH + Math.max(sum(needL), sum(needR)) + 16, height = Math.max(natural + stretch, h || 0), spread = (list) => { const extra = Math.floor((height - capH - 16 - sum(list)) / Math.max(1, list.length)); return list.map((v) => v + extra); }, rowsL = spread(needL), rowsR = spread(needR);
       // The side that stands for this period, or the way forward, takes the primary colour; the other takes the secondary.
-      const primary = [solidFill, r.band, p.inverse], secondary = [lighten(r.secondary, 0.45), r.soft, readableInk(r.secondaryInk, lighten(r.secondary, 0.45))], elements = [{ id: 'cmp-frame', type: 'shape', bounds: [x, y, w, height], style: { fill: p.bg } }];
+      const primary = [solidFill, r.band, p.inverse], secondary = p.dark ? [r.secondary, r.soft, r.onSecondary] : [lighten(r.secondary, 0.45), r.soft, readableInk(r.secondaryInk, lighten(r.secondary, 0.45))], elements = [{ id: 'cmp-frame', type: 'shape', bounds: [x, y, w, height], style: { fill: p.bg } }];
       [[x, nowLeft ? primary : secondary, c.leftLabel || '现状'], [rightX, nowLeft ? secondary : primary, c.rightLabel || '改进']].forEach(([sx, [cap, body, ink], label], k) => elements.push({ type: 'shape', id: `cmp-side-${k + 1}`, ...(k === 0 ? { component: 'contrastPair' } : {}), bounds: [sx, y, sideW, height], style: { fill: body, radius: theme.radius ?? 0 } }, { type: 'shape', id: `cmp-cap-${k + 1}`, bounds: [sx, y, sideW, capH], style: { fill: cap, radius: theme.radius ?? 0 } }, text(`cmp-title-${k + 1}`, label, [sx + pad, y + 10, innerW, 36], theme.font(26, { fontWeight: 700, color: ink, textAlign: 'center', lineHeight: 1.3 }))));
       [[cellsL, rowsL, x], [cellsR, rowsR, rightX]].forEach(([cells, rows, sx], k) => { let ry = y + capH + 8; cells.forEach((e, row) => { e.bounds[1] = ry + Math.round((rows[row] - e.bounds[3]) / 2); elements.push(e); if (row < cells.length - 1) elements.push({ type: 'shape', id: `cmp-rule-${k + 1}-${row + 1}`, bounds: [sx + pad, ry + rows[row], innerW, 1], style: { fill: p.line } }); ry += rows[row]; }); });
       if (paired) { let ry = y + capH + 8; rowsL.forEach((rowH, row) => { const cy = ry + Math.round(rowH / 2); if (onward) elements.push({ type: 'vector', id: `cmp-arrow-${row + 1}`, bounds: [x + sideW + 20, cy - 20, 24, 40], viewBox: [0, 0, 28, 48], path: nowLeft ? 'M24,4 L4,24 L24,44' : 'M4,4 L24,24 L4,44', style: { fill: 'none', stroke: solidFill, strokeWidth: 5 } }); else elements.push({ type: 'shape', id: `cmp-dot-${row + 1}`, bounds: [x + sideW + 12, cy - 20, 40, 40], style: { fill: solidFill, radius: 20 } }, text(`cmp-no-${row + 1}`, String(row + 1).padStart(2, '0'), [x + sideW + 12, cy - 14, 40, 28], theme.font(20, { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.4 }))); ry += rowH; }); }
@@ -603,14 +641,17 @@ function pageWriter({ page, zones, theme, measurer }) {
       const bindings = t.bindings;
       if (shareCol > 0) {
         const most = Math.max(...shares), colX = (i) => x + 24 - hang + columns.slice(0, i).reduce((a, c) => a + c.width, 0) + (i === 0 ? hang : 0), figureW = Math.ceil(textWidth('100.0%', size * 1.1)) + 16;
+        const rBar = colorRoles(p);
         source.rows.forEach((r, i) => {
           const cell = t.elements.find((e) => e.id === `${tid}-row-row-${i + 1}-c${shareCol}`); if (!cell || totalRow(r)) return;
           const left = cell.bounds[0], room = Math.max(40, colX(shareCol) + columns[shareCol].width - 24 - (left + figureW)), barW = Math.max(6, Math.round(room * shareOf(r) / most));
           cell.bounds[2] = figureW;
-          t.elements.push({ id: `${tid}-share-${i + 1}`, type: 'shape', component: 'shareBar', bounds: [left + figureW, cell.bounds[1] + Math.round(cell.bounds[3] / 2) - 7, barW, 14], style: { fill: asList(source.highlight).includes(i) ? (p.gold || p.accent) : p.accent, radius: 4 } });
+          // Three-tone bar chart rhythm: #1 highlighted row pops with accent3 (pop), peers alternate primary & warm secondary!
+          const barFill = asList(source.highlight).includes(i) ? rBar.pop : (i % 2 === 1 ? rBar.primary : rBar.secondary);
+          t.elements.push({ id: `${tid}-share-${i + 1}`, type: 'shape', component: 'shareBar', bounds: [left + figureW, cell.bounds[1] + Math.round(cell.bounds[3] / 2) - 7, barW, 14], style: { fill: barFill, radius: 4 } });
         });
       }
-      return { height, elements: [panel(panelId, [x, y, w, height], true), ...(source.title ? [text(`${tid}-head`, source.title, [x + 24, y + 14, innerW, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, '#FFFFFF'), lineHeight: 1.3 }))] : []), ...t.elements], frame: panelId, module: 'capacityTable', variant: `${rows.length}-rows${shareCol > 0 ? '-share-bars' : ''}`, reason: shareCol > 0 ? '逐项对应，占比画成比例条' : '逐项对应', bindings };
+      return { height, elements: [panel(panelId, [x, y, w, height], true), ...(source.title ? [text(`${tid}-head`, source.title, [x + 24, y + 14, innerW, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, surf), lineHeight: 1.3 }))] : []), ...t.elements], frame: panelId, module: 'capacityTable', variant: `${rows.length}-rows${shareCol > 0 ? '-share-bars' : ''}`, reason: shareCol > 0 ? '逐项对应，占比画成比例条' : '逐项对应', bindings };
     }
     const flowGroup = /^(flow|chain)-(\d+)$/.exec(z);
     if (flowGroup) {
@@ -623,7 +664,7 @@ function pageWriter({ page, zones, theme, measurer }) {
       if (!cards) f.elements.forEach((e) => { if (Array.isArray(e.bounds)) e.bounds[1] += shift; if (e.from) e.from[1] += shift; if (e.to) e.to[1] += shift; });
       // returnTo: the last step leads back to that step, drawn as a line under the labels with an arrow into it.
       const nodeOf = (n) => parts.find((e) => e.id === `${fid}-node-s${n}`).bounds, centre = (n) => nodeOf(n)[0] + Math.round(nodeOf(n)[2] / 2), textBottom = cards ? y + headH + cards.cardH : Math.max(...parts.filter((e) => e.type === 'text' && Array.isArray(e.bounds)).map((e) => e.bounds[1] + e.bounds[3]));
-      const loopLines = loop ? [[`${z}-loop-down`, [centre(steps.length), textBottom + 8], [centre(steps.length), textBottom + 36]], [`${z}-loop-back`, [centre(steps.length), textBottom + 36], [centre(loop), textBottom + 36]], [`${z}-loop-up`, [centre(loop), textBottom + 36], [centre(loop), textBottom + 8], true]].map(([id, from, to, arrow]) => ({ ...lineElement({ id, from, to, style: { stroke: p.accent, strokeWidth: 3 } }), ...(arrow ? { endArrow: true } : {}) })) : [];
+      const loopLines = loop ? [[`${z}-loop-down`, [centre(steps.length), textBottom + 8], [centre(steps.length), textBottom + 36]], [`${z}-loop-back`, [centre(steps.length), textBottom + 36], [centre(loop), textBottom + 36]], [`${z}-loop-up`, [centre(loop), textBottom + 36], [centre(loop), textBottom + 8], true]].map(([id, from, to, arrow]) => ({ ...lineElement({ id, from, to, style: { stroke: p.pop || p.accent, strokeWidth: 3 } }), ...(arrow ? { endArrow: true } : {}) })) : [];
       const elements = [panel(`${z}-panel`, [x, y, w, height]), { type: 'shape', id: `${z}-mark`, bounds: [x, y, 6, height], style: { fill: p.accent } }, ...(heading ? [text(`${z}-head`, heading, [x + 24, y + 20, w - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 }))] : []), ...parts, ...loopLines], stepBindings = cards ? cards.bindings : f.bindings;
       return { height, elements, frame: `${z}-panel`, module: 'capacityFlow', variant: `${steps.length}-steps${cards ? '-cards' : ''}`, title: roles.sectionTitle.fontSize, ...(cards ? { sizes: sizesOf(parts, stepBindings.flatMap((b) => b.elementIds)) } : {}), reason: '箭头表达先后', bindings: [...stepBindings, ...flowEdgeBindings(fid, `${pid}:${z}`, steps.map((s) => s.id))] };
     }
@@ -805,21 +846,27 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
 
   // Title: a "X：结论" key line puts X in the eyebrow and the conclusion in the title.
   const raw = page.keyLine.text, colon = raw.indexOf('：'), hasPrefix = colon > 0 && colon <= 12 && !page.eyebrow, eyebrow = page.eyebrow || (hasPrefix ? raw.slice(0, colon) : ''), title = hasPrefix ? raw.slice(colon + 1) : raw;
-  const firstClause = title.split('，')[0], focus = page.focus && title.includes(page.focus) ? page.focus : firstClause !== title ? firstClause : (title.match(/[\d.]+\s*[%％万元亿单个家张份人次]+/)?.[0] || title.slice(0, Math.min(8, Math.ceil(title.length / 2)))), at = title.indexOf(focus), runs = [title.slice(0, at) && { text: title.slice(0, at), style: { fontWeight: 600, color: p.ink } }, { text: focus, style: { fontWeight: 700, color: readableInk(p.accent, '#FFFFFF') } }, title.slice(at + focus.length) && { text: title.slice(at + focus.length), style: { fontWeight: 600, color: p.ink } }].filter(Boolean);
+  // Short punchy titles (<= 10 visible chars) use the display/artistic font for visual punch;
+  // longer conclusion headlines use crisp Source Han Sans SC (700/900) so multi-clause sentences stay clean and authoritative.
+  const useDisplayTitle = title.replace(/[\s，。：；、,.!?！？·\-—]/g, '').length <= 10 && theme.displayFamily;
+  const titleFontExtra = useDisplayTitle ? { fontFamily: theme.displayFamily, fontWeight: 400, letterSpacing: 0.4, wordSpacing: '-0.18em' } : {};
+  const firstClause = title.split('，')[0], focus = page.focus && title.includes(page.focus) ? page.focus : firstClause !== title ? firstClause : (title.match(/[\d.]+\s*[%％万元亿单个家张份人次]+/)?.[0] || title.slice(0, Math.min(8, Math.ceil(title.length / 2)))), at = title.indexOf(focus), titleAccent = readableInk(p.accent, p.bg || '#FFFFFF'), runs = [title.slice(0, at) && { text: title.slice(0, at), style: { fontWeight: useDisplayTitle ? 400 : 700, color: p.ink } }, { text: focus, style: { fontWeight: useDisplayTitle ? 400 : 900, color: titleAccent } }, title.slice(at + focus.length) && { text: title.slice(at + focus.length), style: { fontWeight: useDisplayTitle ? 400 : 700, color: p.ink } }].filter(Boolean);
   const tagLabel = eyebrow || ROLE_TAG[page.role] || '', tagText = header === 'tag' && tagLabel ? `${tagLabel} | ${String(pageNo).padStart(2, '0')}` : '', tagStyle = theme.font(24, { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.3 });
   const [tagSize] = tagText ? await measurer.texts([{ id: 'hdr', type: 'text', text: tagText, bounds: [0, 0, 1200, 40], style: tagStyle }]) : [{ naturalWidth: 0 }], tagW = tagText ? Math.ceil(tagSize.naturalWidth) + 48 : 0, titleX = L + (tagText ? tagW + 24 : 0), titleW = W - (titleX - L);
-  // Measured at the focus weight (700), the widest the title's runs get, and scaled from the scale's own title size.
-  const [wide] = await measurer.texts([{ id: 'title', type: 'text', text: title, bounds: [0, 0, 3000, 62], style: theme.roleStyle('pageTitle', { fontWeight: 700 }) }]);
+  // Measured at the focus weight, and scaled from the scale's own title size.
+  const [wide] = await measurer.texts([{ id: 'title', type: 'text', text: title, bounds: [0, 0, 3000, 62], style: theme.roleStyle('pageTitle', { fontWeight: useDisplayTitle ? 400 : 900, ...titleFontExtra }) }]);
   const fitted = Math.floor(theme.roles.pageTitle.fontSize * titleW / wide.naturalWidth);
   if (fitted < 38) throw new Error(`report-deck: ${page.id} 标题太长，请压缩到约 ${Math.floor(title.length * fitted / 38)} 字以内`);
-  const titleStyle = theme.roleStyle('pageTitle', wide.naturalWidth > titleW ? { fontSize: fitted } : {});
+  const titleStyle = theme.roleStyle('pageTitle', { ...titleFontExtra, ...(wide.naturalWidth > titleW ? { fontSize: fitted } : {}) });
   // Header: a solid tag beside the title (or an eyebrow above it), closed by a rule whose thick stretch shows how far through the deck this page is.
-  const ruleY = 124, tone = readableInk(p.accent, '#FFFFFF'), titleY = header === 'tag' || !eyebrow ? 46 : 54;
+  const ruleY = 124, tone = p.dark ? p.primary : readableInk(p.accent, p.bg || '#FFFFFF'), titleY = header === 'tag' || !eyebrow ? 46 : 54;
+  const progW = Math.round(W * pageNo / total), tipW = Math.min(48, Math.max(20, Math.round(progW * 0.12)));
   const chrome = [
     ...(tagText ? [{ id: 'hdr-tag', type: 'shape', bounds: [L, 50, tagW, 54], style: { fill: tone, radius: 0 } }, { id: 'eyebrow', type: 'text', text: tagText, bounds: [L, 60, tagW, 34], style: tagStyle }] : eyebrow ? [{ id: 'eyebrow', type: 'text', text: eyebrow, bounds: [L, 26, 1200, 30], style: theme.roleStyle('eyebrow', { color: p.muted }) }] : []),
     { id: 'title', type: 'text', text: title, bounds: [titleX, titleY, titleW, 62], style: titleStyle, runs },
     { id: 'hdr-rule', type: 'shape', bounds: [L, ruleY + 2, W, 2], style: { fill: p.line } },
-    { id: 'hdr-progress', type: 'shape', bounds: [L, ruleY, Math.round(W * pageNo / total), 6], style: { fill: tone, radius: 3 } },
+    { id: 'hdr-progress', type: 'shape', bounds: [L, ruleY, progW, 6], style: { fill: tone, radius: 3 } },
+    { id: 'hdr-progress-tip', type: 'shape', bounds: [L + progW - tipW, ruleY, tipW, 6], style: { fill: p.pop || p.secondary || tone, radius: 3 } },
     { id: 'ftr-rule', type: 'shape', bounds: [L, 1024, W, 1], style: { fill: p.line } },
     ...(footer ? [{ id: 'src', type: 'text', text: `来源：${footer}`, bounds: [L, 1034, 1200, 30], style: theme.roleStyle('caption') }] : []),
     { id: 'no', type: 'text', text: `${String(pageNo).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, bounds: [W + L - 200, 1034, 200, 30], style: theme.roleStyle('caption', { textAlign: 'right', fontWeight: 700 }) }
@@ -864,23 +911,24 @@ export function coverComposition(photo, override) {
   return r >= COVER_BAND ? 'band' : r >= COVER_COLUMN ? 'window' : 'column';
 }
 async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
-  const p = theme.palette, roles = colorRoles(p), fill = readableInk(roles.primary, '#FFFFFF'), photo = asList(page.photos)[0], status = page.keyLine.text, data = asList(page.data);
+  const p = theme.palette, roles = colorRoles(p), fill = p.dark ? p.bg : readableInk(roles.primary, '#FFFFFF'), coverInk = p.dark ? p.ink : p.inverse, photo = asList(page.photos)[0], status = page.keyLine.text, data = asList(page.data);
   if (data.length > 3) throw new Error(`report-deck: ${page.id} 封面最多放 3 个数字`);
   const mode = coverComposition(photo, page.coverLayout), crop = photo && validImageCrop(photo.crop) ? photo.crop : null;
   const size = photo ? imageSize(photo.src) : null, ratio = photo ? (size.width * (crop ? crop[2] : 1)) / (size.height * (crop ? crop[3] : 1)) : 1;
-  const soft = (k) => (readableInk(lighten(roles.secondary, k), fill) === fill ? '#FFFFFF' : lighten(roles.secondary, k));
-  const capStyle = theme.font(20, { fontWeight: 500, color: soft(0.45), lineHeight: 1.4 }), capH = 30;
+  const soft = (k) => (p.dark ? roles.primary : (readableInk(lighten(roles.secondary, k), fill) === fill ? '#FFFFFF' : lighten(roles.secondary, k)));
+  const capStyle = theme.font(20, { fontWeight: 300, color: p.dark ? p.muted : soft(0.45), lineHeight: 1.4 }), capH = 30;
   // Where the words go: the left column beside a window or column photo, the full width above a band, the whole page without a photo.
   const columnW = mode === 'column' ? Math.max(560, Math.min(900, Math.round(1080 * ratio))) : 0;
   const x = 96, w = mode === 'window' ? 760 : mode === 'column' ? 1920 - columnW - 192 : 1728;
   const name = page.name || deckTitle || '', cap = mode === 'plain' ? 112 : 84;
-  const [nameSize] = await measurer.texts([{ id: 'n', type: 'text', text: name, bounds: [0, 0, 3000, 110], style: theme.font(84, { fontWeight: 800 }) }]);
+  const coverNameStyle = (size, extra = {}) => theme.roleStyle('coverTitle', { fontSize: size, color: coverInk, ...extra });
+  const [nameSize] = await measurer.texts([{ id: 'n', type: 'text', text: name, bounds: [0, 0, 3000, 110], style: coverNameStyle(84) }]);
   let nameFont = Math.min(cap, Math.floor(84 * w / Math.max(1, nameSize.naturalWidth))), nameLines = 1;
   // A long name takes two lines rather than shrinking below 64px.
-  if (nameFont < 64) { nameFont = 72; const [m] = await measurer.texts([{ id: 'n2', type: 'text', text: name, bounds: [0, 0, w, 200], style: theme.font(72, { fontWeight: 800, lineHeight: 1.2 }), lastLine: true }]); nameLines = Math.min(2, m.lines || 2); if ((m.lines || 1) > 2) nameFont = 56; }
-  const statusStyle = theme.font(mode === 'plain' ? 52 : 40, { fontWeight: 700, color: p.inverse, lineHeight: 1.45 }), [statusSize] = await measurer.texts([{ id: 's', type: 'text', text: status, bounds: [0, 0, w, 60], style: statusStyle }]);
-  const subStyle = theme.font(mode === 'plain' ? 32 : 28, { fontWeight: 500, color: soft(0.55), lineHeight: 1.45 }), [subSize] = page.subtitle ? await measurer.texts([{ id: 'u', type: 'text', text: page.subtitle, bounds: [0, 0, w, 60], style: subStyle }]) : [null];
-  const focus = page.focus && status.includes(page.focus) ? page.focus : null, at = focus ? status.indexOf(focus) : -1, pop = soft(0.2);
+  if (nameFont < 64) { nameFont = 72; const [m] = await measurer.texts([{ id: 'n2', type: 'text', text: name, bounds: [0, 0, w, 200], style: coverNameStyle(72, { lineHeight: 1.2 }), lastLine: true }]); nameLines = Math.min(2, m.lines || 2); if ((m.lines || 1) > 2) nameFont = 56; }
+  const statusStyle = theme.font(mode === 'plain' ? 52 : 40, { fontWeight: 700, color: coverInk, lineHeight: 1.45 }), [statusSize] = await measurer.texts([{ id: 's', type: 'text', text: status, bounds: [0, 0, w, 60], style: statusStyle }]);
+  const subStyle = theme.font(mode === 'plain' ? 32 : 28, { fontWeight: 400, color: p.dark ? p.body : soft(0.55), lineHeight: 1.45 }), [subSize] = page.subtitle ? await measurer.texts([{ id: 'u', type: 'text', text: page.subtitle, bounds: [0, 0, w, 60], style: subStyle }]) : [null];
+  const focus = page.focus && status.includes(page.focus) ? page.focus : null, at = focus ? status.indexOf(focus) : -1, pop = p.dark ? roles.primary : soft(0.2);
   const runs = focus ? [status.slice(0, at) && { text: status.slice(0, at) }, { text: focus, style: { color: pop } }, status.slice(at + focus.length) && { text: status.slice(at + focus.length) }].filter(Boolean) : undefined;
   // Cover figures hug their content like the figures inside the deck: as large as the status sentence allows, each tile only as wide as its words. No filler icons (user decision 2026-11-10).
   const coverTiles = async (y) => {
@@ -889,7 +937,7 @@ async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
     const widthAt = (s) => n * (Math.ceil(content(s)) + 72) + gap * (n - 1);
     // The status sentence must stay among the two largest sizes on the cover (key-line-not-prominent), so figures stop at its size.
     let fs = statusStyle.fontSize; while (fs > 40 && widthAt(fs) > w) fs -= 4;
-    const common = { id: 'm', x, width: Math.min(w, widthAt(fs)), size: 40, columns: n, gap, highlight: -1, fill: '#FFFFFF', theme, items };
+    const common = { id: 'm', x, width: Math.min(w, widthAt(fs)), size: 40, columns: n, gap, highlight: -1, fill: p.surface || '#FFFFFF', theme, items };
     for (; fs > 40; fs -= 2) {
       const texts = metricTiles({ ...common, figureSize: fs, y: 0 }).elements.filter((e) => e.type === 'text' && e.text), real = await measurer.texts(texts.map((e) => ({ ...e, bounds: [0, 0, 3000, e.bounds[3]] })));
       if (texts.every((e, i) => real[i].naturalWidth <= e.bounds[2])) break;
@@ -923,7 +971,7 @@ async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
   let y = top;
   if (page.eyebrow) elements.push({ id: 'cover-eyebrow', type: 'text', text: page.eyebrow, bounds: [x, y, w, 40], style: theme.font(28, { fontWeight: 600, color: soft(0.3) }) });
   y += eyebrowH;
-  elements.push({ id: 'cover-name', type: 'text', text: name, bounds: [x, y, w, nameH], style: theme.font(nameFont, { fontWeight: 800, color: p.inverse, lineHeight: nameLines > 1 ? 1.2 : 1.25 }) });
+  elements.push({ id: 'cover-name', type: 'text', text: name, bounds: [x, y, w, nameH], style: coverNameStyle(nameFont, { lineHeight: nameLines > 1 ? 1.2 : 1.25 }) });
   y += nameH;
   if (subSize) { elements.push({ id: 'cover-subtitle', type: 'text', text: page.subtitle, bounds: [x, y + 20, w, Math.ceil(subSize.height)], style: subStyle }); y += subH; }
   y += 40;
@@ -1044,10 +1092,11 @@ export async function balanceLineBreaks(slides, measurer) {
   return fixed;
 }
 
-export async function composeReportDeck({ outline, deck, palette = 'blue-gold', measurer, footer: rawFooter, layouts = {}, header = 'tag', baseDir = process.cwd() }) {
+export async function composeReportDeck({ outline, deck, palette = 'blue-gold', measurer, footer: rawFooter, layouts = {}, header = 'tag', baseDir = process.cwd(), fontFamily, displayFamily }) {
   const footer = rawFooter && String(rawFooter).replace(/(定稿|终稿|初稿|修订)版?/g, '').replace(/\s*·\s*[^·]*规范\s*$/, '').replace(/[_\s]+/g, ' ').replace(/^[\s·\-]+|[\s·\-]+$/g, '').trim();
   const resolved = typeof palette === 'string' ? reportPalette(palette) : palette, plans = deck.contentPlan.slides;
-  const dense = createTheme({ palette: resolved, roles: REPORT_ROLES }), comfy = createTheme({ palette: resolved, roles: REPORT_ROLES_COMFY }), roomy = createTheme({ palette: resolved, roles: REPORT_ROLES_ROOMY }), large = createTheme({ palette: resolved, roles: REPORT_ROLES_LARGE }), hero = createTheme({ palette: resolved, roles: REPORT_ROLES_HERO }), themes = { dense, comfy, roomy, large, hero };
+  const fontOpts = { ...(fontFamily ? { fontFamily } : {}), ...(displayFamily ? { displayFamily } : {}) };
+  const dense = createTheme({ palette: resolved, roles: REPORT_ROLES, ...fontOpts }), comfy = createTheme({ palette: resolved, roles: REPORT_ROLES_COMFY, ...fontOpts }), roomy = createTheme({ palette: resolved, roles: REPORT_ROLES_ROOMY, ...fontOpts }), large = createTheme({ palette: resolved, roles: REPORT_ROLES_LARGE, ...fontOpts }), hero = createTheme({ palette: resolved, roles: REPORT_ROLES_HERO, ...fontOpts }), themes = { dense, comfy, roomy, large, hero };
   const slides = [], anchors = {}, scales = {}, sparse = [], loose = [], narrow = [], focusGuessed = [], rearranged = [];
   let lastForm = null, lastItems = null, lastShape = null; const forms = [], varied = [];
   const absolute = (raw) => (raw.photos ? { ...raw, photos: raw.photos.map((ph) => ({ ...ph, src: path.resolve(baseDir, ph.src) })) } : raw);

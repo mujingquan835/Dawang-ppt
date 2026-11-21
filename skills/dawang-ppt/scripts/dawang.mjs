@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 const skill = path.resolve(import.meta.dirname, ".."), project = path.join(skill, "project"), args = process.argv.slice(2);
 // build is the new authoring contract. Historical inputs require explicit routes;
 // never infer a legacy fallback from a malformed or incomplete authored project.
-const aliases = { build: "render:authored", preview: "preview:start", serve: "preview:start", export: "export:pptx", qa: "qa:project" };
+const aliases = { fast: "fast:build", build: "render:authored", preview: "preview:start", serve: "preview:start", export: "export:pptx", qa: "qa:project" };
 if (args[0] === "build" && args[1]) {
   const file = path.resolve(process.env.INIT_CWD || process.cwd(), args[1]);
   const input = JSON.parse(fs.readFileSync(file, "utf8"));
