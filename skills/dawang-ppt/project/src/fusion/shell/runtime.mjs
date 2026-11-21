@@ -13,9 +13,9 @@ const loadScript = (src) => new Promise((resolve, reject) => {
   const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('无法加载 ' + src)); document.head.append(s);
 });
 
-export function mountDeckRuntime({ onOrderChange, status = () => {} } = {}) {
+export function mountDeckRuntime({ onOrderChange, onDuplicateSlide, status = () => {} } = {}) {
   const deck = $('deck'), viewport = $('deck-viewport'), list = $('deck-rail-list');
-  let presenting = false, busy = false, active = null;
+  let presenting = false, busy = false, active = null, customZoom = null;
   const slides = () => [...deck.querySelectorAll(':scope > .slide')];
   const visible = () => slides().filter((s) => s.dataset.skipped !== 'true');
   const orderState = () => ({
@@ -25,12 +25,35 @@ export function mountDeckRuntime({ onOrderChange, status = () => {} } = {}) {
   });
   const deleted = new Set(JSON.parse($('fusion-project')?.textContent || '{}')?.editorState?.deletedSlides || []);
 
-  // Scale: the shown slide fits the viewport; thumbnails carry their own scale on their frame.
-  function fit() {
-    const box = viewport.getBoundingClientRect(), pad = presenting ? 0 : 48, pager = presenting ? 0 : 44;
-    const scale = Math.max(0.1, Math.min((box.width - pad) / 1920, (box.height - pad - pager) / 1080));
-    document.documentElement.style.setProperty('--deck-scale', String(scale));
+  // Scale: fits viewport by default, or follows user manual zoom (50%–200%).
+  function fitScale() {
+    const box = viewport.getBoundingClientRect(), pad = presenting ? 0 : 56, pager = presenting ? 0 : 72;
+    return Math.max(0.1, Math.min((box.width - pad) / 1920, (box.height - pad - pager) / 1080));
   }
+  function fit() {
+    const scale = presenting || customZoom === null ? fitScale() : customZoom;
+    document.documentElement.style.setProperty('--deck-scale', String(scale));
+    const zoomBtn = $('deck-zoom-fit');
+    if (zoomBtn) zoomBtn.textContent = customZoom === null ? `${Math.round(scale * 100)}%` : `${Math.round(customZoom * 100)}%`;
+  }
+  function setZoom(next) {
+    if (next === 'fit' || next === null) customZoom = null;
+    else customZoom = Math.max(0.25, Math.min(2.0, Number(next) || fitScale()));
+    fit();
+    dispatchEvent(new CustomEvent('deck-zoom-change', { detail: { scale: customZoom } }));
+  }
+  const stepZoom = (delta) => {
+    const cur = customZoom ?? fitScale();
+    setZoom(Math.round((cur + delta) * 20) / 20);
+  };
+  $('deck-zoom-out')?.addEventListener('click', () => stepZoom(-0.1));
+  $('deck-zoom-in')?.addEventListener('click', () => stepZoom(0.1));
+  $('deck-zoom-fit')?.addEventListener('click', () => setZoom('fit'));
+  viewport?.addEventListener('wheel', (ev) => {
+    if (!ev.ctrlKey && !ev.metaKey) return;
+    ev.preventDefault();
+    stepZoom(ev.deltaY < 0 ? 0.08 : -0.08);
+  }, { passive: false });
   new ResizeObserver(fit).observe(viewport);
   addEventListener('resize', fit);
 
@@ -73,6 +96,7 @@ export function mountDeckRuntime({ onOrderChange, status = () => {} } = {}) {
     const action = (label, title, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title); b.addEventListener('click', (ev) => { ev.stopPropagation(); fn(); }); menu.append(b); };
     action('↑', '上移', () => move(section, -1));
     action('↓', '下移', () => move(section, 1));
+    if (onDuplicateSlide) action('⧉', '复制本页', () => onDuplicateSlide(section.dataset.slideId));
     action(section.dataset.skipped === 'true' ? '显' : '隐', section.dataset.skipped === 'true' ? '放映时显示' : '放映时跳过', () => toggleSkip(section));
     action('×', '删除本页', () => remove(section));
     item.append(no, frame, menu);
@@ -164,6 +188,9 @@ export function mountDeckRuntime({ onOrderChange, status = () => {} } = {}) {
   document.addEventListener('keydown', (ev) => {
     const key = String(ev.key || '').toLowerCase();
     if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && !ev.shiftKey && key === 'z' && !typing(ev.target)) { ev.preventDefault(); window.__deckUndo.undo(); return; }
+    if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && key === '0' && !typing(ev.target)) { ev.preventDefault(); setZoom('fit'); return; }
+    if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && (key === '=' || key === '+') && !typing(ev.target)) { ev.preventDefault(); stepZoom(0.1); return; }
+    if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && key === '-' && !typing(ev.target)) { ev.preventDefault(); stepZoom(-0.1); return; }
     if (ev.defaultPrevented || ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev.target)) return;
     if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(ev.key)) { ev.preventDefault(); step(1); }
     else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(ev.key)) { ev.preventDefault(); step(-1); }
@@ -232,7 +259,7 @@ export function mountDeckRuntime({ onOrderChange, status = () => {} } = {}) {
   show(visible()[0] || slides()[0], { force: true });
   initEditable();
   fit();
-  const api = { go, show, slides, visible, orderState, applyOrder, initEditable, refreshThumb, setBusy, isPresenting: () => presenting };
+  const api = { go, show, slides, visible, orderState, applyOrder, initEditable, refreshThumb, renderRail, setZoom, stepZoom, setBusy, isPresenting: () => presenting };
   window.__deck = api;
   return api;
 }

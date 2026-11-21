@@ -25,7 +25,7 @@ export async function renderPreviewGrid({ htmlFile, previewFile, chrome = DEFAUL
     // Hide editor chrome so we capture clean full-bleed 1920x1080 slides
     await page.addStyleTag({
       content: `
-        #deck-topbar, #deck-rail, #deck-panel, #deck-pager { display: none !important; }
+        #deck-topbar, #deck-rail, #deck-panel, #deck-pager, #deck-dock, #fusion-status { display: none !important; }
         #deck-main { display: block !important; position: fixed !important; inset: 0 !important; padding: 0 !important; margin: 0 !important; }
         #deck-viewport { position: fixed !important; inset: 0 !important; padding: 0 !important; margin: 0 !important; background: #fff !important; }
         #deck { position: fixed !important; inset: 0 !important; width: 1920px !important; height: 1080px !important; }

@@ -40,7 +40,7 @@ node <skill>/scripts/dawang.mjs fast:build "<临时目录>/outline.json" "<输�
 
 1. 检查第 2 步 stdout 中的 `preview.overflows`（应为空数组 `[]`）及 `compose.sparse` / `compose.loose`。
 2. `read_file` **只读 1 次** `<临时目录>/preview.png`，检查：文字是否截断/重叠、数字与单位是否清晰、图片裁切是否切掉人脸/核心文字、页面是否过空或相邻页完全雷同。
-3. **无硬伤直接交付**；仅在发现硬伤（溢出、错图、裁切严重、留白失衡）时，修改一次 `outline.json` 重跑 `fast:build` 并复查 `preview.png`（**最多修 1 轮，严禁反复微调刷回合**）。
+3. **无硬伤直接交付**；仅在发现硬伤（溢出、错图、裁切严重、留白失衡）时，**用 `edit_file` 局部修改 `outline.json`（禁止整份重写）**重跑一次 `fast:build` 并复查 `preview.png`（**最多修 1 轮，严禁反复微调刷回合**）。
 
 ---
 
@@ -125,6 +125,7 @@ node <skill>/scripts/dawang.mjs fast:build "<临时目录>/outline.json" "<输�
    - 有时间推进/排期 → 用 `periods`（并行项目可加 `lane`）。
    - 有步骤/闭环链路 → 用 `flows`（需要回流闭环写 `returnTo: 1`）。
    - 有多维结构数据 → 用 `table`（含「占比/比例」百分数列自动绘制原位比例条）。
+   - `items` 与 `flows.steps` 的 `title` **不要手写 `01`/`1.` 等序号**，引擎会自动渲染序号圆标或编号。
    - 多页连续呈现时，相邻页应自然错开模块形态（引擎会自动交替 `strip`/`tiles`、`cards`/`list` 及照片侧栏/底带）。
 2. **封面按需使用**：完整多页独立汇报可加第 1 页 `role: "cover"`；仅做 1 页单页汇总或插入页时**不加封面**，直接做内容页。
 3. **绝对忠于事实**：绝不编造材料里没有的数字或案例；标题中提到的数字必须在本页模块中真实出现。单页已有清晰导语、数据、动作和图带时保持克制，不硬塞冗余条块导致拥挤。

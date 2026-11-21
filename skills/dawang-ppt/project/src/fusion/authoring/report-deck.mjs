@@ -1070,7 +1070,7 @@ const wordCut = (() => {
 })();
 const plainText = (e) => (e.runs?.length ? e.runs.map((r) => r.text ?? '').join('') : String(e.text ?? ''));
 const SHORT_LAST_LINE = 4;
-const badBreak = (m, text) => m.lines > 1 && (m.lastLineChars <= SHORT_LAST_LINE || wordCut(text, m.breaks));
+const badBreak = (m, text) => m.lines > 1 && (m.lastLineChars <= (text.length <= 16 ? 3 : SHORT_LAST_LINE) || wordCut(text, m.breaks));
 // A line that ends on a pause (、，；：) reads best; among acceptable widths the first such one wins.
 const atPause = (m, text) => asList(m.breaks).every((b) => /[，、；：。,;:]/.test(text.slice(0, b).trimEnd().slice(-1)));
 export async function balanceLineBreaks(slides, measurer) {

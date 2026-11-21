@@ -9,6 +9,48 @@ import { changeSlideAppearance } from "../styles/appearance.mjs";
 const boundsValid = (b) => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0;
 function applyEditCommand(project, command) {
   const p = clone(project);
+  if (command.type === "add-slide" || command.type === "duplicate-slide") {
+    const afterIdx = command.afterSlideId
+      ? p.slides.findIndex((x) => x.slideId === command.afterSlideId)
+      : p.slides.length - 1;
+    const insertAt = afterIdx >= 0 ? afterIdx + 1 : p.slides.length;
+    const newId = command.newSlideId || `slide-${revision().slice(0, 8)}`;
+    let newSlide;
+    if (command.type === "duplicate-slide") {
+      const src = p.slides.find((x) => x.slideId === command.slideId);
+      if (!src) return { ok: false, conflicts: [{ kind: "missing-slide" }] };
+      newSlide = clone(src);
+      newSlide.slideId = newId;
+      newSlide.label = (src.label || src.title || "页面") + " 副本";
+    } else {
+      const bg = p.designChoice?.appearance?.palette?.bg || "#FFFFFF";
+      const accent = p.designChoice?.appearance?.palette?.primary || p.designChoice?.appearance?.palette?.accent || "#23338B";
+      const ink = p.designChoice?.appearance?.palette?.ink || "#14213D";
+      newSlide = {
+        slideId: newId,
+        mode: "composition",
+        styleId: p.slides[0]?.styleId || p.designChoice?.styleId || "authored/custom",
+        authoring: clone(p.slides[0]?.authoring || { engine: "dawang-authored-v1" }),
+        label: "新建空白页",
+        objects: [],
+        elements: [
+          { id: `${newId}-bg`, type: "shape", bounds: [0, 0, 1920, 1080], style: { fill: bg } },
+          { id: `${newId}-title`, type: "text", text: "双击输入本页核心结论标题", bounds: [96, 80, 1728, 72], style: { fontFamily: "Source Han Sans SC", fontSize: 44, fontWeight: 900, color: ink, lineHeight: 1.2 } },
+          { id: `${newId}-rule`, type: "shape", bounds: [96, 166, 120, 5], style: { fill: accent, radius: 3 } },
+          { id: `${newId}-body`, type: "text", text: "双击编辑正文内容，或使用顶部工具栏插入文本框、色块与图片。", bounds: [96, 220, 1728, 120], style: { fontFamily: "Source Han Sans SC", fontSize: 24, fontWeight: 300, color: ink, lineHeight: 1.5 } },
+        ],
+      };
+    }
+    p.slides.splice(insertAt, 0, newSlide);
+    const baseOrder = p.editorState?.slideOrder?.length ? [...p.editorState.slideOrder] : p.slides.filter((x) => x.slideId !== newId).map((x) => x.slideId);
+    const orderIdx = command.afterSlideId ? baseOrder.indexOf(command.afterSlideId) : baseOrder.length - 1;
+    baseOrder.splice(orderIdx >= 0 ? orderIdx + 1 : baseOrder.length, 0, newId);
+    p.editorState = p.editorState || {};
+    p.editorState.slideOrder = baseOrder;
+    p.revision = revision();
+    command.newSlideId = newId;
+    return { ok: true, project: p, newSlideId: newId };
+  }
   const s = p.slides.find((s2) => s2.slideId === command.slideId);
   if (!s) return { ok: false, conflicts: [{ kind: "missing-slide" }] };
   if (s.mode !== "composition") return { ok: false, conflicts: [{ kind: "use-original-template-controls" }] };
@@ -17,7 +59,35 @@ function applyEditCommand(project, command) {
   const e = deriveSlideElements(s, style).find((e2) => e2.id === command.elementId);
   const beforeSlide = clone(s), beforeNodes = clone(p.contentPlan.nodes), beforeEdits = p.sources.userEdits.length;
   try {
-    if (command.type === "appearance") {
+    if (command.type === "slide-bg") {
+      s.elements = s.elements || [];
+      const bgEl = s.elements.find((x) => x.type === "shape" && Array.isArray(x.bounds) && x.bounds[0] <= 2 && x.bounds[1] <= 2 && x.bounds[2] >= 1916 && x.bounds[3] >= 1076);
+      if (bgEl) {
+        bgEl.style = { ...(bgEl.style || {}), fill: command.fill };
+      } else {
+        const minLayer = Math.min(0, ...s.elements.map((t) => t.layer || 0)) - 1;
+        s.elements.unshift({ id: `${s.slideId}-custom-bg`, type: "shape", bounds: [0, 0, 1920, 1080], layer: minLayer, style: { fill: command.fill } });
+      }
+    } else if (command.type === "duplicate-element") {
+      if (!e) return { ok: false, conflicts: [{ kind: "missing-element" }] };
+      const copy = clone(s.elements.find((x) => x.id === e.id) || e);
+      delete copy.parentId;
+      delete copy.contentRef;
+      delete copy.sourceContentRef;
+      copy.id = `user-${copy.type}-${revision().slice(0, 8)}`;
+      const dx = command.dx ?? 24, dy = command.dy ?? 24;
+      copy.bounds = [
+        Math.min(1920 - copy.bounds[2], Math.max(0, copy.bounds[0] + dx)),
+        Math.min(1080 - copy.bounds[3], Math.max(0, copy.bounds[1] + dy)),
+        copy.bounds[2],
+        copy.bounds[3],
+      ];
+      const targets = [...(s.elements || []), ...(s.objects || [])];
+      copy.layer = Math.max(0, ...targets.map((t) => t.layer || 0)) + 1;
+      s.elements = s.elements || [];
+      s.elements.push(copy);
+      command.elementId = copy.id;
+    } else if (command.type === "appearance") {
       delete s.appearance;
       Object.assign(s, changeSlideAppearance(s, style, resolveStyle(command.styleId)));
     } else if (command.type === "semantic") {

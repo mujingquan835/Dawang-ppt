@@ -16,7 +16,7 @@ import { SceneRoot } from '../scene/render.jsx';
 import { materializeElements, syncCompositionTextState } from '../scene/model.mjs';
 import { mergeEditorState } from '../project/import-goal.mjs';
 import { applyEditCommand } from './commands.mjs';
-import { mountInspector } from './inspector.jsx';
+import { mountInspector, mountDeckPanel } from './inspector.jsx';
 import { collectProjectFromIr } from '../export/ir-collect.mjs';
 import { composeEditablePptx } from '../export/pptx-core.mjs';
 import { mountDeckRuntime } from '../shell/runtime.mjs';
@@ -56,7 +56,11 @@ if (seed) {
   };
   hydrateDeckImages();
 
-  const runtime = mountDeckRuntime({ onOrderChange: (next) => reorder(next), status: (text) => status(text) });
+  const runtime = mountDeckRuntime({
+    onOrderChange: (next) => reorder(next),
+    onDuplicateSlide: (id) => duplicateSlide(id),
+    status: (text) => status(text),
+  });
   let saveControls = null;
   document.body.classList.add('fusion-editor');
   const syncEditorMode = () => document.body.classList.toggle('fusion-composition-active', !!document.querySelector('#deck > .fusion-slide.active'));
@@ -94,15 +98,12 @@ if (seed) {
           if (!el) continue;
           if (el.innerText !== String(e.text ?? '')) {
             const runs = e.runs ? readRunsFromDom(el, e.runs) : null;
-            if (e.runs && !runs) {
-              el.innerHTML = runsToHtml(e.runs);
-              status('整段替换会清除句内样式；请在侧栏逐段编辑，或明确转为纯文本。');
-              continue;
-            }
             const r = applyEditCommand(project, {
               slideId: slide.slideId,
               elementId: e.id,
-              ...(e.runs ? { type: 'text-runs', runs } : { type: 'text', text: el.innerText }),
+              ...(e.runs && runs
+                ? { type: 'text-runs', runs }
+                : { type: 'text', text: el.innerText, ...(e.runs ? { resetRuns: true } : {}) }),
             });
             if (r.ok) {
               project = r.project;
@@ -126,14 +127,22 @@ if (seed) {
     draftTimer = setTimeout(() => persistDraft().catch((error) => status('本地草稿保存失败，当前内容仍在页面中：' + error.message)), 250);
   }
 
+  let statusTimer = null;
   function status(text) {
     let el = document.getElementById('fusion-status');
     if (!el) {
       el = document.createElement('div');
       el.id = 'fusion-status';
-      document.getElementById('deck-panel')?.prepend(el);
+      document.body.append(el);
     }
     el.textContent = text;
+    el.classList.remove('is-faded');
+    clearTimeout(statusTimer);
+    if (text) {
+      statusTimer = setTimeout(() => {
+        if (!el.querySelector('button')) el.classList.add('is-faded');
+      }, 2800);
+    }
   }
 
   const resolveRenderUrl = (v) => assetPool.resolveRenderUrl(v);
@@ -154,6 +163,29 @@ if (seed) {
     refreshSelection();
   }
 
+  function ensureSlideSections() {
+    const deck = document.getElementById('deck');
+    if (!deck) return;
+    const existing = new Map(sections().map((s) => [s.dataset.slideId, s]));
+    const wantedIds = new Set(project.slides.map((s) => s.slideId));
+    for (const [id, node] of existing) {
+      if (!wantedIds.has(id)) {
+        roots.get(node)?.unmount?.();
+        roots.delete(node);
+        node.remove();
+      }
+    }
+    for (const s of project.slides) {
+      if (!existing.has(s.slideId)) {
+        const sec = document.createElement('section');
+        sec.className = 'slide fusion-slide';
+        sec.dataset.slideId = s.slideId;
+        sec.dataset.label = s.label || s.title || '';
+        deck.append(sec);
+      }
+    }
+  }
+
   function restore(snapshot) {
     if (exportBusy) return false;
     cropEditor?.cancel();
@@ -163,9 +195,12 @@ if (seed) {
       project = assetPool.tokenizeProject(structuredClone(snapshot));
       project.revision = savedRevision;
       editVersion++;
+      ensureSlideSections();
       applySnapshot(project.editorState);
       selected = previousSelection;
       for (const s of project.slides) if (s.mode === 'composition') redraw(s.slideId);
+      runtime.renderRail();
+      refreshSelection();
       scheduleDraft();
     } finally {
       restoring = false;
@@ -210,11 +245,23 @@ if (seed) {
     }
     project = r.project;
     editVersion++;
-    if (normalizedCmd.type === 'delete-element') selected = null;
-    else if (normalizedCmd.type === 'add-element' && normalizedCmd.elementId) {
-      selected = { slideId: normalizedCmd.slideId, elementId: normalizedCmd.elementId };
+    if (normalizedCmd.type === 'add-slide' || normalizedCmd.type === 'duplicate-slide') {
+      selected = null;
+      ensureSlideSections();
+      applySnapshot(project.editorState);
+      if (r.newSlideId) {
+        redraw(r.newSlideId);
+        runtime.renderRail();
+        const targetSec = sections().find((s) => s.dataset.slideId === r.newSlideId);
+        if (targetSec) runtime.show(targetSec, { force: true });
+      }
+    } else {
+      if (normalizedCmd.type === 'delete-element') selected = null;
+      else if ((normalizedCmd.type === 'add-element' || normalizedCmd.type === 'duplicate-element') && normalizedCmd.elementId) {
+        selected = { slideId: normalizedCmd.slideId, elementId: normalizedCmd.elementId };
+      }
+      redraw(normalizedCmd.slideId);
     }
-    redraw(normalizedCmd.slideId);
 
     const now = Date.now();
     if (options.mergeKey && lastMerge?.key === options.mergeKey && now - lastMerge.at < 1000) {
@@ -237,12 +284,24 @@ if (seed) {
     if (currentIndex !== void 0) window.go(currentIndex, { animate: false, force: true });
   }
 
+  function refreshEmptyPanel() {
+    const empty = document.getElementById('deck-empty-panel');
+    if (!empty) return;
+    if (selected) {
+      empty.classList.add('is-hidden');
+      return;
+    }
+    empty.classList.remove('is-hidden');
+    mountDeckPanel(empty, api);
+  }
+
   function refreshSelection() {
     document.querySelectorAll('#deck .fusion-selection').forEach((e) => e.remove());
     if (!selected) {
       document.getElementById('fusion-inspector')?.remove();
       const field = document.getElementById('deck-props-field'), panel = document.getElementById('deck-props');
       if (field && panel && !panel.children.length) field.classList.add('is-hidden');
+      refreshEmptyPanel();
       return;
     }
     const slide = project.slides.find((s) => s.slideId === selected.slideId);
@@ -261,19 +320,21 @@ if (seed) {
     const overlay = document.createElement('div');
     overlay.className = 'fusion-selection';
     overlay.dataset.editableSkip = 'true';
-    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;outline:${u(2)}px solid var(--ui-accent,#0e9f6e);pointer-events:none;z-index:10000`;
+    overlay.style.cssText = `position:absolute;left:${b[0]}px;top:${b[1]}px;width:${b[2]}px;height:${b[3]}px;outline:${u(2)}px solid var(--ui-accent,#23338B);pointer-events:none;z-index:10000`;
     for (const dir of HANDLES) {
       const handle = document.createElement('button');
       handle.type = 'button';
       handle.setAttribute('aria-label', '缩放选中对象（' + dir + '）');
       handle.dataset.fusionResize = dir;
-      const size = u(10), x = dir.includes('w') ? 0 : dir.includes('e') ? 100 : 50, y = dir.includes('n') ? 0 : dir.includes('s') ? 100 : 50;
-      handle.style.cssText = `position:absolute;left:calc(${x}% - ${size / 2}px);top:calc(${y}% - ${size / 2}px);width:${size}px;height:${size}px;padding:0;cursor:${HANDLE_CURSORS[dir]};pointer-events:auto;background:#fff;border:${u(1.5)}px solid var(--ui-accent,#0e9f6e);border-radius:${u(2)}px`;
+      const isCorner = dir.length === 2;
+      const size = u(isCorner ? 11 : 9), x = dir.includes('w') ? 0 : dir.includes('e') ? 100 : 50, y = dir.includes('n') ? 0 : dir.includes('s') ? 100 : 50;
+      handle.style.cssText = `position:absolute;left:calc(${x}% - ${size / 2}px);top:calc(${y}% - ${size / 2}px);width:${size}px;height:${size}px;padding:0;cursor:${HANDLE_CURSORS[dir]};pointer-events:auto;background:#fff;border:${u(1.8)}px solid var(--ui-accent,#23338B);border-radius:${isCorner ? '50%' : u(2) + 'px'};box-shadow:0 ${u(1)}px ${u(3)}px rgba(15,23,42,.25)`;
       overlay.append(handle);
     }
     root.append(overlay);
     const field = document.getElementById('deck-props-field');
     field?.classList.remove('is-hidden');
+    document.getElementById('deck-empty-panel')?.classList.add('is-hidden');
     mountInspector(document.getElementById('deck-props'), selected, api);
   }
 
@@ -283,6 +344,7 @@ if (seed) {
     document.getElementById('fusion-inspector')?.remove();
     const field = document.getElementById('deck-props-field'), panel = document.getElementById('deck-props');
     if (field && panel && !panel.children.length) field.classList.add('is-hidden');
+    refreshEmptyPanel();
   }
 
   const projectId =
@@ -415,6 +477,22 @@ if (seed) {
     });
   };
 
+  function activeSlideId() {
+    return document.querySelector('#deck > .fusion-slide.active')?.dataset.slideId || project.slides[0]?.slideId;
+  }
+  function addSlide() {
+    const afterSlideId = activeSlideId();
+    if (!window.__canEditDeck?.()) return;
+    apply({ type: 'add-slide', afterSlideId });
+    status('已新建空白页，可双击编辑标题或自由插入元素。');
+  }
+  function duplicateSlide(slideId) {
+    const target = slideId || activeSlideId();
+    if (!target || !window.__canEditDeck?.()) return;
+    apply({ type: 'duplicate-slide', slideId: target, afterSlideId: target });
+    status('已复制当前页面。');
+  }
+
   const api = {
     isExporting: () => exportBusy,
     isPortable: portable,
@@ -427,6 +505,9 @@ if (seed) {
       await persistDraft();
     },
     getProject: sync,
+    activeSlideId,
+    addSlide,
+    duplicateSlide,
     apply,
     save: (options = {}) => (portable() && !options.fileHandle ? saveControls.run() : save(options)),
     undo: () => window.__deckUndo.undo(),
@@ -526,10 +607,8 @@ if (seed) {
     },
   });
 
-  // Wire up free-editing insert tools (+ 文本 / + 色块 / + 图片)
-  function activeSlideId() {
-    return document.querySelector('#deck > .fusion-slide.active')?.dataset.slideId || project.slides[0]?.slideId;
-  }
+  // Wire up free-editing insert tools (+ 文本 / + 色块 / + 图片 / + 新建页)
+  document.getElementById('deck-add-slide')?.addEventListener('click', () => addSlide());
   document.getElementById('deck-add-text')?.addEventListener('click', () => {
     const slideId = activeSlideId();
     if (!slideId || !window.__canEditDeck?.()) return;
@@ -598,24 +677,33 @@ if (seed) {
   });
 
   mountHistoryControls();
+  refreshEmptyPanel();
   function mountHistoryControls() {
-    const actions = document.querySelector('#deck-topbar .deck-actions');
-    if (!actions) return;
+    const target = document.querySelector('#deck-topbar .deck-top-left') || document.querySelector('#deck-topbar .deck-actions');
+    if (!target) return;
     document.getElementById('fusion-history-controls')?.remove();
+    const divider = document.createElement('span');
+    divider.className = 'deck-top-divider';
+    divider.setAttribute('aria-hidden', 'true');
     const box = document.createElement('div');
     box.id = 'fusion-history-controls';
-    box.style.cssText = 'display:flex;align-items:center;gap:4px';
-    const make = (id, label, title, fn) => {
+    const UNDO_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5H10a3.5 3.5 0 1 1 0 7H7.5"/><path d="M6.8 4 4 6.5 6.8 9"/></svg>';
+    const REDO_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 6.5H6a3.5 3.5 0 1 0 0 7h2.5"/><path d="M9.2 4 12 6.5 9.2 9"/></svg>';
+    const make = (id, label, svg, title, fn) => {
       const b = document.createElement('button');
-      b.type = 'button'; b.id = id; b.textContent = label; b.title = title; b.setAttribute('aria-label', label);
-      b.className = 'deck-button';
-      b.addEventListener('click', () => { if (!fn()) status(id === 'fusion-undo' ? '没有可撤销的操作。' : '没有可重做的操作。'); });
+      b.type = 'button'; b.id = id; b.innerHTML = svg; b.title = title; b.setAttribute('aria-label', label);
+      b.className = 'deck-icon-btn';
+      b.addEventListener('click', () => { if (!fn()) status(id === 'fusion-undo' ? '没有可撤销的操作' : '没有可重做的操作'); });
       box.append(b);
     };
     const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-    make('fusion-undo', '撤销', mac ? '撤销（⌘Z）' : '撤销（Ctrl+Z）', () => api.undo());
-    make('fusion-redo', '重做', mac ? '重做（⇧⌘Z）' : '重做（Ctrl+Y）', () => api.redo());
-    actions.prepend(box);
+    make('fusion-undo', '撤销', UNDO_SVG, mac ? '撤销（⌘Z）' : '撤销（Ctrl+Z）', () => api.undo());
+    make('fusion-redo', '重做', REDO_SVG, mac ? '重做（⇧⌘Z）' : '重做（Ctrl+Y）', () => api.redo());
+    if (target.classList.contains('deck-top-left')) {
+      target.append(divider, box);
+    } else {
+      target.prepend(box);
+    }
   }
 
   document.addEventListener('keydown', (ev) => {
@@ -827,7 +915,22 @@ if (seed) {
   // GPU-composited rAF drag & resize preview
   let drag = null, suppressClick = false, dragRaf = 0, latestDragEvent = null;
   const restorePreview = (d) => d.nodes.forEach(({ node, css }) => { node.style.cssText = css; });
-  const clearGuides = () => document.querySelectorAll('#deck .fusion-guide').forEach((e) => e.remove());
+  const clearGuides = () => document.querySelectorAll('#deck .fusion-guide,#deck .fusion-hud').forEach((e) => e.remove());
+  const updateHud = (d) => {
+    let hud = d.root.querySelector('.fusion-hud');
+    if (!hud) {
+      hud = document.createElement('div');
+      hud.className = 'fusion-hud';
+      hud.dataset.editableSkip = 'true';
+      d.root.append(hud);
+    }
+    const [x, y, w, h] = d.next.map((v) => Math.round(v));
+    hud.textContent = d.handle ? `${w} × ${h}` : `X ${x} · Y ${y}`;
+    const inv = 1 / (d.scale > 0 ? d.scale : 1);
+    hud.style.left = Math.max(8, Math.min(1820, x)) + 'px';
+    hud.style.top = Math.max(8, y - 34 * inv) + 'px';
+    hud.style.transform = `scale(${inv})`;
+  };
   const cancelDrag = () => {
     if (!drag) return;
     if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
@@ -934,13 +1037,20 @@ if (seed) {
     const dy = (ev.clientY - d.y) / d.scale;
     if (!d.moved && Math.hypot(ev.clientX - d.x, ev.clientY - d.y) < 3) return;
     d.moved = true;
+    let moveDx = dx, moveDy = dy;
+    // Hold Shift while dragging to lock pure horizontal or vertical axis
+    if (!d.handle && ev.shiftKey) {
+      if (Math.abs(moveDx) >= Math.abs(moveDy)) moveDy = 0;
+      else moveDx = 0;
+    }
     let next = d.handle
       ? resizeBounds(d.b, d.handle, dx, dy, { keepRatio: ev.shiftKey })
-      : [d.b[0] + dx, d.b[1] + dy, d.b[2], d.b[3]];
+      : [d.b[0] + moveDx, d.b[1] + moveDy, d.b[2], d.b[3]];
     let guides = { x: [], y: [] };
     if (!ev.altKey && !(d.handle && ev.shiftKey)) ({ bounds: next, guides } = snapBounds(next, d.targets, { handle: d.handle, threshold: 6 / d.scale }));
     d.next = next;
     drawGuides(d, guides);
+    updateHud(d);
     if (!d.handle) {
       // Pure move: GPU transform avoids layout reflow on every pointermove frame.
       const tx = d.next[0] - d.b[0], ty = d.next[1] - d.b[1];
@@ -1060,6 +1170,49 @@ if (seed) {
     );
   }, true);
 
+  // Duplicate (⌘D) & Copy/Paste (⌘C / ⌘V) selected elements across slides
+  let clipboardElement = null;
+  document.addEventListener('keydown', (ev) => {
+    const key = String(ev.key || '').toLowerCase();
+    if (!(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || typing(ev.target) || !window.__canEditDeck?.()) return;
+    if (key === 'd' && selected) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      apply({ ...selected, type: 'duplicate-element' });
+      status('已复制对象');
+    } else if (key === 'c' && selected) {
+      const selText = String(window.getSelection?.() || '');
+      if (selText) return;
+      const g = selectionGeometry(syncInPlace(), selected);
+      if (!g?.element) return;
+      ev.preventDefault();
+      const rawEl = g.slide.elements.find((x) => x.id === g.element.id) || g.element;
+      clipboardElement = structuredClone(rawEl);
+      delete clipboardElement.id;
+      delete clipboardElement.parentId;
+      delete clipboardElement.contentRef;
+      delete clipboardElement.sourceContentRef;
+      status('已复制对象，可按 ⌘V 粘贴到当前页或其他页');
+    } else if (key === 'v' && clipboardElement) {
+      const slideId = activeSlideId();
+      if (!slideId) return;
+      ev.preventDefault();
+      const pasted = structuredClone(clipboardElement);
+      pasted.bounds = [
+        Math.min(1920 - pasted.bounds[2], Math.max(0, pasted.bounds[0] + 24)),
+        Math.min(1080 - pasted.bounds[3], Math.max(0, pasted.bounds[1] + 24)),
+        pasted.bounds[2],
+        pasted.bounds[3],
+      ];
+      clipboardElement.bounds = [...pasted.bounds];
+      apply({ slideId, type: 'add-element', element: pasted });
+      status('已粘贴对象');
+    }
+  }, true);
+
+  addEventListener('deck-zoom-change', () => {
+    if (selected) refreshSelection();
+  });
   addEventListener('blur', cancelDrag);
   addEventListener('deck-slide-change', () => {
     cropEditor?.cancel();

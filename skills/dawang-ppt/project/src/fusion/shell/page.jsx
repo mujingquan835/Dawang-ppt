@@ -61,40 +61,47 @@ ${fs.readFileSync(DECK_CSS, 'utf8')}</style>
 </head>
 <body class="deck-editing">
 <header id="deck-topbar">
- <div class="deck-brand"><span class="deck-mark" aria-hidden="true"></span><span class="deck-name">${title}</span></div>
+ <div class="deck-top-left">
+  <div class="deck-brand"><span class="deck-mark" aria-hidden="true">D</span><span class="deck-name" title="${title}">${title}</span></div>
+ </div>
+ <div id="deck-insert-tools" role="toolbar" aria-label="插入元素">
+  <button type="button" id="deck-add-text" class="deck-tool-btn" title="插入文本框"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 3.5h10M8 3.5v9.5M5.5 13h5"/></svg><span>文本</span></button>
+  <button type="button" id="deck-add-shape" class="deck-tool-btn" title="插入矩形色块"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="2.5" y="3.5" width="11" height="9" rx="2"/></svg><span>形状</span></button>
+  <button type="button" id="deck-add-image" class="deck-tool-btn" title="插入本地图片"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="2.8" width="12" height="10.4" rx="2"/><circle cx="5.8" cy="6.2" r="1.1"/><path d="M2.5 11.4 6.2 8l2.8 2.6 2-1.8 2.5 2.4"/></svg><span>图片</span></button>
+ </div>
  <div class="deck-actions">
-  <div id="deck-insert-tools" style="display:flex;align-items:center;gap:4px">
-   <button type="button" id="deck-add-text" class="deck-button" title="插入文本框">+ 文本</button>
-   <button type="button" id="deck-add-shape" class="deck-button" title="插入矩形色块">+ 色块</button>
-   <button type="button" id="deck-add-image" class="deck-button" title="插入图片">+ 图片</button>
-  </div>
-  <button type="button" id="deck-present" class="deck-button">放映</button>
+  <button type="button" id="deck-present" class="deck-button" title="全屏放映（Esc 退出）"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4.5 3.2 12.6 8l-8.1 4.8V3.2Z"/></svg><span>放映</span></button>
   <div class="deck-export" id="deck-export">
-   <button type="button" id="deck-export-main" class="deck-button deck-primary" aria-haspopup="menu" aria-expanded="false">导出</button>
+   <button type="button" id="deck-export-main" class="deck-button deck-primary" aria-haspopup="menu" aria-expanded="false"><span>导出</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m4.5 6.5 3.5 3.5 3.5-3.5"/></svg></button>
    <div class="deck-export-menu" id="deck-export-menu" role="menu" hidden>
-    <button type="button" role="menuitem" data-export="pptx">PPTX（可编辑）</button>
-    <button type="button" role="menuitem" data-export="pdf">PDF</button>
-    <button type="button" role="menuitem" data-export="image">当前页图片</button>
-    <button type="button" role="menuitem" data-export="html">HTML 副本</button>
+    <button type="button" role="menuitem" data-export="pptx"><span>PPTX 演示文稿</span><span class="menu-sub">原生可编辑</span></button>
+    <button type="button" role="menuitem" data-export="pdf"><span>PDF 文档</span><span class="menu-sub">高清打印</span></button>
+    <button type="button" role="menuitem" data-export="image"><span>当前页图片</span><span class="menu-sub">1080p PNG</span></button>
+    <button type="button" role="menuitem" data-export="html"><span>HTML 副本</span><span class="menu-sub">离线单文件</span></button>
    </div>
   </div>
  </div>
 </header>
 <main id="deck-main">
  <aside id="deck-rail" aria-label="页面">
-  <div class="deck-rail-head"><span>页面</span><span id="deck-rail-count"></span></div>
+  <div class="deck-rail-head"><div class="deck-rail-meta"><span>页面</span><span id="deck-rail-count"></span></div><button type="button" id="deck-add-slide" title="新增空白页">+ 新建</button></div>
   <ol id="deck-rail-list"></ol>
  </aside>
  <div id="deck-viewport">
   <div id="deck">${slides}</div>
-  <nav id="deck-pager" aria-label="翻页"><button type="button" data-step="-1" aria-label="上一页">‹</button><span id="deck-page"></span><button type="button" data-step="1" aria-label="下一页">›</button></nav>
+  <div id="deck-dock">
+   <nav id="deck-pager" aria-label="翻页"><button type="button" data-step="-1" aria-label="上一页">‹</button><span id="deck-page"></span><button type="button" data-step="1" aria-label="下一页">›</button></nav>
+   <span class="deck-dock-sep" aria-hidden="true"></span>
+   <div id="deck-zoom" aria-label="画布缩放"><button type="button" id="deck-zoom-out" title="缩小">−</button><button type="button" id="deck-zoom-fit" title="重置为适应窗口（⌘0）">适应</button><button type="button" id="deck-zoom-in" title="放大">+</button></div>
+  </div>
  </div>
  <aside id="deck-panel" aria-label="属性">
   <div id="deck-props-field" class="is-hidden"><div class="deck-panel-title">选中对象</div><div id="deck-props"></div></div>
-  <p class="deck-panel-hint">单击选中对象，双击修改文字；方向键微调位置（Shift 10px），Delete 删除选中对象。</p>
+  <div id="deck-empty-panel"></div>
   <p class="deck-font-note">本演示使用思源黑体（Source Han Sans SC）与优设标题黑。</p>
  </aside>
 </main>
+<div id="fusion-status" role="status" aria-live="polite"></div>
 <script id="fusion-project" type="application/json">${safeJson(project)}</script>
 <script src="assets/fusion-editor.js"></script>
 </body>

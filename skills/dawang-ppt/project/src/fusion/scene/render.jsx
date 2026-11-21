@@ -34,14 +34,16 @@ function SceneElement({ element: e, styleDefinition: s, resolveAssetUrl }) {
   if (e.type === 'image' && e.crop) {
     const [cx,cy,cw,ch]=e.crop;
     const rawSrc = e.src || '';
-    const renderSrc = resolveAssetUrl ? resolveAssetUrl(rawSrc) : rawSrc;
-    const tokenAttr = rawSrc.startsWith('portable-asset:') ? rawSrc : undefined;
+    const isToken = rawSrc.startsWith('portable-asset:');
+    const renderSrc = resolveAssetUrl ? resolveAssetUrl(rawSrc) : (isToken ? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' : rawSrc);
+    const tokenAttr = isToken ? rawSrc : undefined;
     return <div {...props} data-fusion-crop={JSON.stringify(e.crop)} style={{...st,overflow:'hidden',borderRadius:e.clipShape==='ellipse'?'50%':e.style?.radius||0}}><img alt={e.alt||''} src={renderSrc} data-asset-token={tokenAttr} draggable={false} style={{position:'absolute',maxWidth:'none',width:(100/cw)+'%',height:(100/ch)+'%',left:(-100*cx/cw)+'%',top:(-100*cy/ch)+'%',pointerEvents:'none'}} /></div>;
   }
   if (e.type === "image") {
     const rawSrc = e.src || '';
-    const renderSrc = resolveAssetUrl ? resolveAssetUrl(rawSrc) : rawSrc;
-    const tokenAttr = rawSrc.startsWith('portable-asset:') ? rawSrc : undefined;
+    const isToken = rawSrc.startsWith('portable-asset:');
+    const renderSrc = resolveAssetUrl ? resolveAssetUrl(rawSrc) : (isToken ? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' : rawSrc);
+    const tokenAttr = isToken ? rawSrc : undefined;
     return <img {...props} alt={e.alt || ""} src={renderSrc} data-asset-token={tokenAttr} draggable={false} style={{ ...st, objectFit: e.fit || "contain", objectPosition: e.focal || "50% 50%", borderRadius: e.clipShape === "ellipse" ? "50%" : e.style?.radius || 0 }} />;
   }
   if (e.type === "line") return <svg {...props} style={{ ...st, overflow: "visible" }} viewBox={`0 0 ${w || 1} ${h || 1}`}><line x1={e.x1 ?? 0} y1={e.y1 ?? 0} x2={e.x2 ?? w} y2={e.y2 ?? h} stroke={e.style?.stroke || s.palette.accent} strokeWidth={e.style?.strokeWidth || 3} markerEnd={e.endArrow ? `url(#${markerId})` : ""} /><defs><marker id={markerId} markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="14" refX="14" refY="7" orient="auto" overflow="visible"><path d="M0,0 L16,7 L0,14 Z" fill={e.style?.stroke || s.palette.accent} /></marker></defs></svg>;
