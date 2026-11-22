@@ -957,10 +957,17 @@ if (seed) {
     }
   })();
 
+  const UI_CHROME_SELECTOR = '#deck-panel,#deck-rail,#deck-topbar,#deck-dock,#fusion-status,.fusion-crop-editor,.fusion-selection,[role="dialog"],[role="menu"]';
+  const eventIn = (ev, selector) => {
+    if (ev.target?.closest?.(selector)) return true;
+    const path = ev.composedPath?.();
+    return Array.isArray(path) && path.some((node) => node?.nodeType === 1 && node.matches?.(selector));
+  };
+
   document.addEventListener('click', (ev) => {
-    if (ev.target.closest?.('.fusion-crop-editor,.fusion-selection')) return;
-    const el = ev.target.closest?.('#deck [data-fusion-element]');
-    if (!el && selectedList.length && !ev.target.closest?.('#deck-panel,#deck-rail,#deck-topbar,#deck-dock,[role="dialog"],[role="menu"]')) return clearSelection();
+    if (eventIn(ev, '.fusion-crop-editor,.fusion-selection')) return;
+    const el = ev.target?.closest?.('#deck [data-fusion-element]');
+    if (!el && selectedList.length && !eventIn(ev, UI_CHROME_SELECTOR)) return clearSelection();
     if (!el || !window.__canEditDeck?.()) return;
     const slideId = el.closest('.slide').dataset.slideId;
     const elementId = el.dataset.fusionElement;

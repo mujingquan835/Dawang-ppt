@@ -56,7 +56,10 @@ function makeColorPicker(label, value, swatches, onChange, { allowTransparent = 
   }
   const row = document.createElement("div");
   row.className = "fi-swatches";
-  const cur = String(value || "").toLowerCase();
+  const rawCur = String(value || "").trim().toLowerCase();
+  const cur = /^#[0-9a-f]{3}$/.test(rawCur)
+    ? "#" + rawCur[1] + rawCur[1] + rawCur[2] + rawCur[2] + rawCur[3] + rawCur[3]
+    : rawCur;
   if (allowTransparent) {
     const noneBtn = document.createElement("button");
     noneBtn.type = "button";
@@ -79,6 +82,7 @@ function makeColorPicker(label, value, swatches, onChange, { allowTransparent = 
   custom.title = "自定义颜色";
   const input = document.createElement("input");
   input.type = "color";
+  if (label) input.setAttribute("aria-label", label);
   input.value = /^#[0-9a-f]{6}$/i.test(cur) ? cur : "#23338b";
   input.oninput = () => {
     hexText.textContent = input.value.toUpperCase();
@@ -198,7 +202,10 @@ export function mountDeckPanel(container, api) {
 function mountInspector(panel, selection, api) {
   const previous = panel.querySelector("#fusion-inspector");
   const sameTarget = previous?.dataset.selection === selection.slideId + "/" + selection.elementId;
+  const scrollHost = panel.closest("#deck-panel");
+  const prevScrollTop = sameTarget && scrollHost ? scrollHost.scrollTop : 0;
   const active = previous?.contains(document.activeElement) ? focusables(previous).indexOf(document.activeElement) : -1;
+  const shouldScrollToFocus = pendingFocus !== null;
   const restoreFocus = sameTarget ? (pendingFocus ?? (active >= 0 ? active : null)) : null;
   pendingFocus = null;
   const expanded = new Map([...panel.querySelectorAll("#fusion-inspector details")].map((el) => [el.id, el.open]));
@@ -208,7 +215,16 @@ function mountInspector(panel, selection, api) {
   const box = document.createElement("div");
   box.id = "fusion-inspector";
   box.dataset.selection = selection.slideId + "/" + selection.elementId;
-  if (restoreFocus !== null) queueMicrotask(() => { if (box.isConnected) focusables(box)[restoreFocus]?.focus(); });
+  const restoreScroll = () => {
+    if (sameTarget && scrollHost) scrollHost.scrollTop = prevScrollTop;
+  };
+  queueMicrotask(() => {
+    if (!box.isConnected) return;
+    if (restoreFocus !== null) {
+      focusables(box)[restoreFocus]?.focus(shouldScrollToFocus ? undefined : { preventScroll: true });
+    }
+    if (!shouldScrollToFocus) restoreScroll();
+  });
   box.style.cssText = "display:grid;gap:12px;font:500 12.5px/1.4 var(--ui-font);color:var(--ui-fg)";
   panel.append(box);
 
@@ -695,7 +711,10 @@ function mountInspector(panel, selection, api) {
   }
 
   // 4. Composite semantic object editors (collapsible, kept clean)
-  if (!o) return;
+  if (!o) {
+    restoreScroll();
+    return;
+  }
   container = section("fusion-semantic-props", "组合数据结构", false);
   const editItem = (key, id, idField, fieldName, value) => {
     const data = structuredClone(current().data), item = data[key].find((n) => n[idField] === id);
@@ -779,12 +798,19 @@ function mountInspector(panel, selection, api) {
   if (o.kind === "images") {
     select("图片组合", o.data.arrangement || "single", [["single", "单图"], ["text-photo", "图文并排"], ["primary-secondary", "主图＋副图"], ["grid", "网格"], ["full-bleed", "满版出血"]], (arrangement) => semantic({ ...current().data, arrangement }));
   }
+  restoreScroll();
 }
 
 export function mountMultiInspector(panel, selectedList, api) {
+  const previous = panel.querySelector("#fusion-inspector");
+  const selKey = "multi:" + selectedList.map((s) => s.slideId + "/" + s.elementId).join(",");
+  const sameTarget = previous?.dataset.selection === selKey;
+  const scrollHost = panel.closest("#deck-panel");
+  const prevScrollTop = sameTarget && scrollHost ? scrollHost.scrollTop : 0;
   panel.querySelector("#fusion-inspector")?.remove();
   const box = document.createElement("div");
   box.id = "fusion-inspector";
+  box.dataset.selection = selKey;
   box.style.cssText = "display:grid;gap:12px;font:500 12.5px/1.4 var(--ui-font);color:var(--ui-fg)";
   panel.append(box);
 
@@ -890,6 +916,7 @@ export function mountMultiInspector(panel, selectedList, api) {
   hint.textContent = "可直接拖拽任意选中对象成组移动，或使用方向键（Shift 10px）批量微调。";
   boxSec.append(hint);
   box.append(boxSec);
+  if (sameTarget && scrollHost) scrollHost.scrollTop = prevScrollTop;
 }
 
 export { mountInspector };
