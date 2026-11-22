@@ -1,6 +1,6 @@
 import { imageElement } from './elements.mjs';
 import { validImageCrop } from '../scene/image-crop.mjs';
-import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, createTheme, imageSize, kpiStrip, labelBand, metricTiles, photoGroup, readableInk, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
+import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, createTheme, imageSize, kpiStrip, labelBand, metricBento, metricTiles, photoGroup, readableInk, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
 import { comparePair, periodBand, periodTimeline } from './report-kit.mjs';
 import path from 'node:path';
 import { capacityFlow, capacityTable, flowEdgeBindings, measureModule } from './capacity-kit.mjs';
@@ -460,7 +460,7 @@ function pageWriter({ page, zones, theme, measurer }) {
     const n = items.length, gap = 16, pad = 24, inner = w - 32, cardW = Math.floor((inner - gap * (n - 1)) / n), textW = cardW - pad * 2;
     const heading = page.itemsHeading, headStyle = theme.roleStyle('sectionTitle', { color: readableInk(p.accent, surf), lineHeight: 1.3 });
     const numSize = Math.round(roles.stepTitle.fontSize * 1.6 / 2) * 2, numStyle = theme.font(numSize, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.1 });
-    const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, lineHeight: 1.32 }), detailStyle = theme.roleStyle('stepDetail', { color: p.body || p.ink, lineHeight: 1.45 });
+    const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, lineHeight: 1.32 }), detailStyle = theme.roleStyle('stepDetail', { color: p.muted || '#64748B', fontSize: Math.min(22, Math.max(18, Math.round(roles.stepTitle.fontSize * 0.72 / 2) * 2)), fontWeight: 300, lineHeight: 1.48 });
     const probes = items.flatMap((it, i) => [text(`t${i}`, it.title, [0, 0, textW, 40], titleStyle), ...(it.detail ? [text(`d${i}`, it.detail, [0, 0, textW, 40], detailStyle)] : [])]);
     const sized = new Map((await measurer.texts(probes)).map((m) => [m.id, Math.ceil(m.height)]));
     // A title over two lines means the cards are too narrow for these items: the list keeps them readable.
@@ -471,9 +471,15 @@ function pageWriter({ page, zones, theme, measurer }) {
     if (heading) elements.push(text('acts-heading', heading, [x + 24, y + 16, inner - 16, headBox], headStyle));
     items.forEach((it, i) => {
       const cx = x + 16 + i * (cardW + gap), m = i + 1;
-      elements.push({ type: 'shape', id: `acts-card-${m}`, bounds: [cx, cardY, cardW, cardH], style: { fill: surf } });
-      elements.push({ type: 'shape', id: `acts-cap-${m}`, bounds: [cx, cardY, cardW, 6], style: { fill: i % 2 ? r.secondary : r.primary } });
-      elements.push(text(`acts-num-${m}`, String(m).padStart(2, '0'), [cx + pad, cardY + 6 + pad, textW, numH], numStyle));
+      const isLastKey = i === n - 1 && n >= 3;
+      const cardFill = surf;
+      const cardStroke = isLastKey ? r.primary : (p.line || '#E2E6EE');
+      const capFill = isLastKey ? r.pop : (i % 2 ? r.secondary : r.primary);
+      const pillW = Math.max(54, Math.round(numSize * 1.45)), pillH = Math.max(36, Math.round(numH * 0.92));
+      elements.push({ type: 'shape', id: `acts-card-${m}`, bounds: [cx, cardY, cardW, cardH], style: { fill: cardFill, stroke: cardStroke, strokeWidth: isLastKey ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
+      elements.push({ type: 'shape', id: `acts-cap-${m}`, bounds: [cx + 18, cardY, cardW - 36, 5], style: { fill: capFill, radius: 3 } });
+      elements.push({ type: 'shape', id: `acts-numpill-${m}`, bounds: [cx + pad, cardY + 6 + pad, pillW, pillH], style: { fill: isLastKey ? r.pop : r.band, radius: Math.round(pillH / 2) } });
+      elements.push(text(`acts-num-${m}`, String(m).padStart(2, '0'), [cx + pad, cardY + 6 + pad + Math.round((pillH - numSize * 0.72 * 1.2) / 2), pillW, Math.ceil(numSize * 0.8)], theme.font(Math.round(numSize * 0.68), { fontWeight: 900, color: isLastKey ? '#FFFFFF' : readableInk(p.accent, r.band), textAlign: 'center', lineHeight: 1.15 })));
       elements.push(text(`acts-title-${m}`, it.title, [cx + pad, cardY + 6 + pad + numH + 10, textW, titleH], titleStyle));
       if (it.detail) elements.push(text(`acts-detail-${m}`, it.detail, [cx + pad, cardY + 6 + pad + numH + 10 + titleH + 10, textW, body(i)], detailStyle));
     });
@@ -505,7 +511,7 @@ function pageWriter({ page, zones, theme, measurer }) {
     const goals = page.data.filter((d) => d.target != null).length, bindings = page.data.map((d, i) => ({ ref: `${pid}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(goals > 1 && d.target != null ? [`m-note-${i + 1}`] : [])] }));
     return { height, width: w, elements: [panel('metrics-panel', [x, y, w, height]), ...elements], frame: 'metrics-panel', module: 'metricTiles', variant: `${n}-results-hero`, title: big, sizes: sizesOf(elements, bindings.flatMap((b) => b.elementIds)), reason: '数字组排成整行长条，数字统一放大，最重要的数字占最宽的深色色块', bindings };
   };
-  async function render(z, { x, y, w, h, stretch = 0, rowNatural, across = false, hero = false }) {
+  async function render(z, { x, y, w, h, stretch = 0, rowNatural, across = false, hero = false, bento = false }) {
     const st = statement(z);
     if (st?.asMetric) {
       const sid = `st-${z}`, t = tiles(sid, x, y, w, [{ label: st.label, value: st.text }], h, stretch);
@@ -548,7 +554,15 @@ function pageWriter({ page, zones, theme, measurer }) {
         const tile = metricTiles({ id: 'm', x, y, width: w, size: Math.round(metricSize * 1.15), columns: 1, gap: 0, highlight: 0, highlightStyle: 'solid', fill: surf, theme: solidTheme, items: [tileItem(page.data[0], false)], ...(h ? { tileHeight: h } : {}), iconCap: 0 }), bindings = [{ ref: `${pid}:data-1`, elementIds: ['m-value-1'] }], sizes = sizesOf(tile.elements, bindings[0].elementIds);
         return { height: tile.height, elements: tile.elements, frame: 'm-tile-1', module: 'metricTiles', variant: 'figure-beside-sentence', title: tile.valueSize, sizes, reason: '单个数字突出，话术紧跟其后', bindings };
       }
-      const items = page.data.map((d) => tileItem(d, goals.length > 1)), fit = figureRow(items, w, { base: baseSize('metrics') });
+      const items = page.data.map((d) => tileItem(d, goals.length > 1));
+      // Adaptive Asymmetric Bento Metric Grid when 3-5 metrics sit beside a taller neighbour (zero dead vertical voids!).
+      if (bento && h >= 340 && items.length >= 3 && items.length <= 5 && w <= 1180) {
+        const b = metricBento({ id: 'm', x, y, width: w, height: h, items, theme: solidTheme, highlight: metricFocus(page.data) });
+        const bindings = page.data.map((d, i) => ({ ref: `${pid}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(goals.length > 1 && d.target != null ? [`m-note-${i + 1}`] : [])] }));
+        const sizes = sizesOf(b.elements, bindings.flatMap((x2) => x2.elementIds));
+        return { height: b.height, width: w, elements: b.elements, frame: 'm-tile-1', module: 'metricTiles', variant: `${items.length}-bento`, title: b.valueSize, sizes, reason: '重点数据放大形成 Bento 组合格，消除上下大面积留空', bindings };
+      }
+      const fit = figureRow(items, w, { base: baseSize('metrics') });
       if (page.figureForm === 'strip' && !goals.length) { const made = w >= W - 1 ? await stripRow(fit, x, y, w, h) : await stripColumn(fit, x, y, w, h); if (made) return made; }
       if (fit && hero) { const made = await heroRow(items, fit, x, y, w, h); if (made) return made; }
       if (fit) {
@@ -574,15 +588,57 @@ function pageWriter({ page, zones, theme, measurer }) {
         return { height, width, elements, frame: 'cmp-frame', module: 'metricTiles', variant: `${items.length}-changes`, title: real.valueSize, sizes: sizesOf(real.elements, items.flatMap((_, k) => ids(k))), reason: '前后数值成对，变化放大', bindings };
       }
       // Otherwise two sides. Rows that pair up share a height and are tied by an arrow (one leads to the other) or a number (row by row); sides that do not pair each keep their own rows.
-      const mid = paired || c.badge ? 64 : 28, sideW = Math.floor((w - mid) / 2), rightX = x + sideW + mid, capH = 56, pad = 24, innerW = sideW - pad * 2;
-      const cell = (id, it, cx) => ({ id, type: 'text', text: [it.title, it.detail].filter(Boolean).join('：'), ...(it.title && it.detail ? { runs: [{ text: it.title, style: { fontWeight: 700 } }, { text: '：' + it.detail, style: { fontWeight: 300 } }] } : {}), bounds: [cx + pad, 0, innerW, 40], style: theme.roleStyle('body', { fontWeight: 300, color: p.ink, lineHeight: 1.45 }) });
+      const mid = paired || c.badge ? 64 : 28, sideW = Math.floor((w - mid) / 2), rightX = x + sideW + mid, capH = 56, pad = 24, innerW = sideW - pad * 2, textInnerW = Math.max(80, innerW - 36);
+      const cell = (id, it, cx) => ({ id, type: 'text', text: [it.title, it.detail].filter(Boolean).join('：'), ...(it.title && it.detail ? { runs: [{ text: it.title, style: { fontWeight: 700, color: p.ink } }, { text: '：' + it.detail, style: { fontWeight: 300, color: p.muted || '#64748B' } }] } : {}), bounds: [cx + pad + 36, 0, textInnerW, 40], style: theme.roleStyle('body', { fontSize: Math.min(22, roles.body.fontSize), fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.48 }) });
       const cellsL = left.map((it, k) => cell(`cmp-l-${k + 1}`, it, x)), cellsR = right.map((it, k) => cell(`cmp-r-${k + 1}`, it, rightX)), all = [...cellsL, ...cellsR], sizes = await measurer.texts(all); all.forEach((e, k) => { e.bounds[3] = Math.ceil(sizes[k].height); });
       const need = (e) => e.bounds[3] + 28, sum = (list) => list.reduce((a, b) => a + b, 0), together = paired ? cellsL.map((e, k) => Math.max(need(e), need(cellsR[k]))) : null, needL = together || cellsL.map(need), needR = together || cellsR.map(need);
       const natural = capH + Math.max(sum(needL), sum(needR)) + 16, height = Math.max(natural + stretch, h || 0), spread = (list) => { const extra = Math.floor((height - capH - 16 - sum(list)) / Math.max(1, list.length)); return list.map((v) => v + extra); }, rowsL = spread(needL), rowsR = spread(needR);
-      // The side that stands for this period, or the way forward, takes the primary colour; the other takes the secondary.
-      const primary = [solidFill, r.band, p.inverse], secondary = p.dark ? [r.secondary, r.soft, r.onSecondary] : [lighten(r.secondary, 0.45), r.soft, readableInk(r.secondaryInk, lighten(r.secondary, 0.45))], elements = [{ id: 'cmp-frame', type: 'shape', bounds: [x, y, w, height], style: { fill: p.bg } }];
-      [[x, nowLeft ? primary : secondary, c.leftLabel || '现状'], [rightX, nowLeft ? secondary : primary, c.rightLabel || '改进']].forEach(([sx, [cap, body, ink], label], k) => elements.push({ type: 'shape', id: `cmp-side-${k + 1}`, ...(k === 0 ? { component: 'contrastPair' } : {}), bounds: [sx, y, sideW, height], style: { fill: body, radius: theme.radius ?? 0 } }, { type: 'shape', id: `cmp-cap-${k + 1}`, bounds: [sx, y, sideW, capH], style: { fill: cap, radius: theme.radius ?? 0 } }, text(`cmp-title-${k + 1}`, label, [sx + pad, y + 10, innerW, 36], theme.font(26, { fontWeight: 700, color: ink, textAlign: 'center', lineHeight: 1.3 }))));
-      [[cellsL, rowsL, x], [cellsR, rowsR, rightX]].forEach(([cells, rows, sx], k) => { let ry = y + capH + 8; cells.forEach((e, row) => { e.bounds[1] = ry + Math.round((rows[row] - e.bounds[3]) / 2); elements.push(e); if (row < cells.length - 1) elements.push({ type: 'shape', id: `cmp-rule-${k + 1}-${row + 1}`, bounds: [sx + pad, ry + rows[row], innerW, 1], style: { fill: p.line } }); ry += rows[row]; }); });
+      // Modern SaaS Contrast Compare: muted dashed old-state card vs elevated solid-bordered target/new-state card.
+      const rad = Math.max(16, theme.radius ?? 14);
+      const mutedBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+      const newBg = p.dark ? (p.surface || '#152238') : '#FFFFFF';
+      const elements = [{ id: 'cmp-frame', type: 'shape', bounds: [x, y, w, height], style: { fill: p.bg } }];
+      const drawSideSpec = [
+        [x, nowLeft, c.leftLabel || '现状'],
+        [rightX, !nowLeft, c.rightLabel || '改进'],
+      ];
+      drawSideSpec.forEach(([sx, isNew, label], k) => {
+        elements.push({
+          type: 'shape',
+          id: `cmp-side-${k + 1}`,
+          ...(k === 0 ? { component: 'contrastPair' } : {}),
+          bounds: [sx, y, sideW, height],
+          style: isNew
+            ? { fill: newBg, stroke: solidFill, strokeWidth: 2.5, radius: rad }
+            : { fill: mutedBg, stroke: p.line || '#CBD5E1', strokeWidth: 2, strokeDash: 'dash', radius: rad },
+        });
+        elements.push({
+          type: 'shape',
+          id: `cmp-cap-${k + 1}`,
+          bounds: [sx + 18, y + 12, sideW - 36, capH - 14],
+          style: { fill: isNew ? r.band : (p.dark ? '#1E2C47' : '#EEF2F6'), radius: 10 },
+        });
+        elements.push(text(`cmp-title-${k + 1}`, label, [sx + pad + 8, y + 18, innerW - 16, 34], theme.font(24, { fontWeight: 800, color: isNew ? solidFill : p.muted, textAlign: 'left', lineHeight: 1.25 })));
+        if (isNew && onward) {
+          const pillW = 124, pillH = 30;
+          elements.push({ type: 'shape', id: `cmp-newtag-${k + 1}`, bounds: [sx + sideW - pillW - 26, y + 18, pillW, pillH], style: { fill: r.pop, radius: 15 } });
+          elements.push(text(`cmp-newtag-tx-${k + 1}`, '★ 升级方案', [sx + sideW - pillW - 26, y + 22, pillW, 22], theme.font(15, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 })));
+        }
+      });
+      [[cellsL, rowsL, x, nowLeft], [cellsR, rowsR, rightX, !nowLeft]].forEach(([cells, rows, sx, isNew], k) => {
+        let ry = y + capH + 8;
+        cells.forEach((e, row) => {
+          const cyRow = ry + Math.round((rows[row] - e.bounds[3]) / 2);
+          e.bounds[0] = sx + pad + 34;
+          e.bounds[2] = Math.max(80, innerW - 34);
+          e.bounds[1] = cyRow;
+          elements.push({ type: 'shape', id: `cmp-mk-${k + 1}-${row + 1}`, bounds: [sx + pad, cyRow + 4, 24, 24], style: { fill: isNew ? solidFill : (p.line || '#CBD5E1'), radius: 12 }, shape: 'ellipse' });
+          elements.push(text(`cmp-mkx-${k + 1}-${row + 1}`, isNew ? '✓' : '✕', [sx + pad, cyRow + 6, 24, 20], theme.font(14, { fontWeight: 900, color: isNew ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
+          elements.push(e);
+          if (row < cells.length - 1) elements.push({ type: 'shape', id: `cmp-rule-${k + 1}-${row + 1}`, bounds: [sx + pad, ry + rows[row], innerW, 1], style: { fill: p.line } });
+          ry += rows[row];
+        });
+      });
       if (paired) { let ry = y + capH + 8; rowsL.forEach((rowH, row) => { const cy = ry + Math.round(rowH / 2); if (onward) elements.push({ type: 'vector', id: `cmp-arrow-${row + 1}`, bounds: [x + sideW + 20, cy - 20, 24, 40], viewBox: [0, 0, 28, 48], path: nowLeft ? 'M24,4 L4,24 L24,44' : 'M4,4 L24,24 L4,44', style: { fill: 'none', stroke: solidFill, strokeWidth: 5 } }); else elements.push({ type: 'shape', id: `cmp-dot-${row + 1}`, bounds: [x + sideW + 12, cy - 20, 40, 40], style: { fill: solidFill, radius: 20 } }, text(`cmp-no-${row + 1}`, String(row + 1).padStart(2, '0'), [x + sideW + 12, cy - 14, 40, 28], theme.font(20, { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.4 }))); ry += rowH; }); }
       // A badge between the caps only when the outline asks for one: 问题 and 改进 answer each other, they are not opponents.
       if (c.badge) elements.push({ type: 'shape', id: 'cmp-vs', bounds: [x + sideW + 2, y, 60, 56], style: { fill: '#26262B', radius: 28 } }, text('cmp-vs-text', c.badge, [x + sideW + 2, y + 12, 60, 32], theme.font(24, { fontWeight: 800, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.3 })));
@@ -593,24 +649,44 @@ function pageWriter({ page, zones, theme, measurer }) {
       const timeline = periodTimeline(page.periods);
       const laned = timeline && await periodLanes({ x, y, w, h, heading: page.periodsHeading, pds: page.periods, timeline });
       if (laned) return laned;
-      // In the band, the lane a period belongs to is said in its heading.
-      const pds = page.periods.map((pd) => (pd.lane && !String(pd.title || '').includes(pd.lane) ? { ...pd, title: pd.title ? `${pd.title}｜${pd.lane}` : pd.lane } : pd)), heading = page.periodsHeading, headH = heading ? 20 + headBox : 16, bandY = y + headH, band = periodBand({ id: 'pd', x: x + 24, y: bandY, width: w - 48, periods: pds.map((pd) => pd.label), theme: solidTheme, height: 60 });
-      band.elements.forEach((e) => { const n = /^pd-label-(\d+)$/.exec(e.id); if (!n) return; const fill = band.elements.find((s) => s.id === `pd-seg-${n[1]}`).style.fill; if (fill !== solidFill) e.style.color = readableInk(e.style.color, fill); });
-      // Each period keeps its own heading and one line per point.
+      // Modern Linear/shadcn Milestone Stepper: horizontal connector rail + 3-state circular nodes + crisp bordered cards.
+      const pds = page.periods.map((pd) => (pd.lane && !String(pd.title || '').includes(pd.lane) ? { ...pd, title: pd.title ? `${pd.title}｜${pd.lane}` : pd.lane } : pd));
+      const heading = page.periodsHeading, headH = heading ? 20 + headBox : 16, rPd = colorRoles(p);
+      const nPd = pds.length, gapPd = 18, innerW = w - 48, colW = Math.floor((innerW - gapPd * (nPd - 1)) / nPd);
+      const nodeD = 42, railY = y + headH + Math.round(nodeD / 2), cardTop = y + headH + nodeD + 18;
+      const currIdx = Math.max(0, nPd - 2);
+      const colsPd = pds.map((_, i) => [x + 24 + i * (colW + gapPd), colW]);
       const lay = async (scale) => {
-        const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, lineHeight: 1.35, fontSize: evenSize(label * scale) }), pointSize = evenSize(body * scale);
-        // Each column's heading and points start at its band segment's left edge, level with the panel heading above.
-        const heads = band.columns.map(([cx, cw], i) => (pds[i].title ? { id: `pd-title-${i + 1}`, type: 'text', text: pds[i].title, bounds: [cx, bandY + 76, cw - 20, 40], style: titleStyle } : null)), present = heads.filter(Boolean), sizes = present.length ? await measurer.texts(present) : [];
+        const titleSz = evenSize(label * scale);
+        const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, lineHeight: 1.32, fontSize: titleSz }), pointSize = Math.min(22, Math.max(18, Math.round(titleSz * 0.72 / 2) * 2));
+        const heads = colsPd.map(([cx, cw], i) => (pds[i].title ? { id: `pd-title-${i + 1}`, type: 'text', text: pds[i].title, bounds: [cx + 20, cardTop + 52, cw - 40, 40], style: titleStyle } : null)), present = heads.filter(Boolean), sizes = present.length ? await measurer.texts(present) : [];
         present.forEach((e, i) => { e.bounds[3] = Math.ceil(sizes[i].height); });
-        const columnH = band.columns.map(([, cw], i) => (heads[i] ? heads[i].bounds[3] + 8 : 0) + pointsHeight(asList(pds[i].points), pointSize, cw - 28, 1.45));
-        return { heads, present, pointSize, height: headH + 76 + Math.max(...columnH) + 24 };
+        const columnH = colsPd.map(([, cw], i) => 52 + (heads[i] ? heads[i].bounds[3] + 10 : 0) + pointsHeight(asList(pds[i].points), pointSize, cw - 44, 1.45) + 22);
+        return { heads, present, pointSize, cardNeed: Math.max(...columnH), height: headH + nodeD + 18 + Math.max(...columnH) + 20 };
       };
-      // The box grows only as far as its text does; what is left goes back to the page.
-      const naturalLay = await lay(1), { heads, present, pointSize, height: natural } = await grownToFill(lay, naturalLay, Math.max(naturalLay.height + stretch, h || 0)), height = h ? Math.max(natural, h) : Math.min(naturalLay.height + stretch, natural + 16), shift = Math.min(16, Math.round((height - natural) / 4));
-      const lists = band.columns.flatMap(([cx, cw], i) => { if (heads[i]) heads[i].bounds[1] += shift; return pointList({ id: `pd-point-${i + 1}`, x: cx, y: bandY + 76 + shift + (heads[i] ? heads[i].bounds[3] + 8 : 0), width: cw - 20, points: asList(pds[i].points), size: pointSize, color: p.ink, theme, lh: 1.45 }); });
-      const elements = [panel('periods-panel', [x, y, w, height]), ...(heading ? [text('periods-head', heading, [x + 24, y + 12, w - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 }))] : []), ...band.elements, ...present, ...lists];
+      const naturalLay = await lay(1), { heads, present, pointSize, cardNeed, height: natural } = await grownToFill(lay, naturalLay, Math.max(naturalLay.height + stretch, h || 0)), height = h ? Math.max(natural, h) : Math.min(naturalLay.height + stretch, natural + 16);
+      const cardH = Math.max(cardNeed, height - (cardTop - y) - 20);
+      const stepperEls = [];
+      const firstCx = colsPd[0][0] + Math.round(colW / 2), lastCx = colsPd[nPd - 1][0] + Math.round(colW / 2), currCx = colsPd[currIdx][0] + Math.round(colW / 2);
+      if (nPd > 1) {
+        stepperEls.push({ type: 'shape', id: 'pd-rail-bg', bounds: [firstCx, railY - 3, lastCx - firstCx, 6], style: { fill: p.line || '#E2E6EE', radius: 3 } });
+        if (currCx > firstCx) stepperEls.push({ type: 'shape', id: 'pd-rail-fg', bounds: [firstCx, railY - 3, currCx - firstCx, 6], style: { fill: solidFill, radius: 3 } });
+      }
+      colsPd.forEach(([cx, cw], i) => {
+        const nx = cx + Math.round((cw - nodeD) / 2), ny = y + headH;
+        const isDone = i < currIdx, isCurr = i === currIdx;
+        if (isCurr) stepperEls.push({ type: 'shape', id: `pd-halo-${i + 1}`, bounds: [nx - 6, ny - 6, nodeD + 12, nodeD + 12], style: { fill: p.dark ? '#331E18' : lighten(rPd.pop, 0.86), radius: (nodeD + 12) / 2 }, shape: 'ellipse' });
+        stepperEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [nx, ny, nodeD, nodeD], style: { fill: isCurr ? rPd.pop : isDone ? solidFill : surf, stroke: isCurr ? rPd.pop : isDone ? solidFill : (p.line || '#CBD5E1'), strokeWidth: 2.5, radius: nodeD / 2 }, shape: 'ellipse' });
+        stepperEls.push(text(`pd-num-${i + 1}`, isDone ? '✓' : String(i + 1), [nx, ny + 8, nodeD, 26], theme.font(19, { fontWeight: 900, color: isCurr ? '#FFFFFF' : isDone ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
+        stepperEls.push({ type: 'shape', id: `pd-card-${i + 1}`, bounds: [cx, cardTop, cw, cardH], style: { fill: isCurr ? (p.dark ? '#231D2B' : lighten(rPd.pop, 0.94)) : surf, stroke: isCurr ? rPd.pop : (p.line || '#E2E6EE'), strokeWidth: isCurr ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
+        const lblW = Math.min(cw - 40, Math.ceil(textWidth(pds[i].label || '', 17)) + 26);
+        stepperEls.push({ type: 'shape', id: `pd-pill-${i + 1}`, bounds: [cx + 20, cardTop + 14, lblW, 28], style: { fill: isCurr ? rPd.pop : rPd.band, radius: 14 } });
+        stepperEls.push(text(`pd-label-${i + 1}`, pds[i].label || '', [cx + 20, cardTop + 17, lblW, 22], theme.font(16, { fontWeight: 700, color: isCurr ? '#FFFFFF' : readableInk(solidFill, rPd.band), textAlign: 'center', lineHeight: 1.2 })));
+      });
+      const lists = colsPd.flatMap(([cx, cw], i) => pointList({ id: `pd-point-${i + 1}`, x: cx + 20, y: cardTop + 52 + (heads[i] ? heads[i].bounds[3] + 10 : 0), width: cw - 40, points: asList(pds[i].points), size: pointSize, color: p.muted || '#64748B', theme, lh: 1.48 }));
+      const elements = [panel('periods-panel', [x, y, w, height]), ...(heading ? [text('periods-head', heading, [x + 24, y + 12, w - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 }))] : []), ...stepperEls, ...present, ...lists];
       const ids = pds.map((pd, i) => [`pd-label-${i + 1}`, ...(pd.title ? [`pd-title-${i + 1}`] : []), ...asList(pd.points).map((_, k) => `pd-point-${i + 1}-${k + 1}`)]);
-      return { height, elements, frame: 'periods-panel', module: 'periodBand', variant: `${pds.length}-periods`, title: roles.sectionTitle.fontSize, sizes: sizesOf([...present, ...lists], ids.flat()), reason: '色带表达时间推进', bindings: [...pds.map((_, i) => ({ ref: `${pid}:period-${i + 1}`, elementIds: ids[i] })), ...pds.slice(1).map((_, i) => ({ ref: `${pid}:periods`, edgeId: `e${i + 1}`, elementIds: [`pd-seg-${i + 1}`, `pd-seg-${i + 2}`] }))] };
+      return { height, elements, frame: 'periods-panel', module: 'periodBand', variant: `${pds.length}-periods`, title: roles.sectionTitle.fontSize, sizes: sizesOf([...present, ...lists], ids.flat()), reason: '三态节点时间轴配合现代阶段卡片表达推进节奏', bindings: [...pds.map((_, i) => ({ ref: `${pid}:period-${i + 1}`, elementIds: ids[i] })), ...pds.slice(1).map((_, i) => ({ ref: `${pid}:periods`, edgeId: `e${i + 1}`, elementIds: [`pd-seg-${i + 1}`, `pd-seg-${i + 2}`] }))] };
     }
     const nthTable = /^table-(\d+)$/.exec(z);
     if (z === 'table' || nthTable) {
@@ -806,8 +882,10 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
         for (const [i, z] of row.entries()) {
           // A module with much less to say than its neighbour (a one-sentence label beside a row of figures) keeps its own
           // height and sits in the middle of the row; one with nearly as much is drawn as tall as the row (user decision 2026-11-10).
-          const own = await render(z, { x, y, w: info.ws[i] }), short = own.height < h * EQUAL_HEIGHT_SHARE;
-          const m = short ? await render(z, { x, y: y + Math.round((h - own.height) / 2), w: info.ws[i] }) : await render(z, { x, y, w: info.ws[i], h, rowNatural: info.h });
+          const own = await render(z, { x, y, w: info.ws[i] });
+          const canBento = z === 'metrics' && asList(page.data).length >= 3 && asList(page.data).length <= 5 && h >= 340 && info.ws[i] <= 1180;
+          const short = !canBento && own.height < h * EQUAL_HEIGHT_SHARE;
+          const m = short ? await render(z, { x, y: y + Math.round((h - own.height) / 2), w: info.ws[i] }) : await render(z, { x, y, w: info.ws[i], h, rowNatural: info.h, bento: canBento });
           placeModule(m, z, [x, short ? y + Math.round((h - own.height) / 2) : y, info.ws[i], m.height]); x += info.ws[i] + (info.gap || GAP); tallest = Math.max(tallest, short ? h : m.height);
         }
         y += tallest + gap; naturalUsed += info.h;
@@ -856,18 +934,24 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const useDisplayTitle = title.replace(/[\s，。：；、,.!?！？·\-—]/g, '').length <= 10 && theme.displayFamily;
   const titleFontExtra = useDisplayTitle ? { fontFamily: theme.displayFamily, fontWeight: 400, letterSpacing: 0.4, wordSpacing: '-0.18em' } : {};
   const firstClause = title.split('，')[0], focus = page.focus && title.includes(page.focus) ? page.focus : firstClause !== title ? firstClause : (title.match(/[\d.]+\s*[%％万元亿单个家张份人次]+/)?.[0] || title.slice(0, Math.min(8, Math.ceil(title.length / 2)))), at = title.indexOf(focus), titleAccent = readableInk(p.accent, p.bg || '#FFFFFF'), runs = [title.slice(0, at) && { text: title.slice(0, at), style: { fontWeight: useDisplayTitle ? 400 : 700, color: p.ink } }, { text: focus, style: { fontWeight: useDisplayTitle ? 400 : 900, color: titleAccent } }, title.slice(at + focus.length) && { text: title.slice(at + focus.length), style: { fontWeight: useDisplayTitle ? 400 : 700, color: p.ink } }].filter(Boolean);
-  const tagLabel = eyebrow || ROLE_TAG[page.role] || '', tagText = header === 'tag' && tagLabel ? `${tagLabel} | ${String(pageNo).padStart(2, '0')}` : '', tagStyle = theme.font(24, { fontWeight: 700, color: p.inverse, textAlign: 'center', lineHeight: 1.3 });
-  const [tagSize] = tagText ? await measurer.texts([{ id: 'hdr', type: 'text', text: tagText, bounds: [0, 0, 1200, 40], style: tagStyle }]) : [{ naturalWidth: 0 }], tagW = tagText ? Math.ceil(tagSize.naturalWidth) + 48 : 0, titleX = L + (tagText ? tagW + 24 : 0), titleW = W - (titleX - L);
-  // Measured at the focus weight, and scaled from the scale's own title size.
+  const rHdr = colorRoles(p);
+  const tagLabel = eyebrow || ROLE_TAG[page.role] || '', tagText = header === 'tag' && tagLabel ? `${tagLabel} · ${String(pageNo).padStart(2, '0')}` : '', tagStyle = theme.font(20, { fontWeight: 700, color: p.dark ? rHdr.primary : readableInk(rHdr.primary, rHdr.band), textAlign: 'left', lineHeight: 1.25 });
+  const [tagSize] = tagText ? await measurer.texts([{ id: 'hdr', type: 'text', text: tagText, bounds: [0, 0, 1200, 40], style: tagStyle }]) : [{ naturalWidth: 0 }], tagW = tagText ? Math.ceil(tagSize.naturalWidth * 1.15) + 64 : 0, titleX = L + (tagText ? tagW + 22 : 0), titleW = W - (titleX - L);
+  // Measured at the focus weight with 6% safety margin so long headlines never wrap onto the divider rule.
   const [wide] = await measurer.texts([{ id: 'title', type: 'text', text: title, bounds: [0, 0, 3000, 62], style: theme.roleStyle('pageTitle', { fontWeight: useDisplayTitle ? 400 : 900, ...titleFontExtra }) }]);
-  const fitted = Math.floor(theme.roles.pageTitle.fontSize * titleW / wide.naturalWidth);
-  if (fitted < 32) throw new Error(`report-deck: ${page.id} 标题太长，请压缩到约 ${Math.floor(title.length * fitted / 34)} 字以内`);
-  const titleStyle = theme.roleStyle('pageTitle', { ...titleFontExtra, ...(wide.naturalWidth > titleW ? { fontSize: fitted } : {}) });
-  // Header: a solid tag beside the title (or an eyebrow above it), closed by a rule whose thick stretch shows how far through the deck this page is.
-  const ruleY = 124, tone = p.dark ? p.primary : readableInk(p.accent, p.bg || '#FFFFFF'), titleY = header === 'tag' || !eyebrow ? 46 : 54;
+  const safeWide = wide.naturalWidth * 1.06;
+  const fitted = Math.floor(theme.roles.pageTitle.fontSize * titleW / Math.max(1, safeWide));
+  if (fitted < 28) throw new Error(`report-deck: ${page.id} 标题太长，请压缩到约 ${Math.floor(title.length * fitted / 32)} 字以内`);
+  const titleStyle = theme.roleStyle('pageTitle', { ...titleFontExtra, ...(safeWide > titleW ? { fontSize: fitted } : {}) });
+  // Header: modern rounded eyebrow pill with accent dot beside the headline + slim progress rule.
+  const ruleY = 124, tone = p.dark ? p.primary : readableInk(p.accent, p.bg || '#FFFFFF'), titleY = header === 'tag' || !eyebrow ? 48 : 54;
   const progW = Math.round(W * pageNo / total), tipW = Math.min(48, Math.max(20, Math.round(progW * 0.12)));
   const chrome = [
-    ...(tagText ? [{ id: 'hdr-tag', type: 'shape', bounds: [L, 50, tagW, 54], style: { fill: tone, radius: 0 } }, { id: 'eyebrow', type: 'text', text: tagText, bounds: [L, 60, tagW, 34], style: tagStyle }] : eyebrow ? [{ id: 'eyebrow', type: 'text', text: eyebrow, bounds: [L, 26, 1200, 30], style: theme.roleStyle('eyebrow', { color: p.muted }) }] : []),
+    ...(tagText ? [
+      { id: 'hdr-tag', type: 'shape', bounds: [L, 53, tagW, 46], style: { fill: rHdr.band, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: 23 } },
+      { id: 'hdr-dot', type: 'shape', bounds: [L + 16, 70, 12, 12], style: { fill: rHdr.pop, radius: 6 }, shape: 'ellipse' },
+      { id: 'eyebrow', type: 'text', text: tagText, bounds: [L + 36, 63, tagW - 44, 30], style: tagStyle },
+    ] : eyebrow ? [{ id: 'eyebrow', type: 'text', text: eyebrow, bounds: [L, 26, 1200, 30], style: theme.roleStyle('eyebrow', { color: p.muted }) }] : []),
     { id: 'title', type: 'text', text: title, bounds: [titleX, titleY, titleW, 62], style: titleStyle, runs },
     { id: 'hdr-rule', type: 'shape', bounds: [L, ruleY + 2, W, 2], style: { fill: p.line } },
     { id: 'hdr-progress', type: 'shape', bounds: [L, ruleY, progW, 6], style: { fill: tone, radius: 3 } },
@@ -974,7 +1058,14 @@ async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
   if (top < 72) throw new PageOverflow(`${page.id} 封面文字太多`);
   const panelW = mode === 'column' ? 1920 - columnW : 1920, elements = [{ id: 'cover-panel', type: 'shape', bounds: [0, 0, panelW, 1080], style: { fill } }];
   let y = top;
-  if (page.eyebrow) elements.push({ id: 'cover-eyebrow', type: 'text', text: page.eyebrow, bounds: [x, y, w, 40], style: theme.font(28, { fontWeight: 600, color: soft(0.3) }) });
+  if (page.eyebrow) {
+    const eyW = Math.min(w, Math.ceil(textWidth(page.eyebrow, 22) * 1.2) + 74);
+    elements.push(
+      { id: 'cover-eyebrow-bg', type: 'shape', bounds: [x, y - 4, eyW, 44], style: { fill: p.dark ? '#1B2A44' : lighten(fill, 0.12), stroke: p.dark ? p.line : lighten(fill, 0.28), strokeWidth: 1.5, radius: 22 } },
+      { id: 'cover-eyebrow-dot', type: 'shape', bounds: [x + 18, y + 12, 12, 12], style: { fill: roles.pop, radius: 6 }, shape: 'ellipse' },
+      { id: 'cover-eyebrow', type: 'text', text: page.eyebrow, bounds: [x + 40, y + 5, eyW - 50, 30], style: theme.font(22, { fontWeight: 700, color: p.dark ? roles.primary : '#FFFFFF', lineHeight: 1.25 }) }
+    );
+  }
   y += eyebrowH;
   elements.push({ id: 'cover-name', type: 'text', text: name, bounds: [x, y, w, nameH], style: coverNameStyle(nameFont, { lineHeight: nameLines > 1 ? 1.2 : 1.25 }) });
   y += nameH;

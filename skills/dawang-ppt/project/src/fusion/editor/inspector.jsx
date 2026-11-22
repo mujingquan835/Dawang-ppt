@@ -139,6 +139,55 @@ export function mountDeckPanel(container, api) {
   pageSec.append(pageBtns);
   container.append(pageSec);
 
+  const curPal = project.designChoice?.appearance?.palette || {};
+  const priCol = curPal.primary || curPal.accent || "#23338B";
+  const popCol = curPal.pop || "#FA6500";
+  const secCol = curPal.secondary || "#E2B898";
+
+  // Card 1.5: One-Click Per-Slide Layout Switcher (when slide carries layoutVariants)
+  const variants = Array.isArray(slide?.layoutVariants) ? slide.layoutVariants : [];
+  if (variants.length > 1) {
+    const laySec = document.createElement("div");
+    laySec.className = "deck-panel-section";
+    const layTitle = document.createElement("div");
+    layTitle.className = "deck-panel-sec-title";
+    layTitle.innerHTML = `<span>当前页版式</span><span>一键切换 (${variants.length})</span>`;
+    laySec.append(layTitle);
+
+    const thumbSvg = (kind) => {
+      if (kind === "bento") {
+        return `<svg viewBox="0 0 80 45" fill="none"><rect x="4" y="4" width="26" height="37" rx="3" fill="${priCol}"/><rect x="33" y="4" width="43" height="16" rx="3" fill="${secCol}" opacity=".45"/><rect x="33" y="23" width="20" height="18" rx="3" fill="#CBD5E1"/><rect x="56" y="23" width="20" height="18" rx="3" fill="${popCol}" opacity=".35"/></svg>`;
+      }
+      if (kind === "split") {
+        return `<svg viewBox="0 0 80 45" fill="none"><rect x="0" y="0" width="26" height="45" fill="#1E293B"/><rect x="0" y="0" width="3" height="45" fill="${popCol}"/><rect x="5" y="10" width="16" height="4" rx="1.5" fill="#fff"/><rect x="31" y="6" width="43" height="13" rx="3" fill="${priCol}" opacity=".22"/><rect x="31" y="23" width="43" height="7" rx="2" fill="#CBD5E1"/><rect x="31" y="33" width="43" height="7" rx="2" fill="#CBD5E1"/></svg>`;
+      }
+      if (kind === "modern") {
+        return `<svg viewBox="0 0 80 45" fill="none"><rect x="5" y="4" width="22" height="4" rx="2" fill="${popCol}"/><rect x="5" y="11" width="22" height="12" rx="2.5" fill="#fff" stroke="${priCol}" stroke-width="1"/><rect x="29" y="11" width="22" height="12" rx="2.5" fill="#fff" stroke="${secCol}" stroke-width="1"/><rect x="53" y="11" width="22" height="12" rx="2.5" fill="#fff" stroke="#CBD5E1" stroke-width="1"/><rect x="5" y="26" width="22" height="14" rx="2.5" fill="#E2E8F0"/><rect x="29" y="26" width="22" height="14" rx="2.5" fill="#E2E8F0"/><rect x="53" y="26" width="22" height="14" rx="2.5" fill="${priCol}"/></svg>`;
+      }
+      if (kind === "exec") {
+        return `<svg viewBox="0 0 80 45" fill="none"><rect x="5" y="4" width="70" height="5" rx="2" fill="#E2E8F0"/><rect x="7" y="5" width="16" height="3" rx="1.5" fill="${priCol}"/><rect x="5" y="13" width="33" height="10" rx="2.5" fill="${priCol}" opacity=".2"/><rect x="42" y="13" width="33" height="10" rx="2.5" fill="${popCol}" opacity=".25"/><rect x="5" y="26" width="70" height="14" rx="2.5" fill="#fff" stroke="${priCol}" stroke-width="1"/></svg>`;
+      }
+      return `<svg viewBox="0 0 80 45" fill="none"><rect x="5" y="5" width="34" height="4" rx="1.5" fill="${priCol}"/><rect x="5" y="13" width="70" height="10" rx="2" fill="${priCol}" opacity=".18"/><rect x="5" y="26" width="33" height="14" rx="2" fill="#CBD5E1"/><rect x="42" y="26" width="33" height="14" rx="2" fill="#CBD5E1"/></svg>`;
+    };
+
+    const activeLayoutId = slide.activeLayoutId || variants[0]?.id;
+    const layGrid = document.createElement("div");
+    layGrid.className = "fi-layout-grid";
+    for (const v of variants) {
+      const isAct = v.id === activeLayoutId;
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "fi-layout-card" + (isAct ? " is-active" : "");
+      card.dataset.layoutId = v.id;
+      card.title = `一键切换为「${v.name}」版式`;
+      card.innerHTML = `<span class="fi-layout-thumb">${thumbSvg(v.preview)}</span><span class="fi-layout-meta"><span class="fi-layout-name">${v.name}</span><span class="fi-layout-tag">${isAct ? "当前" : (v.tag || "切换")}</span></span>`;
+      card.onclick = () => api.switchLayout?.(v.id);
+      layGrid.append(card);
+    }
+    laySec.append(layGrid);
+    container.append(laySec);
+  }
+
   // Card 2: One-Click Whole-Deck Palette Switcher (all 9+2 official 3-tone palettes)
   const palSec = document.createElement("div");
   palSec.className = "deck-panel-section";
@@ -147,7 +196,6 @@ export function mountDeckPanel(container, api) {
   palTitle.innerHTML = "<span>全稿主题配色</span><span>一键换肤</span>";
   palSec.append(palTitle);
 
-  const curPal = project.designChoice?.appearance?.palette || {};
   const curPalId = project.designChoice?.appearance?.paletteId;
   const curPri = String(curPal.primary || curPal.accent || "").toLowerCase();
   const palGrid = document.createElement("div");

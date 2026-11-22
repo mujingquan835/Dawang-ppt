@@ -12,6 +12,7 @@ import { writePortableDeckHtml } from '../shell/page.jsx';
 import { exportProjectPptxHeadless } from '../export/pptx.mjs';
 import { reportPalette } from './report-palettes.mjs';
 import { renderPreviewGrid } from './preview-grid.mjs';
+import { attachLayoutVariants } from './layout-variants.mjs';
 
 function slugifyProjectId(title) {
   const ascii = String(title || 'deck')
@@ -191,11 +192,22 @@ export async function fastBuildDeck({
       });
       if (claims?.throughLine) deck.contentPlan.throughLine = claims.throughLine;
       if (claims?.ruleChecklist) deck.contentPlan.ruleChecklist = claims.ruleChecklist;
+      // Attach 4-5 modern Web UI switchable layout variants to every slide for one-click "换版式"
+      const resolvedPalette = typeof paletteChoice === 'string' ? reportPalette(paletteChoice) : paletteChoice;
+      const effectiveFooter = footer ?? raw.footer ?? [outline.title, outline.period].filter(Boolean).join(' · ');
+      attachLayoutVariants({
+        deck,
+        outline,
+        palette: resolvedPalette,
+        footer: effectiveFooter,
+        baseDir: inputDir,
+      });
       composeInfo = {
         scales: composed.scales,
         rearranged: composed.rearranged,
         sparse: composed.sparse,
         loose: composed.loose,
+        layoutVariants: deck.slides.map((s) => ({ slideId: s.slideId, count: s.layoutVariants?.length || 1 })),
       };
     } finally {
       await measurer.close();

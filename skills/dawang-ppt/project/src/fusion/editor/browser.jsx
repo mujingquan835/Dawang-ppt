@@ -17,6 +17,7 @@ import { materializeElements, syncCompositionTextState } from '../scene/model.mj
 import { mergeEditorState } from '../project/import-goal.mjs';
 import { applyEditCommand } from './commands.mjs';
 import { mountInspector, mountDeckPanel, mountMultiInspector } from './inspector.jsx';
+import { UI_INSERT_PRESETS, buildUiPresetElements } from '../authoring/ui-kit.mjs';
 import { collectProjectFromIr } from '../export/ir-collect.mjs';
 import { composeEditablePptx } from '../export/pptx-core.mjs';
 import { mountDeckRuntime } from '../shell/runtime.mjs';
@@ -271,11 +272,16 @@ if (seed) {
         const targetSec = sections().find((s) => s.dataset.slideId === r.newSlideId);
         if (targetSec) runtime.show(targetSec, { force: true });
       }
+    } else if (normalizedCmd.type === 'switch-layout') {
+      setSelectionList([]);
+      redraw(normalizedCmd.slideId);
+      requestAnimationFrame(() => runtime.renderRail());
+      refreshSelection();
     } else {
       if (normalizedCmd.type === 'delete-element' || normalizedCmd.type === 'batch-delete') setSelectionList([]);
       else if ((normalizedCmd.type === 'add-element' || normalizedCmd.type === 'duplicate-element') && normalizedCmd.elementId) {
         setSelectionList([{ slideId: normalizedCmd.slideId, elementId: normalizedCmd.elementId }]);
-      } else if (normalizedCmd.type === 'batch-duplicate' && Array.isArray(normalizedCmd.newElementIds)) {
+      } else if ((normalizedCmd.type === 'batch-duplicate' || normalizedCmd.type === 'add-elements') && Array.isArray(normalizedCmd.newElementIds)) {
         setSelectionList(normalizedCmd.newElementIds.map((elementId) => ({ slideId: normalizedCmd.slideId, elementId })));
       }
       redraw(normalizedCmd.slideId);
@@ -545,6 +551,23 @@ if (seed) {
     const res = apply({ type: 'switch-palette', paletteId });
     if (res?.ok) status(`已切换全稿配色：${res.name || paletteId}（⌘Z 可撤销）`);
   }
+  function switchLayout(layoutId, slideId) {
+    const target = slideId || activeSlideId();
+    if (!target || !window.__canEditDeck?.()) return;
+    const res = apply({ type: 'switch-layout', slideId: target, layoutId });
+    if (res?.ok) status(`已切换当前页版式：${res.layoutName || layoutId}（⌘Z 可撤销）`);
+  }
+  function insertUiPreset(presetId) {
+    const target = activeSlideId();
+    if (!target || !window.__canEditDeck?.()) return;
+    const pal = project.designChoice?.appearance?.palette || {};
+    const uid = Math.random().toString(36).slice(2, 7);
+    const elements = buildUiPresetElements(presetId, pal, uid);
+    if (!elements.length) return;
+    const preset = UI_INSERT_PRESETS.find((x) => x.id === presetId);
+    apply({ slideId: target, type: 'add-elements', elements });
+    status(`已插入「${preset?.name || 'UI 组件'}」，可整体拖拽或双击改字（⌘Z 可撤销）。`);
+  }
 
   const api = {
     isExporting: () => exportBusy,
@@ -562,6 +585,8 @@ if (seed) {
     addSlide,
     duplicateSlide,
     switchPalette,
+    switchLayout,
+    insertUiPreset,
     apply,
     save: (options = {}) => (portable() && !options.fileHandle ? saveControls.run() : save(options)),
     undo: () => window.__deckUndo.undo(),
@@ -728,6 +753,48 @@ if (seed) {
       reader.readAsDataURL(file);
     };
     input.click();
+  });
+
+  // Wire up topbar "+ UI组件" dropdown menu
+  const compBtn = document.getElementById('deck-add-comp');
+  const compMenu = document.getElementById('deck-comp-menu');
+  if (compBtn && compMenu) {
+    const groups = [...new Set(UI_INSERT_PRESETS.map((x) => x.group))];
+    for (const g of groups) {
+      const hd = document.createElement('div');
+      hd.className = 'deck-comp-head';
+      hd.innerHTML = `<span>${g}</span><span>现代UI</span>`;
+      compMenu.append(hd);
+      for (const item of UI_INSERT_PRESETS.filter((x) => x.group === g)) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.role = 'menuitem';
+        b.innerHTML = `<span>${item.name}</span><span class="comp-sub">${item.sub}</span>`;
+        b.onclick = () => {
+          compMenu.hidden = true;
+          compBtn.setAttribute('aria-expanded', 'false');
+          insertUiPreset(item.id);
+        };
+        compMenu.append(b);
+      }
+    }
+    compBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = compMenu.hidden;
+      compMenu.hidden = !willOpen;
+      compBtn.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', (e) => {
+      if (!compMenu.hidden && !compMenu.contains(e.target) && e.target !== compBtn) {
+        compMenu.hidden = true;
+        compBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  // Keep right-hand Layout Switcher synced whenever the user navigates between slides
+  window.addEventListener('deck-slide-change', () => {
+    clearSelection();
   });
 
   mountHistoryControls();

@@ -175,6 +175,27 @@ button,input,select{font:inherit;color:inherit}
 .fi-pal-card.is-dark .fi-pal-dots i{border-color:#151E30}
 .fi-pal-name{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+/* One-click per-slide layout switcher cards */
+.fi-layout-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.fi-layout-card{display:flex;flex-direction:column;gap:5px;padding:7px;border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-surface);cursor:pointer;text-align:left;transition:all .14s}
+.fi-layout-card:hover{border-color:var(--ui-accent);background:var(--ui-accent-soft);transform:translateY(-1px)}
+.fi-layout-card.is-active{border-color:var(--ui-accent);box-shadow:0 0 0 1.5px var(--ui-accent);background:var(--ui-accent-soft)}
+.fi-layout-thumb{width:100%;aspect-ratio:16/9;border-radius:5px;background:var(--ui-surface-2);border:1px solid var(--ui-border);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.fi-layout-thumb svg{width:100%;height:100%;display:block}
+.fi-layout-meta{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.fi-layout-name{font-size:11.5px;font-weight:650;color:var(--ui-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fi-layout-tag{font-size:9.5px;font-weight:650;padding:1px 5px;border-radius:999px;background:var(--ui-chip);color:var(--ui-muted);flex:none}
+.fi-layout-card.is-active .fi-layout-tag{background:var(--ui-accent);color:#fff}
+
+/* Topbar UI Component insert dropdown */
+.deck-comp-wrap{position:relative;display:inline-flex}
+.deck-comp-menu{position:absolute;left:50%;top:38px;transform:translateX(-50%);z-index:45;width:276px;padding:6px;background:var(--ui-surface);border:1px solid var(--ui-border);border-radius:12px;box-shadow:var(--ui-shadow-lg);display:grid;gap:2px}
+.deck-comp-menu[hidden]{display:none}
+.deck-comp-head{padding:5px 8px 4px;font-size:10.5px;font-weight:700;color:var(--ui-muted);letter-spacing:.03em;display:flex;justify-content:space-between}
+.deck-comp-menu button{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;padding:7px 9px;border:0;border-radius:7px;background:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--ui-fg);transition:background .12s}
+.deck-comp-menu button:hover{background:var(--ui-accent-soft);color:var(--ui-accent)}
+.deck-comp-menu .comp-sub{font-size:10.5px;color:var(--ui-muted);font-weight:450}
+
 /* Marquee rubber-band selection & multi-select outer frame */
 .fusion-marquee{position:absolute;z-index:10003;pointer-events:none;background:rgba(35,51,139,.10);border:1.5px solid #23338B;border-radius:2px}
 .fusion-multi-box{position:absolute;z-index:9999;pointer-events:none;border:1.5px dashed rgba(35,51,139,.65);background:rgba(35,51,139,.03)}

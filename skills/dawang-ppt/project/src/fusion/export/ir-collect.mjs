@@ -218,6 +218,7 @@ export async function collectProjectFromIr(project, { resolveSrc, measureImage }
             stroke: stroke.hex || '#111111',
             strokeWidth: st.strokeWidth || 3,
             strokeTransparency: Math.round((1 - (1 - stroke.transparency / 100) * opacity) * 100),
+            ...(st.strokeDash ? { strokeDash: st.strokeDash } : {}),
           },
         });
       } else if (e.type === 'vector') {
@@ -255,6 +256,7 @@ export async function collectProjectFromIr(project, { resolveSrc, measureImage }
             stroke: stroke.hex,
             strokeWidth: st.strokeWidth || (stroke.hex ? 2 : 0),
             strokeTransparency: stroke.hex ? Math.round((1 - (1 - stroke.transparency / 100) * opacity) * 100) : 100,
+            ...(st.strokeDash ? { strokeDash: st.strokeDash } : {}),
             radius: st.radius || 0,
             rotate: st.rotate || 0,
           },

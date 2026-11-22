@@ -220,6 +220,34 @@ function buildColorTable(oldPal, newPal) {
   };
 }
 
+function remapElements(elements, mapColor) {
+  const isCoverSlide = (elements || []).some((e) => e.id === 'cover-panel' || e.id === 'cover-name' || e.id?.startsWith('cv-'));
+  for (const el of elements || []) {
+    const isCoverEl = isCoverSlide && (
+      el.id === 'cover-panel' || el.id === 'cover-name' || el.id === 'cover-eyebrow' || el.id === 'cover-subtitle' || el.id === 'cover-note' || el.id === 'title' || el.id?.startsWith('ph1-caption') || el.id === 'cv-bento-hero' || el.id === 'cv-dark-bg'
+    );
+    const isDarkPanel = el.id === 'cover-panel' || el.id === 'cv-bento-hero' || el.id === 'v-bento-hero' || el.id === 'v-split-side';
+    if (el.style) {
+      if (el.style.fill) el.style.fill = mapColor(el.style.fill, { isBg: true, isCover: isDarkPanel });
+      if (el.style.background) el.style.background = mapColor(el.style.background, { isBg: true, isCover: isDarkPanel });
+      if (el.style.stroke) el.style.stroke = mapColor(el.style.stroke, { isBg: false });
+      if (el.style.color) el.style.color = mapColor(el.style.color, { isText: true, isCover: isCoverEl });
+    }
+    if (el.manualStyle) {
+      if (el.manualStyle.fill) el.manualStyle.fill = mapColor(el.manualStyle.fill, { isBg: true });
+      if (el.manualStyle.stroke) el.manualStyle.stroke = mapColor(el.manualStyle.stroke, { isBg: false });
+      if (el.manualStyle.color) el.manualStyle.color = mapColor(el.manualStyle.color, { isText: true, isCover: isCoverEl });
+    }
+    if (Array.isArray(el.runs)) {
+      for (const run of el.runs) {
+        if (run.style?.color) {
+          run.style.color = mapColor(run.style.color, { isText: true, isCover: isCoverEl });
+        }
+      }
+    }
+  }
+}
+
 export function applyPaletteToProject(project, paletteId) {
   const entry = REPORT_PALETTES.find((x) => x.id === paletteId || x.name === paletteId);
   if (!entry) throw new Error('未知配色方案：' + paletteId);
@@ -231,26 +259,10 @@ export function applyPaletteToProject(project, paletteId) {
   project.designChoice.appearance = { ...(project.designChoice.appearance || {}), palette: structuredClone(newPal), paletteId: entry.id };
 
   for (const slide of project.slides || []) {
-    const isCoverSlide = (slide.elements || []).some((e) => e.id === 'cover-panel' || e.id === 'cover-name');
-    for (const el of slide.elements || []) {
-      const isCoverEl = isCoverSlide && (el.id === 'cover-panel' || el.id === 'cover-name' || el.id === 'cover-eyebrow' || el.id === 'cover-subtitle' || el.id === 'cover-note' || el.id === 'title' || el.id?.startsWith('ph1-caption'));
-      if (el.style) {
-        if (el.style.fill) el.style.fill = mapColor(el.style.fill, { isBg: true, isCover: el.id === 'cover-panel' });
-        if (el.style.background) el.style.background = mapColor(el.style.background, { isBg: true, isCover: el.id === 'cover-panel' });
-        if (el.style.stroke) el.style.stroke = mapColor(el.style.stroke, { isBg: false });
-        if (el.style.color) el.style.color = mapColor(el.style.color, { isText: true, isCover: isCoverEl });
-      }
-      if (el.manualStyle) {
-        if (el.manualStyle.fill) el.manualStyle.fill = mapColor(el.manualStyle.fill, { isBg: true });
-        if (el.manualStyle.stroke) el.manualStyle.stroke = mapColor(el.manualStyle.stroke, { isBg: false });
-        if (el.manualStyle.color) el.manualStyle.color = mapColor(el.manualStyle.color, { isText: true, isCover: isCoverEl });
-      }
-      if (Array.isArray(el.runs)) {
-        for (const run of el.runs) {
-          if (run.style?.color) {
-            run.style.color = mapColor(run.style.color, { isText: true, isCover: isCoverEl });
-          }
-        }
+    remapElements(slide.elements, mapColor);
+    if (Array.isArray(slide.layoutVariants)) {
+      for (const v of slide.layoutVariants) {
+        if (Array.isArray(v?.elements)) remapElements(v.elements, mapColor);
       }
     }
   }

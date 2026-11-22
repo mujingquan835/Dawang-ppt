@@ -358,6 +358,8 @@ export function metricTiles({ id, x, y, width, items, theme, size = 72, columns,
   // figureSize sets the figure on its own, leaving the label at the size it has for `size`.
   let valueSize = figureSize || size;
   if (growValue && tileH > naturalOf(size)) for (let s = Math.min(Math.round(size * 1.75), Math.floor((tileH - 50 - labelH - noteH) / 1.32)); s > size; s -= 2) if (widest(s) <= (tileW - 44 - iconMax - 16) * 0.88) { valueSize = s; break; }
+  // Hard width guard: shrink valueSize if the widest figure would wrap or overflow the tile's inner width.
+  while (valueSize > 26 && widest(valueSize) > (tileW - 52) * 0.92) valueSize -= 2;
   const unitSize = unitOf(valueSize), naturalTile = naturalOf(valueSize), inset = Math.round((tileH - naturalTile) / 2);
   // Icons grow with the spare room (up to 180px, never taller than the tile allows) and cannot be switched off: a tile
   // with a wide empty strip always gets one (user rule); item.icon picks which. Tiles in one group share one icon
@@ -366,30 +368,199 @@ export function metricTiles({ id, x, y, width, items, theme, size = 72, columns,
   const fits = items.map((it) => Math.round(Math.min(iconMax, tileH - 36, tileW - 28 - 16 - contentOf(it) - 24)));
   const iconS = Math.min(...fits.filter((v) => v >= 56), iconMax), everyIcon = fits.every((v) => v >= 56);
   items.forEach((it, i) => {
-    // A tile without a note beside tiles that have one keeps its label and figure in the middle, not over an empty line.
-    const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), lift = inset + (noteH && !it.note ? Math.round(noteH / 2) : 0), on = i === highlight, solid = on && highlightStyle === 'solid';
-    const roles = colorRoles(p), ink = solid ? p.inverse : null;
-    // Dual-tone pairing: highlighted tile takes solid primary; the immediate partner tile pairs warm secondary cap + soft tint.
+    const tx = x + (i % cols) * (tileW + gap), ty = y + Math.floor(i / cols) * (tileH + gap), on = i === highlight, solid = on && highlightStyle === 'solid';
+    const roles = colorRoles(p);
     const isPartner = !on && items.length >= 2 && (highlight >= 0 ? i === (highlight + 1) % items.length : i % 2 === 1);
-    const thisTileFill = solid ? roles.primary : isPartner && !p.dark ? roles.soft : tileFill;
-    const valColor = ink || (on ? p.accent : isPartner ? (p.dark ? roles.secondary : readableInk(roles.secondaryInk || roles.secondary, thisTileFill, 3.2)) : roles.primary);
-    elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, component: solid ? 'highlightTile' : 'metricTiles', bounds: [tx, ty, tileW, tileH], style: { fill: thisTileFill, radius: theme.radius ?? 14 } });
-    if (solid) elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [tx + 20, ty, tileW - 40, 4], style: { fill: roles.secondary, radius: 2 } });
-    else if (isPartner) elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [tx + 20, ty, tileW - 40, 4], style: { fill: roles.secondary, radius: 2 } });
-    else if (on && !solid) elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [tx, ty + 14, 8, tileH - 28], style: { fill: p.accent, radius: 4 } });
-    else elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [tx + 20, ty, tileW - 40, 4], style: { fill: roles.primary, radius: 2 } });
-    elements.push(textElement({ id: `${id}-label-${i + 1}`, text: it.label || '', bounds: [tx + 28, ty + lift + 22, tileW - 44, Math.round(labelSize * 1.4)], style: theme.font(labelSize, { fontWeight: 300, color: ink || p.muted }) }));
-    const lead = it.before != null ? `${it.before} → ` : '';
-    const runs = [...(lead ? [{ text: lead, style: { fontSize: beforeOf(valueSize), fontWeight: 400, color: ink || p.muted } }] : []), { text: String(it.value), style: { fontSize: valueSize, fontWeight: 900, color: valColor } }, ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSize, fontWeight: 300, color: ink || p.muted } }] : [])];
     const name = (typeof it.icon === 'string' && it.icon) || pickIcon(`${it.label || ''}${it.unit || ''}`);
     const withIcon = name && everyIcon;
-    const textW = withIcon ? tileW - 44 - iconS - 16 : tileW - 44;
-    elements.push(textElement({ id: `${id}-value-${i + 1}`, text: lead + String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [tx + 28, ty + lift + 24 + labelH + 4, textW, Math.round(valueSize * 1.32)], style: theme.font(valueSize, { fontWeight: 900, lineHeight: 1.15, color: valColor }) }));
-    if (it.note) elements.push(textElement({ id: `${id}-note-${i + 1}`, text: it.note, bounds: [tx + 28, ty + lift + 24 + labelH + 4 + Math.round(valueSize * 1.32) + 2, textW, labelH], style: theme.font(labelSize, { fontWeight: 300, lineHeight: 1.3, color: ink || p.muted }) }));
-    if (withIcon) elements.push(...iconElements({ id: `${id}-tile-${i + 1}`, name, bounds: [tx + tileW - iconS - 20, ty + Math.round((tileH - iconS) / 2), iconS], color: ink || (on ? p.accent : p.muted), disc: solid ? 'rgba(255, 255, 255, 0.16)' : rgba(on ? p.accent : p.ink, on ? 0.12 : 0.06) }));
+    const built = renderMetricCard({
+      id, num: i + 1, cx: tx, cy: ty, cw: tileW, ch: tileH, it,
+      solid, isPartner, theme, p, r: roles,
+      forcedValSize: (tileW / Math.max(1, tileH) >= 1.65 && tileW >= 360 && !withIcon) ? null : valueSize,
+      forcedLabelSize: labelSize,
+      iconInfo: withIcon ? { name, size: iconS } : null,
+    });
+    elements.push(...built.elements);
   });
   const rows = Math.ceil(items.length / cols);
   return { elements, height: rows * tileH + (rows - 1) * gap, valueSize };
+}
+
+// Universal Aspect-Ratio-Aware Metric Card renderer shared by both metricBento and metricTiles.
+// Adapts purely from the card's own (cw, ch) geometry — never hardcoded to a specific slide:
+//   - Wide horizontal card (cw / ch >= 1.65 & cw >= 360): Left Meta (Label + Target Pill) | Right Giant Figure
+//   - Square / compact card: Vertically stacked with figure scaled proportionally to fill the box cleanly
+function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme, p, r, forcedValSize = null, forcedLabelSize = null, iconInfo = null }) {
+  const pad = Math.min(28, Math.max(18, Math.round(cw * 0.055)));
+  const iw = cw - pad * 2;
+  const fill = solid ? r.primary : (p.dark ? (p.surface || '#152238') : '#FFFFFF');
+  const stroke = solid ? null : (isPartner ? (p.dark ? p.line : lighten(r.secondary, 0.35)) : (p.line || '#E2E6EE'));
+  const topAccent = solid ? r.pop : isPartner ? r.secondary : r.primary;
+  const valColor = solid ? p.inverse : isPartner ? (p.dark ? r.secondary : readableInk(r.secondaryInk || r.secondary, fill, 3.2)) : r.primary;
+  const labelColor = solid ? (p.dark ? p.inverse : '#E2E8F0') : p.muted;
+  const rad = Math.max(16, theme.radius ?? 14);
+  const elements = [];
+
+  elements.push({ type: 'shape', id: `${id}-tile-${num}`, component: solid ? 'highlightTile' : 'metricTiles', bounds: [cx, cy, cw, ch], style: { fill, ...(stroke ? { stroke, strokeWidth: 1.5 } : {}), radius: rad } });
+  elements.push({ type: 'shape', id: `${id}-trim-${num}`, bounds: [cx + 20, cy, Math.max(24, cw - 40), 5], style: { fill: topAccent, radius: 3 } });
+
+  const parseRatio = (val, note) => {
+    const n = (s) => { const m = String(s ?? '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
+    const v = n(val), t = note && /目标/.test(note) ? n(note) : null;
+    return v != null && t != null && t > 0 ? v / t : null;
+  };
+  const ratio = parseRatio(it.value, it.note);
+  const barReserve = ratio != null ? 24 : 10;
+  const innerH = ch - 12 - barReserve;
+
+  const lead = it.before != null ? `${it.before} → ` : '';
+  const beforeOf = (s) => Math.max(20, Math.round(s * 0.56));
+  const unitOf = (s) => Math.max(20, Math.round(s * 0.34));
+  const figWidth = (s) => (lead ? textWidth(lead, beforeOf(s)) : 0) + textWidth(String(it.value), s) + (it.unit ? textWidth(' ' + it.unit, unitOf(s)) : 0);
+
+  // Check if Horizontal Split (Left Meta | Right Giant Figure) fits cleanly without collisions
+  const aspect = cw / Math.max(1, ch);
+  const canSplit = !iconInfo && aspect >= 1.62 && cw >= 350 && ch >= 150 && !lead;
+  let useSplit = false;
+  let splitLeftW = 0, splitRightW = 0, splitValSz = 0, splitLabelSz = 0;
+  if (canSplit) {
+    splitLabelSz = forcedLabelSize || (solid ? Math.min(28, Math.max(22, Math.round(ch * 0.115))) : Math.min(23, Math.max(19, Math.round(ch * 0.1))));
+    const natLabelW = Math.ceil(textWidth(it.label || '', splitLabelSz) * 1.08);
+    const natNoteW = it.note ? Math.ceil(textWidth(it.note, solid ? 18 : 16) * 1.15) + 30 : 0;
+    splitLeftW = Math.min(Math.round(iw * 0.46), Math.max(Math.round(iw * 0.34), Math.min(Math.max(natLabelW, natNoteW) + 8, Math.round(iw * 0.46))));
+    splitRightW = iw - splitLeftW - 18;
+    const maxByH = Math.min(solid ? 104 : 84, Math.round(innerH * (solid ? 0.56 : 0.48)));
+    splitValSz = forcedValSize ? Math.min(forcedValSize, maxByH) : maxByH;
+    while (splitValSz > 36 && figWidth(splitValSz) > splitRightW * 0.94) splitValSz -= 2;
+    const labelLines = estimateLines(it.label || '', splitLabelSz, splitLeftW);
+    if (splitValSz >= 42 && labelLines <= 2 && splitRightW >= 150) useSplit = true;
+  }
+
+  let finalValSize = splitValSz;
+  if (useSplit) {
+    const labelSz = splitLabelSz;
+    const labelH = Math.max(Math.ceil(labelSz * 1.35), textHeight(it.label || '', labelSz, splitLeftW, 1.3));
+    let noteSz = solid ? 18 : 16;
+    if (it.note) while (noteSz > 13 && Math.ceil(textWidth(it.note, noteSz) * 1.16) + 28 > splitLeftW) noteSz -= 1;
+    const pillW = it.note ? Math.min(splitLeftW, Math.ceil(textWidth(it.note, noteSz) * 1.16) + 28) : 0;
+    const pillH = it.note ? Math.max(30, Math.round(noteSz * 1.65)) : 0;
+    const leftGap = it.note ? Math.min(28, Math.max(14, Math.round((innerH - labelH - pillH) * 0.32))) : 0;
+    const leftBlockH = labelH + (it.note ? leftGap + pillH : 0);
+    const leftTop = cy + 10 + Math.round((innerH - leftBlockH) / 2);
+
+    elements.push(textElement({ id: `${id}-label-${num}`, text: it.label || '', bounds: [cx + pad, leftTop, splitLeftW, labelH], style: theme.font(labelSz, { fontWeight: solid ? 700 : 600, color: labelColor, lineHeight: 1.3 }) }));
+
+    if (it.note) {
+      const noteY = leftTop + labelH + leftGap;
+      const pillFill = solid ? (p.dark ? '#1E293B' : lighten(r.primary, 0.16)) : isPartner ? r.soft : r.band;
+      const pillInk = solid ? p.inverse : isPartner ? (p.dark ? r.secondary : readableInk(r.secondaryInk || r.secondary, pillFill, 3.2)) : r.primary;
+      elements.push({ type: 'shape', id: `${id}-notepill-${num}`, bounds: [cx + pad, noteY, pillW, pillH], style: { fill: pillFill, radius: Math.round(pillH / 2) } });
+      elements.push(textElement({ id: `${id}-note-${num}`, text: it.note, bounds: [cx + pad + 8, noteY + Math.round((pillH - noteSz * 1.25) / 2), pillW - 16, Math.ceil(noteSz * 1.35)], style: theme.font(noteSz, { fontWeight: 600, lineHeight: 1.2, textAlign: 'center', color: pillInk }) }));
+    }
+
+    const valSz = splitValSz, unitSz = unitOf(valSz), valH = Math.round(valSz * 1.22);
+    const valY = cy + 10 + Math.round((innerH - valH) / 2);
+    const rx = cx + pad + splitLeftW + 18;
+    const runs = [
+      { text: String(it.value), style: { fontSize: valSz, fontWeight: 900, color: valColor } },
+      ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSz, fontWeight: 300, color: solid ? labelColor : p.muted } }] : []),
+    ];
+    elements.push(textElement({ id: `${id}-value-${num}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [rx, valY, splitRightW, valH], style: theme.font(valSz, { fontWeight: 900, lineHeight: 1.12, textAlign: 'right', color: valColor }) }));
+  } else {
+    // Stacked proportional mode (for square/tall/narrow cards or cards with icons)
+    const textW = iconInfo ? iw - iconInfo.size - 16 : iw;
+    const labelSz = forcedLabelSize || Math.max(18, Math.min(24, Math.round(ch * 0.095)));
+    const labelH = Math.round(labelSz * 1.4);
+    const maxByH = Math.min(solid ? 86 : 72, Math.round((innerH - labelH - (it.note ? 46 : 12)) * 0.72));
+    let valSz = forcedValSize || maxByH;
+    while (valSz > 26 && figWidth(valSz) > textW * 0.92) valSz -= 2;
+    finalValSize = valSz;
+    const unitSz = unitOf(valSz), valH = Math.round(valSz * 1.24);
+    let noteSz = solid ? 18 : 16;
+    if (it.note) while (noteSz > 13 && Math.ceil(textWidth(it.note, noteSz) * 1.16) + 26 > textW) noteSz -= 1;
+    const pillH = it.note ? Math.max(28, Math.round(noteSz * 1.55)) : 0;
+    const pillW = it.note ? Math.min(textW, Math.ceil(textWidth(it.note, noteSz) * 1.16) + 26) : 0;
+    const blockH = labelH + 10 + valH + (it.note ? 12 + pillH : 0);
+    const topY = cy + 10 + Math.max(8, Math.round((innerH - blockH) / 2));
+
+    elements.push(textElement({ id: `${id}-label-${num}`, text: it.label || '', bounds: [cx + pad, topY, textW, labelH], style: theme.font(labelSz, { fontWeight: 600, color: labelColor }) }));
+    const runs = [
+      ...(lead ? [{ text: lead, style: { fontSize: beforeOf(valSz), fontWeight: 400, color: labelColor } }] : []),
+      { text: String(it.value), style: { fontSize: valSz, fontWeight: 900, color: valColor } },
+      ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSz, fontWeight: 300, color: solid ? labelColor : p.muted } }] : []),
+    ];
+    elements.push(textElement({ id: `${id}-value-${num}`, text: lead + String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [cx + pad, topY + labelH + 10, textW, valH], style: theme.font(valSz, { fontWeight: 900, lineHeight: 1.15, color: valColor }) }));
+
+    if (it.note) {
+      const noteY = Math.min(cy + ch - pillH - barReserve + 2, topY + labelH + 10 + valH + 10);
+      const pillFill = solid ? (p.dark ? '#1E293B' : lighten(r.primary, 0.16)) : isPartner ? r.soft : r.band;
+      const pillInk = solid ? p.inverse : isPartner ? (p.dark ? r.secondary : readableInk(r.secondaryInk || r.secondary, pillFill, 3.2)) : r.primary;
+      elements.push({ type: 'shape', id: `${id}-notepill-${num}`, bounds: [cx + pad, noteY, pillW, pillH], style: { fill: pillFill, radius: Math.round(pillH / 2) } });
+      elements.push(textElement({ id: `${id}-note-${num}`, text: it.note, bounds: [cx + pad + 8, noteY + Math.round((pillH - noteSz * 1.25) / 2), pillW - 16, Math.ceil(noteSz * 1.35)], style: theme.font(noteSz, { fontWeight: 600, lineHeight: 1.2, textAlign: 'center', color: pillInk }) }));
+    }
+    if (iconInfo) {
+      elements.push(...iconElements({ id: `${id}-tile-${num}`, name: iconInfo.name, bounds: [cx + cw - iconInfo.size - 20, cy + Math.round((ch - iconInfo.size) / 2), iconInfo.size], color: solid ? p.inverse : (isPartner ? r.secondary : p.muted), disc: solid ? 'rgba(255, 255, 255, 0.16)' : rgba(p.ink, 0.06) }));
+    }
+  }
+
+  // Subtle mini target progress bar along the bottom edge when a numeric target is present
+  if (ratio != null) {
+    const barY = cy + ch - 14, barW = iw;
+    const fillPct = Math.max(0.14, Math.min(0.96, ratio > 1 ? 0.92 : ratio * 0.82));
+    const pinPct = ratio > 1 ? Math.max(0.55, Math.min(0.84, 0.92 / ratio)) : 0.82;
+    elements.push({ type: 'shape', id: `${id}-prog-bg-${num}`, bounds: [cx + pad, barY, barW, 5], style: { fill: solid ? lighten(r.primary, 0.22) : (p.line || '#E2E6EE'), radius: 3 } });
+    elements.push({ type: 'shape', id: `${id}-prog-fg-${num}`, bounds: [cx + pad, barY, Math.round(barW * fillPct), 5], style: { fill: solid ? r.pop : topAccent, radius: 3 } });
+    elements.push({ type: 'shape', id: `${id}-prog-pin-${num}`, bounds: [cx + pad + Math.round(barW * pinPct), barY - 3, 3, 11], style: { fill: solid ? p.inverse : p.ink, radius: 1 } });
+  }
+
+  return { elements, valueSize: finalValSize };
+}
+
+// Adaptive Asymmetric Bento Metric Grid for 3-5 metrics placed in a tall rectangular region (e.g., beside a tall action panel).
+// Highlights the #1 key figure in a larger solid-primary hero cell and pairs secondary figures cleanly underneath so there is zero awkward vertical dead space.
+export function metricBento({ id, x, y, width, height, items, theme, highlight = 0 }) {
+  const p = theme.palette, r = colorRoles(p), n = items.length, gap = 16;
+  const k = highlight >= 0 && highlight < n ? highlight : 0;
+  const ordered = [items[k], ...items.filter((_, i) => i !== k)];
+  const origIdx = [k, ...items.map((_, i) => i).filter((i) => i !== k)];
+  const topH = Math.round((height - gap) * 0.52), botH = height - gap - topH;
+
+  const cells = [];
+  if (n === 3) {
+    const bw = Math.floor((width - gap) / 2);
+    cells.push({ rect: [x, y, width, topH], solid: true, partner: false });
+    cells.push({ rect: [x, y + topH + gap, bw, botH], solid: false, partner: true });
+    cells.push({ rect: [x + bw + gap, y + topH + gap, width - bw - gap, botH], solid: false, partner: false });
+  } else if (n === 4) {
+    const topLeftW = Math.round((width - gap) * 0.57), topRightW = width - gap - topLeftW;
+    const botW = Math.floor((width - gap) / 2);
+    cells.push({ rect: [x, y, topLeftW, topH], solid: true, partner: false });
+    cells.push({ rect: [x + topLeftW + gap, y, topRightW, topH], solid: false, partner: true });
+    cells.push({ rect: [x, y + topH + gap, botW, botH], solid: false, partner: false });
+    cells.push({ rect: [x + botW + gap, y + topH + gap, width - botW - gap, botH], solid: false, partner: false });
+  } else {
+    const topLeftW = Math.round((width - gap) * 0.57), topRightW = width - gap - topLeftW;
+    const botCount = Math.max(1, n - 2), botW = Math.floor((width - gap * (botCount - 1)) / botCount);
+    cells.push({ rect: [x, y, topLeftW, topH], solid: true, partner: false });
+    cells.push({ rect: [x + topLeftW + gap, y, topRightW, topH], solid: false, partner: true });
+    for (let j = 0; j < botCount; j++) {
+      const bx = x + j * (botW + gap);
+      const bw = j === botCount - 1 ? (x + width - bx) : botW;
+      cells.push({ rect: [bx, y + topH + gap, bw, botH], solid: false, partner: false });
+    }
+  }
+
+  const elements = [];
+  let maxValSize = 48;
+  cells.forEach((cell, idx) => {
+    const it = ordered[idx];
+    if (!it) return;
+    const [cx, cy, cw, ch] = cell.rect;
+    const built = renderMetricCard({ id, num: origIdx[idx] + 1, cx, cy, cw, ch, it, solid: cell.solid, isPartner: cell.partner, theme, p, r });
+    elements.push(...built.elements);
+    if (built.valueSize > maxValSize) maxValSize = built.valueSize;
+  });
+  return { elements, height, valueSize: maxValSize };
 }
 
 // Photo panel: a solid colour block whose text half fades into a photo (gradient from the panel colour to clear over
@@ -588,16 +759,45 @@ export const REPORT_ROLES_ROOMY = {
 // from the labels alone. tone 'judgment' (warm) is for the review verdict only, so it stays the one warm band on a page.
 export function labelBand({ id, x, y, width, label, text, theme, tone = 'primary', height, measurements, scale = 1 }) {
   const p = theme.palette, r = colorRoles(p), judgment = tone === 'judgment', warm = p.pop || p.gold;
-  const bandFill = p.dark ? (p.surface || '#152238') : (judgment ? lighten(warm, 0.9) : r.band);
-  const ink = p.dark ? (judgment ? warm : p.accent) : (judgment ? readableInk(warm, bandFill, 3.2) : readableInk(p.accent, bandFill, 3.2));
-  const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), labelStyle = theme.roleStyle('stepTitle', { color: ink, lineHeight: 1.2, fontSize: grown('stepTitle') }), textStyle = theme.roleStyle('body', { fontWeight: 300, color: p.ink, fontSize: grown('body') });
-  const tw = width - 48, labelH = Math.ceil(labelStyle.fontSize * 1.34), th = Math.ceil(measurements?.get(`${id}-text`)?.height ?? textHeight(text, textStyle.fontSize, tw, textStyle.lineHeight));
-  const need = labelH + 6 + th, h = Math.max(need + 28, height || 0), top = y + Math.round((h - need) / 2);
+  const bandFill = p.dark ? (p.surface || '#152238') : (judgment ? lighten(warm, 0.91) : r.band);
+  const accentBar = judgment ? warm : r.primary;
+  const borderCol = p.dark ? (judgment ? warm : p.line) : (judgment ? lighten(warm, 0.68) : (p.line || '#E2E6EE'));
+  const grown = (role) => Math.min(34, Math.round(theme.roles[role].fontSize * scale / 2) * 2);
+  const badgeSz = Math.min(19, Math.max(16, Math.round(grown('stepTitle') * 0.68)));
+  const labelStyle = theme.font(badgeSz, { fontWeight: 700, color: judgment ? '#FFFFFF' : p.inverse, textAlign: 'center', lineHeight: 1.2 });
+  const bodySize = Math.min(22, Math.max(18, grown('body') - 4));
+  const textStyle = theme.roleStyle('body', { fontWeight: judgment ? 400 : 300, color: judgment ? p.ink : (p.muted || '#64748B'), fontSize: bodySize, lineHeight: 1.45 });
+  const badgeW = label ? Math.max(88, Math.min(220, Math.ceil(textWidth(label, badgeSz) * 1.15) + 30)) : 0;
+  const badgeH = Math.max(32, Math.ceil(badgeSz * 1.65));
+  const inlineRoom = label ? width - 26 - badgeW - 18 - 26 : width - 52;
+  // Compact single-row inline layout when the band is wide and text fits in <= 2 lines beside the pill badge (sleek modern Callout).
+  const canInline = Boolean(label) && width >= 880 && textHeight(text, bodySize, inlineRoom, 1.4) <= Math.ceil(bodySize * 1.4 * 2.1);
+  const rad = Math.max(14, theme.radius ?? 14);
+  if (canInline) {
+    const th = Math.ceil(measurements?.get(`${id}-text`)?.height ?? textHeight(text, bodySize, inlineRoom, 1.4));
+    const need = Math.max(badgeH, th);
+    const h = Math.max(need + 28, height || 0);
+    return {
+      height: h,
+      elements: [
+        { type: 'shape', id: `${id}-bar`, component: 'labelBand', bounds: [x, y, width, h], style: { fill: bandFill, stroke: borderCol, strokeWidth: 1.5, radius: rad } },
+        { type: 'shape', id: `${id}-mark`, bounds: [x, y + 10, 7, Math.max(20, h - 20)], style: { fill: accentBar, radius: 4 } },
+        { type: 'shape', id: `${id}-badge`, bounds: [x + 26, y + Math.round((h - badgeH) / 2), badgeW, badgeH], style: { fill: accentBar, radius: Math.round(badgeH / 2) } },
+        textElement({ id: `${id}-label`, text: label, bounds: [x + 26, y + Math.round((h - badgeSz * 1.25) / 2), badgeW, Math.ceil(badgeSz * 1.3)], style: labelStyle }),
+        textElement({ id: `${id}-text`, text, bounds: [x + 26 + badgeW + 18, y + Math.round((h - th) / 2), inlineRoom, th], style: textStyle }),
+      ],
+    };
+  }
+  const tw = width - 56, th = Math.ceil(measurements?.get(`${id}-text`)?.height ?? textHeight(text, textStyle.fontSize, tw, textStyle.lineHeight));
+  const need = (label ? badgeH + 10 : 0) + th, h = Math.max(need + 30, height || 0), top = y + Math.round((h - need) / 2);
   return { height: h, elements: [
-    { type: 'shape', id: `${id}-bar`, component: 'labelBand', bounds: [x, y, width, h], style: { fill: bandFill, ...(p.dark ? { stroke: p.line, strokeWidth: 1 } : {}), radius: theme.radius ?? 0 } },
-    { type: 'shape', id: `${id}-mark`, bounds: [x, y, 6, h], style: { fill: judgment ? warm : p.accent } },
-    textElement({ id: `${id}-label`, text: label, bounds: [x + 24, top, tw, labelH], style: labelStyle }),
-    textElement({ id: `${id}-text`, text, bounds: [x + 24, top + labelH + 6, tw, th], style: textStyle })
+    { type: 'shape', id: `${id}-bar`, component: 'labelBand', bounds: [x, y, width, h], style: { fill: bandFill, stroke: borderCol, strokeWidth: 1.5, radius: rad } },
+    { type: 'shape', id: `${id}-mark`, bounds: [x, y + 10, 7, Math.max(20, h - 20)], style: { fill: accentBar, radius: 4 } },
+    ...(label ? [
+      { type: 'shape', id: `${id}-badge`, bounds: [x + 26, top, badgeW, badgeH], style: { fill: accentBar, radius: Math.round(badgeH / 2) } },
+      textElement({ id: `${id}-label`, text: label, bounds: [x + 26, top + Math.round((badgeH - badgeSz * 1.2) / 2), badgeW, Math.ceil(badgeSz * 1.3)], style: labelStyle }),
+    ] : []),
+    textElement({ id: `${id}-text`, text, bounds: [x + 26, top + (label ? badgeH + 10 : 0), tw, th], style: textStyle })
   ] };
 }
 
@@ -605,9 +805,14 @@ export function labelBand({ id, x, y, width, label, text, theme, tone = 'primary
 // sentence on each row. items: [{ title, detail }]. stacked puts the sentence under its handle; height spreads the rows.
 // Element ids: `${id}-panel`, `${id}-title-n`, `${id}-detail-n`.
 export function actionPanel({ id, x, y, width, heading, items, theme, height, stacked = false, measurements, scale = 1 }) {
-  const p = theme.palette, pad = 24, elements = [], cardBg = p.surface || '#FFFFFF';
+  const p = theme.palette, pad = 26, elements = [], cardBg = p.surface || '#FFFFFF';
   const accentInk = readableInk(p.accent, cardBg);
-  const grown = (role) => Math.min(38, Math.round(theme.roles[role].fontSize * scale / 2) * 2), titleStyle = theme.roleStyle('stepTitle', { color: accentInk, fontSize: grown('stepTitle') }), detailStyle = theme.roleStyle('stepDetail', { color: p.ink, fontSize: grown('stepDetail') });
+  const grown = (role) => Math.min(36, Math.round(theme.roles[role].fontSize * scale / 2) * 2);
+  const titleFontSize = grown('stepTitle');
+  // Refined typographic hierarchy: body detail stays crisp at 11pt (22px max), in 300 Light (细体) and softer muted slate gray so titles breathe and pop.
+  const detailFontSize = Math.min(22, Math.max(18, Math.round(titleFontSize * 0.72 / 2) * 2));
+  const titleStyle = theme.roleStyle('stepTitle', { color: accentInk, fontWeight: 700, fontSize: titleFontSize });
+  const detailStyle = theme.roleStyle('stepDetail', { color: p.muted || '#64748B', fontWeight: 300, fontSize: detailFontSize, lineHeight: 1.48 });
   // The number badge follows the item title's size and sits on the centre of its first line; its digit is centred by a
   // line box exactly as tall as the badge (a fixed 26px badge sat high beside a 30px title and its digit overflowed).
   const badge = Math.max(28, Math.round(titleStyle.fontSize * 0.9 / 2) * 2), numSize = Math.max(16, Math.round(badge * 0.6));
@@ -649,7 +854,7 @@ export function pointList({ id, x, y, width, points = [], size, color, theme, lh
   points.forEach((s, i) => {
     const h = textHeight(s, size, width - indentOf(size), lh);
     elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x, y + Math.round((size * lh - d) / 2), d, d], style: { fill: color, radius: d / 2 } });
-    elements.push(textElement({ id: `${id}-${i + 1}`, text: s, bounds: [x + indentOf(size), y, width - indentOf(size), h], style: theme.font(size, { color, lineHeight: lh }) }));
+    elements.push(textElement({ id: `${id}-${i + 1}`, text: s, bounds: [x + indentOf(size), y, width - indentOf(size), h], style: theme.font(size, { fontWeight: 300, color, lineHeight: lh }) }));
     y += h + pointGap(size);
   });
   return elements;

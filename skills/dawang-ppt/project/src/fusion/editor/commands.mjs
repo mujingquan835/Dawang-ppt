@@ -155,6 +155,36 @@ function applyEditCommand(project, command) {
       const target = o || s.elements.find((e2) => e2.id === command.elementId);
       if (!target) throw new Error("Layer target missing");
       target.layer = command.direction === "front" ? Math.max(0, ...targets.map((t) => t.layer || 0)) + 1 : Math.min(0, ...targets.map((t) => t.layer || 0)) - 1;
+    } else if (command.type === "switch-layout") {
+      const variants = Array.isArray(s.layoutVariants) ? s.layoutVariants : [];
+      const next = variants.find((v) => v.id === command.layoutId);
+      if (!next || !Array.isArray(next.elements)) throw new Error("未找到目标版式：" + command.layoutId);
+      // Save current edits back to current active variant so switching back preserves user tweaks
+      const curId = s.activeLayoutId || variants[0]?.id;
+      const curVariant = variants.find((v) => v.id === curId);
+      if (curVariant) curVariant.elements = clone(s.elements || []);
+      s.elements = clone(next.elements);
+      s.activeLayoutId = next.id;
+      command.layoutName = next.name || next.id;
+    } else if (command.type === "add-elements") {
+      const incoming = Array.isArray(command.elements) ? command.elements : [];
+      if (!incoming.length) throw new Error("No elements to add");
+      let topLayer = Math.max(0, ...(s.elements || []).map((t) => t.layer || 0), ...(s.objects || []).map((t) => t.layer || 0));
+      const newIds = [];
+      s.elements = s.elements || [];
+      const existingIds = new Set(s.elements.map((x) => x.id));
+      for (const rawEl of incoming) {
+        const el = clone(rawEl || {});
+        if (!el.type || !boundsValid(el.bounds)) continue;
+        let eid = el.id || `ui-${el.type}-${revision().slice(0, 8)}`;
+        while (existingIds.has(eid)) eid = `${eid}-${revision().slice(0, 4)}`;
+        existingIds.add(eid);
+        el.id = eid;
+        el.layer = ++topLayer;
+        s.elements.push(el);
+        newIds.push(eid);
+      }
+      command.newElementIds = newIds;
     } else if (command.type === "add-element") {
       const el = clone(command.element || {});
       if (!el.type || !boundsValid(el.bounds)) throw new Error("Invalid element to add");
@@ -257,7 +287,7 @@ function applyEditCommand(project, command) {
     p.editorState.redo = [];
     p.revision = revision();
     syncCompositionTextState(p);
-    return { ok: true, project: p };
+    return { ok: true, project: p, ...(command.layoutName ? { layoutName: command.layoutName } : {}) };
   } catch (error) {
     return { ok: false, conflicts: [{ kind: "layout", message: error.message }] };
   }

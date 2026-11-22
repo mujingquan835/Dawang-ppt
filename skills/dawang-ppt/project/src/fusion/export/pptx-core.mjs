@@ -60,12 +60,12 @@ function composeEditablePptx(PptxGenJS, collection, { title = "Dawang-PPT" } = {
         }
         report.images++;
       } else if (o.type === "shape" || o.type === "vector") {
-        slide.addShape(o.shape === "ellipse" ? pptx.ShapeType.ellipse : st.radius > 0 ? pptx.ShapeType.roundRect : pptx.ShapeType.rect, { ...box, objectName: o.id, ...o.shape !== "ellipse" && st.radius > 0 ? { rectRadius: Math.min(st.radius, Math.min(o.bounds[2], o.bounds[3]) / 2) / 144 } : {}, rotate: st.rotate || 0, fill: { color: color(st.fill, "FFFFFF"), transparency: st.fill ? st.fillTransparency || 0 : 100 }, line: { color: color(st.stroke, "FFFFFF"), transparency: st.stroke ? st.strokeTransparency || 0 : 100, width: (st.strokeWidth || 0) / 2 } });
+        slide.addShape(o.shape === "ellipse" ? pptx.ShapeType.ellipse : st.radius > 0 ? pptx.ShapeType.roundRect : pptx.ShapeType.rect, { ...box, objectName: o.id, ...o.shape !== "ellipse" && st.radius > 0 ? { rectRadius: Math.min(st.radius, Math.min(o.bounds[2], o.bounds[3]) / 2) / 144 } : {}, rotate: st.rotate || 0, fill: { color: color(st.fill, "FFFFFF"), transparency: st.fill ? st.fillTransparency || 0 : 100 }, line: { color: color(st.stroke, "FFFFFF"), transparency: st.stroke ? st.strokeTransparency || 0 : 100, width: (st.strokeWidth || 0) / 2, ...(st.strokeDash === "dash" ? { dashType: "dash" } : {}) } });
         report.shapes++;
         if (o.type === "vector") report.decorations.push({ id: o.id, representation: "editable-freeform", samplingTolerance: o.samplingTolerance });
       } else if (o.type === "line") {
         const pts = o.points || [0, 0, o.bounds[2], o.bounds[3]];
-        slide.addShape(pptx.ShapeType.line, { objectName: o.id, x: x + Math.min(pts[0], pts[2]) / 144, y: y + Math.min(pts[1], pts[3]) / 144, w: Math.abs(pts[2] - pts[0]) / 144, h: Math.abs(pts[3] - pts[1]) / 144, flipH: pts[2] < pts[0], flipV: pts[3] < pts[1], line: { color: color(st.stroke, "111111"), transparency: st.strokeTransparency || 0, width: (st.strokeWidth || 3) / 2, beginArrowType: o.startArrow, endArrowType: o.endArrow } });
+        slide.addShape(pptx.ShapeType.line, { objectName: o.id, x: x + Math.min(pts[0], pts[2]) / 144, y: y + Math.min(pts[1], pts[3]) / 144, w: Math.abs(pts[2] - pts[0]) / 144, h: Math.abs(pts[3] - pts[1]) / 144, flipH: pts[2] < pts[0], flipV: pts[3] < pts[1], line: { color: color(st.stroke, "111111"), transparency: st.strokeTransparency || 0, width: (st.strokeWidth || 3) / 2, ...(st.strokeDash === "dash" ? { dashType: "dash" } : {}), beginArrowType: o.startArrow, endArrowType: o.endArrow } });
         report.lines++;
       } else throw new Error("Unsupported core object " + o.type);
     }
