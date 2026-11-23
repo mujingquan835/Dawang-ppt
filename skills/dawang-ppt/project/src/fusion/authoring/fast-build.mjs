@@ -77,6 +77,9 @@ function buildLightweightScaffold(outline, paletteId) {
       if (p.table) addZone('table', 'data');
       if (Array.isArray(p.tables)) p.tables.forEach((_, ti) => addZone(`table-${ti + 1}`, 'data'));
       if (p.compare) addZone('compare', 'evidence');
+      if (p.breakdown) addZone('breakdown', 'data');
+      if (p.funnel) addZone('funnel', 'data');
+      if (p.hub) addZone('hub', 'flow');
       if (p.periods?.length) addZone('periods', 'flow');
       if (Array.isArray(p.flows)) p.flows.forEach((_, fi) => addZone(`flow-${fi + 1}`, 'flow'));
       if (Array.isArray(p.chains)) p.chains.forEach((_, ci) => addZone(`chain-${ci + 1}`, 'flow'));

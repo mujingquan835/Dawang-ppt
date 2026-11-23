@@ -17,7 +17,6 @@ import { materializeElements, syncCompositionTextState } from '../scene/model.mj
 import { mergeEditorState } from '../project/import-goal.mjs';
 import { applyEditCommand } from './commands.mjs';
 import { mountInspector, mountDeckPanel, mountMultiInspector } from './inspector.jsx';
-import { UI_INSERT_PRESETS, buildUiPresetElements } from '../authoring/ui-kit.mjs';
 import { collectProjectFromIr } from '../export/ir-collect.mjs';
 import { composeEditablePptx } from '../export/pptx-core.mjs';
 import { mountDeckRuntime } from '../shell/runtime.mjs';
@@ -557,17 +556,6 @@ if (seed) {
     const res = apply({ type: 'switch-layout', slideId: target, layoutId });
     if (res?.ok) status(`已切换当前页版式：${res.layoutName || layoutId}（⌘Z 可撤销）`);
   }
-  function insertUiPreset(presetId) {
-    const target = activeSlideId();
-    if (!target || !window.__canEditDeck?.()) return;
-    const pal = project.designChoice?.appearance?.palette || {};
-    const uid = Math.random().toString(36).slice(2, 7);
-    const elements = buildUiPresetElements(presetId, pal, uid);
-    if (!elements.length) return;
-    const preset = UI_INSERT_PRESETS.find((x) => x.id === presetId);
-    apply({ slideId: target, type: 'add-elements', elements });
-    status(`已插入「${preset?.name || 'UI 组件'}」，可整体拖拽或双击改字（⌘Z 可撤销）。`);
-  }
 
   const api = {
     isExporting: () => exportBusy,
@@ -586,7 +574,6 @@ if (seed) {
     duplicateSlide,
     switchPalette,
     switchLayout,
-    insertUiPreset,
     apply,
     save: (options = {}) => (portable() && !options.fileHandle ? saveControls.run() : save(options)),
     undo: () => window.__deckUndo.undo(),
@@ -754,43 +741,6 @@ if (seed) {
     };
     input.click();
   });
-
-  // Wire up topbar "+ UI组件" dropdown menu
-  const compBtn = document.getElementById('deck-add-comp');
-  const compMenu = document.getElementById('deck-comp-menu');
-  if (compBtn && compMenu) {
-    const groups = [...new Set(UI_INSERT_PRESETS.map((x) => x.group))];
-    for (const g of groups) {
-      const hd = document.createElement('div');
-      hd.className = 'deck-comp-head';
-      hd.innerHTML = `<span>${g}</span><span>现代UI</span>`;
-      compMenu.append(hd);
-      for (const item of UI_INSERT_PRESETS.filter((x) => x.group === g)) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.role = 'menuitem';
-        b.innerHTML = `<span>${item.name}</span><span class="comp-sub">${item.sub}</span>`;
-        b.onclick = () => {
-          compMenu.hidden = true;
-          compBtn.setAttribute('aria-expanded', 'false');
-          insertUiPreset(item.id);
-        };
-        compMenu.append(b);
-      }
-    }
-    compBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const willOpen = compMenu.hidden;
-      compMenu.hidden = !willOpen;
-      compBtn.setAttribute('aria-expanded', String(willOpen));
-    });
-    document.addEventListener('click', (e) => {
-      if (!compMenu.hidden && !compMenu.contains(e.target) && e.target !== compBtn) {
-        compMenu.hidden = true;
-        compBtn.setAttribute('aria-expanded', 'false');
-      }
-    });
-  }
 
   // Keep right-hand Layout Switcher synced whenever the user navigates between slides
   window.addEventListener('deck-slide-change', () => {
@@ -1031,6 +981,19 @@ if (seed) {
     return Array.isArray(path) && path.some((node) => node?.nodeType === 1 && node.matches?.(selector));
   };
 
+  // Expand a clicked element into its full UI component group unless Alt/Option is held for deep single-element selection.
+  const expandGroupSelection = (slideId, elementId, altKey = false) => {
+    const slide = project.slides.find((s) => s.slideId === slideId);
+    if (!slide) return [{ slideId, elementId }];
+    const all = materializeElements(slide, project);
+    const hit = all.find((x) => x.id === elementId);
+    if (!altKey && hit?.groupId) {
+      const members = all.filter((x) => x.groupId === hit.groupId).map((x) => ({ slideId, elementId: x.id }));
+      if (members.length > 1) return members;
+    }
+    return [{ slideId, elementId }];
+  };
+
   document.addEventListener('click', (ev) => {
     if (eventIn(ev, '.fusion-crop-editor,.fusion-selection')) return;
     const el = ev.target?.closest?.('#deck [data-fusion-element]');
@@ -1044,11 +1007,13 @@ if (seed) {
       if (selectedList.length) clearSelection();
       return;
     }
+    const bundle = expandGroupSelection(slideId, elementId, ev.altKey);
     if (ev.shiftKey && selectedList.length && selectedList[0].slideId === slideId) {
       const exists = selectedList.some((s) => s.elementId === elementId);
-      setSelectionList(exists ? selectedList.filter((s) => s.elementId !== elementId) : [...selectedList, { slideId, elementId }]);
+      const dropIds = new Set(bundle.map((b) => b.elementId));
+      setSelectionList(exists ? selectedList.filter((s) => !dropIds.has(s.elementId)) : [...selectedList, ...bundle]);
     } else {
-      setSelectionList([{ slideId, elementId }]);
+      setSelectionList(bundle);
     }
     refreshSelection();
   });
@@ -1170,11 +1135,13 @@ if (seed) {
     const targetElId = target ? target.dataset.fusionElement : selected?.elementId;
     if (!targetSlideId || !targetElId) return;
 
-    // Multi-selection drag if clicking an already-selected element inside a >=2 multi-selection
-    const inMulti = !resize && selectedList.length >= 2 && selectedList.some((s) => s.slideId === targetSlideId && s.elementId === targetElId);
+    // Auto-select full UI component group when dragging any grouped member (unless Alt is held)
+    let inMulti = !resize && selectedList.length >= 2 && selectedList.some((s) => s.slideId === targetSlideId && s.elementId === targetElId);
     if (!resize && !inMulti) {
-      setSelectionList([{ slideId: targetSlideId, elementId: targetElId }]);
+      const bundle = expandGroupSelection(targetSlideId, targetElId, ev.altKey);
+      setSelectionList(bundle);
       refreshSelection();
+      inMulti = bundle.length >= 2;
     }
 
     const p = syncInPlace();
@@ -1421,6 +1388,12 @@ if (seed) {
   document.addEventListener('dblclick', (ev) => {
     const node = ev.target.closest?.('#deck [data-fusion-element][data-element-type="text"]');
     if (!node || cropEditor || !window.__canEditDeck?.() || isEditingText(node)) return;
+    const slideId = node.closest('.slide')?.dataset.slideId;
+    const elementId = node.dataset.fusionElement;
+    if (slideId && elementId) {
+      setSelectionList([{ slideId, elementId }]);
+      refreshSelection();
+    }
     const editable = node.isContentEditable ? node : node.querySelector('[contenteditable="true"],[contenteditable="plaintext-only"]');
     if (!editable) return;
     editable.focus();

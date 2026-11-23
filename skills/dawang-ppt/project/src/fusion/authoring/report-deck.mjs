@@ -1,6 +1,6 @@
 import { imageElement } from './elements.mjs';
 import { validImageCrop } from '../scene/image-crop.mjs';
-import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, createTheme, imageSize, kpiStrip, labelBand, metricBento, metricTiles, photoGroup, readableInk, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
+import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, categoryBreakdownCard, conversionFunnel, createTheme, hubArchitecture, imageSize, kpiStrip, labelBand, metricBento, metricTiles, photoGroup, readableInk, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
 import { comparePair, periodBand, periodTimeline } from './report-kit.mjs';
 import path from 'node:path';
 import { capacityFlow, capacityTable, flowEdgeBindings, measureModule } from './capacity-kit.mjs';
@@ -65,10 +65,10 @@ const cannotFit = (e) => e instanceof PageOverflow || e instanceof TypeError || 
 
 function pageParts(page, zoneIds) {
   const has = (z) => zoneIds.includes(z), statements = asList(page.statements).map((st, i) => ({ ...st, zone: st.id || `statement-${i + 1}` }));
-  const tops = statements.filter((st) => !st.asMetric && !(st.place === 'bottom' || (st.place !== 'top' && CLOSING.test(st.label || '')))).map((st) => st.zone);
+  const tops = statements.filter((st) => !st.asMetric && !(st.tone === 'judgment' || st.place === 'bottom' || (st.place !== 'top' && CLOSING.test(st.label || '')))).map((st) => st.zone);
   const bottoms = statements.filter((st) => !st.asMetric && !tops.includes(st.zone)).map((st) => st.zone), phrases = statements.filter((st) => st.asMetric).map((st) => st.zone);
   const moduleOrder = page.role === 'summary' ? ['metrics', 'items', 'table'] : ['table', 'items', 'metrics'];
-  const tables = zoneIds.filter((z) => /^table-\d+$/.test(z)), core = [...moduleOrder.filter(has), ...tables, ...phrases, ...['compare', 'periods'].filter(has)];
+  const tables = zoneIds.filter((z) => /^table-\d+$/.test(z)), core = [...moduleOrder.filter(has), ...tables, ...phrases, ...['breakdown', 'funnel', 'hub', 'compare', 'periods'].filter(has)];
   const flows = zoneIds.filter((z) => /^(flow|chain)-\d+$/.test(z)), order = asList(page.order);
   if (!order.length) return { has, tops, bottoms, core, flows, order };
   // page.order states the reading order: sentences listed before the first module open the page, the others close it.
@@ -140,7 +140,7 @@ export function defaultLayout(page, zoneIds) {
 // The structure a reader sees on a page: which kinds of module sit in which kind of row (full width, a pair, beside the
 // photos, a photo band). Sentence bands that open or close the page are left out, and flows and chains count as one kind.
 // Two neighbouring pages with the same structure look like one template filled twice (blind review 2026-11-12).
-const zoneKind = (z) => { const k = String(z).replace(/-\d+$/, ''); return k === 'chain' ? 'flow' : ['metrics', 'items', 'table', 'flow', 'compare', 'periods', 'photos'].includes(k) ? k : 'st'; };
+const zoneKind = (z) => { const k = String(z).replace(/-\d+$/, ''); return k === 'chain' ? 'flow' : ['metrics', 'items', 'table', 'flow', 'compare', 'periods', 'breakdown', 'funnel', 'hub', 'photos'].includes(k) ? k : 'st'; };
 export function layoutSignature(rows) {
   const kinds = (zs) => zs.flat().map(zoneKind).filter((k) => k !== 'st').join(',');
   const parts = asList(rows).map((r) => (r === 'photos' ? 'band' : typeof r === 'string' ? zoneKind(r) : Array.isArray(r) ? (kinds(r) ? `pair:${kinds(r)}` : 'st') : `${r.photosLeft ? 'side-left' : 'side'}:${kinds(r.left)}`));
@@ -286,7 +286,7 @@ function pageWriter({ page, zones, theme, measurer }) {
   };
   // The width a zone takes when it hugs its content, or null when it fills the line.
   const tightWidth = (zone, limit) => { if (zone === 'metrics') return tightFiguresWidth(limit); const change = zone === 'compare' ? changeRow(limit) : null; return change && change.width < limit ? change.width : null; };
-  const tileItem = (d, showTarget) => ({ label: d.label, value: d.value, unit: d.unit, ...(d.icon ? { icon: d.icon } : {}), ...(showTarget && d.target != null ? { note: `目标 ${targetText(d)}` } : {}) });
+  const tileItem = (d, showTarget) => ({ label: d.label, value: d.value, unit: d.unit, ...(d.icon ? { icon: d.icon } : {}), ...(d.delta ? { delta: d.delta } : {}), ...(Array.isArray(d.trend) && d.trend.length >= 2 ? { trend: d.trend } : {}), ...(showTarget && d.target != null ? { note: `目标 ${targetText(d)}` } : {}) });
   // Sizes that grow with the room are declared with the region, so the type-scale check knows they are intended.
   const sizesOf = (elements, ids) => [...new Set(elements.filter((e) => ids.includes(e.id)).flatMap((e) => [e.style?.fontSize, ...(e.runs || []).map((run) => run.style?.fontSize)]).filter(Number.isFinite))];
   // A box may only get bigger if what is inside it gets bigger too: try larger type, and if none fits keep the box at its natural height.
@@ -575,6 +575,23 @@ function pageWriter({ page, zones, theme, measurer }) {
       const t = tiles('m', x, y, w, items, h, stretch, metricFocus(page.data)), bindings = page.data.map((d, i) => ({ ref: `${pid}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(goals.length > 1 && d.target != null ? [`m-note-${i + 1}`] : [])] })), sizes = sizesOf(t.elements, bindings.flatMap((b) => b.elementIds));
       return { height: t.height, elements: [panel('metrics-panel', [x, y, w, t.height]), ...t.elements], frame: 'metrics-panel', module: 'metricTiles', variant: `${page.data.length}-results`, title: t.valueSize, sizes, reason: goals.length > 1 ? '实际值和目标放在同一色块' : '结果数字成组', bindings };
     }
+    if (z === 'breakdown') {
+      const bd = page.breakdown || {}, bdStyle = page.breakdownStyle || 'bar';
+      const built = categoryBreakdownCard({ id: 'bd', x, y, width: w, height: h, title: bd.title, total: bd.total, badge: bd.badge, items: asList(bd.items), theme, variant: bdStyle });
+      const ids = asList(bd.items).map((_, i) => `bd-val-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'bd-panel', module: 'categoryBreakdown', variant: `${asList(bd.items).length}-${bdStyle}`, title: 38, sizes: sizesOf(built.elements, ids), reason: '分段占比条同步展示总量与内部结构', bindings: asList(bd.items).map((_, i) => ({ ref: `${pid}:breakdown-${i + 1}`, elementIds: [`bd-lbl-${i + 1}`, `bd-val-${i + 1}`] })) };
+    }
+    if (z === 'funnel') {
+      const fn = page.funnel || {}, fnStyle = page.funnelStyle || 'centered';
+      const built = conversionFunnel({ id: 'fn', x, y, width: w, height: h, title: fn.title, steps: asList(fn.steps), theme, variant: fnStyle });
+      const ids = asList(fn.steps).map((_, i) => `fn-val-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'fn-panel', module: 'conversionFunnel', variant: `${asList(fn.steps).length}-${fnStyle}`, title: 24, sizes: sizesOf(built.elements, ids), reason: '居中递减漏斗清晰展示逐级转化效率', bindings: asList(fn.steps).map((_, i) => ({ ref: `${pid}:funnel-${i + 1}`, elementIds: [`fn-lbl-${i + 1}`, `fn-val-${i + 1}`] })) };
+    }
+    if (z === 'hub') {
+      const hb = page.hub || {}, hbStyle = page.hubStyle || 'horizontal';
+      const built = hubArchitecture({ id: 'hb', x, y, width: w, height: h, title: hb.title, center: hb.center, inputs: asList(hb.inputs), outputs: asList(hb.outputs), theme, variant: hbStyle });
+      return { height: built.height, width: w, elements: built.elements, frame: 'hb-panel', module: 'hubArchitecture', variant: `${asList(hb.inputs).length}-to-${asList(hb.outputs).length}-${hbStyle}`, title: 26, reason: '中心汇聚架构图直观表达多源输入与多端输出', bindings: [{ ref: `${pid}:hub-center`, elementIds: ['hb-hub-t'] }] };
+    }
     if (z === 'compare') {
       const c = page.compare, r = colorRoles(p), left = asList(c.left), right = asList(c.right), n = Math.max(left.length, right.length), { now, onward } = compareSides(c), nowLeft = now === 'left', paired = left.length === right.length && c.paired !== false;
       // The same measures on both sides, each a figure: the change is the point, so each pair is one tile reading "before → after" with the later figure large.
@@ -593,8 +610,8 @@ function pageWriter({ page, zones, theme, measurer }) {
       const cellsL = left.map((it, k) => cell(`cmp-l-${k + 1}`, it, x)), cellsR = right.map((it, k) => cell(`cmp-r-${k + 1}`, it, rightX)), all = [...cellsL, ...cellsR], sizes = await measurer.texts(all); all.forEach((e, k) => { e.bounds[3] = Math.ceil(sizes[k].height); });
       const need = (e) => e.bounds[3] + 28, sum = (list) => list.reduce((a, b) => a + b, 0), together = paired ? cellsL.map((e, k) => Math.max(need(e), need(cellsR[k]))) : null, needL = together || cellsL.map(need), needR = together || cellsR.map(need);
       const natural = capH + Math.max(sum(needL), sum(needR)) + 16, height = Math.max(natural + stretch, h || 0), spread = (list) => { const extra = Math.floor((height - capH - 16 - sum(list)) / Math.max(1, list.length)); return list.map((v) => v + extra); }, rowsL = spread(needL), rowsR = spread(needR);
-      // Modern SaaS Contrast Compare: muted dashed old-state card vs elevated solid-bordered target/new-state card.
-      const rad = Math.max(16, theme.radius ?? 14);
+      // Modern SaaS Contrast Compare ('saas') OR Dual Solid-Banner Executive Compare ('solid').
+      const rad = Math.max(16, theme.radius ?? 14), solidCmp = page.compareStyle === 'solid';
       const mutedBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
       const newBg = p.dark ? (p.surface || '#152238') : '#FFFFFF';
       const elements = [{ id: 'cmp-frame', type: 'shape', bounds: [x, y, w, height], style: { fill: p.bg } }];
@@ -608,34 +625,55 @@ function pageWriter({ page, zones, theme, measurer }) {
           id: `cmp-side-${k + 1}`,
           ...(k === 0 ? { component: 'contrastPair' } : {}),
           bounds: [sx, y, sideW, height],
-          style: isNew
-            ? { fill: newBg, stroke: solidFill, strokeWidth: 2.5, radius: rad }
-            : { fill: mutedBg, stroke: p.line || '#CBD5E1', strokeWidth: 2, strokeDash: 'dash', radius: rad },
+          style: solidCmp
+            ? { fill: newBg, stroke: isNew ? solidFill : (p.line || '#E2E6EE'), strokeWidth: isNew ? 2 : 1.5, radius: rad }
+            : isNew
+              ? { fill: newBg, stroke: solidFill, strokeWidth: 2.5, radius: rad }
+              : { fill: mutedBg, stroke: p.line || '#CBD5E1', strokeWidth: 2, strokeDash: 'dash', radius: rad },
         });
-        elements.push({
-          type: 'shape',
-          id: `cmp-cap-${k + 1}`,
-          bounds: [sx + 18, y + 12, sideW - 36, capH - 14],
-          style: { fill: isNew ? r.band : (p.dark ? '#1E2C47' : '#EEF2F6'), radius: 10 },
-        });
-        elements.push(text(`cmp-title-${k + 1}`, label, [sx + pad + 8, y + 18, innerW - 16, 34], theme.font(24, { fontWeight: 800, color: isNew ? solidFill : p.muted, textAlign: 'left', lineHeight: 1.25 })));
-        if (isNew && onward) {
-          const pillW = 124, pillH = 30;
-          elements.push({ type: 'shape', id: `cmp-newtag-${k + 1}`, bounds: [sx + sideW - pillW - 26, y + 18, pillW, pillH], style: { fill: r.pop, radius: 15 } });
-          elements.push(text(`cmp-newtag-tx-${k + 1}`, '★ 升级方案', [sx + sideW - pillW - 26, y + 22, pillW, 22], theme.font(15, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 })));
+        if (solidCmp) {
+          const capFill = isNew ? solidFill : r.secondary;
+          const capInk = isNew ? p.inverse : readableInk(p.ink, r.secondary, 4.5);
+          elements.push({ type: 'shape', id: `cmp-cap-${k + 1}`, bounds: [sx, y, sideW, capH], style: { fill: capFill, radius: rad } });
+          elements.push(text(`cmp-title-${k + 1}`, label, [sx + pad, y + 12, innerW - (isNew && onward ? 136 : 0), 34], theme.font(24, { fontWeight: 800, color: capInk, textAlign: 'left', lineHeight: 1.25 })));
+          if (isNew && onward) {
+            const pillW = 124, pillH = 30;
+            elements.push({ type: 'shape', id: `cmp-newtag-${k + 1}`, bounds: [sx + sideW - pillW - 20, y + 13, pillW, pillH], style: { fill: r.pop, radius: 15 } });
+            elements.push(text(`cmp-newtag-tx-${k + 1}`, '★ 升级方案', [sx + sideW - pillW - 20, y + 17, pillW, 22], theme.font(15, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 })));
+          }
+        } else {
+          elements.push({
+            type: 'shape',
+            id: `cmp-cap-${k + 1}`,
+            bounds: [sx + 18, y + 12, sideW - 36, capH - 14],
+            style: { fill: isNew ? r.band : (p.dark ? '#1E2C47' : '#EEF2F6'), radius: 10 },
+          });
+          elements.push(text(`cmp-title-${k + 1}`, label, [sx + pad + 8, y + 18, innerW - 16, 34], theme.font(24, { fontWeight: 800, color: isNew ? solidFill : p.muted, textAlign: 'left', lineHeight: 1.25 })));
+          if (isNew && onward) {
+            const pillW = 124, pillH = 30;
+            elements.push({ type: 'shape', id: `cmp-newtag-${k + 1}`, bounds: [sx + sideW - pillW - 26, y + 18, pillW, pillH], style: { fill: r.pop, radius: 15 } });
+            elements.push(text(`cmp-newtag-tx-${k + 1}`, '★ 升级方案', [sx + sideW - pillW - 26, y + 22, pillW, 22], theme.font(15, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 })));
+          }
         }
       });
       [[cellsL, rowsL, x, nowLeft], [cellsR, rowsR, rightX, !nowLeft]].forEach(([cells, rows, sx, isNew], k) => {
         let ry = y + capH + 8;
         cells.forEach((e, row) => {
           const cyRow = ry + Math.round((rows[row] - e.bounds[3]) / 2);
-          e.bounds[0] = sx + pad + 34;
-          e.bounds[2] = Math.max(80, innerW - 34);
+          e.bounds[0] = sx + pad + 36;
+          e.bounds[2] = Math.max(80, innerW - 36);
           e.bounds[1] = cyRow;
-          elements.push({ type: 'shape', id: `cmp-mk-${k + 1}-${row + 1}`, bounds: [sx + pad, cyRow + 4, 24, 24], style: { fill: isNew ? solidFill : (p.line || '#CBD5E1'), radius: 12 }, shape: 'ellipse' });
-          elements.push(text(`cmp-mkx-${k + 1}-${row + 1}`, isNew ? '✓' : '✕', [sx + pad, cyRow + 6, 24, 20], theme.font(14, { fontWeight: 900, color: isNew ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
-          elements.push(e);
-          if (row < cells.length - 1) elements.push({ type: 'shape', id: `cmp-rule-${k + 1}-${row + 1}`, bounds: [sx + pad, ry + rows[row], innerW, 1], style: { fill: p.line } });
+          if (solidCmp) {
+            elements.push({ type: 'shape', id: `cmp-rowbg-${k + 1}-${row + 1}`, bounds: [sx + 14, ry + 4, sideW - 28, rows[row] - 8], style: { fill: mutedBg, radius: 10 } });
+            elements.push({ type: 'shape', id: `cmp-mk-${k + 1}-${row + 1}`, bounds: [sx + pad, cyRow + 3, 26, 26], style: { fill: isNew ? solidFill : r.secondary, radius: 8 } });
+            elements.push(text(`cmp-mkx-${k + 1}-${row + 1}`, String(row + 1).padStart(2, '0'), [sx + pad, cyRow + 6, 26, 20], theme.font(13, { fontWeight: 900, color: isNew ? p.inverse : readableInk(p.ink, r.secondary, 4.5), textAlign: 'center', lineHeight: 1.2 })));
+            elements.push(e);
+          } else {
+            elements.push({ type: 'shape', id: `cmp-mk-${k + 1}-${row + 1}`, bounds: [sx + pad, cyRow + 4, 24, 24], style: { fill: isNew ? solidFill : (p.line || '#CBD5E1'), radius: 12 }, shape: 'ellipse' });
+            elements.push(text(`cmp-mkx-${k + 1}-${row + 1}`, isNew ? '✓' : '✕', [sx + pad, cyRow + 6, 24, 20], theme.font(14, { fontWeight: 900, color: isNew ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
+            elements.push(e);
+            if (row < cells.length - 1) elements.push({ type: 'shape', id: `cmp-rule-${k + 1}-${row + 1}`, bounds: [sx + pad, ry + rows[row], innerW, 1], style: { fill: p.line } });
+          }
           ry += rows[row];
         });
       });
@@ -647,46 +685,112 @@ function pageWriter({ page, zones, theme, measurer }) {
     }
     if (z === 'periods') {
       const timeline = periodTimeline(page.periods);
-      const laned = timeline && await periodLanes({ x, y, w, h, heading: page.periodsHeading, pds: page.periods, timeline });
-      if (laned) return laned;
-      // Modern Linear/shadcn Milestone Stepper: horizontal connector rail + 3-state circular nodes + crisp bordered cards.
+      const pdStyle = page.periodsStyle || 'stepper';
+      if (pdStyle === 'stepper') {
+        const laned = timeline && await periodLanes({ x, y, w, h, heading: page.periodsHeading, pds: page.periods, timeline });
+        if (laned) return laned;
+      }
       const pds = page.periods.map((pd) => (pd.lane && !String(pd.title || '').includes(pd.lane) ? { ...pd, title: pd.title ? `${pd.title}｜${pd.lane}` : pd.lane } : pd));
       const heading = page.periodsHeading, headH = heading ? 20 + headBox : 16, rPd = colorRoles(p);
-      const nPd = pds.length, gapPd = 18, innerW = w - 48, colW = Math.floor((innerW - gapPd * (nPd - 1)) / nPd);
-      const nodeD = 42, railY = y + headH + Math.round(nodeD / 2), cardTop = y + headH + nodeD + 18;
-      const currIdx = Math.max(0, nPd - 2);
+      const nPd = pds.length, currIdx = Math.max(0, nPd - 2);
+
+      // Variant 2: Modern Vertical Milestone Timeline (left date badges + vertical rail + crisp stage cards)
+      if (pdStyle === 'vertical') {
+        const dateW = 196, railX = x + 24 + dateW + 28, nodeD = 36, cardX = railX + 36, cardW = x + w - 24 - cardX, rowGap = 14;
+        const titleSz = Math.min(24, label), pointSize = Math.min(22, Math.max(18, Math.round(titleSz * 0.78 / 2) * 2));
+        const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, lineHeight: 1.3, fontSize: titleSz });
+        const titleColW = Math.min(280, Math.round(cardW * 0.28)), ptsX = cardX + 24 + titleColW + 20, ptsW = cardW - 44 - titleColW - 20;
+        const heads = pds.map((pd, i) => (pd.title ? { id: `pd-title-${i + 1}`, type: 'text', text: pd.title, bounds: [cardX + 24, 0, titleColW, 40], style: titleStyle } : null));
+        const present = heads.filter(Boolean), sizes = present.length ? await measurer.texts(present) : [];
+        present.forEach((e, i) => { e.bounds[3] = Math.ceil(sizes[i].height); });
+        const rowHeights = pds.map((pd, i) => {
+          const th = heads[i] ? heads[i].bounds[3] : 0;
+          const ph = pointsHeight(asList(pd.points), pointSize, heads[i] ? ptsW : cardW - 44, 1.45);
+          return Math.max(76, Math.max(th, ph) + 32);
+        });
+        const natural = headH + rowHeights.reduce((a, b) => a + b, 0) + (nPd - 1) * rowGap + 20;
+        const height = Math.max(natural, h || 0), extra = Math.floor((height - natural) / Math.max(1, nPd));
+        const finalH = rowHeights.map((rh) => rh + Math.max(0, extra));
+        const vEls = [];
+        let ry = y + headH;
+        const centers = [];
+        finalH.forEach((rh, i) => { centers.push(ry + Math.round(rh / 2)); ry += rh + rowGap; });
+        if (nPd > 1) {
+          vEls.push({ type: 'shape', id: 'pd-rail-bg', bounds: [railX - 2, centers[0], 4, centers[nPd - 1] - centers[0]], style: { fill: p.line || '#E2E6EE', radius: 2 } });
+          if (currIdx > 0) vEls.push({ type: 'shape', id: 'pd-rail-fg', bounds: [railX - 2, centers[0], 4, centers[currIdx] - centers[0]], style: { fill: solidFill, radius: 2 } });
+        }
+        ry = y + headH;
+        const lists = [];
+        pds.forEach((pd, i) => {
+          const rh = finalH[i], midY = centers[i], isDone = i < currIdx, isCurr = i === currIdx;
+          const lblW = Math.min(dateW, Math.ceil(textWidth(pd.label || '', 17) * 1.15) + 30);
+          vEls.push({ type: 'shape', id: `pd-pill-${i + 1}`, bounds: [x + 24 + (dateW - lblW), midY - 17, lblW, 34], style: { fill: isCurr ? rPd.pop : rPd.band, radius: 17 } });
+          vEls.push(text(`pd-label-${i + 1}`, pd.label || '', [x + 24 + (dateW - lblW), midY - 12, lblW, 24], theme.font(17, { fontWeight: 700, color: isCurr ? '#FFFFFF' : readableInk(solidFill, rPd.band), textAlign: 'center', lineHeight: 1.2 })));
+          if (isCurr) vEls.push({ type: 'shape', id: `pd-halo-${i + 1}`, bounds: [railX - nodeD / 2 - 5, midY - nodeD / 2 - 5, nodeD + 10, nodeD + 10], style: { fill: p.dark ? '#331E18' : lighten(rPd.pop, 0.86), radius: (nodeD + 10) / 2 }, shape: 'ellipse' });
+          vEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [railX - nodeD / 2, midY - nodeD / 2, nodeD, nodeD], style: { fill: isCurr ? rPd.pop : isDone ? solidFill : surf, stroke: isCurr ? rPd.pop : isDone ? solidFill : (p.line || '#CBD5E1'), strokeWidth: 2.5, radius: nodeD / 2 }, shape: 'ellipse' });
+          vEls.push(text(`pd-num-${i + 1}`, isDone ? '✓' : String(i + 1), [railX - nodeD / 2, midY - 11, nodeD, 22], theme.font(17, { fontWeight: 900, color: isCurr ? '#FFFFFF' : isDone ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
+          vEls.push({ type: 'shape', id: `pd-card-${i + 1}`, bounds: [cardX, ry, cardW, rh], style: { fill: isCurr ? (p.dark ? '#231D2B' : lighten(rPd.pop, 0.94)) : surf, stroke: isCurr ? rPd.pop : (p.line || '#E2E6EE'), strokeWidth: isCurr ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
+          if (heads[i]) {
+            heads[i].bounds[1] = ry + Math.round((rh - heads[i].bounds[3]) / 2);
+            vEls.push({ type: 'shape', id: `pd-vdiv-${i + 1}`, bounds: [cardX + 24 + titleColW + 8, ry + 16, 1, rh - 32], style: { fill: p.line || '#E2E6EE' } });
+          }
+          const ph = pointsHeight(asList(pd.points), pointSize, heads[i] ? ptsW : cardW - 44, 1.45);
+          lists.push(...pointList({ id: `pd-point-${i + 1}`, x: heads[i] ? ptsX : cardX + 24, y: ry + Math.round((rh - ph) / 2), width: heads[i] ? ptsW : cardW - 44, points: asList(pd.points), size: pointSize, color: p.muted || '#64748B', theme, lh: 1.45 }));
+          ry += rh + rowGap;
+        });
+        const elements = [panel('periods-panel', [x, y, w, height]), ...(heading ? [text('periods-head', heading, [x + 24, y + 12, w - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 }))] : []), ...vEls, ...present, ...lists];
+        const ids = pds.map((pd, i) => [`pd-label-${i + 1}`, ...(pd.title ? [`pd-title-${i + 1}`] : []), ...asList(pd.points).map((_, k) => `pd-point-${i + 1}-${k + 1}`)]);
+        return { height, elements, frame: 'periods-panel', module: 'periodBand', variant: `${pds.length}-periods-vertical`, title: roles.sectionTitle.fontSize, sizes: sizesOf([...present, ...lists], ids.flat()), reason: '纵向时间轴清晰呈现阶段日期与里程碑明细', bindings: [...pds.map((_, i) => ({ ref: `${pid}:period-${i + 1}`, elementIds: ids[i] })), ...pds.slice(1).map((_, i) => ({ ref: `${pid}:periods`, edgeId: `e${i + 1}`, elementIds: [`pd-seg-${i + 1}`, `pd-seg-${i + 2}`] }))] };
+      }
+
+      // Variant 3: Executive Ribbon Band ('band') OR Default Linear Milestone Stepper ('stepper')
+      const isBand = pdStyle === 'band';
+      const gapPd = isBand ? 14 : 18, innerW = w - 48, colW = Math.floor((innerW - gapPd * (nPd - 1)) / nPd);
+      const nodeD = isBand ? 52 : 42, railY = y + headH + Math.round(nodeD / 2), cardTop = y + headH + nodeD + (isBand ? 12 : 18);
       const colsPd = pds.map((_, i) => [x + 24 + i * (colW + gapPd), colW]);
       const lay = async (scale) => {
         const titleSz = evenSize(label * scale);
         const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, lineHeight: 1.32, fontSize: titleSz }), pointSize = Math.min(22, Math.max(18, Math.round(titleSz * 0.72 / 2) * 2));
-        const heads = colsPd.map(([cx, cw], i) => (pds[i].title ? { id: `pd-title-${i + 1}`, type: 'text', text: pds[i].title, bounds: [cx + 20, cardTop + 52, cw - 40, 40], style: titleStyle } : null)), present = heads.filter(Boolean), sizes = present.length ? await measurer.texts(present) : [];
+        const topPadInCard = isBand ? 22 : 52;
+        const heads = colsPd.map(([cx, cw], i) => (pds[i].title ? { id: `pd-title-${i + 1}`, type: 'text', text: pds[i].title, bounds: [cx + 20, cardTop + topPadInCard, cw - 40, 40], style: titleStyle } : null)), present = heads.filter(Boolean), sizes = present.length ? await measurer.texts(present) : [];
         present.forEach((e, i) => { e.bounds[3] = Math.ceil(sizes[i].height); });
-        const columnH = colsPd.map(([, cw], i) => 52 + (heads[i] ? heads[i].bounds[3] + 10 : 0) + pointsHeight(asList(pds[i].points), pointSize, cw - 44, 1.45) + 22);
-        return { heads, present, pointSize, cardNeed: Math.max(...columnH), height: headH + nodeD + 18 + Math.max(...columnH) + 20 };
+        const columnH = colsPd.map(([, cw], i) => topPadInCard + (heads[i] ? heads[i].bounds[3] + 10 : 0) + pointsHeight(asList(pds[i].points), pointSize, cw - 44, 1.45) + 22);
+        return { heads, present, pointSize, cardNeed: Math.max(...columnH), height: headH + nodeD + (isBand ? 12 : 18) + Math.max(...columnH) + 20 };
       };
       const naturalLay = await lay(1), { heads, present, pointSize, cardNeed, height: natural } = await grownToFill(lay, naturalLay, Math.max(naturalLay.height + stretch, h || 0)), height = h ? Math.max(natural, h) : Math.min(naturalLay.height + stretch, natural + 16);
       const cardH = Math.max(cardNeed, height - (cardTop - y) - 20);
       const stepperEls = [];
-      const firstCx = colsPd[0][0] + Math.round(colW / 2), lastCx = colsPd[nPd - 1][0] + Math.round(colW / 2), currCx = colsPd[currIdx][0] + Math.round(colW / 2);
-      if (nPd > 1) {
-        stepperEls.push({ type: 'shape', id: 'pd-rail-bg', bounds: [firstCx, railY - 3, lastCx - firstCx, 6], style: { fill: p.line || '#E2E6EE', radius: 3 } });
-        if (currCx > firstCx) stepperEls.push({ type: 'shape', id: 'pd-rail-fg', bounds: [firstCx, railY - 3, currCx - firstCx, 6], style: { fill: solidFill, radius: 3 } });
+      if (isBand) {
+        colsPd.forEach(([cx, cw], i) => {
+          const isCurr = i === currIdx;
+          const barFill = isCurr ? rPd.pop : (i % 2 ? rPd.secondary : solidFill);
+          const barInk = isCurr ? '#FFFFFF' : (i % 2 ? readableInk(p.ink, rPd.secondary, 4.5) : p.inverse);
+          stepperEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [cx, y + headH, cw, nodeD], style: { fill: barFill, radius: 12 } });
+          stepperEls.push(text(`pd-label-${i + 1}`, pds[i].label || '', [cx + 12, y + headH + 12, cw - 24, 28], theme.font(21, { fontWeight: 800, color: barInk, textAlign: 'center', lineHeight: 1.25 })));
+          stepperEls.push({ type: 'shape', id: `pd-card-${i + 1}`, bounds: [cx, cardTop, cw, cardH], style: { fill: surf, stroke: isCurr ? rPd.pop : (p.line || '#E2E6EE'), strokeWidth: isCurr ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
+        });
+      } else {
+        const firstCx = colsPd[0][0] + Math.round(colW / 2), lastCx = colsPd[nPd - 1][0] + Math.round(colW / 2), currCx = colsPd[currIdx][0] + Math.round(colW / 2);
+        if (nPd > 1) {
+          stepperEls.push({ type: 'shape', id: 'pd-rail-bg', bounds: [firstCx, railY - 3, lastCx - firstCx, 6], style: { fill: p.line || '#E2E6EE', radius: 3 } });
+          if (currCx > firstCx) stepperEls.push({ type: 'shape', id: 'pd-rail-fg', bounds: [firstCx, railY - 3, currCx - firstCx, 6], style: { fill: solidFill, radius: 3 } });
+        }
+        colsPd.forEach(([cx, cw], i) => {
+          const nx = cx + Math.round((cw - nodeD) / 2), ny = y + headH;
+          const isDone = i < currIdx, isCurr = i === currIdx;
+          if (isCurr) stepperEls.push({ type: 'shape', id: `pd-halo-${i + 1}`, bounds: [nx - 6, ny - 6, nodeD + 12, nodeD + 12], style: { fill: p.dark ? '#331E18' : lighten(rPd.pop, 0.86), radius: (nodeD + 12) / 2 }, shape: 'ellipse' });
+          stepperEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [nx, ny, nodeD, nodeD], style: { fill: isCurr ? rPd.pop : isDone ? solidFill : surf, stroke: isCurr ? rPd.pop : isDone ? solidFill : (p.line || '#CBD5E1'), strokeWidth: 2.5, radius: nodeD / 2 }, shape: 'ellipse' });
+          stepperEls.push(text(`pd-num-${i + 1}`, isDone ? '✓' : String(i + 1), [nx, ny + 8, nodeD, 26], theme.font(19, { fontWeight: 900, color: isCurr ? '#FFFFFF' : isDone ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
+          stepperEls.push({ type: 'shape', id: `pd-card-${i + 1}`, bounds: [cx, cardTop, cw, cardH], style: { fill: isCurr ? (p.dark ? '#231D2B' : lighten(rPd.pop, 0.94)) : surf, stroke: isCurr ? rPd.pop : (p.line || '#E2E6EE'), strokeWidth: isCurr ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
+          const lblW = Math.min(cw - 40, Math.ceil(textWidth(pds[i].label || '', 17)) + 26);
+          stepperEls.push({ type: 'shape', id: `pd-pill-${i + 1}`, bounds: [cx + 20, cardTop + 14, lblW, 28], style: { fill: isCurr ? rPd.pop : rPd.band, radius: 14 } });
+          stepperEls.push(text(`pd-label-${i + 1}`, pds[i].label || '', [cx + 20, cardTop + 17, lblW, 22], theme.font(16, { fontWeight: 700, color: isCurr ? '#FFFFFF' : readableInk(solidFill, rPd.band), textAlign: 'center', lineHeight: 1.2 })));
+        });
       }
-      colsPd.forEach(([cx, cw], i) => {
-        const nx = cx + Math.round((cw - nodeD) / 2), ny = y + headH;
-        const isDone = i < currIdx, isCurr = i === currIdx;
-        if (isCurr) stepperEls.push({ type: 'shape', id: `pd-halo-${i + 1}`, bounds: [nx - 6, ny - 6, nodeD + 12, nodeD + 12], style: { fill: p.dark ? '#331E18' : lighten(rPd.pop, 0.86), radius: (nodeD + 12) / 2 }, shape: 'ellipse' });
-        stepperEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [nx, ny, nodeD, nodeD], style: { fill: isCurr ? rPd.pop : isDone ? solidFill : surf, stroke: isCurr ? rPd.pop : isDone ? solidFill : (p.line || '#CBD5E1'), strokeWidth: 2.5, radius: nodeD / 2 }, shape: 'ellipse' });
-        stepperEls.push(text(`pd-num-${i + 1}`, isDone ? '✓' : String(i + 1), [nx, ny + 8, nodeD, 26], theme.font(19, { fontWeight: 900, color: isCurr ? '#FFFFFF' : isDone ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
-        stepperEls.push({ type: 'shape', id: `pd-card-${i + 1}`, bounds: [cx, cardTop, cw, cardH], style: { fill: isCurr ? (p.dark ? '#231D2B' : lighten(rPd.pop, 0.94)) : surf, stroke: isCurr ? rPd.pop : (p.line || '#E2E6EE'), strokeWidth: isCurr ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
-        const lblW = Math.min(cw - 40, Math.ceil(textWidth(pds[i].label || '', 17)) + 26);
-        stepperEls.push({ type: 'shape', id: `pd-pill-${i + 1}`, bounds: [cx + 20, cardTop + 14, lblW, 28], style: { fill: isCurr ? rPd.pop : rPd.band, radius: 14 } });
-        stepperEls.push(text(`pd-label-${i + 1}`, pds[i].label || '', [cx + 20, cardTop + 17, lblW, 22], theme.font(16, { fontWeight: 700, color: isCurr ? '#FFFFFF' : readableInk(solidFill, rPd.band), textAlign: 'center', lineHeight: 1.2 })));
-      });
-      const lists = colsPd.flatMap(([cx, cw], i) => pointList({ id: `pd-point-${i + 1}`, x: cx + 20, y: cardTop + 52 + (heads[i] ? heads[i].bounds[3] + 10 : 0), width: cw - 40, points: asList(pds[i].points), size: pointSize, color: p.muted || '#64748B', theme, lh: 1.48 }));
+      const lists = colsPd.flatMap(([cx, cw], i) => pointList({ id: `pd-point-${i + 1}`, x: cx + 20, y: cardTop + (isBand ? 22 : 52) + (heads[i] ? heads[i].bounds[3] + 10 : 0), width: cw - 40, points: asList(pds[i].points), size: pointSize, color: p.muted || '#64748B', theme, lh: 1.48 }));
       const elements = [panel('periods-panel', [x, y, w, height]), ...(heading ? [text('periods-head', heading, [x + 24, y + 12, w - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 }))] : []), ...stepperEls, ...present, ...lists];
       const ids = pds.map((pd, i) => [`pd-label-${i + 1}`, ...(pd.title ? [`pd-title-${i + 1}`] : []), ...asList(pd.points).map((_, k) => `pd-point-${i + 1}-${k + 1}`)]);
-      return { height, elements, frame: 'periods-panel', module: 'periodBand', variant: `${pds.length}-periods`, title: roles.sectionTitle.fontSize, sizes: sizesOf([...present, ...lists], ids.flat()), reason: '三态节点时间轴配合现代阶段卡片表达推进节奏', bindings: [...pds.map((_, i) => ({ ref: `${pid}:period-${i + 1}`, elementIds: ids[i] })), ...pds.slice(1).map((_, i) => ({ ref: `${pid}:periods`, edgeId: `e${i + 1}`, elementIds: [`pd-seg-${i + 1}`, `pd-seg-${i + 2}`] }))] };
+      return { height, elements, frame: 'periods-panel', module: 'periodBand', variant: `${pds.length}-periods-${pdStyle}`, title: roles.sectionTitle.fontSize, sizes: sizesOf([...present, ...lists], ids.flat()), reason: isBand ? '顶部实色色带配阶段卡片直观呈现推进节奏' : '三态节点时间轴配合现代阶段卡片表达推进节奏', bindings: [...pds.map((_, i) => ({ ref: `${pid}:period-${i + 1}`, elementIds: ids[i] })), ...pds.slice(1).map((_, i) => ({ ref: `${pid}:periods`, edgeId: `e${i + 1}`, elementIds: [`pd-seg-${i + 1}`, `pd-seg-${i + 2}`] }))] };
     }
     const nthTable = /^table-(\d+)$/.exec(z);
     if (z === 'table' || nthTable) {
@@ -736,7 +840,7 @@ function pageWriter({ page, zones, theme, measurer }) {
       const heading = group.title, headH = heading ? 32 + headBox : 24, safe = (id) => id.replace(/[^a-z0-9]/gi, '');
       const fid = `f${safe(z)}`, f = await measureModule(capacityFlow, { id: fid, bounds: [x + 24, y + headH, w - 48, Math.min(1079 - y - headH, 420)], theme, titleSize: label, detailSize: body, steps, span: true }, measurer);
       const loop = Number.isInteger(group?.returnTo) && group.returnTo >= 1 && group.returnTo < steps.length ? group.returnTo : 0, natural = f.height + headH + 24 + (loop ? 48 : 0);
-      const cards = await flowCards({ fid, x: x + 24, y: y + headH, w: w - 48, steps, room: h ? h - headH - 24 - (loop ? 48 : 0) : 0 }), height = cards ? headH + cards.cardH + 24 + (loop ? 48 : 0) : Math.max(natural, h || 0), shift = cards ? 0 : Math.round((height - Math.max(natural, rowNatural || 0)) / 3), parts = cards ? cards.elements : f.elements;
+      const cards = page.flowStyle === 'compact' ? null : await flowCards({ fid, x: x + 24, y: y + headH, w: w - 48, steps, room: h ? h - headH - 24 - (loop ? 48 : 0) : 0 }), height = cards ? headH + cards.cardH + 24 + (loop ? 48 : 0) : Math.max(natural, h || 0), shift = cards ? 0 : Math.round((height - Math.max(natural, rowNatural || 0)) / 3), parts = cards ? cards.elements : f.elements;
       if (!cards) f.elements.forEach((e) => { if (Array.isArray(e.bounds)) e.bounds[1] += shift; if (e.from) e.from[1] += shift; if (e.to) e.to[1] += shift; });
       // returnTo: the last step leads back to that step, drawn as a line under the labels with an arrow into it.
       const nodeOf = (n) => parts.find((e) => e.id === `${fid}-node-s${n}`).bounds, centre = (n) => nodeOf(n)[0] + Math.round(nodeOf(n)[2] / 2), textBottom = cards ? y + headH + cards.cardH : Math.max(...parts.filter((e) => e.type === 'text' && Array.isArray(e.bounds)).map((e) => e.bounds[1] + e.bounds[3]));
@@ -1117,7 +1221,7 @@ export function figureForm(page, previous) {
   const data = asList(page.data);
   // The outline can fix the form (figureStyle: 'tiles' | 'strip'); a strip still needs a group it can carry.
   if (page.figureStyle === 'tiles') return 'tiles';
-  if (data.length < 3 || data.length > 5 || data.some((d) => d.target != null)) return 'tiles';
+  if (data.length < 3 || data.length > 5 || data.some((d) => d.target != null || d.delta != null || (Array.isArray(d.trend) && d.trend.length >= 2))) return 'tiles';
   const title = String(page.keyLine?.text || '').replace(/\s/g, '');
   const anchored = data.some((d) => d.highlight) || data.some((d) => title.includes(`${d.value}${d.unit || ''}`.replace(/\s/g, '')));
   const preferred = anchored ? 'strip' : 'tiles';
@@ -1188,12 +1292,12 @@ export async function balanceLineBreaks(slides, measurer) {
   return fixed;
 }
 
-export async function composeReportDeck({ outline, deck, palette = 'blue-gold', measurer, footer: rawFooter, layouts = {}, header = 'tag', baseDir = process.cwd(), fontFamily, displayFamily }) {
+export async function composeReportDeck({ outline, deck, palette = 'blue-gold', measurer, footer: rawFooter, layouts = {}, header = 'tag', baseDir = process.cwd(), fontFamily, displayFamily, withVariants = true }) {
   const footer = rawFooter && String(rawFooter).replace(/(定稿|终稿|初稿|修订)版?/g, '').replace(/\s*·\s*[^·]*规范\s*$/, '').replace(/[_\s]+/g, ' ').replace(/^[\s·\-]+|[\s·\-]+$/g, '').trim();
   const resolved = typeof palette === 'string' ? reportPalette(palette) : palette, plans = deck.contentPlan.slides;
   const fontOpts = { ...(fontFamily ? { fontFamily } : {}), ...(displayFamily ? { displayFamily } : {}) };
   const dense = createTheme({ palette: resolved, roles: REPORT_ROLES, ...fontOpts }), comfy = createTheme({ palette: resolved, roles: REPORT_ROLES_COMFY, ...fontOpts }), roomy = createTheme({ palette: resolved, roles: REPORT_ROLES_ROOMY, ...fontOpts }), large = createTheme({ palette: resolved, roles: REPORT_ROLES_LARGE, ...fontOpts }), hero = createTheme({ palette: resolved, roles: REPORT_ROLES_HERO, ...fontOpts }), themes = { dense, comfy, roomy, large, hero };
-  const slides = [], anchors = {}, scales = {}, sparse = [], loose = [], narrow = [], focusGuessed = [], rearranged = [];
+  const slides = [], anchors = {}, scales = {}, sparse = [], loose = [], narrow = [], focusGuessed = [], rearranged = [], variantMeta = [];
   let lastForm = null, lastItems = null, lastShape = null; const forms = [], varied = [];
   const absolute = (raw) => (raw.photos ? { ...raw, photos: raw.photos.map((ph) => ({ ...ph, src: path.resolve(baseDir, ph.src) })) } : raw);
   // Pages are numbered by their place in the deck, as the editor, the PDF and the user's own outline count them
@@ -1274,6 +1378,7 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
     const { out: finished, scale } = best;
     lastShape = layoutSignature(finished.rows);
     slides.push(finished.slide); anchors[plan.slideId] = finished.modules; scales[plan.slideId] = scale;
+    variantMeta.push({ slide: finished.slide, page: { ...page }, plan: structuredClone(plan), layout: best.layout, mirror: Boolean(best.mirror), rows: finished.rows, pageNo: thisPage });
     if (finished.focusGuessed) focusGuessed.push(plan.slideId);
     // What this page drew for its figures decides the next figure page's form; a page without a figure group changes nothing.
     const drew = finished.slide.elements.some((e) => e.id === 'm-anchor') ? 'strip' : finished.slide.elements.some((e) => /^m-tile-\d+$/.test(e.id)) ? 'tiles' : null;
@@ -1292,6 +1397,131 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
   }
   deck.slides = slides;
   const rewrapped = await balanceLineBreaks(slides, measurer);
+
+  // Build 3-4 genuinely distinct, 100% zero-content-loss, zero-overflow layout variants per content slide
+  // directly through layoutPage + scaleUp so the right-hand "当前页版式 · 一键切换" panel works on EVERY slide.
+  if (withVariants) {
+    const fingerprintOf = (els) => els
+      .filter((e) => e.type === 'shape' && !/^(hdr-rule|hdr-progress|ftr-)/.test(e.id || '') && Array.isArray(e.bounds))
+      .map((e) => `${e.id}:${e.bounds.map((v) => Math.round(v / 24)).join(',')}:${e.style?.strokeDash || ''}`)
+      .sort()
+      .join('|');
+    const tryVariant = async ({ meta, id, name, tag, preview, pagePatch = {}, layoutOverride = meta.layout, mirrorOverride = meta.mirror, headerOverride = header }) => {
+      const candPage = { ...meta.page, ...pagePatch };
+      const candPlan = structuredClone(meta.plan);
+      const run = (th) => layoutPage({ page: candPage, plan: candPlan, theme: th, measurer, layout: layoutOverride, pageNo: meta.pageNo, total: numbered, footer, header: headerOverride, mirror: mirrorOverride });
+      try {
+        let cur = await run(dense), sc = 'dense';
+        for (const [tName, below] of [['comfy', SCALE_UP_BELOW], ['roomy', SCALE_UP_BELOW], ['large', SCALE_UP_BELOW], ['hero', 0.62]]) {
+          if (cur.fill >= below) break;
+          let nxt;
+          try { nxt = await run(themes[tName]); } catch (err) { if (!cannotFit(err)) throw err; }
+          if (!nxt || nxt.fill > MAX_FILL) { cur = await run(themes[sc]); break; }
+          cur = nxt; sc = tName;
+        }
+        await balanceLineBreaks([cur.slide], measurer);
+        return { id, name, tag, preview, elements: cur.slide.elements };
+      } catch (err) {
+        if (!cannotFit(err)) throw err;
+        return null;
+      }
+    };
+
+    for (const meta of variantMeta) {
+      const { slide, page, plan } = meta;
+      const zoneIds = plan.visualDecision.zones.map((z) => z.id);
+      const { has, tops, bottoms, core, flows } = pageParts(page, zoneIds);
+      const closing = bottoms.length ? [bottoms.length > 1 ? bottoms : bottoms[0]] : [];
+      const primary = { id: 'classic', name: '精修主版', tag: '推荐', preview: 'classic', elements: structuredClone(slide.elements) };
+      const variants = [primary];
+      const seen = new Set([fingerprintOf(primary.elements)]);
+      const queue = [];
+
+      // Component-aware style & structural variants
+      if (has('breakdown')) {
+        queue.push({ id: 'bd-bars', name: '横条排行', tag: '占比', preview: 'bars', pagePatch: { breakdownStyle: 'bars' } });
+        queue.push({ id: 'bd-tiles', name: '主次网格', tag: 'Bento', preview: 'bento', pagePatch: { breakdownStyle: 'tiles' } });
+        if (has('metrics')) {
+          queue.push({ id: 'bd-split', name: '双栏分屏', tag: '对照', preview: 'split', layoutOverride: [...tops, ['metrics', 'breakdown'], ...core.filter((z) => !['metrics', 'breakdown'].includes(z)), ...flows, ...closing], pagePatch: { breakdownStyle: 'bars' } });
+        }
+        queue.push({ id: 'bd-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { breakdownStyle: 'tiles' }, headerOverride: 'eyebrow' });
+      }
+      if (has('funnel')) {
+        queue.push({ id: 'fn-cards', name: '横向漏斗', tag: '步骤', preview: 'cards', pagePatch: { funnelStyle: 'cards' } });
+        queue.push({ id: 'fn-bars', name: '阶梯进度', tag: '排行', preview: 'bars', pagePatch: { funnelStyle: 'bars' } });
+        queue.push({ id: 'fn-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { funnelStyle: 'cards' }, headerOverride: 'eyebrow' });
+      }
+      if (has('hub')) {
+        queue.push({ id: 'hb-layered', name: '分层架构', tag: '流水', preview: 'layered', pagePatch: { hubStyle: 'layered' } });
+        queue.push({ id: 'hb-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { hubStyle: 'horizontal' }, headerOverride: 'eyebrow' });
+        queue.push({ id: 'hb-layered-exec', name: '分层高管', tag: '紧凑', preview: 'bento', pagePatch: { hubStyle: 'layered' }, headerOverride: 'eyebrow' });
+      }
+      if (has('compare') && !changeItems(page.compare)) {
+        queue.push({ id: 'cmp-solid', name: '双顶栏对比', tag: '醒目', preview: 'split', pagePatch: { compareStyle: 'solid' } });
+        queue.push({ id: 'cmp-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { compareStyle: 'solid' }, headerOverride: 'eyebrow' });
+        queue.push({ id: 'cmp-saas-eyebrow', name: '轻盈顶眉', tag: '留白', preview: 'modern', pagePatch: { compareStyle: 'saas' }, headerOverride: 'eyebrow' });
+      }
+      if (has('periods')) {
+        queue.push({ id: 'pd-vertical', name: '纵向时间轴', tag: '里程碑', preview: 'vertical', pagePatch: { periodsStyle: 'vertical' } });
+        queue.push({ id: 'pd-band', name: '实色色带', tag: '阶段', preview: 'modern', pagePatch: { periodsStyle: 'band' } });
+        queue.push({ id: 'pd-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { periodsStyle: 'vertical' }, headerOverride: 'eyebrow' });
+      }
+      if (has('items') && has('metrics') && !has('photos') && !has('table')) {
+        const restCore = core.filter((z) => !['items', 'metrics'].includes(z));
+        queue.push({ id: 'bento-right', name: '左文右数', tag: 'Bento', preview: 'bento', layoutOverride: [...tops, ['items', 'metrics'], ...restCore, ...flows, ...closing] });
+        queue.push({ id: 'bento-swap', name: '左数右文', tag: 'Bento', preview: 'bento', layoutOverride: [...tops, ['metrics', 'items'], ...restCore, ...flows, ...closing] });
+        queue.push({ id: 'stack-cards', name: '通栏卡片', tag: '现代', preview: 'modern', layoutOverride: [...tops, 'metrics', 'items', ...restCore, ...flows, ...closing], pagePatch: { itemForm: 'cards', itemStyle: 'cards', figureForm: 'tiles', figureStyle: 'tiles' } });
+        queue.push({ id: 'stack-list-exec', name: '焦点通栏', tag: '高管', preview: 'exec', layoutOverride: [...tops, 'metrics', 'items', ...restCore, ...flows, ...closing], pagePatch: { itemForm: 'list', itemStyle: 'list', figureForm: 'strip', figureStyle: 'strip' }, headerOverride: 'eyebrow' });
+      }
+      if (has('photos')) {
+        const isSide = meta.rows.some((r) => r && r.left);
+        if (isSide) {
+          queue.push({ id: 'photo-mirror', name: '左右镜像', tag: '分栏', preview: 'split', mirrorOverride: !meta.mirror });
+          const bandCand = layoutCandidates(page, zoneIds, 16).find((r) => r.includes('photos'));
+          if (bandCand) queue.push({ id: 'photo-band', name: '通栏图带', tag: '视觉', preview: 'modern', layoutOverride: bandCand, mirrorOverride: false });
+        } else {
+          const sideCand = layoutCandidates(page, zoneIds, 16).find((r) => r.some((x) => x && x.left));
+          if (sideCand) {
+            queue.push({ id: 'photo-split-r', name: '左文右图', tag: '分栏', preview: 'split', layoutOverride: sideCand, mirrorOverride: false });
+            queue.push({ id: 'photo-split-l', name: '左图右文', tag: '镜像', preview: 'bento', layoutOverride: sideCand, mirrorOverride: true });
+          }
+        }
+      }
+      if (flows.length > 0) {
+        queue.push({ id: 'flow-compact', name: '精简节点', tag: '紧凑', preview: 'modern', pagePatch: { flowStyle: 'compact' } });
+      }
+      if (has('items') && !has('metrics')) {
+        const flipItems = page.itemForm === 'cards' ? 'list' : 'cards';
+        queue.push({ id: `items-${flipItems}`, name: flipItems === 'cards' ? '并列卡片' : '条理列表', tag: '卡片', preview: flipItems === 'cards' ? 'cards' : 'modern', pagePatch: { itemForm: flipItems, itemStyle: flipItems } });
+      }
+      if (has('metrics') && !has('items')) {
+        const flipFig = page.figureForm === 'strip' ? 'tiles' : 'strip';
+        queue.push({ id: `fig-${flipFig}`, name: flipFig === 'strip' ? '焦点横带' : '指标卡片', tag: '数据', preview: 'modern', pagePatch: { figureForm: flipFig, figureStyle: flipFig } });
+      }
+      // Structural candidates with distinct layout signatures (e.g., side-by-side table + flow)
+      const baseSig = layoutSignature(meta.rows);
+      const altCands = layoutCandidates(page, zoneIds, 10).filter((c) => layoutSignature(c) !== baseSig).slice(0, 2);
+      altCands.forEach((cand, idx) => {
+        const isPair = cand.some((r) => Array.isArray(r));
+        queue.push({ id: `struct-alt-${idx + 1}`, name: isPair ? '双栏并排' : '通栏堆叠', tag: isPair ? '分栏' : '通栏', preview: isPair ? 'split' : 'modern', layoutOverride: cand });
+      });
+      // Always have a clean minimal eyebrow header fallback
+      queue.push({ id: 'eyebrow-clean', name: '极简顶眉', tag: '高管', preview: 'exec', headerOverride: header === 'tag' ? 'eyebrow' : 'tag' });
+
+      for (const spec of queue) {
+        if (variants.length >= 4) break;
+        const built = await tryVariant({ meta, ...spec });
+        if (!built) continue;
+        const fp = fingerprintOf(built.elements);
+        if (seen.has(fp)) continue;
+        seen.add(fp);
+        variants.push(built);
+      }
+      slide.layoutVariants = variants;
+      slide.activeLayoutId = 'classic';
+    }
+  }
+
   return { theme: dense, scales, anchors, sparse, loose, narrow, focusGuessed, rearranged, rewrapped, forms, varied };
 }
 

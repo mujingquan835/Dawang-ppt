@@ -24,7 +24,7 @@ function SceneElement({ element: e, styleDefinition: s, resolveAssetUrl }) {
   const [x, y, w, h] = e.bounds;
   const markerId = ("arrow-" + s.id + "-" + e.id).replace(/[^a-zA-Z0-9_-]/g, "-");
   const st = { position: "absolute", left: x, top: y, width: w, height: h, boxSizing: "border-box", ...e.style };
-  const props = { "data-node-id": e.nodeId, "data-relationship-id": e.relationshipId, "data-from-node": e.fromNodeId, "data-to-node": e.toNodeId, "data-fusion-element": e.id, "data-fusion-parent": e.parentId || void 0, "data-element-type": e.type, "data-end-arrow": e.endArrow || void 0, "data-shape": e.shape || void 0, "data-clip-shape": e.clipShape || void 0 };
+  const props = { "data-node-id": e.nodeId, "data-relationship-id": e.relationshipId, "data-from-node": e.fromNodeId, "data-to-node": e.toNodeId, "data-fusion-element": e.id, "data-fusion-parent": e.parentId || void 0, "data-fusion-group": e.groupId || void 0, "data-element-type": e.type, "data-end-arrow": e.endArrow || void 0, "data-shape": e.shape || void 0, "data-clip-shape": e.clipShape || void 0 };
   if (e.type === "text") {
     const resolvedFamily = e.style?.fontFamily || (e.role === "title" || e.id === "title" ? s.typography.heading : s.typography.body);
     const fvs = e.style?.fontVariationSettings || weightVariation(e.style?.fontWeight || 400, resolvedFamily);

@@ -77,6 +77,7 @@ function applyEditCommand(project, command) {
       const ids = Array.isArray(command.elementIds) ? command.elementIds : [];
       const dx = command.dx ?? 24, dy = command.dy ?? 24;
       const newIds = [];
+      const groupMap = new Map();
       let topLayer = Math.max(0, ...(s.elements || []).map((t) => t.layer || 0), ...(s.objects || []).map((t) => t.layer || 0));
       for (const id of ids) {
         const srcEl = (s.elements || []).find((x) => x.id === id);
@@ -85,6 +86,10 @@ function applyEditCommand(project, command) {
         delete copy.parentId;
         delete copy.contentRef;
         delete copy.sourceContentRef;
+        if (srcEl.groupId) {
+          if (!groupMap.has(srcEl.groupId)) groupMap.set(srcEl.groupId, `grp-${revision().slice(0, 8)}`);
+          copy.groupId = groupMap.get(srcEl.groupId);
+        }
         copy.id = `user-${copy.type}-${revision().slice(0, 8)}`;
         copy.bounds = [
           Math.min(1920 - copy.bounds[2], Math.max(0, copy.bounds[0] + dx)),
@@ -171,6 +176,7 @@ function applyEditCommand(project, command) {
       if (!incoming.length) throw new Error("No elements to add");
       let topLayer = Math.max(0, ...(s.elements || []).map((t) => t.layer || 0), ...(s.objects || []).map((t) => t.layer || 0));
       const newIds = [];
+      const grpId = command.groupId || (incoming.length > 1 ? `grp-${revision().slice(0, 8)}` : undefined);
       s.elements = s.elements || [];
       const existingIds = new Set(s.elements.map((x) => x.id));
       for (const rawEl of incoming) {
@@ -180,6 +186,7 @@ function applyEditCommand(project, command) {
         while (existingIds.has(eid)) eid = `${eid}-${revision().slice(0, 4)}`;
         existingIds.add(eid);
         el.id = eid;
+        if (grpId && !el.groupId) el.groupId = grpId;
         el.layer = ++topLayer;
         s.elements.push(el);
         newIds.push(eid);

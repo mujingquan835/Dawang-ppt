@@ -410,8 +410,40 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
     return v != null && t != null && t > 0 ? v / t : null;
   };
   const ratio = parseRatio(it.value, it.note);
-  const barReserve = ratio != null ? 24 : 10;
+  const hasTrend = Array.isArray(it.trend) && it.trend.length >= 2 && it.trend.every(Number.isFinite);
+  const barReserve = ratio != null ? 24 : 12;
   const innerH = ch - 12 - barReserve;
+
+  const drawSparkline = (sx, sy, sw, sh, pts, strokeCol, dotCol) => {
+    const mn = Math.min(...pts), mx = Math.max(...pts), span = Math.max(1e-6, mx - mn);
+    const coords = pts.map((v, idx) => [
+      Math.round(sx + (idx / (pts.length - 1)) * sw),
+      Math.round(sy + sh - ((v - mn) / span) * (sh - 8) - 4),
+    ]);
+    // Subtle horizontal baseline
+    elements.push(lineElement({ id: `${id}-spk-base-${num}`, from: [sx, sy + sh], to: [sx + sw, sy + sh], style: { stroke: solid ? lighten(r.primary, 0.25) : (p.line || '#E2E6EE'), strokeWidth: 1.5, strokeDash: 'dash' } }));
+    for (let k = 0; k < coords.length - 1; k++) {
+      elements.push(lineElement({ id: `${id}-spk-${num}-${k + 1}`, from: coords[k], to: coords[k + 1], style: { stroke: strokeCol, strokeWidth: 3 } }));
+    }
+    const last = coords[coords.length - 1];
+    elements.push({ type: 'shape', id: `${id}-spk-dot-${num}`, bounds: [last[0] - 5, last[1] - 5, 10, 10], style: { fill: dotCol, radius: 5 }, shape: 'ellipse' });
+  };
+
+  // Optional semantic delta pill (e.g., "+28%" / "-15%") anchored cleanly at top-right of stacked cards or under label in split cards
+  const renderDeltaBadge = (dx, dy, maxW) => {
+    if (!it.delta) return 0;
+    const raw = String(it.delta).trim();
+    const isGood = /\+|↑|↗/.test(raw);
+    const isDrop = /-|↓|↘/.test(raw);
+    const fs = 15;
+    const bw = Math.min(maxW, Math.ceil(textWidth(raw, fs) * 1.15) + 22);
+    const bh = 26;
+    const bg = solid ? (p.dark ? '#1E293B' : lighten(r.primary, 0.16)) : isGood ? (p.dark ? '#11302B' : '#ECFDF5') : isDrop ? (p.dark ? '#2B1F16' : lighten(r.pop, 0.9)) : r.band;
+    const fg = solid ? (isGood ? '#6EE7B7' : p.inverse) : isGood ? (p.dark ? '#34D399' : '#047857') : isDrop ? r.pop : r.primary;
+    elements.push({ type: 'shape', id: `${id}-delta-bg-${num}`, bounds: [dx, dy, bw, bh], style: { fill: bg, radius: 13 } });
+    elements.push(textElement({ id: `${id}-delta-${num}`, text: raw, bounds: [dx + 6, dy + 4, bw - 12, 20], style: theme.font(fs, { fontWeight: 700, color: fg, textAlign: 'center', lineHeight: 1.2 }) }));
+    return bw;
+  };
 
   const lead = it.before != null ? `${it.before} → ` : '';
   const beforeOf = (s) => Math.max(20, Math.round(s * 0.56));
@@ -429,11 +461,11 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
     const natNoteW = it.note ? Math.ceil(textWidth(it.note, solid ? 18 : 16) * 1.15) + 30 : 0;
     splitLeftW = Math.min(Math.round(iw * 0.46), Math.max(Math.round(iw * 0.34), Math.min(Math.max(natLabelW, natNoteW) + 8, Math.round(iw * 0.46))));
     splitRightW = iw - splitLeftW - 18;
-    const maxByH = Math.min(solid ? 104 : 84, Math.round(innerH * (solid ? 0.56 : 0.48)));
+    const maxByH = Math.min(solid ? 98 : 80, Math.round(innerH * (hasTrend ? 0.4 : (solid ? 0.54 : 0.46))));
     splitValSz = forcedValSize ? Math.min(forcedValSize, maxByH) : maxByH;
     while (splitValSz > 36 && figWidth(splitValSz) > splitRightW * 0.94) splitValSz -= 2;
     const labelLines = estimateLines(it.label || '', splitLabelSz, splitLeftW);
-    if (splitValSz >= 42 && labelLines <= 2 && splitRightW >= 150) useSplit = true;
+    if (splitValSz >= 40 && labelLines <= 2 && splitRightW >= 150) useSplit = true;
   }
 
   let finalValSize = splitValSz;
@@ -444,8 +476,9 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
     if (it.note) while (noteSz > 13 && Math.ceil(textWidth(it.note, noteSz) * 1.16) + 28 > splitLeftW) noteSz -= 1;
     const pillW = it.note ? Math.min(splitLeftW, Math.ceil(textWidth(it.note, noteSz) * 1.16) + 28) : 0;
     const pillH = it.note ? Math.max(30, Math.round(noteSz * 1.65)) : 0;
-    const leftGap = it.note ? Math.min(28, Math.max(14, Math.round((innerH - labelH - pillH) * 0.32))) : 0;
-    const leftBlockH = labelH + (it.note ? leftGap + pillH : 0);
+    const deltaH = it.delta && !it.note ? 28 : 0;
+    const leftGap = (it.note || deltaH) ? Math.min(26, Math.max(12, Math.round((innerH - labelH - (pillH || deltaH)) * 0.3))) : 0;
+    const leftBlockH = labelH + ((it.note || deltaH) ? leftGap + (pillH || deltaH) : 0);
     const leftTop = cy + 10 + Math.round((innerH - leftBlockH) / 2);
 
     elements.push(textElement({ id: `${id}-label-${num}`, text: it.label || '', bounds: [cx + pad, leftTop, splitLeftW, labelH], style: theme.font(labelSz, { fontWeight: solid ? 700 : 600, color: labelColor, lineHeight: 1.3 }) }));
@@ -456,22 +489,35 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
       const pillInk = solid ? p.inverse : isPartner ? (p.dark ? r.secondary : readableInk(r.secondaryInk || r.secondary, pillFill, 3.2)) : r.primary;
       elements.push({ type: 'shape', id: `${id}-notepill-${num}`, bounds: [cx + pad, noteY, pillW, pillH], style: { fill: pillFill, radius: Math.round(pillH / 2) } });
       elements.push(textElement({ id: `${id}-note-${num}`, text: it.note, bounds: [cx + pad + 8, noteY + Math.round((pillH - noteSz * 1.25) / 2), pillW - 16, Math.ceil(noteSz * 1.35)], style: theme.font(noteSz, { fontWeight: 600, lineHeight: 1.2, textAlign: 'center', color: pillInk }) }));
+    } else if (it.delta) {
+      renderDeltaBadge(cx + pad, leftTop + labelH + leftGap, splitLeftW);
     }
 
     const valSz = splitValSz, unitSz = unitOf(valSz), valH = Math.round(valSz * 1.22);
-    const valY = cy + 10 + Math.round((innerH - valH) / 2);
     const rx = cx + pad + splitLeftW + 18;
+    const spkH = hasTrend ? Math.min(44, Math.max(28, Math.round(innerH * 0.28))) : 0;
+    const rightGroupH = valH + (hasTrend ? 8 + spkH : 0);
+    const valY = cy + 10 + Math.round((innerH - rightGroupH) / 2);
+    if (it.delta && it.note) {
+      const dbw = Math.min(splitRightW, Math.ceil(textWidth(String(it.delta), 15) * 1.15) + 22);
+      renderDeltaBadge(rx + splitRightW - dbw, cy + 16, splitRightW);
+    }
     const runs = [
       { text: String(it.value), style: { fontSize: valSz, fontWeight: 900, color: valColor } },
       ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSz, fontWeight: 300, color: solid ? labelColor : p.muted } }] : []),
     ];
     elements.push(textElement({ id: `${id}-value-${num}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [rx, valY, splitRightW, valH], style: theme.font(valSz, { fontWeight: 900, lineHeight: 1.12, textAlign: 'right', color: valColor }) }));
+    if (hasTrend) {
+      const spkW = Math.min(splitRightW, 180);
+      drawSparkline(rx + splitRightW - spkW, valY + valH + 6, spkW, spkH, it.trend, solid ? '#FFFFFF' : topAccent, solid ? r.pop : r.pop);
+    }
   } else {
     // Stacked proportional mode (for square/tall/narrow cards or cards with icons)
     const textW = iconInfo ? iw - iconInfo.size - 16 : iw;
     const labelSz = forcedLabelSize || Math.max(18, Math.min(24, Math.round(ch * 0.095)));
     const labelH = Math.round(labelSz * 1.4);
-    const maxByH = Math.min(solid ? 86 : 72, Math.round((innerH - labelH - (it.note ? 46 : 12)) * 0.72));
+    const spkH = hasTrend ? Math.min(44, Math.max(26, Math.round(innerH * 0.22))) : 0;
+    const maxByH = Math.min(solid ? 84 : 68, Math.round((innerH - labelH - (it.note ? 44 : 12) - (hasTrend ? spkH + 8 : 0)) * 0.72));
     let valSz = forcedValSize || maxByH;
     while (valSz > 26 && figWidth(valSz) > textW * 0.92) valSz -= 2;
     finalValSize = valSz;
@@ -480,10 +526,15 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
     if (it.note) while (noteSz > 13 && Math.ceil(textWidth(it.note, noteSz) * 1.16) + 26 > textW) noteSz -= 1;
     const pillH = it.note ? Math.max(28, Math.round(noteSz * 1.55)) : 0;
     const pillW = it.note ? Math.min(textW, Math.ceil(textWidth(it.note, noteSz) * 1.16) + 26) : 0;
-    const blockH = labelH + 10 + valH + (it.note ? 12 + pillH : 0);
+    const blockH = labelH + 10 + valH + (hasTrend ? 8 + spkH : 0) + (it.note ? 10 + pillH : 0);
     const topY = cy + 10 + Math.max(8, Math.round((innerH - blockH) / 2));
 
-    elements.push(textElement({ id: `${id}-label-${num}`, text: it.label || '', bounds: [cx + pad, topY, textW, labelH], style: theme.font(labelSz, { fontWeight: 600, color: labelColor }) }));
+    const deltaReserve = it.delta ? Math.min(Math.round(textW * 0.45), Math.ceil(textWidth(String(it.delta), 15) * 1.15) + 26) : 0;
+    elements.push(textElement({ id: `${id}-label-${num}`, text: it.label || '', bounds: [cx + pad, topY, Math.max(80, textW - deltaReserve), labelH], style: theme.font(labelSz, { fontWeight: 600, color: labelColor }) }));
+    if (it.delta) {
+      const dbw = Math.min(Math.round(textW * 0.45), Math.ceil(textWidth(String(it.delta), 15) * 1.15) + 22);
+      renderDeltaBadge(cx + pad + textW - dbw, topY + 1, dbw);
+    }
     const runs = [
       ...(lead ? [{ text: lead, style: { fontSize: beforeOf(valSz), fontWeight: 400, color: labelColor } }] : []),
       { text: String(it.value), style: { fontSize: valSz, fontWeight: 900, color: valColor } },
@@ -491,8 +542,14 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
     ];
     elements.push(textElement({ id: `${id}-value-${num}`, text: lead + String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [cx + pad, topY + labelH + 10, textW, valH], style: theme.font(valSz, { fontWeight: 900, lineHeight: 1.15, color: valColor }) }));
 
+    let curY = topY + labelH + 10 + valH;
+    if (hasTrend) {
+      drawSparkline(cx + pad, curY + 6, textW, spkH, it.trend, solid ? '#FFFFFF' : topAccent, r.pop);
+      curY += 6 + spkH;
+    }
+
     if (it.note) {
-      const noteY = Math.min(cy + ch - pillH - barReserve + 2, topY + labelH + 10 + valH + 10);
+      const noteY = Math.min(cy + ch - pillH - barReserve + 2, curY + 10);
       const pillFill = solid ? (p.dark ? '#1E293B' : lighten(r.primary, 0.16)) : isPartner ? r.soft : r.band;
       const pillInk = solid ? p.inverse : isPartner ? (p.dark ? r.secondary : readableInk(r.secondaryInk || r.secondary, pillFill, 3.2)) : r.primary;
       elements.push({ type: 'shape', id: `${id}-notepill-${num}`, bounds: [cx + pad, noteY, pillW, pillH], style: { fill: pillFill, radius: Math.round(pillH / 2) } });
@@ -858,4 +915,397 @@ export function pointList({ id, x, y, width, points = [], size, color, theme, lh
     y += h + pointGap(size);
   });
   return elements;
+}
+
+// =========================================================================
+// Modern Web UI Data-Viz & Architecture Components (100% Native PPTX Shapes & Lines)
+// =========================================================================
+
+// Tremor CategoryBar Card with 3 visual styles:
+//   - 'bar'   (default): segmented horizontal CategoryBar + bottom sub-cards
+//   - 'bars'  (ranked horizontal progress bars): clean stacked proportion bars + right percentage pills
+//   - 'tiles' (hero + breakdown grid): left solid primary Total Hero card + right breakdown cards
+export function categoryBreakdownCard({ id, x, y, width, height, title = '', total = '', badge = '', items = [], theme, variant = 'bar' }) {
+  const p = theme.palette, r = colorRoles(p), list = items.slice(0, 5);
+  if (!list.length) return { elements: [], height: 0 };
+  const pad = 28, iw = width - pad * 2, surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = Math.max(16, theme.radius ?? 14);
+  const segColors = [r.primary, r.secondary, r.pop, p.dark ? '#38BDF8' : lighten(r.primary, 0.38), p.muted || '#64748B'];
+  const totalPct = list.reduce((s, it) => s + (Number(it.pct) || 0), 0) || 100;
+
+  if (variant === 'bars') {
+    const headH = title || total ? 54 : 0, rowH = 54, rowGap = 14;
+    const natural = pad * 2 + headH + list.length * rowH + (list.length - 1) * rowGap;
+    const h = Math.max(natural, height || 0);
+    const topOff = Math.round((h - natural) / 2);
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'categoryBreakdown', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad + topOff;
+    if (headH) {
+      elements.push(textElement({ id: `${id}-title`, text: title || '结构构成', bounds: [x + pad, curY + 6, iw - 360, 32], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      if (total) elements.push(textElement({ id: `${id}-total`, text: `合计 ${total}`, bounds: [x + width - pad - 340, curY + 2, 340, 36], style: theme.font(28, { fontWeight: 900, color: p.ink, textAlign: 'right', lineHeight: 1.2 }) }));
+      curY += headH;
+    }
+    const labelW = Math.min(340, Math.round(iw * 0.24)), valW = 240, trackW = iw - labelW - valW - 36;
+    list.forEach((it, i) => {
+      const ry = curY + i * (rowH + rowGap);
+      const col = segColors[i % segColors.length];
+      const pct = Number(it.pct) || Math.round(100 / list.length);
+      elements.push({ type: 'shape', id: `${id}-row-${i + 1}`, bounds: [x + pad, ry, iw, rowH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 12 } });
+      elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x + pad + 18, ry + 21, 12, 12], style: { fill: col, radius: 4 } });
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [x + pad + 40, ry + 14, labelW - 44, 26], style: theme.font(21, { fontWeight: 600, color: p.ink, lineHeight: 1.25 }) }));
+      const tx = x + pad + labelW + 14;
+      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [tx, ry + 19, trackW, 16], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 8 } });
+      elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [tx, ry + 19, Math.max(24, Math.round((trackW * pct) / Math.max(totalPct, 100))), 16], style: { fill: col, radius: 8 } });
+      const vTxt = `${it.value ?? ''}  ${pct}%`.trim();
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: vTxt, bounds: [x + width - pad - valW - 14, ry + 13, valW, 28], style: theme.font(22, { fontWeight: 900, color: i === 2 ? r.pop : readableInk(col, subBg, 3.0), textAlign: 'right', lineHeight: 1.25 }) }));
+    });
+    return { elements, height: h };
+  }
+
+  if (variant === 'tiles') {
+    const gap = 16, heroW = total ? Math.round(width * 0.30) : 0, restX = x + (heroW ? heroW + gap : 0), restW = width - (heroW ? heroW + gap : 0);
+    const natural = 228, h = Math.max(natural, height || 0);
+    const elements = [];
+    if (heroW) {
+      elements.push({ type: 'shape', id: `${id}-panel`, component: 'categoryBreakdown', bounds: [x, y, heroW, h], style: { fill: r.primary, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-htrim`, bounds: [x + 22, y, heroW - 44, 5], style: { fill: r.pop, radius: 3 } });
+      if (title) elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + 24, y + 26, heroW - 48, 30], style: theme.font(19, { fontWeight: 600, color: p.inverse, lineHeight: 1.3 }) }));
+      elements.push(textElement({ id: `${id}-total`, text: String(total), bounds: [x + 24, y + Math.round(h * 0.36), heroW - 48, 56], style: theme.font(46, { fontWeight: 900, color: p.inverse, lineHeight: 1.1 }) }));
+      if (badge) {
+        const bdgW = Math.min(heroW - 48, Math.ceil(textWidth(badge, 15) * 1.16) + 24);
+        elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + 24, y + h - 48, bdgW, 28], style: { fill: r.pop, radius: 14 } });
+        elements.push(textElement({ id: `${id}-bdg-tx`, text: badge, bounds: [x + 30, y + h - 44, bdgW - 12, 20], style: theme.font(14, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+    }
+    const cw = Math.floor((restW - gap * (list.length - 1)) / list.length);
+    list.forEach((it, i) => {
+      const cx = restX + i * (cw + gap);
+      const col = segColors[i % segColors.length];
+      const pct = Number(it.pct) || Math.round(100 / list.length);
+      elements.push({ type: 'shape', id: `${id}-sub-${i + 1}`, ...(i === 0 && !heroW ? { component: 'categoryBreakdown' } : {}), bounds: [cx, y, cw, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [cx + 20, y, cw - 40, 5], style: { fill: col, radius: 3 } });
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 22, y + 24, cw - 44, 28], style: theme.font(20, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.25 }) }));
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: String(it.value ?? `${pct}%`), bounds: [cx + 22, y + Math.round(h * 0.35), cw - 44, 46], style: theme.font(38, { fontWeight: 900, color: p.ink, lineHeight: 1.15 }) }));
+      elements.push(textElement({ id: `${id}-pct-${i + 1}`, text: `占比 ${pct}%`, bounds: [cx + 22, y + h - 58, cw - 44, 24], style: theme.font(17, { fontWeight: 700, color: i === 2 ? r.pop : readableInk(col, surf, 3.0), lineHeight: 1.2 }) }));
+      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [cx + 22, y + h - 22, cw - 44, 7], style: { fill: p.line || '#E2E6EE', radius: 4 } });
+      elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [cx + 22, y + h - 22, Math.max(18, Math.round(((cw - 44) * pct) / Math.max(totalPct, 100))), 7], style: { fill: col, radius: 4 } });
+    });
+    return { elements, height: h };
+  }
+
+  const headerH = total ? 66 : 38;
+  const barH = 18;
+  const subCardH = 104;
+  const natural = pad + headerH + 18 + barH + 22 + subCardH + pad;
+  const h = Math.max(natural, height || 0);
+  const cyShift = Math.round((h - natural) / 2);
+  const elements = [
+    { type: 'shape', id: `${id}-panel`, component: 'categoryBreakdown', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } },
+  ];
+
+  // Header row: title + giant total + optional semantic badge pill
+  let curY = y + pad + cyShift;
+  if (total) {
+    if (title) elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, iw - 220, 26], style: theme.font(20, { fontWeight: 600, color: p.muted || '#64748B', lineHeight: 1.25 }) }));
+    elements.push(textElement({ id: `${id}-total`, text: String(total), bounds: [x + pad, curY + 26, iw - 240, 44], style: theme.font(38, { fontWeight: 900, color: p.ink, lineHeight: 1.12 }) }));
+  } else if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 4, iw - 220, 32], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+  }
+  if (badge) {
+    const bw = Math.min(240, Math.ceil(textWidth(badge, 17) * 1.16) + 32), bh = 32;
+    const okBg = p.dark ? '#11302B' : '#ECFDF5', okFg = p.dark ? '#34D399' : '#047857';
+    elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + width - pad - bw, curY + Math.round((headerH - bh) / 2), bw, bh], style: { fill: okBg, radius: 16 } });
+    elements.push(textElement({ id: `${id}-bdg-tx`, text: badge, bounds: [x + width - pad - bw + 8, curY + Math.round((headerH - 22) / 2), bw - 16, 22], style: theme.font(16, { fontWeight: 700, color: okFg, textAlign: 'center', lineHeight: 1.2 }) }));
+  }
+
+  // Segmented horizontal bar
+  curY += headerH + 18;
+  const segGap = 6, usableW = iw - segGap * (list.length - 1);
+  let sx = x + pad;
+  list.forEach((it, i) => {
+    const pct = Number(it.pct) || Math.round(100 / list.length);
+    const sw = i === list.length - 1 ? Math.max(24, x + pad + iw - sx) : Math.max(24, Math.round((usableW * pct) / totalPct));
+    elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [sx, curY, sw, barH], style: { fill: segColors[i % segColors.length], radius: 8 } });
+    sx += sw + segGap;
+  });
+
+  // Bottom breakdown sub-cards
+  curY += barH + 22;
+  const cGap = 16, cw = Math.floor((iw - cGap * (list.length - 1)) / list.length);
+  list.forEach((it, i) => {
+    const cx = x + pad + i * (cw + cGap);
+    const col = segColors[i % segColors.length];
+    elements.push({ type: 'shape', id: `${id}-sub-${i + 1}`, bounds: [cx, curY, cw, subCardH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 12 } });
+    elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [cx + 18, curY + 20, 12, 12], style: { fill: col, radius: 4 } });
+    elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 38, curY + 14, cw - 54, 26], style: theme.font(20, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.25 }) }));
+    const valText = String(it.value ?? `${it.pct}%`);
+    const pctText = it.pct != null ? `${it.pct}%` : '';
+    let vSz = 30;
+    while (vSz > 20 && textWidth(valText + ' ' + pctText, vSz) > cw - 36) vSz -= 2;
+    const runs = [
+      { text: valText, style: { fontSize: vSz, fontWeight: 900, color: p.ink } },
+      ...(pctText && !valText.includes('%') ? [{ text: '  ' + pctText, style: { fontSize: 18, fontWeight: 700, color: i === 2 ? r.pop : readableInk(col, subBg, 3.0) } }] : []),
+    ];
+    elements.push(textElement({ id: `${id}-val-${i + 1}`, text: valText + (pctText ? ' ' + pctText : ''), runs, bounds: [cx + 18, curY + 48, cw - 36, 40], style: theme.font(vSz, { fontWeight: 900, color: p.ink, lineHeight: 1.2 }) }));
+  });
+  return { elements, height: h };
+}
+
+// Modern SaaS Conversion Funnel with 3 visual styles:
+//   - 'centered' (default): centered progressively narrowing rounded funnel bars + conversion pills
+//   - 'cards'    (horizontal funnel cards): side-by-side step cards linked by conversion-rate arrows
+//   - 'bars'     (left-aligned ranked progress bars): crisp horizontal bar cards with bold left-aligned fill
+export function conversionFunnel({ id, x, y, width, height, title = '', steps = [], theme, variant = 'centered' }) {
+  const p = theme.palette, r = colorRoles(p), list = steps.slice(0, 6);
+  if (!list.length) return { elements: [], height: 0 };
+  const pad = 28, iw = width - pad * 2, surf = p.surface || '#FFFFFF';
+  const rad = Math.max(16, theme.radius ?? 14);
+  const parseNum = (st) => {
+    const raw = `${st.value ?? ''}${st.unit || ''}`.replace(/,/g, '');
+    const m = raw.match(/\d+(?:\.\d+)?/);
+    if (!m) return null;
+    let v = Number(m[0]);
+    if (/亿/.test(raw)) v *= 1e8;
+    else if (/万/.test(raw)) v *= 1e4;
+    else if (/[kK千]/.test(raw)) v *= 1e3;
+    else if (/[mM百万]/.test(raw)) v *= 1e6;
+    return v;
+  };
+  const nums = list.map((s) => parseNum(s));
+  const maxNum = Math.max(...nums.filter((v) => v != null), 1);
+  // Smooth log-blended monotonic funnel shares so wide top-of-funnel to small bottom-of-funnel stays readable & strictly tapering
+  const shares = list.map((_, i) => {
+    const linear = nums[i] != null ? Math.max(0.01, nums[i] / maxNum) : Math.max(0.25, 1 - i * (0.68 / Math.max(1, list.length - 1)));
+    const blended = nums[i] != null ? (0.45 * linear + 0.55 * Math.pow(linear, 0.35)) : linear;
+    return Math.max(0.30, Math.min(1, 0.28 + 0.72 * blended));
+  });
+  for (let i = 1; i < shares.length; i++) {
+    if (nums[i] != null && nums[i - 1] != null && nums[i] < nums[i - 1] && shares[i] >= shares[i - 1] - 0.06) {
+      shares[i] = Math.max(0.28, shares[i - 1] - 0.10);
+    }
+  }
+
+  if (variant === 'cards') {
+    const headH = title ? 48 : 0, arrowW = 46;
+    const natural = 350, h = Math.max(natural, height || 0);
+    const cardH = h - pad * 2 - headH;
+    const cw = Math.floor((iw - arrowW * (list.length - 1)) / list.length);
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'conversionFunnel', bounds: [x, y, width, h], style: { fill: p.dark ? (p.band || '#142138') : '#F8FAFC', stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    const cardY = y + pad + headH;
+    if (title) elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, y + pad, iw, 34], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, p.dark ? '#142138' : '#F8FAFC'), lineHeight: 1.3 }) }));
+    list.forEach((st, i) => {
+      const cx = x + pad + i * (cw + arrowW);
+      const isLast = i === list.length - 1;
+      const share = shares[i];
+      const barCol = isLast ? r.pop : i === 0 ? (p.dark ? '#38BDF8' : lighten(r.primary, 0.35)) : r.primary;
+      elements.push({ type: 'shape', id: `${id}-card-${i + 1}`, bounds: [cx, cardY, cw, cardH], style: { fill: isLast ? r.primary : surf, stroke: isLast ? r.primary : (p.line || '#E2E6EE'), strokeWidth: 1.5, radius: 16 } });
+      elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [cx + 18, cardY, cw - 36, 5], style: { fill: barCol, radius: 3 } });
+      const badgeTxt = `STEP 0${i + 1}`;
+      elements.push({ type: 'shape', id: `${id}-numbg-${i + 1}`, bounds: [cx + 22, cardY + 22, 86, 26], style: { fill: isLast ? r.pop : r.band, radius: 13 } });
+      elements.push(textElement({ id: `${id}-num-${i + 1}`, text: badgeTxt, bounds: [cx + 22, cardY + 25, 86, 20], style: theme.font(14, { fontWeight: 800, color: isLast ? '#FFFFFF' : readableInk(r.primary, r.band), textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: st.label || '', bounds: [cx + 22, cardY + 60, cw - 44, 32], style: theme.font(23, { fontWeight: 700, color: isLast ? p.inverse : p.ink, lineHeight: 1.25 }) }));
+      if (st.detail) elements.push(textElement({ id: `${id}-sub-${i + 1}`, text: st.detail, bounds: [cx + 22, cardY + 96, cw - 44, 56], style: theme.font(18, { fontWeight: 300, color: isLast ? p.inverse : (p.muted || '#64748B'), lineHeight: 1.38 }) }));
+      const valStr = `${st.value ?? ''}${st.unit ? ' ' + st.unit : ''}`;
+      let vSz = 38;
+      while (vSz > 24 && textWidth(valStr, vSz) > cw - 44) vSz -= 2;
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: valStr, bounds: [cx + 22, cardY + cardH - 96, cw - 44, 48], style: theme.font(vSz, { fontWeight: 900, color: isLast ? p.inverse : r.primary, lineHeight: 1.15 }) }));
+      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [cx + 22, cardY + cardH - 36, cw - 44, 10], style: { fill: isLast ? lighten(r.primary, 0.22) : (p.line || '#E2E6EE'), radius: 5 } });
+      elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [cx + 22, cardY + cardH - 36, Math.max(20, Math.round((cw - 44) * share)), 10], style: { fill: barCol, radius: 5 } });
+      if (i < list.length - 1) {
+        const ax = cx + cw + 4, ay = cardY + Math.round(cardH / 2);
+        elements.push(textElement({ id: `${id}-ar-${i + 1}`, text: '→', bounds: [ax, ay - 24, arrowW - 8, 32], style: theme.font(26, { fontWeight: 900, color: r.pop, textAlign: 'center', lineHeight: 1.2 }) }));
+        if (list[i + 1].drop || list[i + 1].rate) {
+          elements.push(textElement({ id: `${id}-rt-${i + 1}`, text: String(list[i + 1].drop || list[i + 1].rate).replace(/[^\d.%]/g, '') || '', bounds: [ax - 6, ay + 8, arrowW + 4, 22], style: theme.font(14, { fontWeight: 700, color: p.muted || '#64748B', textAlign: 'center', lineHeight: 1.2 }) }));
+        }
+      }
+    });
+    return { elements, height: h };
+  }
+
+  const headH = title ? 48 : 0;
+  const rowGap = 16;
+  const baseRowH = 82;
+  const natural = pad * 2 + headH + list.length * baseRowH + (list.length - 1) * rowGap;
+  const h = Math.max(natural, height || 0);
+  const rowH = Math.min(88, Math.floor((h - pad * 2 - headH - (list.length - 1) * rowGap) / list.length));
+  const usedH = pad * 2 + headH + list.length * rowH + (list.length - 1) * rowGap;
+  const topOff = Math.round((h - usedH) / 2);
+
+  const elements = [
+    { type: 'shape', id: `${id}-panel`, component: 'conversionFunnel', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } },
+  ];
+  let curY = y + pad + topOff;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, iw, 34], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.3 }) }));
+    curY += headH;
+  }
+
+  const leftW = Math.min(340, Math.round(iw * 0.24));
+  const rightW = Math.min(230, Math.round(iw * 0.17));
+  const centerX = x + pad + leftW + 20;
+  const centerW = iw - leftW - rightW - 40;
+
+  list.forEach((st, i) => {
+    const ry = curY + i * (rowH + rowGap);
+    const isLast = i === list.length - 1;
+    const share = shares[i];
+    const barW = Math.round(centerW * share);
+    const bx = variant === 'bars' ? centerX : centerX + Math.round((centerW - barW) / 2);
+
+    // Subtle full-width guide track
+    elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [centerX, ry + 4, centerW, rowH - 8], style: { fill: p.dark ? (p.band || '#142138') : '#F8FAFC', radius: 12 } });
+
+    // Left: step pill + label
+    const badgeD = 34;
+    elements.push({ type: 'shape', id: `${id}-numbg-${i + 1}`, bounds: [x + pad, ry + Math.round((rowH - badgeD) / 2), badgeD, badgeD], style: { fill: isLast ? r.pop : r.band, radius: 17 }, shape: 'ellipse' });
+    elements.push(textElement({ id: `${id}-num-${i + 1}`, text: String(i + 1).padStart(2, '0'), bounds: [x + pad, ry + Math.round((rowH - 22) / 2), badgeD, 22], style: theme.font(16, { fontWeight: 900, color: isLast ? '#FFFFFF' : readableInk(r.primary, r.band), textAlign: 'center', lineHeight: 1.2 }) }));
+    const hasSub = Boolean(st.detail);
+    elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: st.label || '', bounds: [x + pad + badgeD + 14, ry + Math.round((rowH - (hasSub ? 50 : 28)) / 2), leftW - badgeD - 18, 28], style: theme.font(22, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+    if (hasSub) {
+      elements.push(textElement({ id: `${id}-sub-${i + 1}`, text: st.detail, bounds: [x + pad + badgeD + 14, ry + Math.round((rowH - 50) / 2) + 28, leftW - badgeD - 18, 24], style: theme.font(18, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.25 }) }));
+    }
+
+    // Center: centered rounded funnel bar with bold figure inside
+    const barFill = isLast ? r.pop : i === 0 ? (p.dark ? '#1E3A5F' : lighten(r.primary, 0.72)) : i === 1 ? (p.dark ? '#254E7A' : lighten(r.primary, 0.36)) : r.primary;
+    const barInk = isLast || i >= 2 || p.dark ? '#FFFFFF' : readableInk(r.primary, barFill, 3.8);
+    elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [bx, ry + 4, barW, rowH - 8], style: { fill: barFill, radius: 12 } });
+    const valStr = `${st.value ?? ''}${st.unit ? ' ' + st.unit : ''}`;
+    const rateInBar = st.rate ? `  ·  ${st.rate}` : '';
+    const runs = [
+      { text: valStr, style: { fontSize: 24, fontWeight: 900, color: barInk } },
+      ...(rateInBar && textWidth(valStr + rateInBar, 24) < barW - 28 ? [{ text: rateInBar, style: { fontSize: 18, fontWeight: 400, color: barInk } }] : []),
+    ];
+    elements.push(textElement({ id: `${id}-val-${i + 1}`, text: valStr + (runs.length > 1 ? rateInBar : ''), runs, bounds: [bx + 12, ry + Math.round((rowH - 32) / 2), barW - 24, 32], style: theme.font(24, { fontWeight: 900, color: barInk, textAlign: 'center', lineHeight: 1.25 }) }));
+
+    // Right: conversion / rate badge pill
+    const rightTxt = st.drop || st.rate || '';
+    if (rightTxt) {
+      const pw = Math.min(rightW, Math.ceil(textWidth(rightTxt, 17) * 1.16) + 28), ph = 32;
+      const rx = x + width - pad - pw;
+      const pillBg = isLast ? (p.dark ? '#331E18' : lighten(r.pop, 0.9)) : r.band;
+      const pillFg = isLast ? r.pop : readableInk(r.primary, pillBg, 3.2);
+      elements.push({ type: 'shape', id: `${id}-rtbg-${i + 1}`, bounds: [rx, ry + Math.round((rowH - ph) / 2), pw, ph], style: { fill: pillBg, radius: 16 } });
+      elements.push(textElement({ id: `${id}-rt-${i + 1}`, text: rightTxt, bounds: [rx + 8, ry + Math.round((rowH - 22) / 2), pw - 16, 22], style: theme.font(16, { fontWeight: 700, color: pillFg, textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+  });
+  return { elements, height: h };
+}
+
+// Magic-UI-inspired Hub & Spoke Architecture with 2 visual styles:
+//   - 'horizontal' (default): Left Inputs -> Elevated Central Hub -> Right Outputs
+//   - 'layered'    (top-to-bottom pipeline): Top Input Cards -> Wide Solid Central Engine Bar -> Bottom Output Cards
+export function hubArchitecture({ id, x, y, width, height, title = '', center = {}, inputs = [], outputs = [], theme, variant = 'horizontal' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const inList = inputs.slice(0, 4), outList = outputs.slice(0, 4);
+  const pad = 28, iw = width - pad * 2, surf = p.surface || '#FFFFFF';
+  const rad = Math.max(16, theme.radius ?? 14);
+  const headH = title ? 52 : 0;
+
+  if (variant === 'layered') {
+    const rowH = 114, hubH = 110, arrowGap = 42;
+    const natural = pad * 2 + headH + rowH + arrowGap + hubH + arrowGap + rowH;
+    const h = Math.max(natural, height || 0);
+    const topOff = Math.round((h - natural) / 2);
+    const elements = [
+      { type: 'shape', id: `${id}-panel`, component: 'hubArchitecture', bounds: [x, y, width, h], style: { fill: p.dark ? (p.band || '#142138') : '#F8FAFC', stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } },
+    ];
+    let curY = y + pad + topOff;
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, iw, 34], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, p.dark ? '#142138' : '#F8FAFC'), lineHeight: 1.3 }) }));
+      curY += headH;
+    }
+    const hubY = curY + rowH + arrowGap;
+    const outY = hubY + hubH + arrowGap;
+    const drawRow = (list, ry, isOut) => {
+      const gap = 18, cw = Math.floor((iw - gap * (list.length - 1)) / Math.max(1, list.length));
+      list.forEach((item, i) => {
+        const cx = x + pad + i * (cw + gap), midX = cx + Math.round(cw / 2);
+        elements.push({ ...lineElement({ id: `${id}-${isOut ? 'out' : 'in'}-ln-${i + 1}`, from: isOut ? [midX, hubY + hubH + 4] : [midX, ry + rowH + 4], to: isOut ? [midX, ry - 6] : [midX, hubY - 6], style: { stroke: isOut ? r.pop : r.primary, strokeWidth: 2.5 } }), endArrow: true });
+        elements.push({ type: 'shape', id: `${id}-${isOut ? 'out' : 'in'}-card-${i + 1}`, bounds: [cx, ry, cw, rowH], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: 14 } });
+        elements.push({ type: 'shape', id: `${id}-${isOut ? 'out' : 'in'}-dot-${i + 1}`, bounds: [cx + 20, ry + 24, 12, 12], style: { fill: isOut ? (p.dark ? '#34D399' : '#10B981') : (i === 0 ? r.pop : r.primary), radius: 6 }, shape: 'ellipse' });
+        elements.push(textElement({ id: `${id}-${isOut ? 'out' : 'in'}-t-${i + 1}`, text: item.title || '', bounds: [cx + 42, ry + 18, cw - 60, 28], style: theme.font(22, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+        if (item.detail) elements.push(textElement({ id: `${id}-${isOut ? 'out' : 'in'}-d-${i + 1}`, text: item.detail, bounds: [cx + 20, ry + 54, cw - 40, 52], style: theme.font(18, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.35 }) }));
+      });
+    };
+    drawRow(inList, curY, false);
+    drawRow(outList, outY, true);
+    const badgeTxt = center.badge || 'CORE';
+    const lPillW = Math.min(200, Math.max(88, Math.ceil(textWidth(badgeTxt, 14) * 1.2) + 28));
+    elements.push({ type: 'shape', id: `${id}-hub-card`, bounds: [x + pad, hubY, iw, hubH], style: { fill: r.primary, radius: 18 } });
+    elements.push({ type: 'shape', id: `${id}-hub-trim`, bounds: [x + pad + 28, hubY, iw - 56, 5], style: { fill: r.pop, radius: 3 } });
+    elements.push({ type: 'shape', id: `${id}-hub-pill`, bounds: [x + pad + 32, hubY + 41, lPillW, 28], style: { fill: r.pop, radius: 14 } });
+    elements.push(textElement({ id: `${id}-hub-ptx`, text: badgeTxt, bounds: [x + pad + 32, hubY + 45, lPillW, 20], style: theme.font(14, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-hub-t`, text: center.title || '核心中台', bounds: [x + pad + 32 + lPillW + 20, hubY + 34, 380, 40], style: theme.font(30, { fontWeight: 900, color: p.inverse, lineHeight: 1.25 }) }));
+    if (center.sub) elements.push(textElement({ id: `${id}-hub-sub`, text: String(center.sub).replace(/\n/g, '  ·  '), bounds: [x + pad + 32 + lPillW + 412, hubY + 40, Math.max(200, iw - (64 + lPillW + 412)), 32], style: theme.font(20, { fontWeight: 300, color: p.inverse, textAlign: 'right', lineHeight: 1.3 }) }));
+    return { elements, height: h };
+  }
+
+  const rowsMax = Math.max(inList.length, outList.length, 1);
+  const nodeGap = 20, baseNodeH = 108;
+  const natural = pad * 2 + headH + rowsMax * baseNodeH + (rowsMax - 1) * nodeGap;
+  const h = Math.max(natural, height || 0);
+  const bodyH = h - pad * 2 - headH;
+  const nodeH = Math.min(112, Math.floor((bodyH - (rowsMax - 1) * nodeGap) / rowsMax));
+  const bodyTop = y + pad + headH;
+
+  const elements = [
+    { type: 'shape', id: `${id}-panel`, component: 'hubArchitecture', bounds: [x, y, width, h], style: { fill: p.dark ? (p.band || '#142138') : '#F8FAFC', stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } },
+  ];
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, y + pad, iw, 34], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, p.dark ? '#142138' : '#F8FAFC'), lineHeight: 1.3 }) }));
+  }
+
+  const colW = Math.floor(iw * 0.31);
+  const hubW = Math.floor(iw * 0.22);
+  const connW = Math.floor((iw - colW * 2 - hubW) / 2);
+  const leftX = x + pad;
+  const hubX = leftX + colW + connW;
+  const rightX = hubX + hubW + connW;
+
+  const hubH = Math.min(bodyH, Math.max(180, Math.round(bodyH * 0.68)));
+  const hubY = bodyTop + Math.round((bodyH - hubH) / 2);
+  const hubMidY = hubY + Math.round(hubH / 2);
+
+  // Draw connector lines FIRST (underneath cards)
+  const drawColumn = (list, cx, isOutput) => {
+    const colTotalH = list.length * nodeH + (list.length - 1) * nodeGap;
+    const startY = bodyTop + Math.round((bodyH - colTotalH) / 2);
+    list.forEach((item, i) => {
+      const ny = startY + i * (nodeH + nodeGap);
+      const midY = ny + Math.round(nodeH / 2);
+      const fromPt = isOutput ? [hubX + hubW + 4, hubMidY] : [cx + colW + 4, midY];
+      const toPt = isOutput ? [cx - 6, midY] : [hubX - 6, hubMidY];
+      elements.push({ ...lineElement({ id: `${id}-${isOutput ? 'out' : 'in'}-ln-${i + 1}`, from: fromPt, to: toPt, style: { stroke: isOutput ? r.pop : r.primary, strokeWidth: 2.5 } }), endArrow: true });
+
+      elements.push({ type: 'shape', id: `${id}-${isOutput ? 'out' : 'in'}-card-${i + 1}`, bounds: [cx, ny, colW, nodeH], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: 14 } });
+      const dotColor = isOutput ? (p.dark ? '#34D399' : '#10B981') : (i === 0 ? r.pop : r.primary);
+      elements.push({ type: 'shape', id: `${id}-${isOutput ? 'out' : 'in'}-dot-${i + 1}`, bounds: [cx + 18, ny + Math.round((nodeH - 12) / 2), 12, 12], style: { fill: dotColor, radius: 6 }, shape: 'ellipse' });
+
+      const hasDet = Boolean(item.detail);
+      const textStartY = ny + Math.round((nodeH - (hasDet ? 54 : 28)) / 2);
+      elements.push(textElement({ id: `${id}-${isOutput ? 'out' : 'in'}-t-${i + 1}`, text: item.title || '', bounds: [cx + 42, textStartY, colW - 58, 28], style: theme.font(22, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      if (hasDet) {
+        elements.push(textElement({ id: `${id}-${isOutput ? 'out' : 'in'}-d-${i + 1}`, text: item.detail, bounds: [cx + 42, textStartY + 30, colW - 58, 26], style: theme.font(18, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.3 }) }));
+      }
+    });
+  };
+
+  drawColumn(inList, leftX, false);
+  drawColumn(outList, rightX, true);
+
+  // Center Elevated Primary Hub Card
+  elements.push({ type: 'shape', id: `${id}-hub-card`, bounds: [hubX, hubY, hubW, hubH], style: { fill: r.primary, radius: 22 } });
+  elements.push({ type: 'shape', id: `${id}-hub-trim`, bounds: [hubX + 26, hubY, hubW - 52, 6], style: { fill: r.pop, radius: 3 } });
+  const hBadgeTxt = center.badge || 'CORE';
+  const corePillW = Math.min(hubW - 32, Math.max(84, Math.ceil(textWidth(hBadgeTxt, 14) * 1.2) + 28));
+  elements.push({ type: 'shape', id: `${id}-hub-pill`, bounds: [hubX + Math.round((hubW - corePillW) / 2), hubY + Math.round(hubH * 0.22), corePillW, 28], style: { fill: r.pop, radius: 14 } });
+  elements.push(textElement({ id: `${id}-hub-ptx`, text: hBadgeTxt, bounds: [hubX + Math.round((hubW - corePillW) / 2), hubY + Math.round(hubH * 0.22) + 4, corePillW, 20], style: theme.font(14, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+  const hubTitle = center.title || '核心中台';
+  elements.push(textElement({ id: `${id}-hub-t`, text: hubTitle, bounds: [hubX + 18, hubY + Math.round(hubH * 0.44), hubW - 36, 40], style: theme.font(26, { fontWeight: 900, color: p.inverse, textAlign: 'center', lineHeight: 1.25 }) }));
+  if (center.sub) {
+    elements.push(textElement({ id: `${id}-hub-sub`, text: center.sub, bounds: [hubX + 18, hubY + Math.round(hubH * 0.66), hubW - 36, 48], style: theme.font(18, { fontWeight: 300, color: p.inverse, textAlign: 'center', lineHeight: 1.35 }) }));
+  }
+
+  return { elements, height: h };
 }

@@ -164,6 +164,18 @@ export function mountDeckPanel(container, api) {
       if (kind === "modern") {
         return `<svg viewBox="0 0 80 45" fill="none"><rect x="5" y="4" width="22" height="4" rx="2" fill="${popCol}"/><rect x="5" y="11" width="22" height="12" rx="2.5" fill="#fff" stroke="${priCol}" stroke-width="1"/><rect x="29" y="11" width="22" height="12" rx="2.5" fill="#fff" stroke="${secCol}" stroke-width="1"/><rect x="53" y="11" width="22" height="12" rx="2.5" fill="#fff" stroke="#CBD5E1" stroke-width="1"/><rect x="5" y="26" width="22" height="14" rx="2.5" fill="#E2E8F0"/><rect x="29" y="26" width="22" height="14" rx="2.5" fill="#E2E8F0"/><rect x="53" y="26" width="22" height="14" rx="2.5" fill="${priCol}"/></svg>`;
       }
+      if (kind === "bars") {
+        return `<svg viewBox="0 0 80 45" fill="none"><rect x="5" y="5" width="28" height="4" rx="1.5" fill="${priCol}"/><rect x="5" y="13" width="64" height="5" rx="2.5" fill="${priCol}"/><rect x="5" y="21" width="48" height="5" rx="2.5" fill="${secCol}"/><rect x="5" y="29" width="34" height="5" rx="2.5" fill="${popCol}"/><rect x="5" y="37" width="22" height="5" rx="2.5" fill="#94A3B8"/></svg>`;
+      }
+      if (kind === "cards") {
+        return `<svg viewBox="0 0 80 45" fill="none"><rect x="4" y="8" width="16" height="29" rx="2.5" fill="#fff" stroke="${priCol}" stroke-width="1"/><rect x="23" y="8" width="16" height="29" rx="2.5" fill="#fff" stroke="${secCol}" stroke-width="1"/><rect x="42" y="8" width="16" height="29" rx="2.5" fill="#fff" stroke="${priCol}" stroke-width="1"/><rect x="61" y="8" width="15" height="29" rx="2.5" fill="${priCol}"/><rect x="61" y="8" width="15" height="4" rx="1.5" fill="${popCol}"/></svg>`;
+      }
+      if (kind === "layered") {
+        return `<svg viewBox="0 0 80 45" fill="none"><rect x="5" y="4" width="21" height="10" rx="2" fill="#CBD5E1"/><rect x="29.5" y="4" width="21" height="10" rx="2" fill="#CBD5E1"/><rect x="54" y="4" width="21" height="10" rx="2" fill="#CBD5E1"/><rect x="5" y="18" width="70" height="9" rx="3" fill="${priCol}"/><rect x="5" y="31" width="21" height="10" rx="2" fill="${secCol}" opacity=".65"/><rect x="29.5" y="31" width="21" height="10" rx="2" fill="${secCol}" opacity=".65"/><rect x="54" y="31" width="21" height="10" rx="2" fill="${popCol}" opacity=".55"/></svg>`;
+      }
+      if (kind === "vertical") {
+        return `<svg viewBox="0 0 80 45" fill="none"><rect x="22" y="6" width="2" height="33" rx="1" fill="#CBD5E1"/><circle cx="23" cy="10" r="3" fill="${priCol}"/><circle cx="23" cy="22.5" r="3" fill="${popCol}"/><circle cx="23" cy="35" r="3" fill="#94A3B8"/><rect x="5" y="8" width="13" height="4" rx="2" fill="${priCol}" opacity=".3"/><rect x="5" y="20.5" width="13" height="4" rx="2" fill="${popCol}" opacity=".5"/><rect x="5" y="33" width="13" height="4" rx="2" fill="#CBD5E1"/><rect x="29" y="6" width="46" height="8" rx="2" fill="#E2E8F0"/><rect x="29" y="18.5" width="46" height="8" rx="2" fill="#fff" stroke="${popCol}" stroke-width="1"/><rect x="29" y="31" width="46" height="8" rx="2" fill="#E2E8F0"/></svg>`;
+      }
       if (kind === "exec") {
         return `<svg viewBox="0 0 80 45" fill="none"><rect x="5" y="4" width="70" height="5" rx="2" fill="#E2E8F0"/><rect x="7" y="5" width="16" height="3" rx="1.5" fill="${priCol}"/><rect x="5" y="13" width="33" height="10" rx="2.5" fill="${priCol}" opacity=".2"/><rect x="42" y="13" width="33" height="10" rx="2.5" fill="${popCol}" opacity=".25"/><rect x="5" y="26" width="70" height="14" rx="2.5" fill="#fff" stroke="${priCol}" stroke-width="1"/></svg>`;
       }
