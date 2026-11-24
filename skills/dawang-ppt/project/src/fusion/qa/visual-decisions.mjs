@@ -145,6 +145,14 @@ export function reviewVisualDecisions(project) {
     if (zonesRequired && Array.isArray(decision.zones)) for (const z of decision.zones) {
       const [zx, zy, zw, zh] = z.bounds, photos = all.filter((x) => x.type === 'image' && x.bounds[2] * x.bounds[3] > 40000 && (() => { const cx = x.bounds[0] + x.bounds[2] / 2, cy = x.bounds[1] + x.bounds[3] / 2; return cx >= zx && cx <= zx + zw && cy >= zy && cy <= zy + zh; })());
       if (!photos.length) continue;
+      if (photos.every((x) => x.fit === 'contain')) {
+        const cards = all.filter((s) => s.type === 'shape' && s.style?.fill && photos.some((img) => { const ib = img.bounds, sb = s.bounds; return ib[0] >= sb[0] - 2 && ib[1] >= sb[1] - 2 && ib[0] + ib[2] <= sb[0] + sb[2] + 2 && ib[1] + ib[3] <= sb[1] + sb[3] + 2; }));
+        if (cards.length) {
+          const cw = Math.max(...cards.map((s) => s.bounds[0] + s.bounds[2])) - Math.min(...cards.map((s) => s.bounds[0]));
+          const ch = Math.max(...cards.map((s) => s.bounds[1] + s.bounds[3])) - Math.min(...cards.map((s) => s.bounds[1]));
+          if (cw >= 0.7 * zw || ch >= 0.7 * zh) continue;
+        }
+      }
       const w = Math.max(...photos.map((x) => x.bounds[0] + x.bounds[2])) - Math.min(...photos.map((x) => x.bounds[0])), h = Math.max(...photos.map((x) => x.bounds[1] + x.bounds[3])) - Math.min(...photos.map((x) => x.bounds[1]));
       if (w < 0.7 * zw && h < 0.7 * zh) report({ kind: 'image-small-in-zone', ...where, elementIds: photos.map((x) => x.id), zone: z.id, hint: '图片明显小于所在分区：按分区画框，用 imageFrames 裁切填满' });
     }

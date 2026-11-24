@@ -25,11 +25,14 @@ export function lintComposition(elements) {
   const images = els.filter((e) => e.type === 'image' && e.bounds[2] * e.bounds[3] > 40000), texts = els.filter((e) => e.type === 'text' && String(e.text ?? '').trim());
 
   // Group photos that sit within 64px of each other; a group of two or more must cover at least 85% of its box.
+  // Framed contain images (screenshots/posters intentionally mounted in card/window containers) are exempt from unframed gap lint.
+  const cardShapes = els.filter((x) => x.type === 'shape' && x.style?.fill && x.bounds[2] * x.bounds[3] > 20000);
+  const framedContain = (e) => e.fit === 'contain' && cardShapes.some((sh) => inside(box(e), box(sh)));
   const seen = new Set();
   for (const start of images) {
-    if (seen.has(start)) continue;
+    if (seen.has(start) || framedContain(start)) continue;
     const group = [start]; seen.add(start);
-    for (let k = 0; k < group.length; k++) for (const o of images) if (!seen.has(o) && near(box(group[k]), box(o))) { seen.add(o); group.push(o); }
+    for (let k = 0; k < group.length; k++) for (const o of images) if (!seen.has(o) && !framedContain(o) && near(box(group[k]), box(o))) { seen.add(o); group.push(o); }
     if (group.length < 2) continue;
     const bs = group.map(box), u = { x: Math.min(...bs.map((b) => b.x)), y: Math.min(...bs.map((b) => b.y)), r: Math.max(...bs.map((b) => b.r)), b: Math.max(...bs.map((b) => b.b)) };
     // Gutters between frames are part of a tiled group; allow them before judging coverage.

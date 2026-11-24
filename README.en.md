@@ -10,13 +10,14 @@ Turn raw notes, spreadsheets, screenshots, and business reports into a **single 
 
 ## Key Highlights
 
-- **Modern Web UI Component System (AI Auto-Composed · 100% Native PPTX Editable):** Inspired by **Tremor, shadcn/ui, Magic UI, Aceternity UI, Linear, and Stripe**. Includes aspect-ratio-aware KPI cards (`renderMetricCard` / `metricBento`) with semantic delta pills & native vector Sparklines (`trend`), Tremor Category Breakdowns (`breakdown`), monotonic Conversion Funnels (`funnel`), Hub & Spoke Architecture diagrams (`hub`), SaaS dashed-vs-solid / dual-banner Contrast Comparisons, and 3-form Milestone Timelines (horizontal stepper / vertical timeline / ribbon band).
-- **Refined 4-Weight Dual Typography:** Bundles **Source Han Sans SC (300 / 400 / 700 / 900)** + **YouSheBiaoTiHei**, calibrated with bold accent headings, crisp `11pt` 300-Light muted body text, and 900-Heavy expressive figures.
+- **Modern Web UI & Executive Structure System (AI Auto-Composed · 100% Native PPTX Editable):** Inspired by **Tremor, shadcn/ui, Magic UI, Aceternity UI, Linear, and Stripe**. Includes aspect-ratio-aware KPI cards (`renderMetricCard` / `metricBento`) with semantic delta pills & native vector Sparklines (`trend`), Tremor Category Breakdowns (`breakdown`), monotonic Conversion Funnels (`funnel`), Hub & Spoke Architecture diagrams (`hub`), SaaS dashed-vs-solid / dual-banner Contrast Comparisons, 3-form Milestone Timelines (horizontal stepper / vertical timeline / ribbon band), plus **Chapter Divider slides (`role: "section"`) and Executive Closing / Q&A slides (`role: "closing"`)** (each with 4 zero-loss switchable variants).
+- **Refined Dual-Font Hierarchy & High-Density Resilience:** Bundles **Source Han Sans SC (400 Regular body / 700 Bold headings / 900 Heavy figures)** + **YouSheBiaoTiHei (auto-applied to covers & ≤10-char short titles)**, with adaptive 2-line long-headline wrapping and a `compact` layout fallback tier so dense single-slide cases never overflow or auto-split pages.
+- **Screenshot & Tall Poster Framed Contain Mode (`fit: "contain"`):** Automatically distinguishes desktop UI/dashboard screenshots (`kind: "screenshot"`, rendered inside a subtle browser window chrome card) and vertical campaign posters (`kind: "poster"`, centered inside a gallery mat frame) to keep edges, axes, and labels 100% uncropped across HTML and PPTX, while keeping live photos crisp with `cover` framing and `50% 25%` portrait top protection.
 - **Offline Studio v4 Editor (`file://` Ready):**
   - **4 Zero-Content-Loss Switchable Layouts per Slide** automatically composed by `report-deck.mjs` from real slide data (e.g. Segmented Bar ↔ Ranked Bars ↔ Bento Tiles, Centered Funnel ↔ Step Cards ↔ Ladder Bars, Hub ↔ Layered Pipeline, Horizontal Stepper ↔ Vertical Timeline ↔ Ribbon Band), with instant switching and `⌘Z` undo.
   - **One-Click 11 Three-Tone Palettes** (9 light + 2 dark flagship themes), automatically remapping every slide and every stored layout variant.
   - **Minimal Topbar & Figma-style Canvas:** clean `Text / Shape / Image` toolbar, marquee multi-select, smart snapping & distribution, in-place image cropping, and 80% smaller single-file HTML via dynamic font subsetting & deduplicated asset pooling.
-- **Sub-2s Pure-Node Pipeline:** Zero headless Chrome needed for composition or PPTX generation (`dawang.mjs ingest` → `dawang.mjs fast:build`).
+- **Role-Aware Ingestion, Layout-Decoupled Lint & Sub-2s Pure-Node Pipeline:** `dawang.mjs ingest` merges folders, `--draft`, `--history`, and `--note` inputs into paginated `contact-sheet.png` volumes + `IMG-XX` / `TBL-XX` short IDs; `dawang.mjs outline:lint` pre-validates layout-decoupled plans; `dawang.mjs fast:build` compiles HTML, native PPTX, and DOM-checked `preview.png` without Chrome in under 2s.
 
 ![Dawang-PPT Studio offline editor workspace](docs/images/editor-overview.png)
 
@@ -35,6 +36,13 @@ node scripts/dawang.mjs doctor
 Once `doctor` reports `ready: true`, invoke `dawang-ppt` in your AI coding agent (Claude Code, Codex, Cursor, Antigravity) or build directly via CLI:
 
 ```sh
+# 1. Role-aware multi-source ingest + paginated contact sheets + IMG-XX/TBL-XX short IDs
+node skills/dawang-ppt/scripts/dawang.mjs ingest "<materials_dir>" --draft "<draft.pptx>" --history "<history.pptx>" --note "<instructions>" --out "<tmp_dir>"
+
+# 2. Optional: render a layout-decoupled outline review table
+node skills/dawang-ppt/scripts/dawang.mjs outline:lint "<outline.json>" --md "<tmp_dir>/outline-plan.md"
+
+# 3. Pure-Node fast build to HTML + PPTX + preview grid
 node skills/dawang-ppt/scripts/dawang.mjs fast:build "<outline.json>" "<out.html>" --pptx "<out.pptx>" --preview "<preview.png>"
 ```
 

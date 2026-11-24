@@ -38,12 +38,12 @@ export function keyLineFigureIssues(outline) {
   const pages = asList(outline.pages), deck = new Set(pages.flatMap((p) => figuresIn(pageBody(p)).map((f) => f.value)));
   const issues = [];
   pages.forEach((page, i) => {
-    const pageId = page.id || `p${i + 1}`, cover = page.role === 'cover', shown = cover ? deck : new Set(figuresIn(pageBody(page)).map((f) => f.value));
+    const pageId = page.id || `p${i + 1}`, cover = ['cover', 'section', 'closing'].includes(page.role), shown = cover ? deck : new Set(figuresIn(pageBody(page)).map((f) => f.value));
     const missing = figuresIn(page.keyLine?.text).filter((f) => !shown.has(f.value));
     if (missing.length) issues.push({
       kind: 'outline-keyline-figure-missing', page: pageId, item: `${pageId}:keyLine`, figures: missing.map((f) => f.raw),
       need: cover
-        ? `封面状态句里的 ${missing.map((f) => f.raw).join('、')} 在整稿各页都找不到：放进某一页的数据、表格或句子，或改用页面上有的数字`
+        ? `状态句里的 ${missing.map((f) => f.raw).join('、')} 在整稿各页都找不到：放进某一页的数据、表格或句子，或改用页面上有的数字`
         : `标题里的 ${missing.map((f) => f.raw).join('、')} 本页没有出现：放进本页的数据、表格或句子（标签带上原文的限定，如哪一场、哪个店、哪个月），或改用本页已有的数字`
     });
   });
@@ -92,7 +92,7 @@ export function wordingWarnings(outline) {
   // A title figure keeps the scope its own tile gives it: the tile says 蓟州露营单台营销成本, so the title cannot say 露营单台营销成本.
   pages.forEach((p, i) => {
     const title = String(p.keyLine?.text || '').replace(/\s/g, ''), values = new Set(figuresIn(title).map((f) => f.value));
-    const tiles = (p.role === 'cover' ? pages : [p]).flatMap((q) => asList(q.data)).filter((d) => values.has(figuresIn(String(d.value))[0]?.value));
+    const tiles = (['cover', 'section', 'closing'].includes(p.role) ? pages : [p]).flatMap((q) => asList(q.data)).filter((d) => values.has(figuresIn(String(d.value))[0]?.value));
     for (const d of tiles) {
       const label = String(d.label || '').split(/[·|｜：:（(]/)[0].replace(/\s/g, '');
       const k = [...label].findIndex((_, at) => at > 0 && label.length - at >= 4 && title.includes(label.slice(at)));
@@ -104,7 +104,7 @@ export function wordingWarnings(outline) {
   pages.forEach((p, i) => {
     const m = /连续\s*([一二两三四五六七八九十]|\d+)\s*(?:个)?(年|季度|季|月|期|周)/.exec(p.keyLine?.text || '');
     if (!m) return;
-    const n = count(m[1]), body = p.role === 'cover' ? pages.map(pageBody).join('\n') : pageBody(p), years = new Set(body.match(/20\d\d/g) || []), yoy = (body.match(/同比|环比|较上/g) || []).length;
+    const n = count(m[1]), body = ['cover', 'section', 'closing'].includes(p.role) ? pages.map(pageBody).join('\n') : pageBody(p), years = new Set(body.match(/20\d\d/g) || []), yoy = (body.match(/同比|环比|较上/g) || []).length;
     const proven = m[2] === '年' ? years.size >= n + 1 || (years.size >= n && yoy >= n) : false;
     if (!proven) out.push({ level: 'page', page: idOf(p, i), item: 'wording-streak', ask: `标题说「${m[0]}」，本页要放出每一期的数（${m[2] === '年' ? `至少 ${n + 1} 个年份，或 ${n} 个同比` : `连续 ${n} 期各自的数`}）；材料没有就改成本页能证明的说法，如“同比下降 23%”`, impact: '复核会判标题结论没有证据（阻断）' });
   });

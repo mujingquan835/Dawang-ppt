@@ -91,8 +91,8 @@ export function capacityTable(spec) {
     e.style.fontWeight=600;if(col.emphasize||col.key==='value')e.style.color=theme.palette.accent;
    }else{
     if(col.emphasize){e.style.fontWeight=col.weight??600;e.style.color=col.color||theme.palette.accent;}
-    else if(j===0){e.style.fontWeight=col.weight??400;e.style.color=col.color||theme.palette.ink;}
-    else{e.style.fontWeight=col.weight??300;e.style.color=col.color||theme.palette.body||theme.palette.ink;}
+    else if(j===0){e.style.fontWeight=col.weight??600;e.style.color=col.color||theme.palette.ink;}
+    else{e.style.fontWeight=col.weight??400;e.style.color=col.color||theme.palette.body||theme.palette.ink;}
    }
    if(row.styles?.[col.key])Object.assign(e.style,row.styles[col.key]);
   });

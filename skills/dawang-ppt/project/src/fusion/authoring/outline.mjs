@@ -25,9 +25,9 @@ import path from 'node:path';
 //             table: { columns: [], rows: [[]] }, tables: [{ title, columns, rows, highlight, from }], photos: [{ src, caption }] }]
 // }
 // role: summary 整体结论 | results 成果数据 | actions 关键动作 | resources 资源/支持 | issues 问题差距 | causes 原因复盘
-//       | plan 下一步 | asks 需支持/决策 | duties 职责定位（述职） | other
+//       | plan 下一步 | asks 需支持/决策 | duties 职责定位（述职） | section 章节过渡 | closing 收尾总结 | other
 
-export const ROLES = ['cover', 'summary', 'results', 'actions', 'resources', 'issues', 'causes', 'plan', 'asks', 'duties', 'other'];
+export const ROLES = ['cover', 'section', 'summary', 'results', 'actions', 'resources', 'issues', 'causes', 'plan', 'asks', 'duties', 'closing', 'other'];
 
 // What a reader of each kind of deck needs. Each entry is the relation the reader cannot follow without it, in the
 // reader's words. draftable: 'text' can be written outright when the user allows drafting; 'number' goes in as XX.
@@ -103,10 +103,11 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
   }
   pages.forEach((p, i) => {
     const where = { level: 'page', page: p.id || `p${i + 1}` };
+    const isStructural = ['cover', 'section', 'closing'].includes(p.role);
     if (!ROLES.includes(p.role)) warnings.push({ ...where, item: 'role', ask: `role 取 ${ROLES.join(' / ')}` });
     const key = p.keyLine?.text?.trim();
     if (!key) warnings.push({ ...where, item: 'keyLine', ask: '制作智能体从本页内容提炼重点句（source: created），交付时请用户确认', impact: '页面没有重点，只能平铺信息' });
-    else if (['report','review'].includes(kind) && !hasNumber(key) && ACTION_ONLY.test(key)) warnings.push({ ...where, item: 'keyLine', ask: '重点句只是动作罗列，改成结果或状态（最好带数字）', impact: '标题看不出做成了什么' });
+    else if (!isStructural && ['report','review'].includes(kind) && !hasNumber(key) && ACTION_ONLY.test(key)) warnings.push({ ...where, item: 'keyLine', ask: '重点句只是动作罗列，改成结果或状态（最好带数字）', impact: '标题看不出做成了什么' });
     for (const d of p.data || []) {
       if (!d.unit && !/[%％]/.test(String(d.value))) warnings.push({ ...where, item: 'unit', ask: `「${d.label}」的单位`, impact: '数字无法读懂' });
       if (d.icon && !ICONS[d.icon]) warnings.push({ ...where, item: 'icon', ask: `「${d.label}」的 icon 取 ${Object.keys(ICONS).join(' / ')}`, impact: '名称不存在，会显示默认图标' });
@@ -115,7 +116,7 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
     if (p.role === 'cover') {
       if (i > 0 || pages.filter((q) => q.role === 'cover').length > 1) warnings.push({ ...where, item: 'cover', ask: '封面只能有一页，放在最前面；中间的页面改成内容页角色', impact: '封面不在开头，整稿顺序混乱' });
       const sig = (list) => (list || []).map((d) => `${d.label}|${d.value}`).sort().join(';'), mine = sig(p.data);
-      const twin = mine && pages.find((q) => q !== p && q.role !== 'cover' && sig(q.data) === mine);
+      const twin = mine && pages.find((q) => q !== p && !['cover', 'section', 'closing'].includes(q.role) && sig(q.data) === mine);
       if (twin) warnings.push({ ...where, item: 'cover-data', ask: `封面的数字和 ${twin.id || `第 ${pages.indexOf(twin) + 1} 页`} 的数字组完全一样：封面去掉 data，或只留一个最能说明整体状态的数字`, impact: '同一组数字连着出现两次，像套模板' });
     }
     relationGaps.push(...pageRelationGaps(p, where, { kind, roles }));
@@ -127,9 +128,9 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
     // Report structure hiding in labels: targets and year-on-year pairs belong in their own fields, so the
     // report page types (target vs actual, side-by-side comparison) can be suggested.
     const said = [p.keyLine?.text, ...(p.data || []).flatMap((d) => [d.label, d.note]), ...(p.items || []).flatMap((it) => [it.title, it.detail])].filter(Boolean).join(' ');
-    if (p.role !== 'plan' && /目标|计划(值|完成|指标)|预期/.test(said) && !(p.data || []).some((d) => d.target != null)) warnings.push({ ...where, item: 'target', ask: '材料提到目标/计划：把目标值写进 data[].target（与实际值成对），可用 targetVsActual 页型', impact: '目标与实际分散在文字里，读者要自己对比' });
-    if (/去年|上期|同比|环比|上半年|对比/.test(said) && !p.compare && !p.table?.rows?.length && !(p.data || []).some((d) => d.target != null)) warnings.push({ ...where, item: 'compare', ask: '材料有今年/去年或前后对照：成对内容写进 compare:{left,right}，数字对比写进 data[].target 或表格', impact: '对照关系没有结构，页面只能平铺' });
-    if ((p.photos || []).length >= 2 && !(p.items || []).length) warnings.push({ ...where, item: 'items', ask: '这页有多张照片但没写事项：把每张照片对应的动作/资源写进 items（与 photos 同序、同数量），页型会把照片放在对应事项下', impact: '照片和内容对不上，读者分不清哪张图说明哪件事' });
+    if (!isStructural && p.role !== 'plan' && /目标|计划(值|完成|指标)|预期/.test(said) && !(p.data || []).some((d) => d.target != null)) warnings.push({ ...where, item: 'target', ask: '材料提到目标/计划：把目标值写进 data[].target（与实际值成对），可用 targetVsActual 页型', impact: '目标与实际分散在文字里，读者要自己对比' });
+    if (!isStructural && /去年|上期|同比|环比|上半年|对比/.test(said) && !p.compare && !p.table?.rows?.length && !(p.data || []).some((d) => d.target != null)) warnings.push({ ...where, item: 'compare', ask: '材料有今年/去年或前后对照：成对内容写进 compare:{left,right}，数字对比写进 data[].target 或表格', impact: '对照关系没有结构，页面只能平铺' });
+    if (!isStructural && (p.photos || []).length >= 2 && !(p.items || []).length) warnings.push({ ...where, item: 'items', ask: '这页有多张照片但没写事项：把每张照片对应的动作/资源写进 items（与 photos 同序、同数量），页型会把照片放在对应事项下', impact: '照片和内容对不上，读者分不清哪张图说明哪件事' });
     suggestions.push({ ...where, pattern: suggestPattern(p), why: suggestReason(p), components: suggestComponents(p) });
   });
   // Wording that must hold across the deck: the same thing counted one way, the same figure with the same target, a title keeping its scope.
@@ -151,6 +152,8 @@ export function checkOutline(outline, { baseDir = process.cwd() } = {}) {
 
 // Data comes before pictures: several figures go into metric tiles even when photos exist.
 export function suggestPattern(p) {
+  if (p.role === 'section') return 'sectionDivider';
+  if (p.role === 'closing') return 'closingSlide';
   const nData = (p.data || []).length, nPhotos = (p.photos || []).length, nItems = (p.items || []).length;
   if (p.table?.rows?.length) return (p.flows || []).length ? 'tableWithFlows' : (p.chains || []).length ? 'tableWithPanel' : 'free';
   // Report shapes: targets beside results, two sides that pair row by row, work laid out by period.
@@ -172,6 +175,8 @@ export function suggestPattern(p) {
   return 'free';
 }
 function suggestReason(p) {
+  if (p.role === 'section') return '章节过渡页：主色锚定章节编号与核心命题，承上启下';
+  if (p.role === 'closing') return '收尾总结/致谢页：首尾呼应，汇总全场核心指标与行动承诺';
   const nData = (p.data || []).length, nPhotos = (p.photos || []).length;
   if (suggestPattern(p) === 'targetVsActual') return '有目标值：计划与实际同列对照，深色块给出整体完成度';
   if (suggestPattern(p) === 'contrastColumns') return '两侧逐项成对（亮点/待改进、问题/改进）：左右对照、中间编号连起每一对';
@@ -226,6 +231,12 @@ export function suggestComponents(p) {
       break;
     case 'duties':
       add('answerBlock', '岗位定位放答案块，职责用编号列表');
+      break;
+    case 'section':
+      add('sectionPanel', '主色章节过渡页（支持子议题清单或关键指标）');
+      break;
+    case 'closing':
+      add('closingPanel', '首尾呼应收官页（支持汇总指标与下一阶段承诺）');
       break;
     default:
       add('answerBlock', '用一块实心主色装本页答案');

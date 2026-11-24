@@ -1,6 +1,6 @@
 import { imageElement } from './elements.mjs';
 import { validImageCrop } from '../scene/image-crop.mjs';
-import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, categoryBreakdownCard, conversionFunnel, createTheme, hubArchitecture, imageSize, kpiStrip, labelBand, metricBento, metricTiles, photoGroup, readableInk, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
+import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_COMPACT, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, categoryBreakdownCard, conversionFunnel, createTheme, hubArchitecture, imageSize, kpiStrip, labelBand, metricBento, metricTiles, photoGroup, readableInk, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
 import { comparePair, periodBand, periodTimeline } from './report-kit.mjs';
 import path from 'node:path';
 import { capacityFlow, capacityTable, flowEdgeBindings, measureModule } from './capacity-kit.mjs';
@@ -14,14 +14,14 @@ import { rulesProvider } from '../rules/index.mjs';
 //
 // layouts: { pageId: rows } is optional; each row is 'zone', ['zone', 'zone'] (side by side) or { left: ['zone', …], right: 'photos' }.
 // Without one, defaultLayout orders the page by its role.
-const L = 96, W = 1728, TOP = 146, BOTTOM = 1010, GAP = 18;
+const L = 96, W = 1728, TOP = 150, BOTTOM = 1010, GAP = 18;
 const asList = (v) => (Array.isArray(v) ? v : []);
 // The measurer works on one page at a time, so modules in a row are measured one after another.
 const inOrder = async (list, fn) => { const out = []; for (const [i, item] of list.entries()) out.push(await fn(item, i)); return out; };
 const ROLE_TAG = { summary: '整体结论', results: '成果数据', actions: '关键动作', resources: '资源支持', issues: '问题差距', causes: '原因复盘', cause: '原因复盘', plan: '下一步', asks: '需要支持', duties: '职责定位' };
 const VERDICT = /复盘|判断|结论|启示/, CLOSING = /复盘|判断|结论|启示|AI|工具|下一步|建议/;
 
-const TEXT_GROWTH = [1.3, 1.2, 1.1];
+const TEXT_GROWTH = [1.06, 1.03];
 // A target as it reads under its figure; the cover shows it too, so one figure reads the same on every page.
 const targetText = (d) => `${d.target}${d.unit && !String(d.target).endsWith(d.unit) ? ` ${d.unit}` : ''}`;
 const coverItem = ({ label, value, unit, icon, target }) => ({ label, value, unit, ...(icon ? { icon } : {}), ...(target != null ? { note: `目标 ${targetText({ target, unit })}` } : {}) });
@@ -94,7 +94,7 @@ export function defaultLayout(page, zoneIds) {
   // Full-width band preference: when 3+ photos can form a balanced bottom visual strip,
   // or when a full-width KPI strip (3–5 figures) coexists with items/table and photos,
   // stacking full-width rows keeps the KPI strip wide and expansive instead of squeezing it into a narrow side column.
-  const preferFullBand = has('photos') && (photos.length >= 3 || (has('metrics') && asList(page.data).length >= 3 && (has('items') || has('table'))));
+  const preferFullBand = has('photos') && (photos.length >= 3 || (has('metrics') && asList(page.data).length >= 3 && (has('items') || has('table') || has('breakdown') || has('compare') || has('periods') || has('funnel') || has('hub'))));
   if (order.length) {
     // Modules follow the stated order; neighbouring flows share a row.
     const at = (z) => order.indexOf(z) < 0 ? 999 : order.indexOf(z), seq = [...core, ...flows].sort((a, b) => at(a) - at(b)), isFlow = (z) => flows.includes(z), mid = [];
@@ -160,16 +160,22 @@ export function layoutCandidates(page, zoneIds, limit = 48) {
   // Opening sentences stay stacked, or the first two or three share a row and any others join the column beside the photos.
   const opening = [{ rows: tops, extra: [], cost: 0 }];
   for (let k = 2; k <= Math.min(3, tops.length); k++) opening.push({ rows: [tops.slice(0, k)], extra: tops.slice(k), cost: 1 });
-  for (const top of opening) {
-    if (!has('photos')) { for (const rows of splits(body)) add([...top.rows, ...top.extra, ...rows, ...closing], top.cost + pairCount(rows)); continue; }
-    for (const beside of subsets(body, 3)) {
-      const rest = body.filter((z) => !beside.includes(z)), left = [...top.extra, ...beside];
-      for (const rows of splits(rest)) {
-        if (left.length) add([...top.rows, { left, right: 'photos' }, ...rows, ...closing], top.cost + pairCount(rows));
-        else add([...top.rows, ...rows, 'photos', ...closing], top.cost + pairCount(rows) + 1);
+  const bodies = body.length >= 3 && body.includes('metrics') && body[0] !== 'metrics'
+    ? [{ list: body, extra: 0 }, { list: ['metrics', ...body.filter((z) => z !== 'metrics')], extra: 1 }]
+    : [{ list: body, extra: 0 }];
+  for (const bSpec of bodies) {
+    const curBody = bSpec.list, bCost = bSpec.extra;
+    for (const top of opening) {
+      if (!has('photos')) { for (const rows of splits(curBody)) add([...top.rows, ...top.extra, ...rows, ...closing], top.cost + bCost + pairCount(rows)); continue; }
+      for (const beside of subsets(curBody, 3)) {
+        const rest = curBody.filter((z) => !beside.includes(z)), left = [...top.extra, ...beside];
+        for (const rows of splits(rest)) {
+          if (left.length) add([...top.rows, { left, right: 'photos' }, ...rows, ...closing], top.cost + bCost + pairCount(rows));
+          else add([...top.rows, ...rows, 'photos', ...closing], top.cost + bCost + pairCount(rows) + 1);
+        }
       }
+      if (top.cost === 0 && tops.length) for (const beside of subsets(curBody, 2).filter((s) => s.length)) { const rest = curBody.filter((z) => !beside.includes(z)); for (const rows of splits(rest)) add([{ left: [...tops, ...beside], right: 'photos' }, ...rows, ...closing], bCost + pairCount(rows)); }
     }
-    if (top.cost === 0 && tops.length) for (const beside of subsets(body, 2).filter((s) => s.length)) { const rest = body.filter((z) => !beside.includes(z)); for (const rows of splits(rest)) add([{ left: [...tops, ...beside], right: 'photos' }, ...rows, ...closing], pairCount(rows)); }
   }
   const seen = new Set(), base = JSON.stringify(defaultLayout(page, zoneIds));
   return out.sort((x, y) => x.cost - y.cost).map((c) => c.rows).filter((rows) => { const key = JSON.stringify(rows); if (key === base || seen.has(key)) return false; seen.add(key); return true; }).slice(0, limit);
@@ -186,9 +192,58 @@ export function fitCrop(crop, size, frameRatio, focal) {
   const h = ch * r / frameRatio; return [cx, cy + (ch - h) * pct(fy, 0.4), cw, h];
 }
 
+export function isContainPhoto(ph) {
+  if (!ph || ph.fit === 'cover' || validImageCrop(ph.crop)) return false;
+  return ph.fit === 'contain' || ph.kind === 'screenshot' || ph.kind === 'poster';
+}
+
+export function framedContainPhoto({ id, ph, bounds: [cx, cy, cw, cellH], theme, surfaceFill }) {
+  const p = theme.palette;
+  const s = imageSize(ph.src);
+  const r = Math.max(1, s.width) / Math.max(1, s.height);
+  const hasChrome = ph.kind === 'screenshot' && ph.windowChrome !== false && r >= 0.85 && cw >= 220 && cellH >= 140;
+  const padX = 10, padTop = hasChrome ? 28 : 10, padBottom = 10;
+  const availW = Math.max(32, cw - padX * 2), availH = Math.max(32, cellH - padTop - padBottom);
+  let iw = Math.min(availW, availH * r), ih = iw / r;
+  if (ih > availH) { ih = availH; iw = ih * r; }
+  iw = Math.max(1, Math.round(iw));
+  ih = Math.max(1, Math.round(ih));
+  const tightCard = cw > Math.max(240, iw + 64);
+  const cardW = tightCard ? Math.min(cw, Math.max(220, iw + 36)) : cw;
+  const cardX = cx + Math.round((cw - cardW) / 2);
+  const ix = cardX + Math.round((cardW - iw) / 2);
+  const iy = cy + padTop + Math.round((availH - ih) / 2);
+  const cardFill = surfaceFill || (p.dark ? '#162238' : '#F8FAFC');
+  const cardStroke = p.dark ? (p.line || '#334155') : (p.line || '#CBD5E1');
+  const elements = [
+    { type: 'shape', id: `${id}-card`, bounds: [cardX, cy, cardW, cellH], style: { fill: cardFill, stroke: cardStroke, strokeWidth: 1.5, radius: Math.max(12, theme.radius ?? 14) } },
+  ];
+  if (hasChrome) {
+    elements.push({ type: 'shape', id: `${id}-chrome-ln`, bounds: [cardX + 1, cy + 22, Math.max(1, cardW - 2), 1], style: { fill: cardStroke } });
+    ['#FDA4AF', '#FCD34D', '#86EFAC'].forEach((dotCol, di) => {
+      elements.push({ type: 'shape', id: `${id}-dot-${di + 1}`, shape: 'ellipse', bounds: [cardX + 12 + di * 13, cy + 8, 7, 7], style: { fill: dotCol, radius: 4 } });
+    });
+  }
+  const imageId = `${id}-img-1`;
+  elements.push(imageElement({
+    id: imageId,
+    src: ph.src,
+    bounds: [ix, iy, iw, ih],
+    fit: 'contain',
+    naturalSize: [s.width, s.height],
+    style: { radius: 6 },
+    ...(ph.caption ? { alt: ph.caption } : {}),
+  }));
+  return { elements, cardBounds: [cardX, cy, cardW, cellH], imageId };
+}
+
 // Portraits take a column each and landscapes stack in one column, so no picture is forced into the wrong shape.
 function photoColumns(photos) {
-  const cells = photos.map((ph, index) => ({ ...ph, index, r: validImageCrop(ph.crop) ? aspect(ph.src) * ph.crop[2] / ph.crop[3] : aspect(ph.src) })), portrait = cells.filter((c) => c.r < 1), land = cells.filter((c) => c.r >= 1);
+  const cells = photos.map((ph, index) => {
+    const rawR = validImageCrop(ph.crop) ? aspect(ph.src) * ph.crop[2] / ph.crop[3] : aspect(ph.src);
+    const r = isContainPhoto(ph) && rawR < 0.58 ? Math.max(0.58, rawR) : rawR;
+    return { ...ph, index, r };
+  }), portrait = cells.filter((c) => c.r < 1), land = cells.filter((c) => c.r >= 1);
   return [...portrait.map((c) => [c]), ...(land.length ? [land] : [])];
 }
 const singleColumns = (photos) => photoColumns(photos).flat().sort((a, b) => a.index - b.index).map((c) => [c]);
@@ -204,7 +259,7 @@ function pageWriter({ page, zones, theme, measurer }) {
   const readableTheme = { ...theme, palette: { ...p, accent: readableInk(p.accent, surf) } };
   const solidFill = p.dark ? p.primary : readableInk(colorRoles(p).primary, pageBg);
   const solidTheme = { ...theme, palette: { ...p, primary: solidFill } };
-  const roles = theme.roles, body = roles.body.fontSize, label = roles.stepTitle.fontSize, metricSize = body >= 30 ? 88 : body >= 26 ? 64 : body >= 24 ? 56 : body >= 22 ? 46 : 40, typography = (title = label) => ({ title: Math.max(title, body), body });
+  const roles = theme.roles, body = roles.body.fontSize, label = roles.stepTitle.fontSize, metricSize = body >= 21 ? 62 : body >= 20 ? 56 : body >= 19 ? 52 : 48, typography = (title = label) => ({ title: Math.max(title, body), body });
   const statement = (z) => asList(page.statements).find((st, i) => (st.id || `statement-${i + 1}`) === z);
   const panel = (id, bounds, white) => ({ id, type: 'shape', bounds, style: white ? { fill: surf, stroke: p.line, strokeWidth: 1.5, radius: theme.radius } : { fill: p.pale, ...(p.dark ? { stroke: p.line, strokeWidth: 1 } : {}), radius: theme.radius } });
   const text = (id, t, bounds, style) => ({ id, type: 'text', text: t, bounds, style });
@@ -290,7 +345,7 @@ function pageWriter({ page, zones, theme, measurer }) {
   // Sizes that grow with the room are declared with the region, so the type-scale check knows they are intended.
   const sizesOf = (elements, ids) => [...new Set(elements.filter((e) => ids.includes(e.id)).flatMap((e) => [e.style?.fontSize, ...(e.runs || []).map((run) => run.style?.fontSize)]).filter(Number.isFinite))];
   // A box may only get bigger if what is inside it gets bigger too: try larger type, and if none fits keep the box at its natural height.
-  const evenSize = (n) => Math.min(38, Math.round(n / 2) * 2);
+  const evenSize = (n) => Math.min(24, Math.round(n / 2) * 2);
   const grownToFill = async (build, natural, room, scales = TEXT_GROWTH) => {
     if (room <= natural.height) return natural;
     for (const scale of scales) { const t = await build(scale); if (t.height <= room) return { ...t, scale }; }
@@ -344,18 +399,18 @@ function pageWriter({ page, zones, theme, measurer }) {
   };
   // Steps are cards whenever each has the width for one, so a short line of text is never left bare in a wide panel. room is set only in a row of equal heights.
   const flowCards = async ({ fid, x, y, w, steps, room }) => {
-    const n = steps.length, gap = 44, cardW = Math.floor((w - gap * (n - 1)) / n), pad = 24, badge = 44, ink = readableInk(p.accent, surf);
+    const n = steps.length, gap = 36, cardW = Math.floor((w - gap * (n - 1)) / n), pad = theme.compact ? 16 : 22, badge = 34, ink = readableInk(p.accent, surf);
     if (cardW < 240) return null;
     for (const scale of room ? [...TEXT_GROWTH, 1] : [1]) {
-      const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, lineHeight: 1.3, fontSize: evenSize(label * scale) }), detailStyle = theme.roleStyle('stepDetail', { color: p.body || p.muted, lineHeight: 1.45, fontSize: evenSize(body * scale) });
-      const titles = steps.map((s, i) => text(`${fid}-title-${s.id}`, s.title, [0, 0, cardW - pad * 2 - badge - 14, 40], titleStyle)), details = steps.map((s) => (s.detail ? text(`${fid}-detail-${s.id}`, s.detail, [0, 0, cardW - pad * 2, 40], detailStyle) : null)), measuredAll = [...titles, ...details.filter(Boolean)], sizes = await measurer.texts(measuredAll);
+      const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, lineHeight: 1.3, fontSize: evenSize(label * scale) }), detailStyle = theme.roleStyle('stepDetail', { color: p.body || '#334155', fontWeight: 400, lineHeight: 1.45, fontSize: Math.min(20, evenSize(body * scale)) });
+      const titles = steps.map((s, i) => text(`${fid}-title-${s.id}`, s.title, [0, 0, cardW - pad * 2 - badge - 12, 36], titleStyle)), details = steps.map((s) => (s.detail ? text(`${fid}-detail-${s.id}`, s.detail, [0, 0, cardW - pad * 2, 40], detailStyle) : null)), measuredAll = [...titles, ...details.filter(Boolean)], sizes = await measurer.texts(measuredAll);
       measuredAll.forEach((e, i) => { e.bounds[3] = Math.ceil(sizes[i].height); });
-      const head = Math.max(badge, ...titles.map((e) => e.bounds[3])), detailH = Math.max(0, ...details.filter(Boolean).map((e) => e.bounds[3])), need = pad * 2 + head + (detailH ? 12 + detailH : 0);
+      const head = Math.max(badge, ...titles.map((e) => e.bounds[3])), detailH = Math.max(0, ...details.filter(Boolean).map((e) => e.bounds[3])), need = pad * 2 + head + (detailH ? 10 + detailH : 0);
       if (room && need > room) continue;
       const cardH = room || need, top = y + pad + Math.round((cardH - need) / 2), elements = [];
       steps.forEach((s, i) => {
         const cx = x + i * (cardW + gap), title = titles[i], detail = details[i];
-        Object.assign(title, { bounds: [cx + pad + badge + 14, top + Math.round((head - title.bounds[3]) / 2), title.bounds[2], title.bounds[3]] });
+        Object.assign(title, { bounds: [cx + pad + badge + 12, top + Math.round((head - title.bounds[3]) / 2), title.bounds[2], title.bounds[3]] });
         const rFlow = colorRoles(p), altStep = i % 2 === 1;
         const stepBadgeFill = altStep ? rFlow.secondary : ink;
         const stepNumInk = altStep ? (p.dark ? rFlow.onSecondary : readableInk(rFlow.onSecondary || rFlow.secondaryInk, rFlow.secondary, 3.2)) : p.inverse;
@@ -363,11 +418,11 @@ function pageWriter({ page, zones, theme, measurer }) {
           { type: 'shape', id: `${fid}-card-${s.id}`, bounds: [cx, y, cardW, cardH], style: { fill: surf, ...(p.dark ? { stroke: p.line, strokeWidth: 1 } : {}), radius: theme.radius ?? 0 } },
           { type: 'shape', id: `${fid}-cap-${s.id}`, bounds: [cx + 16, y, cardW - 32, 4], style: { fill: stepBadgeFill, radius: 2 } },
           { type: 'shape', id: `${fid}-node-${s.id}`, bounds: [cx + pad, top + Math.round((head - badge) / 2), badge, badge], style: { fill: stepBadgeFill, radius: badge / 2 } },
-          text(`${fid}-num-${s.id}`, String(i + 1).padStart(2, '0'), [cx + pad, top + Math.round((head - badge) / 2) + 8, badge, 28], theme.font(20, { fontWeight: 700, color: stepNumInk, textAlign: 'center', lineHeight: 1.4 })),
+          text(`${fid}-num-${s.id}`, String(i + 1).padStart(2, '0'), [cx + pad, top + Math.round((head - badge) / 2) + 6, badge, 22], theme.font(15, { fontWeight: 800, color: stepNumInk, textAlign: 'center', lineHeight: 1.3 })),
           title
         );
-        if (detail) { detail.bounds[0] = cx + pad; detail.bounds[1] = top + head + 12; elements.push(detail); }
-        if (i < n - 1) elements.push({ type: 'vector', id: `${fid}-link-${s.id}-${steps[i + 1].id}`, bounds: [cx + cardW + 10, y + Math.round(cardH / 2) - 20, 24, 40], viewBox: [0, 0, 28, 48], path: 'M4,4 L24,24 L4,44', style: { fill: 'none', stroke: ink, strokeWidth: 5 } });
+        if (detail) { detail.bounds[0] = cx + pad; detail.bounds[1] = top + head + 10; elements.push(detail); }
+        if (i < n - 1) elements.push({ type: 'vector', id: `${fid}-link-${s.id}-${steps[i + 1].id}`, bounds: [cx + cardW + 7, y + Math.round(cardH / 2) - 16, 22, 32], viewBox: [0, 0, 28, 48], path: 'M4,4 L24,24 L4,44', style: { fill: 'none', stroke: ink, strokeWidth: 4.5 } });
       });
       return { elements, cardH, bindings: steps.map((s, i) => ({ ref: s.ref, elementIds: [titles[i].id, ...(details[i] ? [details[i].id] : [])] })) };
     }
@@ -457,16 +512,16 @@ function pageWriter({ page, zones, theme, measurer }) {
   // title and its detail. The second form of an item list, chosen by the deck so that two item pages in a row do not
   // look alike (user decision 2026-11-11). Cards are peers, so they share one width and one height (HS-02).
   const itemCards = async (items, x, y, w, h) => {
-    const n = items.length, gap = 16, pad = 24, inner = w - 32, cardW = Math.floor((inner - gap * (n - 1)) / n), textW = cardW - pad * 2;
+    const n = items.length, gap = 16, pad = 22, inner = w - 32, cardW = Math.floor((inner - gap * (n - 1)) / n), textW = cardW - pad * 2;
     const heading = page.itemsHeading, headStyle = theme.roleStyle('sectionTitle', { color: readableInk(p.accent, surf), lineHeight: 1.3 });
-    const numSize = Math.round(roles.stepTitle.fontSize * 1.6 / 2) * 2, numStyle = theme.font(numSize, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.1 });
-    const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, lineHeight: 1.32 }), detailStyle = theme.roleStyle('stepDetail', { color: p.muted || '#64748B', fontSize: Math.min(22, Math.max(18, Math.round(roles.stepTitle.fontSize * 0.72 / 2) * 2)), fontWeight: 300, lineHeight: 1.48 });
-    const probes = items.flatMap((it, i) => [text(`t${i}`, it.title, [0, 0, textW, 40], titleStyle), ...(it.detail ? [text(`d${i}`, it.detail, [0, 0, textW, 40], detailStyle)] : [])]);
+    const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, fontSize: Math.min(22, roles.stepTitle.fontSize), lineHeight: 1.32 });
+    const detailStyle = theme.roleStyle('stepDetail', { color: p.body || '#334155', fontSize: Math.min(19, Math.max(17, roles.stepDetail.fontSize)), fontWeight: 400, lineHeight: 1.45 });
+    const probes = items.flatMap((it, i) => [text(`t${i}`, it.title, [0, 0, textW, 36], titleStyle), ...(it.detail ? [text(`d${i}`, it.detail, [0, 0, textW, 40], detailStyle)] : [])]);
     const sized = new Map((await measurer.texts(probes)).map((m) => [m.id, Math.ceil(m.height)]));
     // A title over two lines means the cards are too narrow for these items: the list keeps them readable.
     if (items.some((_, i) => sized.get(`t${i}`) > Math.ceil(titleStyle.fontSize * titleStyle.lineHeight * 2) + 2)) return null;
-    const numH = Math.ceil(numSize * 1.25), titleH = Math.max(...items.map((_, i) => sized.get(`t${i}`))), body = (i) => (items[i].detail ? sized.get(`d${i}`) : 0);
-    const headH = heading ? headBox + 12 : 0, cardNatural = 6 + pad + numH + 10 + titleH + (items.some((it) => it.detail) ? 10 + Math.max(...items.map((_, i) => body(i))) : 0) + pad;
+    const pillH = 28, titleH = Math.max(...items.map((_, i) => sized.get(`t${i}`))), body = (i) => (items[i].detail ? sized.get(`d${i}`) : 0);
+    const headH = heading ? headBox + 10 : 0, cardNatural = 6 + pad + pillH + 10 + titleH + (items.some((it) => it.detail) ? 8 + Math.max(...items.map((_, i) => body(i))) : 0) + pad;
     const natural = 16 + headH + cardNatural + 16, height = Math.max(natural, h || 0), cardH = height - 32 - headH, cardY = y + 16 + headH, r = colorRoles(p), elements = [];
     if (heading) elements.push(text('acts-heading', heading, [x + 24, y + 16, inner - 16, headBox], headStyle));
     items.forEach((it, i) => {
@@ -475,13 +530,13 @@ function pageWriter({ page, zones, theme, measurer }) {
       const cardFill = surf;
       const cardStroke = isLastKey ? r.primary : (p.line || '#E2E6EE');
       const capFill = isLastKey ? r.pop : (i % 2 ? r.secondary : r.primary);
-      const pillW = Math.max(54, Math.round(numSize * 1.45)), pillH = Math.max(36, Math.round(numH * 0.92));
+      const pillW = 46;
       elements.push({ type: 'shape', id: `acts-card-${m}`, bounds: [cx, cardY, cardW, cardH], style: { fill: cardFill, stroke: cardStroke, strokeWidth: isLastKey ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
-      elements.push({ type: 'shape', id: `acts-cap-${m}`, bounds: [cx + 18, cardY, cardW - 36, 5], style: { fill: capFill, radius: 3 } });
+      elements.push({ type: 'shape', id: `acts-cap-${m}`, bounds: [cx + 18, cardY, cardW - 36, 4], style: { fill: capFill, radius: 2 } });
       elements.push({ type: 'shape', id: `acts-numpill-${m}`, bounds: [cx + pad, cardY + 6 + pad, pillW, pillH], style: { fill: isLastKey ? r.pop : r.band, radius: Math.round(pillH / 2) } });
-      elements.push(text(`acts-num-${m}`, String(m).padStart(2, '0'), [cx + pad, cardY + 6 + pad + Math.round((pillH - numSize * 0.72 * 1.2) / 2), pillW, Math.ceil(numSize * 0.8)], theme.font(Math.round(numSize * 0.68), { fontWeight: 900, color: isLastKey ? '#FFFFFF' : readableInk(p.accent, r.band), textAlign: 'center', lineHeight: 1.15 })));
-      elements.push(text(`acts-title-${m}`, it.title, [cx + pad, cardY + 6 + pad + numH + 10, textW, titleH], titleStyle));
-      if (it.detail) elements.push(text(`acts-detail-${m}`, it.detail, [cx + pad, cardY + 6 + pad + numH + 10 + titleH + 10, textW, body(i)], detailStyle));
+      elements.push(text(`acts-num-${m}`, String(m).padStart(2, '0'), [cx + pad, cardY + 6 + pad + 5, pillW, 18], theme.font(14, { fontWeight: 800, color: isLastKey ? '#FFFFFF' : readableInk(p.accent, r.band), textAlign: 'center', lineHeight: 1.2 })));
+      elements.push(text(`acts-title-${m}`, it.title, [cx + pad, cardY + 6 + pad + pillH + 10, textW, titleH], titleStyle));
+      if (it.detail) elements.push(text(`acts-detail-${m}`, it.detail, [cx + pad, cardY + 6 + pad + pillH + 10 + titleH + 8, textW, body(i)], detailStyle));
     });
     const ids = items.flatMap((it, i) => [`acts-title-${i + 1}`, ...(it.detail ? [`acts-detail-${i + 1}`] : [])]);
     return { height, elements: [panel('acts-panel', [x, y, w, height]), ...elements], frame: 'acts-panel', module: 'actionCards', variant: `${n}-cards`, title: roles.sectionTitle.fontSize, sizes: sizesOf(elements, ids), reason: '并列事项排成等宽卡片，和相邻页的列表错开', bindings: items.map((it, i) => ({ ref: `${pid}:item-${i + 1}`, elementIds: [`acts-title-${i + 1}`, ...(it.detail ? [`acts-detail-${i + 1}`] : [])] })) };
@@ -532,7 +587,12 @@ function pageWriter({ page, zones, theme, measurer }) {
       // One figure with a target reads as target → actual; the others sit beside it without competing.
       if (goals.length === 1) {
         const gi = goals[0], d = page.data[gi], others = page.data.flatMap((o, i) => (i === gi ? [] : [{ o, i }])), pairW = others.length ? Math.round(w * 0.52) : w, restW = w - pairW;
-        const pair = { id: 'm-cp', before: { label: '目标', value: String(d.target).replace(d.unit && String(d.target).endsWith(d.unit) ? d.unit : '', '').trim(), unit: d.unit }, after: { label: d.label, value: d.value, unit: d.unit }, theme: solidTheme, solidAfter: true };
+        const tRaw = String(d.target).trim();
+        const endsWithSameUnit = Boolean(d.unit && tRaw.endsWith(d.unit));
+        const hasOtherUnit = !endsWithSameUnit && /[%％万元亿单个家张份人次秒分天小时套条类]$/.test(tRaw);
+        const beforeVal = endsWithSameUnit ? tRaw.slice(0, -d.unit.length).trim() : tRaw;
+        const beforeUnit = hasOtherUnit ? '' : (d.unit || '');
+        const pair = { id: 'm-cp', before: { label: '目标', value: beforeVal, unit: beforeUnit }, after: { label: d.label, value: d.value, unit: d.unit }, theme: solidTheme, solidAfter: true };
         const items = others.map(({ o }) => tileItem(o, false)), probe = comparePair({ ...pair, x: 0, y: 0, width: pairW - 32 }), restStyle = { size: Math.min(metricSize, probe.elements.find((e) => e.id === 'm-cp-after-value').style.fontSize), grow: false }, natural = Math.max(probe.height + 32, others.length ? tiles('m', 0, 0, restW, items, 0, 0, -1, restStyle).natural : 0), height = Math.max(natural + stretch, h || 0);
         const cp = comparePair({ ...pair, x: x + 16, y: y + 16, width: pairW - 32, height: height - 32 }), t = others.length ? tiles('m', x + pairW, y, restW, items, height, 0, -1, restStyle) : { elements: [] }, parts = [...cp.elements, ...t.elements];
         const bindings = [{ ref: `${pid}:data-${gi + 1}`, elementIds: ['m-cp-after-value', 'm-cp-before-value'] }, ...others.map(({ i }, k) => ({ ref: `${pid}:data-${i + 1}`, elementIds: [`m-value-${k + 1}`] }))];
@@ -605,10 +665,10 @@ function pageWriter({ page, zones, theme, measurer }) {
         return { height, width, elements, frame: 'cmp-frame', module: 'metricTiles', variant: `${items.length}-changes`, title: real.valueSize, sizes: sizesOf(real.elements, items.flatMap((_, k) => ids(k))), reason: '前后数值成对，变化放大', bindings };
       }
       // Otherwise two sides. Rows that pair up share a height and are tied by an arrow (one leads to the other) or a number (row by row); sides that do not pair each keep their own rows.
-      const mid = paired || c.badge ? 64 : 28, sideW = Math.floor((w - mid) / 2), rightX = x + sideW + mid, capH = 56, pad = 24, innerW = sideW - pad * 2, textInnerW = Math.max(80, innerW - 36);
-      const cell = (id, it, cx) => ({ id, type: 'text', text: [it.title, it.detail].filter(Boolean).join('：'), ...(it.title && it.detail ? { runs: [{ text: it.title, style: { fontWeight: 700, color: p.ink } }, { text: '：' + it.detail, style: { fontWeight: 300, color: p.muted || '#64748B' } }] } : {}), bounds: [cx + pad + 36, 0, textInnerW, 40], style: theme.roleStyle('body', { fontSize: Math.min(22, roles.body.fontSize), fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.48 }) });
+      const mid = paired || c.badge ? 56 : 24, sideW = Math.floor((w - mid) / 2), rightX = x + sideW + mid, capH = 48, pad = 22, innerW = sideW - pad * 2, textInnerW = Math.max(80, innerW - 34);
+      const cell = (id, it, cx) => ({ id, type: 'text', text: [it.title, it.detail].filter(Boolean).join('：'), ...(it.title && it.detail ? { runs: [{ text: it.title, style: { fontWeight: 700, color: p.ink, fontSize: Math.min(19, roles.body.fontSize + 1) } }, { text: '：' + it.detail, style: { fontWeight: 400, color: p.body || '#334155', fontSize: Math.min(19, roles.body.fontSize) } }] } : {}), bounds: [cx + pad + 34, 0, textInnerW, 38], style: theme.roleStyle('body', { fontSize: Math.min(19, roles.body.fontSize), fontWeight: 400, color: p.body || '#334155', lineHeight: 1.45 }) });
       const cellsL = left.map((it, k) => cell(`cmp-l-${k + 1}`, it, x)), cellsR = right.map((it, k) => cell(`cmp-r-${k + 1}`, it, rightX)), all = [...cellsL, ...cellsR], sizes = await measurer.texts(all); all.forEach((e, k) => { e.bounds[3] = Math.ceil(sizes[k].height); });
-      const need = (e) => e.bounds[3] + 28, sum = (list) => list.reduce((a, b) => a + b, 0), together = paired ? cellsL.map((e, k) => Math.max(need(e), need(cellsR[k]))) : null, needL = together || cellsL.map(need), needR = together || cellsR.map(need);
+      const need = (e) => e.bounds[3] + 24, sum = (list) => list.reduce((a, b) => a + b, 0), together = paired ? cellsL.map((e, k) => Math.max(need(e), need(cellsR[k]))) : null, needL = together || cellsL.map(need), needR = together || cellsR.map(need);
       const natural = capH + Math.max(sum(needL), sum(needR)) + 16, height = Math.max(natural + stretch, h || 0), spread = (list) => { const extra = Math.floor((height - capH - 16 - sum(list)) / Math.max(1, list.length)); return list.map((v) => v + extra); }, rowsL = spread(needL), rowsR = spread(needR);
       // Modern SaaS Contrast Compare ('saas') OR Dual Solid-Banner Executive Compare ('solid').
       const rad = Math.max(16, theme.radius ?? 14), solidCmp = page.compareStyle === 'solid';
@@ -635,24 +695,24 @@ function pageWriter({ page, zones, theme, measurer }) {
           const capFill = isNew ? solidFill : r.secondary;
           const capInk = isNew ? p.inverse : readableInk(p.ink, r.secondary, 4.5);
           elements.push({ type: 'shape', id: `cmp-cap-${k + 1}`, bounds: [sx, y, sideW, capH], style: { fill: capFill, radius: rad } });
-          elements.push(text(`cmp-title-${k + 1}`, label, [sx + pad, y + 12, innerW - (isNew && onward ? 136 : 0), 34], theme.font(24, { fontWeight: 800, color: capInk, textAlign: 'left', lineHeight: 1.25 })));
+          elements.push(text(`cmp-title-${k + 1}`, label, [sx + pad, y + 10, innerW - (isNew && onward ? 124 : 0), 30], theme.font(21, { fontWeight: 700, color: capInk, textAlign: 'left', lineHeight: 1.25 })));
           if (isNew && onward) {
-            const pillW = 124, pillH = 30;
-            elements.push({ type: 'shape', id: `cmp-newtag-${k + 1}`, bounds: [sx + sideW - pillW - 20, y + 13, pillW, pillH], style: { fill: r.pop, radius: 15 } });
-            elements.push(text(`cmp-newtag-tx-${k + 1}`, '★ 升级方案', [sx + sideW - pillW - 20, y + 17, pillW, 22], theme.font(15, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 })));
+            const pillW = 114, pillH = 26;
+            elements.push({ type: 'shape', id: `cmp-newtag-${k + 1}`, bounds: [sx + sideW - pillW - 18, y + 11, pillW, pillH], style: { fill: r.pop, radius: 13 } });
+            elements.push(text(`cmp-newtag-tx-${k + 1}`, '★ 升级方案', [sx + sideW - pillW - 18, y + 14, pillW, 20], theme.font(14, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 })));
           }
         } else {
           elements.push({
             type: 'shape',
             id: `cmp-cap-${k + 1}`,
-            bounds: [sx + 18, y + 12, sideW - 36, capH - 14],
+            bounds: [sx + 16, y + 10, sideW - 32, capH - 12],
             style: { fill: isNew ? r.band : (p.dark ? '#1E2C47' : '#EEF2F6'), radius: 10 },
           });
-          elements.push(text(`cmp-title-${k + 1}`, label, [sx + pad + 8, y + 18, innerW - 16, 34], theme.font(24, { fontWeight: 800, color: isNew ? solidFill : p.muted, textAlign: 'left', lineHeight: 1.25 })));
+          elements.push(text(`cmp-title-${k + 1}`, label, [sx + pad + 6, y + 15, innerW - 14, 28], theme.font(21, { fontWeight: 700, color: isNew ? solidFill : p.muted, textAlign: 'left', lineHeight: 1.25 })));
           if (isNew && onward) {
-            const pillW = 124, pillH = 30;
-            elements.push({ type: 'shape', id: `cmp-newtag-${k + 1}`, bounds: [sx + sideW - pillW - 26, y + 18, pillW, pillH], style: { fill: r.pop, radius: 15 } });
-            elements.push(text(`cmp-newtag-tx-${k + 1}`, '★ 升级方案', [sx + sideW - pillW - 26, y + 22, pillW, 22], theme.font(15, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 })));
+            const pillW = 114, pillH = 26;
+            elements.push({ type: 'shape', id: `cmp-newtag-${k + 1}`, bounds: [sx + sideW - pillW - 24, y + 15, pillW, pillH], style: { fill: r.pop, radius: 13 } });
+            elements.push(text(`cmp-newtag-tx-${k + 1}`, '★ 升级方案', [sx + sideW - pillW - 24, y + 18, pillW, 20], theme.font(14, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 })));
           }
         }
       });
@@ -685,30 +745,32 @@ function pageWriter({ page, zones, theme, measurer }) {
     }
     if (z === 'periods') {
       const timeline = periodTimeline(page.periods);
-      const pdStyle = page.periodsStyle || 'stepper';
+      let pdStyle = page.periodsStyle || 'stepper';
       if (pdStyle === 'stepper') {
         const laned = timeline && await periodLanes({ x, y, w, h, heading: page.periodsHeading, pds: page.periods, timeline });
         if (laned) return laned;
+        const estColW = Math.floor((w - 48 - 16 * Math.max(0, asList(page.periods).length - 1)) / Math.max(1, asList(page.periods).length));
+        if (estColW < 235) pdStyle = 'vertical';
       }
       const pds = page.periods.map((pd) => (pd.lane && !String(pd.title || '').includes(pd.lane) ? { ...pd, title: pd.title ? `${pd.title}｜${pd.lane}` : pd.lane } : pd));
-      const heading = page.periodsHeading, headH = heading ? 20 + headBox : 16, rPd = colorRoles(p);
+      const heading = page.periodsHeading, headH = heading ? 16 + headBox : 14, rPd = colorRoles(p);
       const nPd = pds.length, currIdx = Math.max(0, nPd - 2);
 
       // Variant 2: Modern Vertical Milestone Timeline (left date badges + vertical rail + crisp stage cards)
       if (pdStyle === 'vertical') {
-        const dateW = 196, railX = x + 24 + dateW + 28, nodeD = 36, cardX = railX + 36, cardW = x + w - 24 - cardX, rowGap = 14;
-        const titleSz = Math.min(24, label), pointSize = Math.min(22, Math.max(18, Math.round(titleSz * 0.78 / 2) * 2));
+        const dateW = 186, railX = x + 22 + dateW + 24, nodeD = 32, cardX = railX + 32, cardW = x + w - 22 - cardX, rowGap = 12;
+        const titleSz = Math.min(20, label), pointSize = Math.min(18, Math.max(16, body));
         const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, lineHeight: 1.3, fontSize: titleSz });
-        const titleColW = Math.min(280, Math.round(cardW * 0.28)), ptsX = cardX + 24 + titleColW + 20, ptsW = cardW - 44 - titleColW - 20;
-        const heads = pds.map((pd, i) => (pd.title ? { id: `pd-title-${i + 1}`, type: 'text', text: pd.title, bounds: [cardX + 24, 0, titleColW, 40], style: titleStyle } : null));
+        const titleColW = Math.min(260, Math.round(cardW * 0.28)), ptsX = cardX + 20 + titleColW + 18, ptsW = cardW - 40 - titleColW - 18;
+        const heads = pds.map((pd, i) => (pd.title ? { id: `pd-title-${i + 1}`, type: 'text', text: pd.title, bounds: [cardX + 20, 0, titleColW, 36], style: titleStyle } : null));
         const present = heads.filter(Boolean), sizes = present.length ? await measurer.texts(present) : [];
         present.forEach((e, i) => { e.bounds[3] = Math.ceil(sizes[i].height); });
         const rowHeights = pds.map((pd, i) => {
           const th = heads[i] ? heads[i].bounds[3] : 0;
-          const ph = pointsHeight(asList(pd.points), pointSize, heads[i] ? ptsW : cardW - 44, 1.45);
-          return Math.max(76, Math.max(th, ph) + 32);
+          const ph = pointsHeight(asList(pd.points), pointSize, heads[i] ? ptsW : cardW - 40, 1.42);
+          return Math.max(70, Math.max(th, ph) + 28);
         });
-        const natural = headH + rowHeights.reduce((a, b) => a + b, 0) + (nPd - 1) * rowGap + 20;
+        const natural = headH + rowHeights.reduce((a, b) => a + b, 0) + (nPd - 1) * rowGap + 18;
         const height = Math.max(natural, h || 0), extra = Math.floor((height - natural) / Math.max(1, nPd));
         const finalH = rowHeights.map((rh) => rh + Math.max(0, extra));
         const vEls = [];
@@ -723,71 +785,71 @@ function pageWriter({ page, zones, theme, measurer }) {
         const lists = [];
         pds.forEach((pd, i) => {
           const rh = finalH[i], midY = centers[i], isDone = i < currIdx, isCurr = i === currIdx;
-          const lblW = Math.min(dateW, Math.ceil(textWidth(pd.label || '', 17) * 1.15) + 30);
-          vEls.push({ type: 'shape', id: `pd-pill-${i + 1}`, bounds: [x + 24 + (dateW - lblW), midY - 17, lblW, 34], style: { fill: isCurr ? rPd.pop : rPd.band, radius: 17 } });
-          vEls.push(text(`pd-label-${i + 1}`, pd.label || '', [x + 24 + (dateW - lblW), midY - 12, lblW, 24], theme.font(17, { fontWeight: 700, color: isCurr ? '#FFFFFF' : readableInk(solidFill, rPd.band), textAlign: 'center', lineHeight: 1.2 })));
+          const lblW = Math.min(dateW, Math.ceil(textWidth(pd.label || '', 15) * 1.15) + 26);
+          vEls.push({ type: 'shape', id: `pd-pill-${i + 1}`, bounds: [x + 22 + (dateW - lblW), midY - 15, lblW, 30], style: { fill: isCurr ? rPd.pop : rPd.band, radius: 15 } });
+          vEls.push(text(`pd-label-${i + 1}`, pd.label || '', [x + 22 + (dateW - lblW), midY - 10, lblW, 22], theme.font(15, { fontWeight: 700, color: isCurr ? '#FFFFFF' : readableInk(solidFill, rPd.band), textAlign: 'center', lineHeight: 1.2 })));
           if (isCurr) vEls.push({ type: 'shape', id: `pd-halo-${i + 1}`, bounds: [railX - nodeD / 2 - 5, midY - nodeD / 2 - 5, nodeD + 10, nodeD + 10], style: { fill: p.dark ? '#331E18' : lighten(rPd.pop, 0.86), radius: (nodeD + 10) / 2 }, shape: 'ellipse' });
           vEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [railX - nodeD / 2, midY - nodeD / 2, nodeD, nodeD], style: { fill: isCurr ? rPd.pop : isDone ? solidFill : surf, stroke: isCurr ? rPd.pop : isDone ? solidFill : (p.line || '#CBD5E1'), strokeWidth: 2.5, radius: nodeD / 2 }, shape: 'ellipse' });
-          vEls.push(text(`pd-num-${i + 1}`, isDone ? '✓' : String(i + 1), [railX - nodeD / 2, midY - 11, nodeD, 22], theme.font(17, { fontWeight: 900, color: isCurr ? '#FFFFFF' : isDone ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
+          vEls.push(text(`pd-num-${i + 1}`, isDone ? '✓' : String(i + 1), [railX - nodeD / 2, midY - 10, nodeD, 20], theme.font(15, { fontWeight: 900, color: isCurr ? '#FFFFFF' : isDone ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
           vEls.push({ type: 'shape', id: `pd-card-${i + 1}`, bounds: [cardX, ry, cardW, rh], style: { fill: isCurr ? (p.dark ? '#231D2B' : lighten(rPd.pop, 0.94)) : surf, stroke: isCurr ? rPd.pop : (p.line || '#E2E6EE'), strokeWidth: isCurr ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
           if (heads[i]) {
             heads[i].bounds[1] = ry + Math.round((rh - heads[i].bounds[3]) / 2);
-            vEls.push({ type: 'shape', id: `pd-vdiv-${i + 1}`, bounds: [cardX + 24 + titleColW + 8, ry + 16, 1, rh - 32], style: { fill: p.line || '#E2E6EE' } });
+            vEls.push({ type: 'shape', id: `pd-vdiv-${i + 1}`, bounds: [cardX + 20 + titleColW + 8, ry + 14, 1, rh - 28], style: { fill: p.line || '#E2E6EE' } });
           }
-          const ph = pointsHeight(asList(pd.points), pointSize, heads[i] ? ptsW : cardW - 44, 1.45);
-          lists.push(...pointList({ id: `pd-point-${i + 1}`, x: heads[i] ? ptsX : cardX + 24, y: ry + Math.round((rh - ph) / 2), width: heads[i] ? ptsW : cardW - 44, points: asList(pd.points), size: pointSize, color: p.muted || '#64748B', theme, lh: 1.45 }));
+          const ph = pointsHeight(asList(pd.points), pointSize, heads[i] ? ptsW : cardW - 40, 1.42);
+          lists.push(...pointList({ id: `pd-point-${i + 1}`, x: heads[i] ? ptsX : cardX + 20, y: ry + Math.round((rh - ph) / 2), width: heads[i] ? ptsW : cardW - 40, points: asList(pd.points), size: pointSize, color: p.body || '#475569', theme, lh: 1.42 }));
           ry += rh + rowGap;
         });
-        const elements = [panel('periods-panel', [x, y, w, height]), ...(heading ? [text('periods-head', heading, [x + 24, y + 12, w - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 }))] : []), ...vEls, ...present, ...lists];
+        const elements = [panel('periods-panel', [x, y, w, height]), ...(heading ? [text('periods-head', heading, [x + 22, y + 12, w - 44, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 }))] : []), ...vEls, ...present, ...lists];
         const ids = pds.map((pd, i) => [`pd-label-${i + 1}`, ...(pd.title ? [`pd-title-${i + 1}`] : []), ...asList(pd.points).map((_, k) => `pd-point-${i + 1}-${k + 1}`)]);
         return { height, elements, frame: 'periods-panel', module: 'periodBand', variant: `${pds.length}-periods-vertical`, title: roles.sectionTitle.fontSize, sizes: sizesOf([...present, ...lists], ids.flat()), reason: '纵向时间轴清晰呈现阶段日期与里程碑明细', bindings: [...pds.map((_, i) => ({ ref: `${pid}:period-${i + 1}`, elementIds: ids[i] })), ...pds.slice(1).map((_, i) => ({ ref: `${pid}:periods`, edgeId: `e${i + 1}`, elementIds: [`pd-seg-${i + 1}`, `pd-seg-${i + 2}`] }))] };
       }
 
       // Variant 3: Executive Ribbon Band ('band') OR Default Linear Milestone Stepper ('stepper')
       const isBand = pdStyle === 'band';
-      const gapPd = isBand ? 14 : 18, innerW = w - 48, colW = Math.floor((innerW - gapPd * (nPd - 1)) / nPd);
-      const nodeD = isBand ? 52 : 42, railY = y + headH + Math.round(nodeD / 2), cardTop = y + headH + nodeD + (isBand ? 12 : 18);
-      const colsPd = pds.map((_, i) => [x + 24 + i * (colW + gapPd), colW]);
+      const gapPd = isBand ? 14 : 16, innerW = w - 44, colW = Math.floor((innerW - gapPd * (nPd - 1)) / nPd);
+      const nodeD = isBand ? 44 : 36, railY = y + headH + Math.round(nodeD / 2), cardTop = y + headH + nodeD + (isBand ? 10 : 14);
+      const colsPd = pds.map((_, i) => [x + 22 + i * (colW + gapPd), colW]);
       const lay = async (scale) => {
-        const titleSz = evenSize(label * scale);
-        const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, lineHeight: 1.32, fontSize: titleSz }), pointSize = Math.min(22, Math.max(18, Math.round(titleSz * 0.72 / 2) * 2));
-        const topPadInCard = isBand ? 22 : 52;
-        const heads = colsPd.map(([cx, cw], i) => (pds[i].title ? { id: `pd-title-${i + 1}`, type: 'text', text: pds[i].title, bounds: [cx + 20, cardTop + topPadInCard, cw - 40, 40], style: titleStyle } : null)), present = heads.filter(Boolean), sizes = present.length ? await measurer.texts(present) : [];
+        const titleSz = Math.min(22, evenSize(label * scale));
+        const titleStyle = theme.roleStyle('stepTitle', { color: p.ink, fontWeight: 700, lineHeight: 1.32, fontSize: titleSz }), pointSize = Math.min(19, Math.max(17, Math.round(body * Math.min(scale, 1.05))));
+        const topPadInCard = isBand ? 18 : 48;
+        const heads = colsPd.map(([cx, cw], i) => (pds[i].title ? { id: `pd-title-${i + 1}`, type: 'text', text: pds[i].title, bounds: [cx + 18, cardTop + topPadInCard, cw - 36, 36], style: titleStyle } : null)), present = heads.filter(Boolean), sizes = present.length ? await measurer.texts(present) : [];
         present.forEach((e, i) => { e.bounds[3] = Math.ceil(sizes[i].height); });
-        const columnH = colsPd.map(([, cw], i) => topPadInCard + (heads[i] ? heads[i].bounds[3] + 10 : 0) + pointsHeight(asList(pds[i].points), pointSize, cw - 44, 1.45) + 22);
-        return { heads, present, pointSize, cardNeed: Math.max(...columnH), height: headH + nodeD + (isBand ? 12 : 18) + Math.max(...columnH) + 20 };
+        const columnH = colsPd.map(([, cw], i) => topPadInCard + (heads[i] ? heads[i].bounds[3] + 8 : 0) + pointsHeight(asList(pds[i].points), pointSize, cw - 36, 1.44) + 18);
+        return { heads, present, pointSize, cardNeed: Math.max(...columnH), height: headH + nodeD + (isBand ? 10 : 14) + Math.max(...columnH) + 18 };
       };
-      const naturalLay = await lay(1), { heads, present, pointSize, cardNeed, height: natural } = await grownToFill(lay, naturalLay, Math.max(naturalLay.height + stretch, h || 0)), height = h ? Math.max(natural, h) : Math.min(naturalLay.height + stretch, natural + 16);
-      const cardH = Math.max(cardNeed, height - (cardTop - y) - 20);
+      const naturalLay = await lay(1), { heads, present, pointSize, cardNeed, height: natural } = await grownToFill(lay, naturalLay, Math.max(naturalLay.height + stretch, h || 0)), height = h ? Math.max(natural, h) : Math.min(naturalLay.height + stretch, natural + 14);
+      const cardH = Math.max(cardNeed, height - (cardTop - y) - 18);
       const stepperEls = [];
       if (isBand) {
         colsPd.forEach(([cx, cw], i) => {
           const isCurr = i === currIdx;
           const barFill = isCurr ? rPd.pop : (i % 2 ? rPd.secondary : solidFill);
           const barInk = isCurr ? '#FFFFFF' : (i % 2 ? readableInk(p.ink, rPd.secondary, 4.5) : p.inverse);
-          stepperEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [cx, y + headH, cw, nodeD], style: { fill: barFill, radius: 12 } });
-          stepperEls.push(text(`pd-label-${i + 1}`, pds[i].label || '', [cx + 12, y + headH + 12, cw - 24, 28], theme.font(21, { fontWeight: 800, color: barInk, textAlign: 'center', lineHeight: 1.25 })));
+          stepperEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [cx, y + headH, cw, nodeD], style: { fill: barFill, radius: 10 } });
+          stepperEls.push(text(`pd-label-${i + 1}`, pds[i].label || '', [cx + 10, y + headH + 10, cw - 20, 24], theme.font(18, { fontWeight: 700, color: barInk, textAlign: 'center', lineHeight: 1.25 })));
           stepperEls.push({ type: 'shape', id: `pd-card-${i + 1}`, bounds: [cx, cardTop, cw, cardH], style: { fill: surf, stroke: isCurr ? rPd.pop : (p.line || '#E2E6EE'), strokeWidth: isCurr ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
         });
       } else {
         const firstCx = colsPd[0][0] + Math.round(colW / 2), lastCx = colsPd[nPd - 1][0] + Math.round(colW / 2), currCx = colsPd[currIdx][0] + Math.round(colW / 2);
         if (nPd > 1) {
-          stepperEls.push({ type: 'shape', id: 'pd-rail-bg', bounds: [firstCx, railY - 3, lastCx - firstCx, 6], style: { fill: p.line || '#E2E6EE', radius: 3 } });
-          if (currCx > firstCx) stepperEls.push({ type: 'shape', id: 'pd-rail-fg', bounds: [firstCx, railY - 3, currCx - firstCx, 6], style: { fill: solidFill, radius: 3 } });
+          stepperEls.push({ type: 'shape', id: 'pd-rail-bg', bounds: [firstCx, railY - 2, lastCx - firstCx, 5], style: { fill: p.line || '#E2E6EE', radius: 3 } });
+          if (currCx > firstCx) stepperEls.push({ type: 'shape', id: 'pd-rail-fg', bounds: [firstCx, railY - 2, currCx - firstCx, 5], style: { fill: solidFill, radius: 3 } });
         }
         colsPd.forEach(([cx, cw], i) => {
           const nx = cx + Math.round((cw - nodeD) / 2), ny = y + headH;
           const isDone = i < currIdx, isCurr = i === currIdx;
-          if (isCurr) stepperEls.push({ type: 'shape', id: `pd-halo-${i + 1}`, bounds: [nx - 6, ny - 6, nodeD + 12, nodeD + 12], style: { fill: p.dark ? '#331E18' : lighten(rPd.pop, 0.86), radius: (nodeD + 12) / 2 }, shape: 'ellipse' });
+          if (isCurr) stepperEls.push({ type: 'shape', id: `pd-halo-${i + 1}`, bounds: [nx - 5, ny - 5, nodeD + 10, nodeD + 10], style: { fill: p.dark ? '#331E18' : lighten(rPd.pop, 0.86), radius: (nodeD + 10) / 2 }, shape: 'ellipse' });
           stepperEls.push({ type: 'shape', id: `pd-seg-${i + 1}`, ...(i === 0 ? { component: 'periodBand' } : {}), bounds: [nx, ny, nodeD, nodeD], style: { fill: isCurr ? rPd.pop : isDone ? solidFill : surf, stroke: isCurr ? rPd.pop : isDone ? solidFill : (p.line || '#CBD5E1'), strokeWidth: 2.5, radius: nodeD / 2 }, shape: 'ellipse' });
-          stepperEls.push(text(`pd-num-${i + 1}`, isDone ? '✓' : String(i + 1), [nx, ny + 8, nodeD, 26], theme.font(19, { fontWeight: 900, color: isCurr ? '#FFFFFF' : isDone ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
+          stepperEls.push(text(`pd-num-${i + 1}`, isDone ? '✓' : String(i + 1), [nx, ny + 7, nodeD, 22], theme.font(16, { fontWeight: 900, color: isCurr ? '#FFFFFF' : isDone ? p.inverse : p.muted, textAlign: 'center', lineHeight: 1.2 })));
           stepperEls.push({ type: 'shape', id: `pd-card-${i + 1}`, bounds: [cx, cardTop, cw, cardH], style: { fill: isCurr ? (p.dark ? '#231D2B' : lighten(rPd.pop, 0.94)) : surf, stroke: isCurr ? rPd.pop : (p.line || '#E2E6EE'), strokeWidth: isCurr ? 2 : 1.5, radius: Math.max(14, theme.radius ?? 14) } });
-          const lblW = Math.min(cw - 40, Math.ceil(textWidth(pds[i].label || '', 17)) + 26);
-          stepperEls.push({ type: 'shape', id: `pd-pill-${i + 1}`, bounds: [cx + 20, cardTop + 14, lblW, 28], style: { fill: isCurr ? rPd.pop : rPd.band, radius: 14 } });
-          stepperEls.push(text(`pd-label-${i + 1}`, pds[i].label || '', [cx + 20, cardTop + 17, lblW, 22], theme.font(16, { fontWeight: 700, color: isCurr ? '#FFFFFF' : readableInk(solidFill, rPd.band), textAlign: 'center', lineHeight: 1.2 })));
+          const lblW = Math.min(cw - 36, Math.ceil(textWidth(pds[i].label || '', 15)) + 24);
+          stepperEls.push({ type: 'shape', id: `pd-pill-${i + 1}`, bounds: [cx + 18, cardTop + 14, lblW, 26], style: { fill: isCurr ? rPd.pop : rPd.band, radius: 13 } });
+          stepperEls.push(text(`pd-label-${i + 1}`, pds[i].label || '', [cx + 18, cardTop + 17, lblW, 20], theme.font(15, { fontWeight: 700, color: isCurr ? '#FFFFFF' : readableInk(solidFill, rPd.band), textAlign: 'center', lineHeight: 1.2 })));
         });
       }
-      const lists = colsPd.flatMap(([cx, cw], i) => pointList({ id: `pd-point-${i + 1}`, x: cx + 20, y: cardTop + (isBand ? 22 : 52) + (heads[i] ? heads[i].bounds[3] + 10 : 0), width: cw - 40, points: asList(pds[i].points), size: pointSize, color: p.muted || '#64748B', theme, lh: 1.48 }));
+      const lists = colsPd.flatMap(([cx, cw], i) => pointList({ id: `pd-point-${i + 1}`, x: cx + 18, y: cardTop + (isBand ? 18 : 48) + (heads[i] ? heads[i].bounds[3] + 8 : 0), width: cw - 36, points: asList(pds[i].points), size: pointSize, color: p.body || '#475569', theme, lh: 1.44 }));
       const elements = [panel('periods-panel', [x, y, w, height]), ...(heading ? [text('periods-head', heading, [x + 24, y + 12, w - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 }))] : []), ...stepperEls, ...present, ...lists];
       const ids = pds.map((pd, i) => [`pd-label-${i + 1}`, ...(pd.title ? [`pd-title-${i + 1}`] : []), ...asList(pd.points).map((_, k) => `pd-point-${i + 1}-${k + 1}`)]);
       return { height, elements, frame: 'periods-panel', module: 'periodBand', variant: `${pds.length}-periods-${pdStyle}`, title: roles.sectionTitle.fontSize, sizes: sizesOf([...present, ...lists], ids.flat()), reason: isBand ? '顶部实色色带配阶段卡片直观呈现推进节奏' : '三态节点时间轴配合现代阶段卡片表达推进节奏', bindings: [...pds.map((_, i) => ({ ref: `${pid}:period-${i + 1}`, elementIds: ids[i] })), ...pds.slice(1).map((_, i) => ({ ref: `${pid}:periods`, edgeId: `e${i + 1}`, elementIds: [`pd-seg-${i + 1}`, `pd-seg-${i + 2}`] }))] };
@@ -812,12 +874,12 @@ function pageWriter({ page, zones, theme, measurer }) {
       const hang = asList(source.highlight).some((i) => i >= 0 && i < source.rows.length) ? 12 : 0;
       const columns = keys.map((key, i) => ({ key, label: source.columns[i], width: widths[i] + (i === 0 ? hang : 0) + (i === keys.length - 1 ? hang : 0), ...(i === keyCol ? { emphasize: true } : {}) }));
       const rows = source.rows.map((r, i) => ({ id: `row-${i + 1}`, ...Object.fromEntries(keys.map((k, j) => [k, r[j]])), ...({ ref: nthTable ? `${pid}:${z}-row-${i + 1}` : `${pid}:row-${i + 1}` }), ...(asList(source.highlight).includes(i) ? { highlight: true } : {}) }));
-      const padY = Math.min(36, 13 + Math.floor(stretch / (2 * (rows.length + 1))));
-      const headH = source.title ? 10 + headBox : 0, buildTable = (padY) => measureModule(capacityTable, { id: tid, bounds: [x + 24 - hang, y + 18 + headH, innerW + hang * 2, Math.max(60, Math.min(1079 - y - 18 - headH, 900))], theme: readableTheme, size, headSize: roles.tableHeader.fontSize, padY, relationRef: `${pid}:${z}`, columns, rows }, measurer);
+      const basePadY = theme.compact ? 8 : 12, vMargin = theme.compact ? 24 : 36, padY = Math.min(22, basePadY + Math.floor(stretch / (2 * (rows.length + 1))));
+      const headH = source.title ? (theme.compact ? 6 : 10) + headBox : 0, buildTable = (padY) => measureModule(capacityTable, { id: tid, bounds: [x + 24 - hang, y + Math.round(vMargin / 2) + headH, innerW + hang * 2, Math.max(60, Math.min(1079 - y - Math.round(vMargin / 2) - headH, 900))], theme: readableTheme, size, headSize: roles.tableHeader.fontSize, padY, relationRef: `${pid}:${z}`, columns, rows }, measurer);
       let t = await buildTable(padY);
       // In a row of equal-height modules the table opens up its rows to end level with its neighbour.
-      if (h && t.height + 36 + headH < h) t = await buildTable(Math.min(36, padY + Math.floor((h - t.height - 36 - headH) / (2 * (rows.length + 1)))));
-      const height = Math.max(t.height + 36 + headH, h || 0);
+      if (h && t.height + vMargin + headH < h) t = await buildTable(Math.min(22, padY + Math.floor((h - t.height - vMargin - headH) / (2 * (rows.length + 1)))));
+      const height = Math.max(t.height + vMargin + headH, h || 0);
       const bindings = t.bindings;
       if (shareCol > 0) {
         const most = Math.max(...shares), colX = (i) => x + 24 - hang + columns.slice(0, i).reduce((a, c) => a + c.width, 0) + (i === 0 ? hang : 0), figureW = Math.ceil(textWidth('100.0%', size * 1.1)) + 16;
@@ -831,16 +893,16 @@ function pageWriter({ page, zones, theme, measurer }) {
           t.elements.push({ id: `${tid}-share-${i + 1}`, type: 'shape', component: 'shareBar', bounds: [left + figureW, cell.bounds[1] + Math.round(cell.bounds[3] / 2) - 7, barW, 14], style: { fill: barFill, radius: 4 } });
         });
       }
-      return { height, elements: [panel(panelId, [x, y, w, height], true), ...(source.title ? [text(`${tid}-head`, source.title, [x + 24, y + 14, innerW, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, surf), lineHeight: 1.3 }))] : []), ...t.elements], frame: panelId, module: 'capacityTable', variant: `${rows.length}-rows${shareCol > 0 ? '-share-bars' : ''}`, reason: shareCol > 0 ? '逐项对应，占比画成比例条' : '逐项对应', bindings };
+      return { height, elements: [panel(panelId, [x, y, w, height], true), ...(source.title ? [text(`${tid}-head`, source.title, [x + 24, y + (theme.compact ? 10 : 14), innerW, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, surf), lineHeight: 1.3 }))] : []), ...t.elements], frame: panelId, module: 'capacityTable', variant: `${rows.length}-rows${shareCol > 0 ? '-share-bars' : ''}`, reason: shareCol > 0 ? '逐项对应，占比画成比例条' : '逐项对应', bindings };
     }
     const flowGroup = /^(flow|chain)-(\d+)$/.exec(z);
     if (flowGroup) {
       const group = asList(page[`${flowGroup[1]}s`])[+flowGroup[2] - 1];
       const steps = asList(group.steps).map((s, i) => ({ id: `s${i + 1}`, title: typeof s === 'string' ? s : s.title, detail: typeof s === 'string' ? undefined : s.detail, ref: `${pid}:${z}-${i + 1}` }));
-      const heading = group.title, headH = heading ? 32 + headBox : 24, safe = (id) => id.replace(/[^a-z0-9]/gi, '');
+      const heading = group.title, headH = heading ? (theme.compact ? 22 : 32) + headBox : (theme.compact ? 16 : 24), footPad = theme.compact ? 16 : 24, safe = (id) => id.replace(/[^a-z0-9]/gi, '');
       const fid = `f${safe(z)}`, f = await measureModule(capacityFlow, { id: fid, bounds: [x + 24, y + headH, w - 48, Math.min(1079 - y - headH, 420)], theme, titleSize: label, detailSize: body, steps, span: true }, measurer);
-      const loop = Number.isInteger(group?.returnTo) && group.returnTo >= 1 && group.returnTo < steps.length ? group.returnTo : 0, natural = f.height + headH + 24 + (loop ? 48 : 0);
-      const cards = page.flowStyle === 'compact' ? null : await flowCards({ fid, x: x + 24, y: y + headH, w: w - 48, steps, room: h ? h - headH - 24 - (loop ? 48 : 0) : 0 }), height = cards ? headH + cards.cardH + 24 + (loop ? 48 : 0) : Math.max(natural, h || 0), shift = cards ? 0 : Math.round((height - Math.max(natural, rowNatural || 0)) / 3), parts = cards ? cards.elements : f.elements;
+      const loop = Number.isInteger(group?.returnTo) && group.returnTo >= 1 && group.returnTo < steps.length ? group.returnTo : 0, natural = f.height + headH + footPad + (loop ? 48 : 0);
+      const cards = page.flowStyle === 'compact' ? null : await flowCards({ fid, x: x + 24, y: y + headH, w: w - 48, steps, room: h ? h - headH - footPad - (loop ? 48 : 0) : 0 }), height = cards ? headH + cards.cardH + footPad + (loop ? 48 : 0) : Math.max(natural, h || 0), shift = cards ? 0 : Math.round((height - Math.max(natural, rowNatural || 0)) / 3), parts = cards ? cards.elements : f.elements;
       if (!cards) f.elements.forEach((e) => { if (Array.isArray(e.bounds)) e.bounds[1] += shift; if (e.from) e.from[1] += shift; if (e.to) e.to[1] += shift; });
       // returnTo: the last step leads back to that step, drawn as a line under the labels with an arrow into it.
       const nodeOf = (n) => parts.find((e) => e.id === `${fid}-node-s${n}`).bounds, centre = (n) => nodeOf(n)[0] + Math.round(nodeOf(n)[2] / 2), textBottom = cards ? y + headH + cards.cardH : Math.max(...parts.filter((e) => e.type === 'text' && Array.isArray(e.bounds)).map((e) => e.bounds[1] + e.bounds[3]));
@@ -855,9 +917,17 @@ function pageWriter({ page, zones, theme, measurer }) {
         const cellH = Math.floor((H - col.length * CAP - (col.length - 1) * PHOTO_GAP) / col.length), share = cellH * (col.reduce((a, c) => a + c.r, 0) / col.length) * scale;
         const cw = ci === cols.length - 1 ? x + w - cx : Math.round(share);
         col.forEach((ph, ri) => {
-          const id = `ph${ph.index + 1}`, cy = y + ri * (cellH + CAP + PHOTO_GAP), g = ph.crop ? { elements: [imageElement({ id: `${id}-img-1`, src: ph.src, bounds: [cx, cy, cw, cellH], fit: 'cover', crop: fitCrop(ph.crop, imageSize(ph.src), cw / cellH, ph.focal), naturalSize: [imageSize(ph.src).width, imageSize(ph.src).height], style: { radius: theme.radius ?? 0 }, ...(ph.caption ? { alt: ph.caption } : {}) })] } : photoGroup({ id, x: cx, y: cy, width: cw, height: cellH, theme, images: [{ src: ph.src, alt: ph.caption || '', ...(ph.focal ? { focal: ph.focal } : {}) }] });
-          elements.push(...g.elements); if (ph.caption) elements.push(text(`${id}-cap`, ph.caption, [cx, cy + cellH + 6, cw, 28], theme.roleStyle('caption', { lineHeight: 1.25 })));
-          bindings.push({ ref: `${pid}:photo-${ph.index + 1}`, elementIds: g.elements.filter((e) => e.type === 'image').map((e) => e.id) });
+          const id = `ph${ph.index + 1}`, cy = y + ri * (cellH + CAP + PHOTO_GAP);
+          if (isContainPhoto(ph)) {
+            const framed = framedContainPhoto({ id, ph, bounds: [cx, cy, cw, cellH], theme });
+            elements.push(...framed.elements);
+            if (ph.caption) elements.push(text(`${id}-cap`, ph.caption, [framed.cardBounds[0], cy + cellH + 6, framed.cardBounds[2], 28], theme.roleStyle('caption', { lineHeight: 1.25, textAlign: framed.cardBounds[0] > cx + 8 ? 'center' : 'left' })));
+            bindings.push({ ref: `${pid}:photo-${ph.index + 1}`, elementIds: [framed.imageId] });
+          } else {
+            const g = ph.crop ? { elements: [imageElement({ id: `${id}-img-1`, src: ph.src, bounds: [cx, cy, cw, cellH], fit: 'cover', crop: fitCrop(ph.crop, imageSize(ph.src), cw / cellH, ph.focal), naturalSize: [imageSize(ph.src).width, imageSize(ph.src).height], style: { radius: theme.radius ?? 0 }, ...(ph.caption ? { alt: ph.caption } : {}) })] } : photoGroup({ id, x: cx, y: cy, width: cw, height: cellH, theme, images: [{ src: ph.src, alt: ph.caption || '', ...(ph.focal ? { focal: ph.focal } : {}) }] });
+            elements.push(...g.elements); if (ph.caption) elements.push(text(`${id}-cap`, ph.caption, [cx, cy + cellH + 6, cw, 28], theme.roleStyle('caption', { lineHeight: 1.25 })));
+            bindings.push({ ref: `${pid}:photo-${ph.index + 1}`, elementIds: g.elements.filter((e) => e.type === 'image').map((e) => e.id) });
+          }
         });
         cx += cw + 24;
       });
@@ -884,6 +954,36 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const rows = pairSoloFigure(page, [...(layout || defaultLayout(page, zoneIds))], Boolean(tightWidth && W - GAP - tightWidth >= sentenceRoom)), placed = new Set(rows.flatMap((r) => (typeof r === 'string' ? [r] : Array.isArray(r) ? r : [...r.left.flat(), r.right])));
   const missing = zoneIds.filter((z) => !placed.has(z));
   if (missing.length) throw new Error(`report-deck: ${page.id} layout leaves out ${missing.join(', ')}`);
+  // Measure header first so overlong titles adapt cleanly to 2 lines and push pageTop down instead of failing.
+  const rawKey = page.keyLine.text, colon = rawKey.indexOf('：'), hasPrefix = colon > 0 && colon <= 12 && !page.eyebrow, eyebrow = page.eyebrow || (hasPrefix ? rawKey.slice(0, colon) : ''), title = hasPrefix ? rawKey.slice(colon + 1) : rawKey;
+  const useDisplayTitle = title.replace(/[\s，。：；、,.!?！？·\-—]/g, '').length <= 10 && theme.displayFamily;
+  const titleFontExtra = useDisplayTitle ? { fontFamily: theme.displayFamily, fontWeight: 400, letterSpacing: 0.4, wordSpacing: '-0.18em' } : {};
+  const firstClause = title.split('，')[0], focus = page.focus && title.includes(page.focus) ? page.focus : firstClause !== title ? firstClause : (title.match(/[\d.]+\s*[%％万元亿单个家张份人次]+/)?.[0] || title.slice(0, Math.min(8, Math.ceil(title.length / 2)))), focusAt = title.indexOf(focus), titleAccent = readableInk(p.accent, p.bg || '#FFFFFF'), runs = [title.slice(0, focusAt) && { text: title.slice(0, focusAt), style: { fontWeight: useDisplayTitle ? 400 : 700, color: p.ink } }, { text: focus, style: { fontWeight: useDisplayTitle ? 400 : 900, color: titleAccent } }, title.slice(focusAt + focus.length) && { text: title.slice(focusAt + focus.length), style: { fontWeight: useDisplayTitle ? 400 : 700, color: p.ink } }].filter(Boolean);
+  const rHdr = colorRoles(p);
+  const tagLabel = eyebrow || ROLE_TAG[page.role] || '', tagText = header === 'tag' && tagLabel ? `${tagLabel} · ${String(pageNo).padStart(2, '0')}` : '', tagStyle = theme.font(15, { fontWeight: 700, color: p.dark ? rHdr.primary : readableInk(rHdr.primary, rHdr.band), textAlign: 'left', lineHeight: 1.2 });
+  const [tagSize] = tagText ? await measurer.texts([{ id: 'hdr', type: 'text', text: tagText, bounds: [0, 0, 1200, 32], style: tagStyle }]) : [{ naturalWidth: 0 }], tagW = tagText ? Math.ceil(tagSize.naturalWidth * 1.12) + 46 : 0, titleX = L, titleW = W;
+  // Measured at the focus weight with 6% safety margin so single-line titles never accidentally wrap onto the divider rule.
+  const [wide] = await measurer.texts([{ id: 'title', type: 'text', text: title, bounds: [0, 0, 3000, 56], style: theme.roleStyle('pageTitle', { fontWeight: useDisplayTitle ? 400 : 900, ...titleFontExtra }) }]);
+  const safeWide = wide.naturalWidth * 1.06;
+  const fitted = Math.floor(theme.roles.pageTitle.fontSize * titleW / Math.max(1, safeWide));
+  let titleStyle, titleBoxH = 56, ruleY = 128, titleY = (tagText || eyebrow) ? 62 : 46, pageTop = TOP;
+  if (fitted >= 28) {
+    titleStyle = theme.roleStyle('pageTitle', { ...titleFontExtra, ...(safeWide > titleW ? { fontSize: fitted } : {}) });
+  } else {
+    let twoLineSz = Math.max(24, Math.min(32, Math.floor(theme.roles.pageTitle.fontSize * (titleW * 1.85) / Math.max(1, safeWide))));
+    const probeTwo = (sz) => measurer.texts([{ id: 'title2', type: 'text', text: title, bounds: [0, 0, titleW, 140], style: theme.roleStyle('pageTitle', { ...titleFontExtra, fontSize: sz, lineHeight: 1.22 }) }]);
+    let [m2] = await probeTwo(twoLineSz);
+    while (twoLineSz > 22 && Math.ceil(m2.height) > Math.ceil(twoLineSz * 1.22 * 2) + 6) {
+      twoLineSz -= 2;
+      [m2] = await probeTwo(twoLineSz);
+    }
+    titleStyle = theme.roleStyle('pageTitle', { ...titleFontExtra, fontSize: twoLineSz, lineHeight: 1.22 });
+    titleY = (tagText || eyebrow) ? 58 : 42;
+    titleBoxH = Math.max(72, Math.min(96, Math.ceil(m2.height) + 4));
+    ruleY = titleY + titleBoxH + 4;
+    pageTop = ruleY + 18;
+  }
+  const baseGap = theme.compact ? 12 : GAP, minGap = theme.compact ? 6 : 8, minPhotoH = theme.compact ? 155 : 185;
   // Widths for a row of independent bands follow their sentences, so short text does not wrap beside a wide empty band.
   // Two different modules side by side are not equals: the one the title speaks about (its figures or its focus) is
   // primary and takes the wider column; with no such hint, the one with more to say does. Peers of one kind (two tables,
@@ -891,9 +991,9 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const rankedWidths = async (zones, width) => {
     const half = Math.floor(width / 2), equal = zones.map(() => half), kind = (z) => z.replace(/-\d+$/, '');
     if (kind(zones[0]) === kind(zones[1])) return equal;
-    const at = async (ws) => inOrder(zones, (z, i) => render(z, { x: L, y: TOP, w: ws[i] })), base = await at(equal), baseH = Math.max(...base.map((m) => m.height));
-    const said = new Set(figuresIn(page.keyLine.text).map((f) => f.value)), focus = String(page.focus || '').replace(/\s/g, '');
-    const score = (m) => { const text = m.elements.filter((e) => e.type === 'text').map((e) => String(e.text || '')).join('\n'), flat = text.replace(/\s/g, ''); return figuresIn(text).filter((f) => said.has(f.value)).length + (focus && flat.includes(focus) ? 2 : 0); };
+    const at = async (ws) => inOrder(zones, (z, i) => render(z, { x: L, y: pageTop, w: ws[i] })), base = await at(equal), baseH = Math.max(...base.map((m) => m.height));
+    const said = new Set(figuresIn(page.keyLine.text).map((f) => f.value)), focusWord = String(page.focus || '').replace(/\s/g, '');
+    const score = (m) => { const text = m.elements.filter((e) => e.type === 'text').map((e) => String(e.text || '')).join('\n'), flat = text.replace(/\s/g, ''); return figuresIn(text).filter((f) => said.has(f.value)).length + (focusWord && flat.includes(focusWord) ? 2 : 0); };
     const scores = base.map(score), lead = scores[0] !== scores[1] ? (scores[0] > scores[1] ? 0 : 1) : base[0].height !== base[1].height ? (base[0].height > base[1].height ? 0 : 1) : -1;
     if (lead < 0) return equal;
     for (const share of PRIMARY_SHARES) {
@@ -905,12 +1005,12 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
     return equal;
   };
   const bandWidths = async (zones, total = W) => {
-    if (zones.includes('metrics') && zones.length === 2 && asList(page.data).length === 1) { const figure = soloFigureWidth(total - GAP); return zones.map((z) => (z === 'metrics' ? figure : total - GAP - figure)); }
-    const texts = zones.map((z) => asList(page.statements).find((st, i) => (st.id || `statement-${i + 1}`) === z)), width = total - GAP * (zones.length - 1);
+    if (zones.includes('metrics') && zones.length === 2 && asList(page.data).length === 1) { const figure = soloFigureWidth(total - baseGap); return zones.map((z) => (z === 'metrics' ? figure : total - baseGap - figure)); }
+    const texts = zones.map((z) => asList(page.statements).find((st, i) => (st.id || `statement-${i + 1}`) === z)), width = total - baseGap * (zones.length - 1);
     // Beside a sentence a row of figures keeps the width its content needs, and the sentence takes the rest.
     // A short phrase result (asMetric) takes the rest the same way, so the figures' slot never leaves a hole beside them.
     const figures = zones.includes('metrics') && zones.length === 2 && texts.some(Boolean) ? tightFiguresWidth(total) : null;
-    if (figures && total - GAP - figures >= sentenceRoom) return zones.map((z) => (z === 'metrics' ? figures : total - GAP - figures));
+    if (figures && total - baseGap - figures >= sentenceRoom) return zones.map((z) => (z === 'metrics' ? figures : total - baseGap - figures));
     if (texts.some((t) => !t)) return zones.length === 2 ? rankedWidths(zones, width) : zones.map(() => Math.floor(width / zones.length));
     const m = await measurer.texts(texts.map((t, i) => ({ id: `n${i}`, type: 'text', text: t.text, bounds: [0, 0, 2000, 40], style: theme.roleStyle('body', { fontWeight: 500 }) }))), need = m.map((r) => Math.ceil(r.naturalWidth) + 64), sum = need.reduce((a, b) => a + b, 0);
     if (sum > width) return need.map((n) => Math.floor(n * width / sum));
@@ -919,56 +1019,67 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   // First pass: natural heights, photo rows excluded because they take what is left.
   const measureRow = async (row) => {
     if (row === 'photos') return { photo: true, across: true };
-    if (typeof row === 'string') { const m = await render(row, { x: L, y: TOP, w: W, hero: !layout && heroFor(row, W) }); return { h: m.height }; }
-    if (Array.isArray(row)) { const ws = await bandWidths(row), ms = await inOrder(row, (z, i) => render(z, { x: L, y: TOP, w: ws[i] })); return { h: Math.max(...ms.map((m) => m.height)), ws }; }
+    if (typeof row === 'string') { const m = await render(row, { x: L, y: pageTop, w: W, hero: !layout && heroFor(row, W) }); return { h: m.height }; }
+    if (Array.isArray(row)) { const ws = await bandWidths(row), ms = await inOrder(row, (z, i) => render(z, { x: L, y: pageTop, w: ws[i] })); return { h: Math.max(...ms.map((m) => m.height)), ws }; }
     return { photo: true };
   };
   // A short text stack beside big landscape photos leaves a tall empty column, so the photos go across the page instead.
   const sideAt = rows.findIndex((r) => r.left);
   if (!layout && sideAt >= 0) {
-    let stack = GAP * (rows[sideAt].left.length - 1), rest = 0;
-    for (const z of rows[sideAt].left) stack += (await render(z, { x: L, y: TOP, w: Math.round(W * 0.6) })).height;
-    for (const [i, r] of rows.entries()) if (i !== sideAt) rest += ((await measureRow(r)).h || 0) + GAP;
-    const room = BOTTOM - TOP - rest;
-    if (stack < room * 0.42 && naturalPhotoWidth(singleColumns(page.photos), room - stack - GAP) >= W * 0.85) rows.splice(sideAt, 1, ...rows[sideAt].left, 'photos');
+    let stack = baseGap * (rows[sideAt].left.length - 1), rest = 0;
+    for (const z of rows[sideAt].left) stack += (await render(z, { x: L, y: pageTop, w: Math.round(W * 0.6) })).height;
+    for (const [i, r] of rows.entries()) if (i !== sideAt) rest += ((await measureRow(r)).h || 0) + baseGap;
+    const room = BOTTOM - pageTop - rest;
+    if (stack < room * 0.42 && naturalPhotoWidth(singleColumns(page.photos), room - stack - baseGap) >= W * 0.85) rows.splice(sideAt, 1, ...rows[sideAt].left, 'photos');
   }
-  const avail = BOTTOM - TOP - GAP * (rows.length - 1);
+  const avail = BOTTOM - pageTop - baseGap * Math.max(0, rows.length - 1);
   const measuredRows = []; for (const row of rows) measuredRows.push(await measureRow(row));
   const sumOthers = () => measuredRows.reduce((a, r) => a + (r.photo ? 0 : r.h), 0);
   const splitFor = (H) => { const cols = photoColumns(page.photos), rightW = Math.round(Math.max(W * 0.3, Math.min(W * 0.52, naturalPhotoWidth(cols, H)))); return { leftW: W - rightW - 28, rightW }; };
   // A module beside the photos, or a pair of bands inside that column, is laid out by stackItem.
-  const stackItem = async (z, box) => { if (!Array.isArray(z)) return render(z, box); const ws = await bandWidths(z, box.w), natural = Math.max(...(await inOrder(z, (q, i) => render(q, { ...box, w: ws[i] }))).map((m) => m.height)); let cx = box.x; const parts = await inOrder(z, async (q, i) => { const m = await render(q, { ...box, x: cx, w: ws[i], h: natural }), part = { z: q, m, box: [cx, box.y, ws[i], m.height] }; cx += ws[i] + GAP; return part; }); return { height: natural, module: 'metricTiles', parts }; };
+  const stackItem = async (z, box) => { if (!Array.isArray(z)) return render(z, box); const ws = await bandWidths(z, box.w), natural = Math.max(...(await inOrder(z, (q, i) => render(q, { ...box, w: ws[i] }))).map((m) => m.height)); let cx = box.x; const parts = await inOrder(z, async (q, i) => { const m = await render(q, { ...box, x: cx, w: ws[i], h: natural }), part = { z: q, m, box: [cx, box.y, ws[i], m.height] }; cx += ws[i] + baseGap; return part; }); return { height: natural, module: 'metricTiles', parts }; };
   // A pair of bands on a text-and-photo page follows the page's column split, so the divider lines up all the way down.
   // The split is final before anything is placed: modules keep their own height beside photos and the photos narrow to
   // the column instead, and that narrowing is applied here once, not later in place(), where bands would miss it.
-  const sideRow = measuredRows.findIndex((r) => r.photo && !r.across), split = sideRow >= 0 ? splitFor(avail - sumOthers()) : null;
+  const sideRow = measuredRows.findIndex((r) => r.photo && !r.across), split = sideRow >= 0 ? splitFor(Math.max(minPhotoH, avail - sumOthers())) : null;
   if (split) {
     const left = rows[sideRow].left, cols = photoColumns(page.photos);
-    let natural = GAP * (left.length - 1); for (const z of left) natural += (await stackItem(z, { x: L, y: TOP, w: split.leftW })).height;
+    let natural = baseGap * (left.length - 1); for (const z of left) natural += (await stackItem(z, { x: L, y: pageTop, w: split.leftW })).height;
     const narrowed = Math.round(Math.max(W * 0.3, Math.min(W * 0.52, naturalPhotoWidth(cols, natural))));
     if (natural < Math.min(avail - sumOthers(), naturalPhotoHeight(cols, split.rightW)) && narrowed < split.rightW) { split.rightW = narrowed; split.leftW = W - narrowed - 28; }
   }
   if (split) for (const [i, row] of rows.entries()) {
     if (!Array.isArray(row) || row.length !== 2 || !row.every((z) => asList(page.statements).some((st, n) => (st.id || `statement-${n + 1}`) === z))) continue;
-    const ws = mirror ? [split.rightW, split.leftW] : [split.leftW, split.rightW], ms = await inOrder(row, (z, n) => render(z, { x: L, y: TOP, w: ws[n] }));
+    const ws = mirror ? [split.rightW, split.leftW] : [split.leftW, split.rightW], ms = await inOrder(row, (z, n) => render(z, { x: L, y: pageTop, w: ws[n] }));
     measuredRows[i] = { ...measuredRows[i], h: Math.max(...ms.map((m) => m.height)), ws, gap: 28 };
   }
   const others = sumOthers();
   const elements = [], design = {};
   const placeModule = (m, z, box) => { elements.push(...m.elements); design[z] = { m, box }; };
-  const photoRowH = avail - others, hasPhoto = measuredRows.some((r) => r.photo);
-  // Modules hug their content. Spare height is never shared out to make boxes taller: the page moves up a type size instead.
-  if (!hasPhoto && others > avail) throw new PageOverflow(`${page.id} 超出 ${others - avail}px`);
+  const basePhotoRowH = avail - others, hasPhoto = measuredRows.some((r) => r.photo);
+  // Allow shrinking inter-row gap down to minGap before rejecting vertical fit.
+  const maxAvail = BOTTOM - pageTop - minGap * Math.max(0, rows.length - 1);
+  if (!hasPhoto && others > maxAvail) throw new PageOverflow(`${page.id} 超出 ${others - maxAvail}px`);
+  let initialGap = baseGap;
+  let initialPhotoRowH = basePhotoRowH;
+  if (hasPhoto && basePhotoRowH < minPhotoH) {
+    const gapForPhoto = rows.length > 1 ? Math.floor((BOTTOM - pageTop - others - minPhotoH) / (rows.length - 1)) : -1;
+    if (gapForPhoto < minGap) {
+      throw new PageOverflow(`${page.id} 图片区只剩 ${BOTTOM - pageTop - minGap * Math.max(0, rows.length - 1) - others}px`);
+    }
+    initialGap = Math.max(minGap, Math.min(baseGap, gapForPhoto));
+    initialPhotoRowH = BOTTOM - pageTop - initialGap * Math.max(0, rows.length - 1) - others;
+  }
   let naturalUsed = 0;
   const centred = new Set();
-  const place = async (startY, gap) => {
+  const place = async (startY, gap, curPhotoRowH = initialPhotoRowH) => {
     elements.length = 0; for (const k of Object.keys(design)) delete design[k];
-    let y = startY; naturalUsed = GAP * (rows.length - 1);
+    let y = startY; naturalUsed = gap * Math.max(0, rows.length - 1);
     for (const [ri, row] of rows.entries()) {
       const info = measuredRows[ri];
       if (row === 'photos') {
-        if (photoRowH < 200) throw new PageOverflow(`${page.id} 图片区只剩 ${photoRowH}px`);
-        const H = Math.min(photoRowH, naturalPhotoHeight(singleColumns(page.photos), W)), m = await render(row, { x: L, y, w: W, h: H, across: true });
+        if (curPhotoRowH < minPhotoH) throw new PageOverflow(`${page.id} 图片区只剩 ${curPhotoRowH}px`);
+        const H = Math.min(curPhotoRowH, naturalPhotoHeight(singleColumns(page.photos), W)), m = await render(row, { x: L, y, w: W, h: H, across: true });
         placeModule(m, row, [L, y, W, H]); y += H + gap; naturalUsed += H;
       } else if (typeof row === 'string') {
         // Figures that hug their content with no sentence to follow them: small, nearly square tiles sit in the middle of
@@ -990,79 +1101,68 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
           const canBento = z === 'metrics' && asList(page.data).length >= 3 && asList(page.data).length <= 5 && h >= 340 && info.ws[i] <= 1180;
           const short = !canBento && own.height < h * EQUAL_HEIGHT_SHARE;
           const m = short ? await render(z, { x, y: y + Math.round((h - own.height) / 2), w: info.ws[i] }) : await render(z, { x, y, w: info.ws[i], h, rowNatural: info.h, bento: canBento });
-          placeModule(m, z, [x, short ? y + Math.round((h - own.height) / 2) : y, info.ws[i], m.height]); x += info.ws[i] + (info.gap || GAP); tallest = Math.max(tallest, short ? h : m.height);
+          placeModule(m, z, [x, short ? y + Math.round((h - own.height) / 2) : y, info.ws[i], m.height]); x += info.ws[i] + (info.gap || baseGap); tallest = Math.max(tallest, short ? h : m.height);
         }
         y += tallest + gap; naturalUsed += info.h;
       } else {
-        if (photoRowH < 200) throw new PageOverflow(`${page.id} 图文区只剩 ${photoRowH}px`);
-        const cols = photoColumns(page.photos), gaps = GAP * (row.left.length - 1), stack = async (width) => { const out = []; for (const z of row.left) out.push(await stackItem(z, { x: L, y, w: width })); return out; }, heightOf = (ms) => ms.reduce((a, m) => a + m.height, 0) + gaps;
+        if (curPhotoRowH < minPhotoH) throw new PageOverflow(`${page.id} 图文区只剩 ${curPhotoRowH}px`);
+        const cols = photoColumns(page.photos), gaps = baseGap * (row.left.length - 1), stack = async (width) => { const out = []; for (const z of row.left) out.push(await stackItem(z, { x: L, y, w: width })); return out; }, heightOf = (ms) => ms.reduce((a, m) => a + m.height, 0) + gaps;
         // The split was settled before placing (see settleSplit), so bands elsewhere on the page share its divider.
         const { leftW, rightW } = split, probe = await stack(leftW), natural = heightOf(probe);
-        if (natural > photoRowH) throw new PageOverflow(`${page.id} 左栏超出 ${natural - photoRowH}px`);
+        if (natural > curPhotoRowH) throw new PageOverflow(`${page.id} 左栏超出 ${natural - curPhotoRowH}px`);
         // A small gap is closed by a last module that can use it; figures in tiles cannot, so the photos stop level with them. A large gap centres the column.
-        const photoH = Math.min(photoRowH, Math.max(natural, naturalPhotoHeight(cols, rightW))), slack = photoH - natural, centred = slack > 120, closes = !centred && !['metricTiles', 'comparePair'].includes(probe.at(-1).module), usedH = centred || closes ? photoH : natural;
+        const photoH = Math.min(curPhotoRowH, Math.max(natural, naturalPhotoHeight(cols, rightW))), slack = photoH - natural, centred = slack > 120, closes = !centred && !['metricTiles', 'comparePair'].includes(probe.at(-1).module), usedH = centred || closes ? photoH : natural;
         // mirror puts the photos on the left and the words on the right; sizes stay the same.
         const textX = mirror ? L + rightW + 28 : L, photoX = mirror ? L : L + leftW + 28;
         let ly = y + (centred ? Math.round(slack / 2) : 0);
-        for (const [i, z] of row.left.entries()) { const m = await stackItem(z, { x: textX, y: ly, w: leftW, ...(i === row.left.length - 1 && closes ? { h: y + usedH - ly } : {}) }); if (m.parts) m.parts.forEach((part) => placeModule(part.m, part.z, part.box)); else placeModule(m, z, [textX, ly, m.width || leftW, m.height]); ly += m.height + GAP; }
+        for (const [i, z] of row.left.entries()) { const m = await stackItem(z, { x: textX, y: ly, w: leftW, ...(i === row.left.length - 1 && closes ? { h: y + usedH - ly } : {}) }); if (m.parts) m.parts.forEach((part) => placeModule(part.m, part.z, part.box)); else placeModule(m, z, [textX, ly, m.width || leftW, m.height]); ly += m.height + baseGap; }
         const ph = await render(row.right, { x: photoX, y, w: rightW, h: usedH });
         placeModule(ph, row.right, [photoX, y, rightW, usedH]); y += usedH + gap; naturalUsed += usedH;
       }
     }
     return y - gap;
   };
-  let usedGap = GAP, start = TOP, end = await place(TOP, usedGap);
-  // Auto-fit mild vertical overflow (<= 72px) by gently tightening inter-row gap instead of throwing and forcing LLM retries.
-  if (end > BOTTOM && end - BOTTOM <= 72) {
-    usedGap = Math.max(8, GAP - Math.ceil((end - BOTTOM) / Math.max(1, rows.length - 1)));
-    end = await place(TOP, usedGap);
+  let usedGap = initialGap, start = pageTop, end = await place(pageTop, usedGap, initialPhotoRowH);
+  // Auto-fit mild vertical overflow by tightening inter-row gap down to minGap before falling back to compact tier.
+  if (end > BOTTOM) {
+    const neededGap = usedGap - Math.ceil((end - BOTTOM) / Math.max(1, rows.length - 1));
+    if (neededGap >= minGap) {
+      usedGap = neededGap;
+      const tightPhotoH = BOTTOM - pageTop - usedGap * Math.max(0, rows.length - 1) - others;
+      initialPhotoRowH = hasPhoto ? Math.max(initialPhotoRowH, tightPhotoH) : initialPhotoRowH;
+      end = await place(pageTop, usedGap, initialPhotoRowH);
+    }
   }
   if (end > BOTTOM) throw new PageOverflow(`${page.id} 超出 ${end - BOTTOM}px`);
   // A page that does not fill the body sits in the middle of it, with the same space above and below.
   const leftover = BOTTOM - end;
-  if (leftover >= 16) { start = TOP + Math.round(leftover / 2); end = await place(start, usedGap); }
+  if (leftover >= 16) { start = pageTop + Math.round(leftover / 2); end = await place(start, usedGap, initialPhotoRowH); }
 
   // Whatever the layout, modules stay inside the body and never overlap.
   const placedBoxes = Object.entries(design).map(([z, { box }]) => ({ z, box }));
   for (const [i, a] of placedBoxes.entries()) {
-    if (a.box[1] < TOP - 1 || a.box[1] + a.box[3] > BOTTOM + 1) throw new PageOverflow(`${page.id} 的 ${a.z} 超出正文区`);
+    if (a.box[1] < pageTop - 1 || a.box[1] + a.box[3] > BOTTOM + 1) throw new PageOverflow(`${page.id} 的 ${a.z} 超出正文区`);
     for (const b of placedBoxes.slice(i + 1)) if (a.box[0] < b.box[0] + b.box[2] && b.box[0] < a.box[0] + a.box[2] && a.box[1] < b.box[1] + b.box[3] && b.box[1] < a.box[1] + a.box[3]) throw new PageOverflow(`${page.id} 的 ${a.z} 和 ${b.z} 重叠`);
   }
   const intoFooter = elements.find((e) => Array.isArray(e.bounds) && e.bounds[1] + e.bounds[3] > BOTTOM + 2);
   if (intoFooter) throw new PageOverflow(`${page.id} 的 ${intoFooter.id} 伸进页脚`);
 
-  // Title: a "X：结论" key line puts X in the eyebrow and the conclusion in the title.
-  const raw = page.keyLine.text, colon = raw.indexOf('：'), hasPrefix = colon > 0 && colon <= 12 && !page.eyebrow, eyebrow = page.eyebrow || (hasPrefix ? raw.slice(0, colon) : ''), title = hasPrefix ? raw.slice(colon + 1) : raw;
-  // Short punchy titles (<= 10 visible chars) use the display/artistic font for visual punch;
-  // longer conclusion headlines use crisp Source Han Sans SC (700/900) so multi-clause sentences stay clean and authoritative.
-  const useDisplayTitle = title.replace(/[\s，。：；、,.!?！？·\-—]/g, '').length <= 10 && theme.displayFamily;
-  const titleFontExtra = useDisplayTitle ? { fontFamily: theme.displayFamily, fontWeight: 400, letterSpacing: 0.4, wordSpacing: '-0.18em' } : {};
-  const firstClause = title.split('，')[0], focus = page.focus && title.includes(page.focus) ? page.focus : firstClause !== title ? firstClause : (title.match(/[\d.]+\s*[%％万元亿单个家张份人次]+/)?.[0] || title.slice(0, Math.min(8, Math.ceil(title.length / 2)))), at = title.indexOf(focus), titleAccent = readableInk(p.accent, p.bg || '#FFFFFF'), runs = [title.slice(0, at) && { text: title.slice(0, at), style: { fontWeight: useDisplayTitle ? 400 : 700, color: p.ink } }, { text: focus, style: { fontWeight: useDisplayTitle ? 400 : 900, color: titleAccent } }, title.slice(at + focus.length) && { text: title.slice(at + focus.length), style: { fontWeight: useDisplayTitle ? 400 : 700, color: p.ink } }].filter(Boolean);
-  const rHdr = colorRoles(p);
-  const tagLabel = eyebrow || ROLE_TAG[page.role] || '', tagText = header === 'tag' && tagLabel ? `${tagLabel} · ${String(pageNo).padStart(2, '0')}` : '', tagStyle = theme.font(20, { fontWeight: 700, color: p.dark ? rHdr.primary : readableInk(rHdr.primary, rHdr.band), textAlign: 'left', lineHeight: 1.25 });
-  const [tagSize] = tagText ? await measurer.texts([{ id: 'hdr', type: 'text', text: tagText, bounds: [0, 0, 1200, 40], style: tagStyle }]) : [{ naturalWidth: 0 }], tagW = tagText ? Math.ceil(tagSize.naturalWidth * 1.15) + 64 : 0, titleX = L + (tagText ? tagW + 22 : 0), titleW = W - (titleX - L);
-  // Measured at the focus weight with 6% safety margin so long headlines never wrap onto the divider rule.
-  const [wide] = await measurer.texts([{ id: 'title', type: 'text', text: title, bounds: [0, 0, 3000, 62], style: theme.roleStyle('pageTitle', { fontWeight: useDisplayTitle ? 400 : 900, ...titleFontExtra }) }]);
-  const safeWide = wide.naturalWidth * 1.06;
-  const fitted = Math.floor(theme.roles.pageTitle.fontSize * titleW / Math.max(1, safeWide));
-  if (fitted < 28) throw new Error(`report-deck: ${page.id} 标题太长，请压缩到约 ${Math.floor(title.length * fitted / 32)} 字以内`);
-  const titleStyle = theme.roleStyle('pageTitle', { ...titleFontExtra, ...(safeWide > titleW ? { fontSize: fitted } : {}) });
-  // Header: modern rounded eyebrow pill with accent dot beside the headline + slim progress rule.
-  const ruleY = 124, tone = p.dark ? p.primary : readableInk(p.accent, p.bg || '#FFFFFF'), titleY = header === 'tag' || !eyebrow ? 48 : 54;
+  // Header: compact eyebrow pill stacked neatly above the conclusion headline + slim progress rule.
+  const tone = p.dark ? p.primary : readableInk(p.accent, p.bg || '#FFFFFF');
   const progW = Math.round(W * pageNo / total), tipW = Math.min(48, Math.max(20, Math.round(progW * 0.12)));
   const chrome = [
     ...(tagText ? [
-      { id: 'hdr-tag', type: 'shape', bounds: [L, 53, tagW, 46], style: { fill: rHdr.band, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: 23 } },
-      { id: 'hdr-dot', type: 'shape', bounds: [L + 16, 70, 12, 12], style: { fill: rHdr.pop, radius: 6 }, shape: 'ellipse' },
-      { id: 'eyebrow', type: 'text', text: tagText, bounds: [L + 36, 63, tagW - 44, 30], style: tagStyle },
-    ] : eyebrow ? [{ id: 'eyebrow', type: 'text', text: eyebrow, bounds: [L, 26, 1200, 30], style: theme.roleStyle('eyebrow', { color: p.muted }) }] : []),
-    { id: 'title', type: 'text', text: title, bounds: [titleX, titleY, titleW, 62], style: titleStyle, runs },
+      { id: 'hdr-tag', type: 'shape', bounds: [L, 24, tagW, 30], style: { fill: rHdr.band, stroke: p.line || '#E2E6EE', strokeWidth: 1.2, radius: 15 } },
+      { id: 'hdr-dot', type: 'shape', bounds: [L + 12, 35, 8, 8], style: { fill: rHdr.pop, radius: 4 }, shape: 'ellipse' },
+      { id: 'eyebrow', type: 'text', text: tagText, bounds: [L + 26, 29, tagW - 36, 22], style: tagStyle },
+    ] : eyebrow ? [{ id: 'eyebrow', type: 'text', text: eyebrow, bounds: [L, 26, 1200, 24], style: theme.roleStyle('eyebrow', { color: p.muted }) }] : []),
+    { id: 'title', type: 'text', text: title, bounds: [titleX, titleY, titleW, titleBoxH], style: titleStyle, runs },
     { id: 'hdr-rule', type: 'shape', bounds: [L, ruleY + 2, W, 2], style: { fill: p.line } },
-    { id: 'hdr-progress', type: 'shape', bounds: [L, ruleY, progW, 6], style: { fill: tone, radius: 3 } },
-    { id: 'hdr-progress-tip', type: 'shape', bounds: [L + progW - tipW, ruleY, tipW, 6], style: { fill: p.pop || p.secondary || tone, radius: 3 } },
+    { id: 'hdr-progress', type: 'shape', bounds: [L, ruleY, progW, 5], style: { fill: tone, radius: 3 } },
+    { id: 'hdr-progress-tip', type: 'shape', bounds: [L + progW - tipW, ruleY, tipW, 5], style: { fill: p.pop || p.secondary || tone, radius: 3 } },
     { id: 'ftr-rule', type: 'shape', bounds: [L, 1024, W, 1], style: { fill: p.line } },
-    ...(footer ? [{ id: 'src', type: 'text', text: `来源：${footer}`, bounds: [L, 1034, 1200, 30], style: theme.roleStyle('caption') }] : []),
-    { id: 'no', type: 'text', text: `${String(pageNo).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, bounds: [W + L - 200, 1034, 200, 30], style: theme.roleStyle('caption', { textAlign: 'right', fontWeight: 700 }) }
+    ...(footer ? [{ id: 'src', type: 'text', text: `来源：${footer}`, bounds: [L, 1034, 1200, 24], style: theme.roleStyle('caption', { fontSize: 14 }) }] : []),
+    { id: 'no', type: 'text', text: `${String(pageNo).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, bounds: [W + L - 200, 1034, 200, 24], style: theme.roleStyle('caption', { fontSize: 14, textAlign: 'right', fontWeight: 700 }) }
   ];
 
   // Region contracts follow from what was placed.
@@ -1079,7 +1179,7 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const images = elements.filter((e) => e.type === 'image'), photoArea = images.reduce((a, e) => a + e.bounds[2] * e.bounds[3], 0);
   // How far the most enlarged photo is blown up past its own pixels (1 = shown at its size or smaller).
   const maxUpscale = images.reduce((most, e) => { try { const s = imageSize(e.src), nw = (s.width ?? s.w ?? s[0]) * (Array.isArray(e.crop) ? e.crop[2] : 1); return nw > 0 ? Math.max(most, e.bounds[2] / nw) : most; } catch { return most; } }, 1);
-  return { rows: mirror ? rows.map((r) => (r && r.left ? { ...r, photosLeft: true } : r)) : rows, photoArea, maxUpscale, centred: centred.size, focusGuessed: !(page.focus && title.includes(page.focus)) && firstClause === title, fill: naturalUsed / (BOTTOM - TOP), blank: 1 - (end - start) / (BOTTOM - TOP), slide: { slideId: page.id, mode: 'composition', elements: [...chrome, ...elements] }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
+  return { rows: mirror ? rows.map((r) => (r && r.left ? { ...r, photosLeft: true } : r)) : rows, photoArea, maxUpscale, centred: centred.size, focusGuessed: !(page.focus && title.includes(page.focus)) && firstClause === title, fill: naturalUsed / (BOTTOM - pageTop), blank: 1 - (end - start) / (BOTTOM - pageTop), slide: { slideId: page.id, mode: 'composition', elements: [...chrome, ...elements] }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
 }
 
 // The cover: the deck name, the one sentence that says how the period went and up to three figures, with an optional
@@ -1105,41 +1205,54 @@ export function coverComposition(photo, override) {
 }
 async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
   const p = theme.palette, roles = colorRoles(p), fill = p.dark ? p.bg : readableInk(roles.primary, '#FFFFFF'), coverInk = p.dark ? p.ink : p.inverse, photo = asList(page.photos)[0], status = page.keyLine.text, data = asList(page.data);
-  if (data.length > 3) throw new Error(`report-deck: ${page.id} 封面最多放 3 个数字`);
+  if (data.length > 4) throw new Error(`report-deck: ${page.id} 封面最多放 4 个数字`);
   const mode = coverComposition(photo, page.coverLayout), crop = photo && validImageCrop(photo.crop) ? photo.crop : null;
   const size = photo ? imageSize(photo.src) : null, ratio = photo ? (size.width * (crop ? crop[2] : 1)) / (size.height * (crop ? crop[3] : 1)) : 1;
   const soft = (k) => (p.dark ? roles.primary : (readableInk(lighten(roles.secondary, k), fill) === fill ? '#FFFFFF' : lighten(roles.secondary, k)));
-  const capStyle = theme.font(20, { fontWeight: 300, color: p.dark ? p.muted : soft(0.45), lineHeight: 1.4 }), capH = 30;
+  const capStyle = theme.font(16, { fontWeight: 400, color: p.dark ? p.muted : soft(0.45), lineHeight: 1.4 }), capH = 26;
   // Where the words go: the left column beside a window or column photo, the full width above a band, the whole page without a photo.
+  const containCoverPhoto = Boolean(photo && isContainPhoto(photo));
   const columnW = mode === 'column' ? Math.max(560, Math.min(900, Math.round(1080 * ratio))) : 0;
   const x = 96, w = mode === 'window' ? 760 : mode === 'column' ? 1920 - columnW - 192 : 1728;
-  const name = page.name || deckTitle || '', cap = mode === 'plain' ? 112 : 84;
+  const name = page.name || deckTitle || '', cap = mode === 'plain' ? 96 : 78;
   const coverNameStyle = (size, extra = {}) => theme.roleStyle('coverTitle', { fontSize: size, color: coverInk, ...extra });
-  const [nameSize] = await measurer.texts([{ id: 'n', type: 'text', text: name, bounds: [0, 0, 3000, 110], style: coverNameStyle(84) }]);
-  let nameFont = Math.min(cap, Math.floor(84 * w / Math.max(1, nameSize.naturalWidth))), nameLines = 1;
-  // A long name takes two lines rather than shrinking below 64px.
-  if (nameFont < 64) { nameFont = 72; const [m] = await measurer.texts([{ id: 'n2', type: 'text', text: name, bounds: [0, 0, w, 200], style: coverNameStyle(72, { lineHeight: 1.2 }), lastLine: true }]); nameLines = Math.min(2, m.lines || 2); if ((m.lines || 1) > 2) nameFont = 56; }
-  const statusStyle = theme.font(mode === 'plain' ? 52 : 40, { fontWeight: 700, color: coverInk, lineHeight: 1.45 }), [statusSize] = await measurer.texts([{ id: 's', type: 'text', text: status, bounds: [0, 0, w, 60], style: statusStyle }]);
-  const subStyle = theme.font(mode === 'plain' ? 32 : 28, { fontWeight: 400, color: p.dark ? p.body : soft(0.55), lineHeight: 1.45 }), [subSize] = page.subtitle ? await measurer.texts([{ id: 'u', type: 'text', text: page.subtitle, bounds: [0, 0, w, 60], style: subStyle }]) : [null];
+  const [nameSize] = await measurer.texts([{ id: 'n', type: 'text', text: name, bounds: [0, 0, 3000, 110], style: coverNameStyle(78) }]);
+  let nameFont = Math.min(cap, Math.floor(78 * w / Math.max(1, nameSize.naturalWidth))), nameLines = 1;
+  // A long name takes two lines rather than shrinking below 62px.
+  if (nameFont < 62) { nameFont = 66; const [m] = await measurer.texts([{ id: 'n2', type: 'text', text: name, bounds: [0, 0, w, 200], style: coverNameStyle(66, { lineHeight: 1.2 }), lastLine: true }]); nameLines = Math.min(2, m.lines || 2); if ((m.lines || 1) > 2) nameFont = 52; }
+  const statusStyle = theme.font(mode === 'plain' ? 38 : 32, { fontWeight: 700, color: coverInk, lineHeight: 1.45 }), [statusSize] = await measurer.texts([{ id: 's', type: 'text', text: status, bounds: [0, 0, w, 60], style: statusStyle }]);
+  const subStyle = theme.font(mode === 'plain' ? 26 : 23, { fontWeight: 400, color: p.dark ? p.body : soft(0.55), lineHeight: 1.45 }), [subSize] = page.subtitle ? await measurer.texts([{ id: 'u', type: 'text', text: page.subtitle, bounds: [0, 0, w, 60], style: subStyle }]) : [null];
   const focus = page.focus && status.includes(page.focus) ? page.focus : null, at = focus ? status.indexOf(focus) : -1, pop = p.dark ? roles.primary : soft(0.2);
   const runs = focus ? [status.slice(0, at) && { text: status.slice(0, at) }, { text: focus, style: { color: pop } }, status.slice(at + focus.length) && { text: status.slice(at + focus.length) }].filter(Boolean) : undefined;
-  // Cover figures hug their content like the figures inside the deck: as large as the status sentence allows, each tile only as wide as its words. No filler icons (user decision 2026-11-10).
-  const coverTiles = async (y) => {
-    const items = data.map(coverItem), n = items.length, gap = 16, ls = 20, unitOf = (s) => Math.max(20, Math.round(s * 0.32));
+  // Cover figures hug their content like the figures inside the deck: 1-4 metrics, switching to a neat 2x2 grid beside narrow cover images.
+  const coverTiles = async (y, tight = false) => {
+    const items = data.map(coverItem), n = items.length, use2x2 = n === 4 && w < 980, cols = use2x2 ? 2 : n;
+    const gap = tight || use2x2 ? 12 : 16, ls = 18, unitOf = (s) => Math.max(16, Math.round(s * 0.32));
     const content = (s) => Math.max(...items.map((it) => Math.max(textWidth(it.label || '', ls), textWidth(it.note || '', ls), textWidth(String(it.value), s) + (it.unit ? textWidth(' ' + it.unit, unitOf(s)) : 0))));
-    const widthAt = (s) => n * (Math.ceil(content(s)) + 72) + gap * (n - 1);
+    const widthAt = (s) => cols * (Math.ceil(content(s)) + 68) + gap * (cols - 1);
+    const minFs = use2x2 ? 32 : 36;
     // The status sentence must stay among the two largest sizes on the cover (key-line-not-prominent), so figures stop at its size.
-    let fs = statusStyle.fontSize; while (fs > 40 && widthAt(fs) > w) fs -= 4;
-    const common = { id: 'm', x, width: Math.min(w, widthAt(fs)), size: 40, columns: n, gap, highlight: -1, fill: p.surface || '#FFFFFF', theme, items };
-    for (; fs > 40; fs -= 2) {
+    let fs = use2x2 ? Math.min(statusStyle.fontSize, 36) : statusStyle.fontSize;
+    while (fs > minFs && widthAt(fs) > w) fs -= 4;
+    const common = { id: 'm', x, width: Math.min(w, widthAt(fs)), size: use2x2 ? 34 : 40, columns: cols, gap, highlight: -1, fill: p.surface || '#FFFFFF', theme, items };
+    for (; fs > minFs; fs -= 2) {
       const texts = metricTiles({ ...common, figureSize: fs, y: 0 }).elements.filter((e) => e.type === 'text' && e.text), real = await measurer.texts(texts.map((e) => ({ ...e, bounds: [0, 0, 3000, e.bounds[3]] })));
       if (texts.every((e, i) => real[i].naturalWidth <= e.bounds[2])) break;
     }
     return metricTiles({ ...common, figureSize: fs, y });
   };
-  const tileH = data.length ? (await coverTiles(0)).height : 0;
-  const eyebrowH = page.eyebrow ? 64 : 0, nameH = Math.ceil(nameFont * (nameLines > 1 ? 1.2 : 1.3) * nameLines), subH = subSize ? Math.ceil(subSize.height) + 20 : 0, statusH = Math.ceil(statusSize.height);
-  const groupH = eyebrowH + nameH + subH + 40 + statusH + (tileH ? 56 + tileH : 0), noteH = page.note ? 48 : 0;
+  let eyebrowH = page.eyebrow ? 64 : 0, subTopGap = 20, statusTopGap = 40, tilesTopGap = 56, tightCover = false;
+  let tileH = data.length ? (await coverTiles(0, false)).height : 0;
+  const nameH = Math.ceil(nameFont * (nameLines > 1 ? 1.2 : 1.3) * nameLines), statusH = Math.ceil(statusSize.height), noteH = page.note ? 48 : 0;
+  let subH = subSize ? Math.ceil(subSize.height) + subTopGap : 0;
+  let groupH = eyebrowH + nameH + subH + statusTopGap + statusH + (tileH ? tilesTopGap + tileH : 0);
+  if ((mode === 'plain' ? Math.round((1080 - groupH - noteH) / 2) : Math.round((1080 - groupH) / 2)) < 72) {
+    tightCover = true;
+    eyebrowH = page.eyebrow ? 46 : 0; subTopGap = 12; statusTopGap = 24; tilesTopGap = 28;
+    tileH = data.length ? (await coverTiles(0, true)).height : 0;
+    subH = subSize ? Math.ceil(subSize.height) + subTopGap : 0;
+    groupH = eyebrowH + nameH + subH + statusTopGap + statusH + (tileH ? tilesTopGap + tileH : 0);
+  }
   // The photo frame. A band and a window keep the photo's whole shape (after photo.crop); a column frames it within a mild crop.
   let frame = null, top;
   if (mode === 'band') {
@@ -1160,39 +1273,50 @@ async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
     top = Math.round((1080 - groupH) / 2);
   } else top = Math.round((1080 - groupH - noteH) / 2);
   if (top < 72) throw new PageOverflow(`${page.id} 封面文字太多`);
-  const panelW = mode === 'column' ? 1920 - columnW : 1920, elements = [{ id: 'cover-panel', type: 'shape', bounds: [0, 0, panelW, 1080], style: { fill } }];
+  const panelW = mode === 'column' && !containCoverPhoto ? 1920 - columnW : 1920, elements = [{ id: 'cover-panel', type: 'shape', bounds: [0, 0, panelW, 1080], style: { fill } }];
   let y = top;
   if (page.eyebrow) {
-    const eyW = Math.min(w, Math.ceil(textWidth(page.eyebrow, 22) * 1.2) + 74);
+    const eyW = Math.min(w, Math.ceil(textWidth(page.eyebrow, 16) * 1.18) + 52);
     elements.push(
-      { id: 'cover-eyebrow-bg', type: 'shape', bounds: [x, y - 4, eyW, 44], style: { fill: p.dark ? '#1B2A44' : lighten(fill, 0.12), stroke: p.dark ? p.line : lighten(fill, 0.28), strokeWidth: 1.5, radius: 22 } },
-      { id: 'cover-eyebrow-dot', type: 'shape', bounds: [x + 18, y + 12, 12, 12], style: { fill: roles.pop, radius: 6 }, shape: 'ellipse' },
-      { id: 'cover-eyebrow', type: 'text', text: page.eyebrow, bounds: [x + 40, y + 5, eyW - 50, 30], style: theme.font(22, { fontWeight: 700, color: p.dark ? roles.primary : '#FFFFFF', lineHeight: 1.25 }) }
+      { id: 'cover-eyebrow-bg', type: 'shape', bounds: [x, y, eyW, 34], style: { fill: p.dark ? '#1B2A44' : lighten(fill, 0.12), stroke: p.dark ? p.line : lighten(fill, 0.28), strokeWidth: 1.5, radius: 17 } },
+      { id: 'cover-eyebrow-dot', type: 'shape', bounds: [x + 14, y + 12, 10, 10], style: { fill: roles.pop, radius: 5 }, shape: 'ellipse' },
+      { id: 'cover-eyebrow', type: 'text', text: page.eyebrow, bounds: [x + 32, y + 6, eyW - 42, 24], style: theme.font(16, { fontWeight: 700, color: p.dark ? roles.primary : '#FFFFFF', lineHeight: 1.25 }) }
     );
   }
   y += eyebrowH;
   elements.push({ id: 'cover-name', type: 'text', text: name, bounds: [x, y, w, nameH], style: coverNameStyle(nameFont, { lineHeight: nameLines > 1 ? 1.2 : 1.25 }) });
   y += nameH;
-  if (subSize) { elements.push({ id: 'cover-subtitle', type: 'text', text: page.subtitle, bounds: [x, y + 20, w, Math.ceil(subSize.height)], style: subStyle }); y += subH; }
-  y += 40;
+  if (subSize) { elements.push({ id: 'cover-subtitle', type: 'text', text: page.subtitle, bounds: [x, y + subTopGap, w, Math.ceil(subSize.height)], style: subStyle }); y += subH; }
+  y += statusTopGap;
   elements.push({ id: 'title', type: 'text', text: status, ...(runs ? { runs } : {}), bounds: [x, y, w, statusH], style: statusStyle });
   y += statusH;
   const design = { cover: { m: { frame: null, module: 'coverPanel', variant: 'status', title: statusStyle.fontSize, reason: '封面先说清这一期的整体状态', bindings: [{ ref: `${page.id}:status`, elementIds: ['title'] }] }, box: [x, top, w, y - top] } };
   if (data.length) {
-    const placed = await coverTiles(y + 56), tilesW = Math.max(...placed.elements.filter((e) => e.type === 'shape').map((e) => e.bounds[0] + e.bounds[2])) - x;
+    const placed = await coverTiles(y + tilesTopGap, tightCover), tilesW = Math.max(...placed.elements.filter((e) => e.type === 'shape').map((e) => e.bounds[0] + e.bounds[2])) - x;
     elements.push(...placed.elements);
-    design.metrics = { m: { frame: null, module: 'metricTiles', variant: `${data.length}-results`, title: placed.valueSize, sizes: [...new Set(placed.elements.filter((e) => /^m-value-\d+$/.test(e.id)).flatMap((e) => [e.style?.fontSize, ...(e.runs || []).map((r) => r.style?.fontSize)]).filter(Number.isFinite))], reason: '封面只放最关键的数字', bindings: data.map((d, i) => ({ ref: `${page.id}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(d.target != null ? [`m-note-${i + 1}`] : [])] })) }, box: [x, y + 56, tilesW, placed.height] };
+    design.metrics = { m: { frame: null, module: 'metricTiles', variant: `${data.length}-results`, title: placed.valueSize, sizes: [...new Set(placed.elements.filter((e) => /^m-value-\d+$/.test(e.id)).flatMap((e) => [e.style?.fontSize, ...(e.runs || []).map((r) => r.style?.fontSize)]).filter(Number.isFinite))], reason: '封面只放最关键的数字', bindings: data.map((d, i) => ({ ref: `${page.id}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(d.target != null ? [`m-note-${i + 1}`] : [])] })) }, box: [x, y + tilesTopGap, tilesW, placed.height] };
   }
   // The note sits at the foot: in a band layout at the right end of the caption line, otherwise under the words.
   if (page.note) elements.push({ id: 'cover-note', type: 'text', text: page.note, bounds: mode === 'band' ? [x + 868, frame[1] + frame[3] + 8, 860, capH] : [x, 1080 - 96 - 28, w, 32], style: mode === 'band' ? { ...capStyle, textAlign: 'right' } : capStyle });
   if (photo) {
     const [fx, fy, fw, fh] = frame, radius = theme.radius ?? 0;
-    elements.push(imageElement({ id: 'ph1-img-1', src: photo.src, bounds: frame, fit: 'cover', ...(crop || mode !== 'column' ? { crop: fitCrop(crop, size, fw / fh, photo.focal) } : { focal: photo.focal || '50% 40%' }), naturalSize: [size.width, size.height], alt: photo.caption || '', ...(mode === 'band' && radius ? { style: { radius } } : {}) }));
-    // Over a full-height column the caption sits on a dark strip above the footer line (y 1010), so it reads on any photo.
-    // Over a full-height column the caption sits on a dark strip near the foot of the photo, so it reads on any photo.
-    if (photo.caption && mode === 'column') { const cw = Math.min(fw - 64, Math.ceil(textWidth(photo.caption, 20)) + 32); elements.push({ id: 'ph1-caption-bg', type: 'shape', bounds: [fx + 32, COLUMN_ZONE - 24 - capH - 8, cw, capH + 8], style: { fill: 'rgba(0, 0, 0, 0.5)', radius: 4 } }, { id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [fx + 48, COLUMN_ZONE - 24 - capH - 4, cw - 32, capH], style: { ...capStyle, color: '#FFFFFF' } }); }
-    else if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [fx, fy + fh + 8, Math.min(fw, 860), capH], style: capStyle });
-    design.photos = { m: { frame: null, module: 'photoGroup', variant: `cover-${mode}`, title: theme.roles.caption.fontSize, reason: { band: '宽图横跨页面下部，完整展示', window: '横图按原比例放在文字旁，出血到右边', column: '竖图占满右侧整列' }[mode], bindings: [{ ref: `${page.id}:photo-1`, elementIds: ['ph1-img-1'] }] }, box: [fx, fy, fw, Math.min(1080 - fy, mode === 'column' ? fh : fh + (photo.caption ? capH + 8 : 0))] };
+    if (containCoverPhoto) {
+      const box = mode === 'column'
+        ? [fx + 32, 72, fw - 96, 1080 - 144 - (photo.caption ? capH + 14 : 0)]
+        : mode === 'window'
+          ? [fx, fy, Math.max(300, fw - 64), fh]
+          : [fx, fy, fw, fh];
+      const framed = framedContainPhoto({ id: 'ph1', ph: photo, bounds: box, theme, surfaceFill: p.dark ? '#162238' : '#FFFFFF' });
+      elements.push(...framed.elements);
+      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [framed.cardBounds[0], framed.cardBounds[1] + framed.cardBounds[3] + 8, Math.min(framed.cardBounds[2], 860), capH], style: capStyle });
+      design.photos = { m: { frame: null, module: 'photoGroup', variant: `cover-${mode}-contain`, title: theme.roles.caption.fontSize, reason: '封面截图或海报在精致框内按原比例完整展示', bindings: [{ ref: `${page.id}:photo-1`, elementIds: [framed.imageId] }] }, box: [framed.cardBounds[0], framed.cardBounds[1], framed.cardBounds[2], Math.min(1080 - framed.cardBounds[1], framed.cardBounds[3] + (photo.caption ? capH + 8 : 0))] };
+    } else {
+      elements.push(imageElement({ id: 'ph1-img-1', src: photo.src, bounds: frame, fit: 'cover', ...(crop || mode !== 'column' ? { crop: fitCrop(crop, size, fw / fh, photo.focal) } : { focal: photo.focal || '50% 40%' }), naturalSize: [size.width, size.height], alt: photo.caption || '', ...(mode === 'band' && radius ? { style: { radius } } : {}) }));
+      // Over a full-height column the caption sits on a dark strip near the foot of the photo, so it reads on any photo.
+      if (photo.caption && mode === 'column') { const cw = Math.min(fw - 64, Math.ceil(textWidth(photo.caption, 20)) + 32); elements.push({ id: 'ph1-caption-bg', type: 'shape', bounds: [fx + 32, COLUMN_ZONE - 24 - capH - 8, cw, capH + 8], style: { fill: 'rgba(0, 0, 0, 0.5)', radius: 4 } }, { id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [fx + 48, COLUMN_ZONE - 24 - capH - 4, cw - 32, capH], style: { ...capStyle, color: '#FFFFFF' } }); }
+      else if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [fx, fy + fh + 8, Math.min(fw, 860), capH], style: capStyle });
+      design.photos = { m: { frame: null, module: 'photoGroup', variant: `cover-${mode}`, title: theme.roles.caption.fontSize, reason: { band: '宽图横跨页面下部，完整展示', window: '横图按原比例放在文字旁，出血到右边', column: '竖图占满右侧整列' }[mode], bindings: [{ ref: `${page.id}:photo-1`, elementIds: ['ph1-img-1'] }] }, box: [fx, fy, fw, Math.min(1080 - fy, mode === 'column' ? fh : fh + (photo.caption ? capH + 8 : 0))] };
+    }
   }
   // Beside a full-height column every element must sit in a zone, so the last block of words reaches down over the note.
   if (mode === 'column' && page.note) { const last = design.metrics || design.cover, bottom = 1080 - 96 - 28 + 32; last.box = [x, last.box[1], w, bottom - last.box[1]]; }
@@ -1202,6 +1326,425 @@ async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
   Object.assign(plan.visualDecision, { pattern: '封面', focus: { elementId: 'title', ...(focus ? { text: focus } : {}) }, layout: [{ plain: '整页主色，名称、状态句和数字作一组上下居中', band: '名称和状态句在上，宽图横跨页面下部', window: '文字一组在左上下居中，横图按原比例出血到右边', column: '主色块放文字，竖图占满右侧整列' }[mode], data.length && '数字紧跟状态句'].filter(Boolean).join('，') });
   plan.composition = { alignments: [], gaps: [] };
   return { slide: { slideId: page.id, mode: 'composition', elements }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.frame || m.bindings[0]?.elementIds[0]])) };
+}
+
+async function layoutSection({ page, plan, theme, measurer, sectionNo, pageNo, total, footer }) {
+  const p = theme.palette, roles = colorRoles(p), fill = p.dark ? p.bg : readableInk(roles.primary, '#FFFFFF');
+  const mainInk = p.dark ? p.ink : p.inverse, pop = roles.pop || p.pop || '#FA6500';
+  const soft = (k) => (p.dark ? p.body : (readableInk(lighten(roles.secondary, k), fill) === fill ? '#E2E8F0' : lighten(roles.secondary, k)));
+  const secNum = String(sectionNo).padStart(2, '0');
+  const eyebrow = page.part || page.eyebrow || `PART ${secNum}`;
+  const data = asList(page.data).slice(0, 4);
+  const items = asList(page.items).slice(0, 5);
+  const photo = asList(page.photos)[0];
+  const keyText = page.keyLine.text;
+  const rawName = page.name || page.title || '';
+  const secTitle = rawName || keyText;
+  const titleIsMain = secTitle === keyText;
+  const secLead = !titleIsMain ? keyText : (page.subtitle || '');
+  const subExtra = !titleIsMain && page.subtitle && page.subtitle !== keyText ? page.subtitle : '';
+
+  const hasRight = items.length > 0 || Boolean(photo);
+  const rightW = items.length && photo ? 760 : items.length ? 820 : photo ? 760 : 0;
+  const gapCol = rightW ? 56 : 0;
+  const leftX = L + 24;
+  const leftW = rightW ? W - 24 - rightW - gapCol : 1520;
+  const rx = leftX + leftW + gapCol;
+
+  const isShortDisplay = secTitle.replace(/[\s，。：；、,.!?！？·\-—]/g, '').length <= 14 && theme.displayFamily;
+  const titleFontStyle = (sz, extra = {}) => theme.roleStyle('coverTitle', {
+    ...(isShortDisplay ? { fontFamily: theme.displayFamily, fontWeight: 400 } : { fontWeight: 900 }),
+    fontSize: sz,
+    color: mainInk,
+    lineHeight: 1.2,
+    ...extra,
+  });
+  let titleFont = rightW ? 64 : 76;
+  const [m1] = await measurer.texts([{ id: 'st1', type: 'text', text: secTitle, bounds: [0, 0, leftW, 240], style: titleFontStyle(titleFont), lastLine: true }]);
+  let titleLines = m1.lines || 1;
+  if (titleLines > 2) {
+    titleFont = rightW ? 52 : 60;
+    const [m2] = await measurer.texts([{ id: 'st2', type: 'text', text: secTitle, bounds: [0, 0, leftW, 240], style: titleFontStyle(titleFont), lastLine: true }]);
+    titleLines = Math.min(3, m2.lines || 2);
+  }
+  const titleH = Math.ceil(titleFont * 1.2 * titleLines) + 6;
+  const focusWord = page.focus && secTitle.includes(page.focus) ? page.focus : null;
+  const fAt = focusWord ? secTitle.indexOf(focusWord) : -1;
+  const titleRuns = focusWord ? [
+    secTitle.slice(0, fAt) && { text: secTitle.slice(0, fAt), style: { color: mainInk } },
+    { text: focusWord, style: { color: p.dark ? roles.primary : soft(0.25) } },
+    secTitle.slice(fAt + focusWord.length) && { text: secTitle.slice(fAt + focusWord.length), style: { color: mainInk } },
+  ].filter(Boolean) : undefined;
+
+  const leadStyle = theme.font(rightW ? 26 : 30, { fontWeight: 700, color: p.dark ? p.body : soft(0.35), lineHeight: 1.4 });
+  const subStyle = theme.font(21, { fontWeight: 400, color: p.dark ? p.muted : soft(0.55), lineHeight: 1.42 });
+  const leadMeasure = secLead ? (await measurer.texts([{ id: 'sl', type: 'text', text: secLead, bounds: [0, 0, leftW, 180], style: leadStyle }]))[0] : null;
+  const subMeasure = subExtra ? (await measurer.texts([{ id: 'sx', type: 'text', text: subExtra, bounds: [0, 0, leftW, 120], style: subStyle }]))[0] : null;
+  const leadH = leadMeasure ? Math.ceil(leadMeasure.height) : 0;
+  const subH = subMeasure ? Math.ceil(subMeasure.height) : 0;
+
+  const secTiles = async (ty) => {
+    const tItems = data.map(coverItem);
+    const cols = tItems.length === 4 && leftW < 980 ? 2 : tItems.length;
+    const g = 14, ls = 18;
+    const cw = Math.floor((leftW - g * (cols - 1)) / cols);
+    let fs = leftW < 980 ? 36 : 42;
+    const common = { id: 'm', x: leftX, width: leftW, size: 34, columns: cols, gap: g, highlight: -1, fill: p.surface || '#FFFFFF', theme, items: tItems };
+    for (; fs > 26; fs -= 2) {
+      const txts = metricTiles({ ...common, figureSize: fs, y: 0 }).elements.filter((e) => e.type === 'text' && e.text);
+      const real = await measurer.texts(txts.map((e) => ({ ...e, bounds: [0, 0, 3000, e.bounds[3]] })));
+      if (txts.every((e, k) => real[k].naturalWidth <= e.bounds[2])) break;
+    }
+    return metricTiles({ ...common, figureSize: fs, y: ty });
+  };
+  const tileProbeH = data.length ? (await secTiles(0)).height : 0;
+  const leftTotalH = 44 + 22 + titleH + 18 + 6 + (leadH ? 24 + leadH : 0) + (subH ? 14 + subH : 0) + (tileProbeH ? 34 + tileProbeH : 0);
+  const leftTop = Math.max(120, Math.round((970 - leftTotalH) / 2));
+
+  const wmColor = p.dark ? '#172640' : lighten(fill, 0.08);
+  const elements = [
+    { id: 'sec-panel', type: 'shape', bounds: [0, 0, 1920, 1080], style: { fill } },
+    { id: 'sec-side-rail', type: 'shape', bounds: [0, 0, 14, 1080], style: { fill: pop } },
+    { id: 'sec-watermark', type: 'text', text: secNum, bounds: [1460, 44, 364, 180], style: theme.font(176, { fontWeight: 900, color: wmColor, textAlign: 'right', lineHeight: 1.0 }) },
+  ];
+
+  let cy = leftTop;
+  const eyW = Math.max(120, Math.min(leftW, Math.ceil(textWidth(eyebrow, 16) * 1.15) + 52));
+  elements.push(
+    { id: 'sec-ey-bg', type: 'shape', bounds: [leftX, cy, eyW, 34], style: { fill: p.dark ? '#1B2A44' : lighten(fill, 0.12), stroke: p.dark ? p.line : lighten(fill, 0.28), strokeWidth: 1.5, radius: 17 } },
+    { id: 'sec-ey-dot', type: 'shape', bounds: [leftX + 14, cy + 12, 10, 10], style: { fill: pop, radius: 5 }, shape: 'ellipse' },
+    { id: 'sec-ey-tx', type: 'text', text: eyebrow, bounds: [leftX + 32, cy + 5, eyW - 42, 24], style: theme.font(16, { fontWeight: 700, color: p.dark ? roles.primary : '#FFFFFF', lineHeight: 1.25 }) },
+  );
+  cy += 56;
+
+  elements.push({
+    id: titleIsMain ? 'title' : 'sec-name',
+    type: 'text',
+    text: secTitle,
+    ...(titleRuns ? { runs: titleRuns } : {}),
+    bounds: [leftX, cy, leftW, titleH],
+    style: titleFontStyle(titleFont),
+  });
+  cy += titleH + 18;
+  elements.push({ id: 'sec-accent-bar', type: 'shape', bounds: [leftX, cy, 88, 6], style: { fill: pop, radius: 3 } });
+  cy += 6;
+
+  if (secLead) {
+    cy += 24;
+    elements.push({ id: titleIsMain ? 'sec-lead' : 'title', type: 'text', text: secLead, bounds: [leftX, cy, leftW, leadH], style: leadStyle });
+    cy += leadH;
+  }
+  if (subExtra) {
+    cy += 14;
+    elements.push({ id: 'sec-sub', type: 'text', text: subExtra, bounds: [leftX, cy, leftW, subH], style: subStyle });
+    cy += subH;
+  }
+
+  const design = {
+    section: {
+      m: { frame: null, module: 'sectionPanel', variant: 'chapter', title: titleFont, reason: '章节过渡页锚定章节编号与核心命题', bindings: [{ ref: `${page.id}:status`, elementIds: ['title'] }] },
+      box: [leftX, leftTop, leftW, cy - leftTop],
+    },
+  };
+
+  if (data.length) {
+    const placedTiles = await secTiles(cy + 34);
+    elements.push(...placedTiles.elements);
+    design.metrics = {
+      m: {
+        frame: null,
+        module: 'metricTiles',
+        variant: `${data.length}-section`,
+        title: placedTiles.valueSize,
+        sizes: [...new Set(placedTiles.elements.filter((e) => /^m-value-\d+$/.test(e.id)).flatMap((e) => [e.style?.fontSize, ...(e.runs || []).map((r) => r.style?.fontSize)]).filter(Number.isFinite))],
+        reason: '章节页概览核心指标',
+        bindings: data.map((d, i) => ({ ref: `${page.id}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`] })),
+      },
+      box: [leftX, cy + 34, leftW, placedTiles.height],
+    };
+  }
+
+  let itemsBottom = 0;
+  if (items.length) {
+    const itemsTop = photo ? 210 : 232;
+    const itemsAreaH = photo ? 420 : 700;
+    const cardGap = items.length >= 4 ? 12 : 18;
+    const cardFill = p.dark ? '#172642' : lighten(fill, 0.09);
+    const cardStroke = p.dark ? '#283C5C' : lighten(fill, 0.24);
+    const iTitleStyle = theme.font(items.length >= 4 ? 20 : 23, { fontWeight: 700, color: mainInk, lineHeight: 1.3 });
+    const iDetailStyle = theme.font(items.length >= 4 ? 16 : 18, { fontWeight: 400, color: p.dark ? p.body : soft(0.4), lineHeight: 1.4 });
+    const textXOff = 78;
+    const textW = rightW - textXOff - 24;
+    const tProbes = items.map((it, k) => ({ id: `sit-${k}`, type: 'text', text: it.title || '', bounds: [0, 0, textW, 60], style: iTitleStyle }));
+    const dProbes = items.map((it, k) => (it.detail ? { id: `sid-${k}`, type: 'text', text: it.detail, bounds: [0, 0, textW, 80], style: iDetailStyle } : null));
+    const allM = await measurer.texts([...tProbes, ...dProbes.filter(Boolean)]);
+    const mMap = new Map(allM.map((m) => [m.id, Math.ceil(m.height)]));
+    const naturalHeights = items.map((it, k) => (photo ? 20 : 26) + mMap.get(`sit-${k}`) + (it.detail ? 6 + mMap.get(`sid-${k}`) : 0));
+    const naturalSum = naturalHeights.reduce((a, b) => a + b, 0) + cardGap * (items.length - 1);
+    const useH = photo ? Math.max(naturalSum, items.length * 76 + cardGap * (items.length - 1)) : Math.min(itemsAreaH, Math.max(naturalSum, items.length * 86 + cardGap * (items.length - 1)));
+    let iy = photo ? itemsTop : Math.max(itemsTop, Math.round((980 - useH) / 2));
+    const evenCardH = Math.floor((useH - cardGap * (items.length - 1)) / items.length);
+    const itemBindings = [];
+    items.forEach((it, k) => {
+      const ch = Math.max(naturalHeights[k], evenCardH);
+      const tH = mMap.get(`sit-${k}`), dH = it.detail ? mMap.get(`sid-${k}`) : 0;
+      const contentH = tH + (dH ? 6 + dH : 0);
+      const tTop = iy + Math.max(10, Math.round((ch - contentH) / 2));
+      const numFill = k === 0 ? pop : (p.dark ? roles.primary : lighten(fill, 0.22));
+      elements.push(
+        { id: `sec-card-${k + 1}`, type: 'shape', bounds: [rx, iy, rightW, ch], style: { fill: cardFill, stroke: cardStroke, strokeWidth: 1.5, radius: 14 } },
+        { id: `sec-num-bg-${k + 1}`, type: 'shape', bounds: [rx + 20, iy + Math.round((ch - 38) / 2), 38, 38], shape: 'ellipse', style: { fill: numFill, radius: 19 } },
+        { id: `sec-num-${k + 1}`, type: 'text', text: String(k + 1).padStart(2, '0'), bounds: [rx + 20, iy + Math.round((ch - 38) / 2) + 8, 38, 24], style: theme.font(16, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) },
+        { id: `sec-item-title-${k + 1}`, type: 'text', text: it.title || '', bounds: [rx + textXOff, tTop, textW, tH], style: iTitleStyle },
+      );
+      const eIds = [`sec-item-title-${k + 1}`];
+      if (it.detail) {
+        elements.push({ id: `sec-item-detail-${k + 1}`, type: 'text', text: it.detail, bounds: [rx + textXOff, tTop + tH + 6, textW, dH], style: iDetailStyle });
+        eIds.push(`sec-item-detail-${k + 1}`);
+      }
+      itemBindings.push({ ref: `${page.id}:item-${k + 1}`, elementIds: eIds });
+      iy += ch + cardGap;
+    });
+    itemsBottom = iy - cardGap;
+    design.items = {
+      m: { frame: null, module: 'numberedList', variant: `${items.length}-agenda`, title: iTitleStyle.fontSize, reason: '章节页列出本板块子议题脉络', bindings: itemBindings },
+      box: [rx, photo ? itemsTop : Math.max(itemsTop, Math.round((980 - useH) / 2)), rightW, itemsBottom - (photo ? itemsTop : Math.max(itemsTop, Math.round((980 - useH) / 2)))],
+    };
+  }
+
+  if (photo) {
+    const py = items.length ? Math.max(240, itemsBottom + 20) : 232;
+    const phH = items.length ? Math.max(180, 960 - py) : 680;
+    const capH = photo.caption ? 34 : 0;
+    const imgH = phH - capH;
+    if (isContainPhoto(photo)) {
+      const framed = framedContainPhoto({ id: 'ph1', ph: photo, bounds: [rx, py, rightW, imgH], theme, surfaceFill: p.dark ? '#162238' : '#FFFFFF' });
+      elements.push(...framed.elements);
+      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [framed.cardBounds[0], py + imgH + 6, framed.cardBounds[2], 26], style: theme.font(16, { color: soft(0.45), lineHeight: 1.25 }) });
+      design.photos = { m: { frame: null, module: 'photoGroup', variant: 'section-contain', title: 16, reason: '章节配图完整装框展示', bindings: [{ ref: `${page.id}:photo-1`, elementIds: [framed.imageId] }] }, box: [framed.cardBounds[0], py, framed.cardBounds[2], phH] };
+    } else {
+      const sz = imageSize(photo.src), cr = fitCrop(photo.crop, sz, rightW / imgH, photo.focal || '50% 35%');
+      elements.push(imageElement({ id: 'ph1-img-1', src: photo.src, bounds: [rx, py, rightW, imgH], fit: 'cover', crop: cr, naturalSize: [sz.width, sz.height], style: { radius: 18 }, alt: photo.caption || '' }));
+      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [rx, py + imgH + 6, rightW, 26], style: theme.font(16, { color: soft(0.45), lineHeight: 1.25 }) });
+      design.photos = { m: { frame: null, module: 'photoGroup', variant: 'section-photo', title: 16, reason: '章节配图营造场景氛围', bindings: [{ ref: `${page.id}:photo-1`, elementIds: ['ph1-img-1'] }] }, box: [rx, py, rightW, phH] };
+    }
+  }
+
+  elements.push({ id: 'ftr-rule', type: 'shape', bounds: [L, 1006, W, 1], style: { fill: p.dark ? p.line : lighten(fill, 0.22) } });
+  if (footer) elements.push({ id: 'src', type: 'text', text: footer, bounds: [L, 1020, 1200, 26], style: theme.font(15, { color: soft(0.55), lineHeight: 1.3 }) });
+  elements.push({ id: 'num', type: 'text', text: `${String(pageNo).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, bounds: [L + W - 160, 1020, 160, 26], style: theme.font(15, { fontWeight: 700, color: soft(0.55), textAlign: 'right', lineHeight: 1.3 }) });
+
+  for (const [z, { m, box }] of Object.entries(design)) {
+    const vz = plan.visualDecision.zones.find((v) => v.id === z);
+    const rg = plan.regions.find((r) => r.zoneId === z);
+    if (vz) vz.bounds = box;
+    if (rg) Object.assign(rg, { frameElementId: undefined, openGroup: true, padding: 0, typography: { title: Math.max(m.title, theme.roles.body.fontSize), body: theme.roles.body.fontSize }, module: { name: m.module, variant: m.variant }, designReference: { source: '原创', principle: m.reason }, representation: m.variant, reason: m.reason, bindings: m.bindings });
+  }
+  plan.typographyRoles = theme.roles;
+  Object.assign(plan.visualDecision, { pattern: '章节页', focus: { elementId: 'title', ...(focusWord ? { text: focusWord } : {}) }, layout: hasRight ? '左侧章节标题与数字，右侧子议题或配图' : '主色画布居中呈现章节标题、导引句与数字' });
+  plan.composition = { alignments: [], gaps: [] };
+  return { slide: { slideId: page.id, mode: 'composition', elements }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.bindings[0]?.elementIds[0]])) };
+}
+
+async function layoutClosing({ page, plan, theme, measurer, deckTitle, pageNo, total, footer }) {
+  const p = theme.palette, roles = colorRoles(p), fill = p.dark ? p.bg : readableInk(roles.primary, '#FFFFFF');
+  const mainInk = p.dark ? p.ink : p.inverse, pop = roles.pop || p.pop || '#FA6500';
+  const soft = (k) => (p.dark ? p.body : (readableInk(lighten(roles.secondary, k), fill) === fill ? '#E2E8F0' : lighten(roles.secondary, k)));
+  const eyebrow = page.eyebrow || '总结展望 · 致谢';
+  const data = asList(page.data).slice(0, 4);
+  const items = asList(page.items).slice(0, 4);
+  const photo = asList(page.photos)[0];
+  const keyText = page.keyLine.text;
+  const rawName = page.name || page.title || '';
+  const clTitle = rawName || keyText;
+  const titleIsMain = clTitle === keyText;
+  const clSub = !titleIsMain ? keyText : (page.subtitle || '');
+  const subExtra = !titleIsMain && page.subtitle && page.subtitle !== keyText ? page.subtitle : '';
+
+  const mainW = photo ? 1120 : W;
+  const rx = L + mainW + 48;
+  const rw = photo ? W - mainW - 48 : 0;
+
+  const isShortDisplay = clTitle.replace(/[\s，。：；、,.!?！？·\-—]/g, '').length <= 14 && theme.displayFamily;
+  const titleStyle = (sz) => theme.roleStyle('coverTitle', {
+    ...(isShortDisplay ? { fontFamily: theme.displayFamily, fontWeight: 400 } : { fontWeight: 900 }),
+    fontSize: sz,
+    color: mainInk,
+    lineHeight: 1.2,
+  });
+  let titleFont = photo ? 58 : 68;
+  const [m1] = await measurer.texts([{ id: 'cl1', type: 'text', text: clTitle, bounds: [0, 0, mainW, 240], style: titleStyle(titleFont), lastLine: true }]);
+  let titleLines = m1.lines || 1;
+  if (titleLines > 2) {
+    titleFont = 48;
+    const [m2] = await measurer.texts([{ id: 'cl2', type: 'text', text: clTitle, bounds: [0, 0, mainW, 240], style: titleStyle(titleFont), lastLine: true }]);
+    titleLines = Math.min(3, m2.lines || 2);
+  }
+  const titleH = Math.ceil(titleFont * 1.2 * titleLines) + 6;
+  const focusWord = page.focus && clTitle.includes(page.focus) ? page.focus : null;
+  const fAt = focusWord ? clTitle.indexOf(focusWord) : -1;
+  const titleRuns = focusWord ? [
+    clTitle.slice(0, fAt) && { text: clTitle.slice(0, fAt), style: { color: mainInk } },
+    { text: focusWord, style: { color: p.dark ? roles.primary : soft(0.25) } },
+    clTitle.slice(fAt + focusWord.length) && { text: clTitle.slice(fAt + focusWord.length), style: { color: mainInk } },
+  ].filter(Boolean) : undefined;
+
+  const subStyle = theme.font(26, { fontWeight: 700, color: p.dark ? p.body : soft(0.3), lineHeight: 1.4 });
+  const extraStyle = theme.font(20, { fontWeight: 400, color: p.dark ? p.muted : soft(0.55), lineHeight: 1.4 });
+  const subM = clSub ? (await measurer.texts([{ id: 'cs1', type: 'text', text: clSub, bounds: [0, 0, mainW, 140], style: subStyle }]))[0] : null;
+  const extM = subExtra ? (await measurer.texts([{ id: 'cs2', type: 'text', text: subExtra, bounds: [0, 0, mainW, 120], style: extraStyle }]))[0] : null;
+  const subH = subM ? Math.ceil(subM.height) : 0;
+  const extH = extM ? Math.ceil(extM.height) : 0;
+
+  const clTiles = async (ty) => {
+    const tItems = data.map(coverItem);
+    const cols = tItems.length === 4 && mainW < 1180 ? 2 : tItems.length;
+    const g = 14;
+    let fs = items.length ? 34 : 40;
+    const common = { id: 'm', x: L, width: mainW, size: items.length ? 32 : 36, columns: cols, gap: g, highlight: -1, fill: p.surface || '#FFFFFF', theme, items: tItems };
+    for (; fs > 26; fs -= 2) {
+      const txts = metricTiles({ ...common, figureSize: fs, y: 0 }).elements.filter((e) => e.type === 'text' && e.text);
+      const real = await measurer.texts(txts.map((e) => ({ ...e, bounds: [0, 0, 3000, e.bounds[3]] })));
+      if (txts.every((e, k) => real[k].naturalWidth <= e.bounds[2])) break;
+    }
+    return metricTiles({ ...common, figureSize: fs, y: ty });
+  };
+  const tileH = data.length ? (await clTiles(0)).height : 0;
+
+  let itemsH = 0, itemMeta = null;
+  if (items.length) {
+    const gap = 16, n = items.length, cw = Math.floor((mainW - gap * (n - 1)) / n), pad = 20, tw = cw - pad * 2;
+    const itTitleStyle = theme.font(21, { fontWeight: 700, color: p.ink, lineHeight: 1.3 });
+    const itDetailStyle = theme.font(17, { fontWeight: 400, color: p.body || '#334155', lineHeight: 1.42 });
+    const probes = items.flatMap((it, k) => [{ id: `ct-${k}`, type: 'text', text: it.title || '', bounds: [0, 0, tw, 80], style: itTitleStyle }, ...(it.detail ? [{ id: `cd-${k}`, type: 'text', text: it.detail, bounds: [0, 0, tw, 120], style: itDetailStyle }] : [])]);
+    const res = new Map((await measurer.texts(probes)).map((m) => [m.id, Math.ceil(m.height)]));
+    const tHMax = Math.max(...items.map((_, k) => res.get(`ct-${k}`)));
+    const dHMax = Math.max(0, ...items.map((it, k) => (it.detail ? res.get(`cd-${k}`) : 0)));
+    itemsH = 6 + pad + 28 + 10 + tHMax + (dHMax ? 8 + dHMax : 0) + pad;
+    itemMeta = { gap, cw, pad, tw, tHMax, dHMax, res, itTitleStyle, itDetailStyle };
+  }
+
+  const noteText = page.note || '';
+  const noteH = noteText ? 48 : 0;
+  const headGroupH = 44 + 20 + titleH + 18 + 6 + (subH ? 22 + subH : 0) + (extH ? 12 + extH : 0);
+  const fullGroupH = headGroupH + (tileH ? 28 + tileH : 0) + (itemsH ? 24 + itemsH : 0);
+  const top = Math.max(88, Math.round((980 - noteH - fullGroupH) / 2));
+
+  const elements = [
+    { id: 'cl-panel', type: 'shape', bounds: [0, 0, 1920, 1080], style: { fill } },
+    { id: 'cl-orb', type: 'shape', shape: 'ellipse', bounds: [1520, -180, 560, 560], style: { fill: p.dark ? '#172640' : lighten(fill, 0.06), radius: 280 } },
+  ];
+
+  let cy = top;
+  const eyW = Math.max(120, Math.min(mainW, Math.ceil(textWidth(eyebrow, 16) * 1.15) + 52));
+  elements.push(
+    { id: 'cl-ey-bg', type: 'shape', bounds: [L, cy, eyW, 34], style: { fill: p.dark ? '#1B2A44' : lighten(fill, 0.12), stroke: p.dark ? p.line : lighten(fill, 0.28), strokeWidth: 1.5, radius: 17 } },
+    { id: 'cl-ey-dot', type: 'shape', bounds: [L + 14, cy + 12, 10, 10], style: { fill: pop, radius: 5 }, shape: 'ellipse' },
+    { id: 'cl-ey-tx', type: 'text', text: eyebrow, bounds: [L + 32, cy + 5, eyW - 42, 24], style: theme.font(16, { fontWeight: 700, color: p.dark ? roles.primary : '#FFFFFF', lineHeight: 1.25 }) },
+  );
+  cy += 54;
+  elements.push({ id: titleIsMain ? 'title' : 'cl-name', type: 'text', text: clTitle, ...(titleRuns ? { runs: titleRuns } : {}), bounds: [L, cy, mainW, titleH], style: titleStyle(titleFont) });
+  cy += titleH + 18;
+  elements.push({ id: 'cl-accent-bar', type: 'shape', bounds: [L, cy, 96, 6], style: { fill: pop, radius: 3 } });
+  cy += 6;
+  if (clSub) {
+    cy += 22;
+    elements.push({ id: titleIsMain ? 'cl-sub' : 'title', type: 'text', text: clSub, bounds: [L, cy, mainW, subH], style: subStyle });
+    cy += subH;
+  }
+  if (subExtra) {
+    cy += 12;
+    elements.push({ id: 'cl-extra', type: 'text', text: subExtra, bounds: [L, cy, mainW, extH], style: extraStyle });
+    cy += extH;
+  }
+
+  const design = {
+    closing: {
+      m: { frame: null, module: 'closingPanel', variant: 'bookend', title: titleFont, reason: '收尾总结页与封面首尾呼应，收束全稿结论与致谢', bindings: [{ ref: `${page.id}:status`, elementIds: ['title'] }] },
+      box: [L, top, mainW, cy - top],
+    },
+  };
+
+  if (data.length) {
+    cy += 28;
+    const placed = await clTiles(cy);
+    elements.push(...placed.elements);
+    design.metrics = {
+      m: {
+        frame: null,
+        module: 'metricTiles',
+        variant: `${data.length}-closing`,
+        title: placed.valueSize,
+        sizes: [...new Set(placed.elements.filter((e) => /^m-value-\d+$/.test(e.id)).flatMap((e) => [e.style?.fontSize, ...(e.runs || []).map((r) => r.style?.fontSize)]).filter(Number.isFinite))],
+        reason: '收官页汇总关键收口数字',
+        bindings: data.map((d, i) => ({ ref: `${page.id}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`] })),
+      },
+      box: [L, cy, mainW, placed.height],
+    };
+    cy += placed.height;
+  }
+
+  if (items.length && itemMeta) {
+    cy += 24;
+    const { gap, cw, pad, tw, tHMax, res, itTitleStyle, itDetailStyle } = itemMeta;
+    const surf = p.surface || '#FFFFFF';
+    const cardBindings = [];
+    items.forEach((it, k) => {
+      const cx = L + k * (cw + gap);
+      const capFill = k === 0 ? pop : (k % 2 ? roles.secondary : roles.primary);
+      elements.push(
+        { id: `cl-card-${k + 1}`, type: 'shape', bounds: [cx, cy, cw, itemsH], style: { fill: surf, stroke: p.dark ? p.line : '#E2E8F0', strokeWidth: 1.5, radius: 14 } },
+        { id: `cl-cap-${k + 1}`, type: 'shape', bounds: [cx + 18, cy, cw - 36, 4], style: { fill: capFill, radius: 2 } },
+        { id: `cl-pill-${k + 1}`, type: 'shape', bounds: [cx + pad, cy + 6 + pad, 44, 26], style: { fill: k === 0 ? pop : roles.band, radius: 13 } },
+        { id: `cl-num-${k + 1}`, type: 'text', text: String(k + 1).padStart(2, '0'), bounds: [cx + pad, cy + 6 + pad + 4, 44, 18], style: theme.font(14, { fontWeight: 800, color: k === 0 ? '#FFFFFF' : readableInk(roles.primary, roles.band), textAlign: 'center', lineHeight: 1.2 }) },
+        { id: `cl-it-title-${k + 1}`, type: 'text', text: it.title || '', bounds: [cx + pad, cy + 6 + pad + 26 + 10, tw, tHMax], style: itTitleStyle },
+      );
+      const eIds = [`cl-it-title-${k + 1}`];
+      if (it.detail) {
+        const dh = res.get(`cd-${k}`);
+        elements.push({ id: `cl-it-detail-${k + 1}`, type: 'text', text: it.detail, bounds: [cx + pad, cy + 6 + pad + 26 + 10 + tHMax + 8, tw, dh], style: itDetailStyle });
+        eIds.push(`cl-it-detail-${k + 1}`);
+      }
+      cardBindings.push({ ref: `${page.id}:item-${k + 1}`, elementIds: eIds });
+    });
+    design.items = {
+      m: { frame: null, module: 'actionCards', variant: `${items.length}-commitments`, title: itTitleStyle.fontSize, reason: '收尾承诺与下一步抓手卡列', bindings: cardBindings },
+      box: [L, cy, mainW, itemsH],
+    };
+  }
+
+  if (photo) {
+    const py = 140, capH = photo.caption ? 34 : 0, phH = 800 - capH;
+    if (isContainPhoto(photo)) {
+      const framed = framedContainPhoto({ id: 'ph1', ph: photo, bounds: [rx, py, rw, phH], theme, surfaceFill: p.dark ? '#162238' : '#FFFFFF' });
+      elements.push(...framed.elements);
+      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [framed.cardBounds[0], py + phH + 6, framed.cardBounds[2], 26], style: theme.font(16, { color: soft(0.45), lineHeight: 1.25 }) });
+      design.photos = { m: { frame: null, module: 'photoGroup', variant: 'closing-contain', title: 16, reason: '收尾配图按原比例完整展示', bindings: [{ ref: `${page.id}:photo-1`, elementIds: [framed.imageId] }] }, box: [framed.cardBounds[0], py, framed.cardBounds[2], phH + capH] };
+    } else {
+      const sz = imageSize(photo.src), cr = fitCrop(photo.crop, sz, rw / phH, photo.focal || '50% 35%');
+      elements.push(imageElement({ id: 'ph1-img-1', src: photo.src, bounds: [rx, py, rw, phH], fit: 'cover', crop: cr, naturalSize: [sz.width, sz.height], style: { radius: 18 }, alt: photo.caption || '' }));
+      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [rx, py + phH + 6, rw, 26], style: theme.font(16, { color: soft(0.45), lineHeight: 1.25 }) });
+      design.photos = { m: { frame: null, module: 'photoGroup', variant: 'closing-photo', title: 16, reason: '收尾配图强化记忆点', bindings: [{ ref: `${page.id}:photo-1`, elementIds: ['ph1-img-1'] }] }, box: [rx, py, rw, phH + capH] };
+    }
+  }
+
+  if (noteText) {
+    elements.push({ id: 'cl-note', type: 'text', text: noteText, bounds: [L, 948, mainW, 32], style: theme.font(20, { fontWeight: 400, color: soft(0.45), lineHeight: 1.3 }) });
+  }
+  elements.push({ id: 'ftr-rule', type: 'shape', bounds: [L, 1006, W, 1], style: { fill: p.dark ? p.line : lighten(fill, 0.22) } });
+  if (footer) elements.push({ id: 'src', type: 'text', text: footer, bounds: [L, 1020, 1200, 26], style: theme.font(15, { color: soft(0.55), lineHeight: 1.3 }) });
+  elements.push({ id: 'num', type: 'text', text: `${String(pageNo).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, bounds: [L + W - 160, 1020, 160, 26], style: theme.font(15, { fontWeight: 700, color: soft(0.55), textAlign: 'right', lineHeight: 1.3 }) });
+
+  for (const [z, { m, box }] of Object.entries(design)) {
+    const vz = plan.visualDecision.zones.find((v) => v.id === z);
+    const rg = plan.regions.find((r) => r.zoneId === z);
+    if (vz) vz.bounds = box;
+    if (rg) Object.assign(rg, { frameElementId: undefined, openGroup: true, padding: 0, typography: { title: Math.max(m.title, theme.roles.body.fontSize), body: theme.roles.body.fontSize }, module: { name: m.module, variant: m.variant }, designReference: { source: '原创', principle: m.reason }, representation: m.variant, reason: m.reason, bindings: m.bindings });
+  }
+  plan.typographyRoles = theme.roles;
+  Object.assign(plan.visualDecision, { pattern: '收尾页', focus: { elementId: 'title', ...(focusWord ? { text: focusWord } : {}) }, layout: '与封面首尾呼应，汇总全场关键数字、行动承诺与汇报署名' });
+  plan.composition = { alignments: [], gaps: [] };
+  return { slide: { slideId: page.id, mode: 'composition', elements }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.bindings[0]?.elementIds[0]])) };
 }
 
 // Fills deck.slides and the contract fields of deck.contentPlan from the outline. palette: a report palette id or a palette object.
@@ -1285,7 +1828,16 @@ export async function balanceLineBreaks(slides, measurer) {
       if (!pick) pick = w;
       if (atPause(m, text)) { pick = w; break; }
     }
-    if (pick == null) continue;
+    if (pick == null) {
+      if (!e.runs?.length && first[i].lines === 2 && first[i].lastLineChars <= 2 && step >= 17) {
+        const [m2] = await measurer.texts([{ ...e, style: { ...e.style, fontSize: step - 1 }, lastLine: true }]);
+        if (m2.lines === 1 || !badBreak(m2, text)) {
+          e.style = { ...e.style, fontSize: step - 1 };
+          fixed.push(e.id);
+        }
+      }
+      continue;
+    }
     e.bounds[0] += align === 'center' ? Math.round((w0 - pick) / 2) : align === 'right' ? w0 - pick : 0;
     e.bounds[2] = pick; fixed.push(e.id);
   }
@@ -1296,22 +1848,25 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
   const footer = rawFooter && String(rawFooter).replace(/(定稿|终稿|初稿|修订)版?/g, '').replace(/\s*·\s*[^·]*规范\s*$/, '').replace(/[_\s]+/g, ' ').replace(/^[\s·\-]+|[\s·\-]+$/g, '').trim();
   const resolved = typeof palette === 'string' ? reportPalette(palette) : palette, plans = deck.contentPlan.slides;
   const fontOpts = { ...(fontFamily ? { fontFamily } : {}), ...(displayFamily ? { displayFamily } : {}) };
-  const dense = createTheme({ palette: resolved, roles: REPORT_ROLES, ...fontOpts }), comfy = createTheme({ palette: resolved, roles: REPORT_ROLES_COMFY, ...fontOpts }), roomy = createTheme({ palette: resolved, roles: REPORT_ROLES_ROOMY, ...fontOpts }), large = createTheme({ palette: resolved, roles: REPORT_ROLES_LARGE, ...fontOpts }), hero = createTheme({ palette: resolved, roles: REPORT_ROLES_HERO, ...fontOpts }), themes = { dense, comfy, roomy, large, hero };
+  const compact = { ...createTheme({ palette: resolved, roles: REPORT_ROLES_COMPACT, ...fontOpts }), compact: true }, dense = createTheme({ palette: resolved, roles: REPORT_ROLES, ...fontOpts }), comfy = createTheme({ palette: resolved, roles: REPORT_ROLES_COMFY, ...fontOpts }), roomy = createTheme({ palette: resolved, roles: REPORT_ROLES_ROOMY, ...fontOpts }), large = createTheme({ palette: resolved, roles: REPORT_ROLES_LARGE, ...fontOpts }), hero = createTheme({ palette: resolved, roles: REPORT_ROLES_HERO, ...fontOpts }), themes = { compact, dense, comfy, roomy, large, hero };
   const slides = [], anchors = {}, scales = {}, sparse = [], loose = [], narrow = [], focusGuessed = [], rearranged = [], variantMeta = [];
   let lastForm = null, lastItems = null, lastShape = null; const forms = [], varied = [];
   const absolute = (raw) => (raw.photos ? { ...raw, photos: raw.photos.map((ph) => ({ ...ph, src: path.resolve(baseDir, ph.src) })) } : raw);
   // Pages are numbered by their place in the deck, as the editor, the PDF and the user's own outline count them
   // ("第 2 页"): a cover is page 1 and only hides its number.
   const numbered = outline.pages.length;
+  let sectionCount = 0;
   for (const [i, rawPage] of outline.pages.entries()) {
     const raw = absolute(rawPage), plan = plans.find((s) => s.slideId === (raw.id || `p${i + 1}`)), page = { ...raw, id: plan.slideId };
-    if (raw.role !== 'cover') { page.figureForm = figureForm(page, lastForm); page.itemForm = itemForm(page, lastItems); }
-    if (page.role === 'cover') { const made = await layoutCover({ page, plan, theme: dense, measurer, deckTitle: outline.title }); slides.push(made.slide); anchors[plan.slideId] = made.modules; scales[plan.slideId] = 'cover'; continue; }
+    if (!['cover', 'section', 'closing'].includes(raw.role)) { page.figureForm = figureForm(page, lastForm); page.itemForm = itemForm(page, lastItems); }
     const thisPage = i + 1;
+    if (page.role === 'cover') { const made = await layoutCover({ page, plan, theme: dense, measurer, deckTitle: outline.title }); slides.push(made.slide); anchors[plan.slideId] = made.modules; scales[plan.slideId] = 'cover'; continue; }
+    if (page.role === 'section') { sectionCount++; const made = await layoutSection({ page, plan, theme: dense, measurer, sectionNo: sectionCount, pageNo: thisPage, total: numbered, footer }); slides.push(made.slide); anchors[plan.slideId] = made.modules; scales[plan.slideId] = 'section'; continue; }
+    if (page.role === 'closing') { const made = await layoutClosing({ page, plan, theme: dense, measurer, deckTitle: outline.title, pageNo: thisPage, total: numbered, footer }); slides.push(made.slide); anchors[plan.slideId] = made.modules; scales[plan.slideId] = 'closing'; continue; }
     let chosen = layouts[plan.slideId];
     let mirror = false;
     const attempt = (theme) => layoutPage({ page, plan, theme, measurer, layout: chosen, pageNo: thisPage, total: numbered, footer, header, mirror });
-    let out;
+    let out, initialScale = 'dense';
     try { out = await attempt(dense); } catch (error) {
       if (!cannotFit(error)) throw error;
       const zoneIds = plan.visualDecision.zones.map((z) => z.id), options = chosen ? [] : layoutCandidates(page, zoneIds);
@@ -1322,11 +1877,22 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
         if (!page.figureStyle) page.figureForm = 'tiles'; if (!page.itemStyle) page.itemForm = 'list'; chosen = layouts[plan.slideId];
         for (const option of [chosen, ...options]) { chosen = option; try { out = await attempt(dense); break; } catch (e) { if (!cannotFit(e)) throw e; last = e; out = undefined; } }
       }
+      // Fallback compact tier absorbs mild-to-moderate high-density pages without dropping content or splitting slides.
+      if (!out) {
+        if (!page.figureStyle) page.figureForm = 'tiles';
+        if (!page.itemStyle) page.itemForm = 'list';
+        chosen = layouts[plan.slideId];
+        for (const option of [chosen, ...options]) {
+          chosen = option;
+          try { out = await attempt(compact); initialScale = 'compact'; break; } catch (e) { if (!cannotFit(e)) throw e; last = e; out = undefined; }
+        }
+      }
       if (!out) throw new Error(`report-deck: 内容放不下（${last.message}${options.length ? `，已试 ${options.length + 1} 种排法` : '，手写的 layouts 排不下：去掉它让组版器自动排，或换一种排法'}），拆页或减少模块`);
-      rearranged.push({ page: plan.slideId, layout: chosen });
+      if (chosen !== layouts[plan.slideId]) rearranged.push({ page: plan.slideId, layout: chosen, ...(initialScale === 'compact' ? { reason: 'compact' } : {}) });
     }
-    // The page takes the largest type size its content fits, one step at a time; the hero size is only for pages with very little on them.
-    const scaleUp = async (first) => {
+    // The page takes the largest type size its content fits, one step at a time; compact fallback pages stay compact.
+    const scaleUp = async (first, startScale = 'dense') => {
+      if (startScale === 'compact') return { out: first, scale: 'compact' };
       let current = first, scale = 'dense';
       for (const [name, below] of [['comfy', SCALE_UP_BELOW], ['roomy', SCALE_UP_BELOW], ['large', SCALE_UP_BELOW], ['hero', 0.62]]) {
         if (current.fill >= below) break;
@@ -1337,10 +1903,10 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
       }
       return { out: current, scale };
     };
-    let best = { ...(await scaleUp(out)), layout: chosen };
+    let best = { ...(await scaleUp(out, initialScale)), layout: chosen };
     // Fitting is not enough: a page that fits with room to spare tries the nearest other arrangements and stops at the
     // first that fills the body. Natural height is compared, so stretched blocks do not count as content.
-    if (!layouts[plan.slideId] && best.out.fill < FILL_TARGET) {
+    if (!layouts[plan.slideId] && best.scale !== 'compact' && best.out.fill < FILL_TARGET) {
       const zoneIds = plan.visualDecision.zones.map((z) => z.id), base = chosen;
       for (const option of layoutCandidates(page, zoneIds, MAX_ALTERNATIVES)) {
         chosen = option;
@@ -1357,7 +1923,7 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
     }
     // A page whose structure repeats the page before it tries the other arrangements and takes the first that changes
     // the structure without leaving the page noticeably emptier (within VARY_FILL_LOSS) or loose.
-    if (!layouts[plan.slideId] && lastShape && layoutSignature(best.out.rows) === lastShape) {
+    if (!layouts[plan.slideId] && best.scale !== 'compact' && lastShape && layoutSignature(best.out.rows) === lastShape) {
       const zoneIds = plan.visualDecision.zones.map((z) => z.id), base = best;
       // Mirroring a text-and-photo page (photos on the left) changes the structure and keeps every size; it is tried first.
       const tries = [...(best.out.rows.some((r) => r && r.left) ? [{ layout: base.layout, mirror: true }] : []), ...layoutCandidates(page, zoneIds, MAX_ALTERNATIVES).map((option) => ({ layout: option, mirror: false }))];
@@ -1411,13 +1977,22 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
       const candPlan = structuredClone(meta.plan);
       const run = (th) => layoutPage({ page: candPage, plan: candPlan, theme: th, measurer, layout: layoutOverride, pageNo: meta.pageNo, total: numbered, footer, header: headerOverride, mirror: mirrorOverride });
       try {
-        let cur = await run(dense), sc = 'dense';
-        for (const [tName, below] of [['comfy', SCALE_UP_BELOW], ['roomy', SCALE_UP_BELOW], ['large', SCALE_UP_BELOW], ['hero', 0.62]]) {
-          if (cur.fill >= below) break;
-          let nxt;
-          try { nxt = await run(themes[tName]); } catch (err) { if (!cannotFit(err)) throw err; }
-          if (!nxt || nxt.fill > MAX_FILL) { cur = await run(themes[sc]); break; }
-          cur = nxt; sc = tName;
+        let cur, sc = 'dense';
+        try {
+          cur = await run(dense);
+        } catch (err1) {
+          if (!cannotFit(err1)) throw err1;
+          cur = await run(compact);
+          sc = 'compact';
+        }
+        if (sc === 'dense') {
+          for (const [tName, below] of [['comfy', SCALE_UP_BELOW], ['roomy', SCALE_UP_BELOW], ['large', SCALE_UP_BELOW], ['hero', 0.62]]) {
+            if (cur.fill >= below) break;
+            let nxt;
+            try { nxt = await run(themes[tName]); } catch (err) { if (!cannotFit(err)) throw err; }
+            if (!nxt || nxt.fill > MAX_FILL) { cur = await run(themes[sc]); break; }
+            cur = nxt; sc = tName;
+          }
         }
         await balanceLineBreaks([cur.slide], measurer);
         return { id, name, tag, preview, elements: cur.slide.elements };
@@ -1442,7 +2017,7 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
         queue.push({ id: 'bd-bars', name: '横条排行', tag: '占比', preview: 'bars', pagePatch: { breakdownStyle: 'bars' } });
         queue.push({ id: 'bd-tiles', name: '主次网格', tag: 'Bento', preview: 'bento', pagePatch: { breakdownStyle: 'tiles' } });
         if (has('metrics')) {
-          queue.push({ id: 'bd-split', name: '双栏分屏', tag: '对照', preview: 'split', layoutOverride: [...tops, ['metrics', 'breakdown'], ...core.filter((z) => !['metrics', 'breakdown'].includes(z)), ...flows, ...closing], pagePatch: { breakdownStyle: 'bars' } });
+          queue.push({ id: 'bd-split', name: '双栏分屏', tag: '对照', preview: 'split', layoutOverride: [...tops, ['metrics', 'breakdown'], ...core.filter((z) => !['metrics', 'breakdown'].includes(z)), ...flows, ...(has('photos') ? ['photos'] : []), ...closing], pagePatch: { breakdownStyle: 'bars' } });
         }
         queue.push({ id: 'bd-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { breakdownStyle: 'tiles' }, headerOverride: 'eyebrow' });
       }

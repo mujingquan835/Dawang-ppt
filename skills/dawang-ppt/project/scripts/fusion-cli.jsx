@@ -32,6 +32,7 @@ import { ruleItems } from "../src/fusion/rules/items.mjs";
 import { reviewRulesIndependently } from "../src/fusion/authoring/independent-review.mjs";
 import { writeWireframes } from "../src/fusion/qa/wireframe.mjs";
 import { checkOutline } from "../src/fusion/authoring/outline.mjs";
+import { normalizeAndLintOutline, renderOutlinePlanMarkdown } from "../src/fusion/authoring/outline-normalizer.mjs";
 const caller = process.env.INIT_CWD || process.cwd();
 const absolute = (file) => path.resolve(caller, file);
 function resolveBriefContents(brief, style) {
@@ -110,6 +111,21 @@ async function main(args = process.argv.slice(2)) {
   const [mode, input, output] = args;
   if(mode==='rules:checklist'){const r=ruleItems(input);const perItem=args.includes('--items');const units=perItem?r.items.map(i=>i.id):r.sections.map(x=>x.id);console.log(JSON.stringify({...r,sections:r.sections.map(x=>({...x,rules:r.items.filter(i=>i.section===x.id).map(i=>i.text)})),items:undefined,skeleton:{scenario:input,items:Object.fromEntries(units.map(id=>[id,{status:'',how:'',evidence:[{slideId:'',elementIds:[]}],reason:''}]))},note:perItem?'旧版逐条清单（v1 工程）。':'填入 contentPlan.ruleChecklist：每个章节一条。applied 写 how（这一章的要求在本稿怎么落实）与 evidence（指向实际 slideId/elementIds）；not-applicable/user-override 写 reason。sections[].rules 是该章原文要点，逐条读完再写。禁止卡片/矩形、禁止均分、统一圆角、场景配色、AI 配色这些被用户替换的条款按 Dawang 版式例外表（HS-01…HS-07）处理：所在章节照常记为 applied，在 how 里写其余要求怎么落实并引用 HS 编号，不要把整章记成 user-override。'},null,2));return;}
   if(mode==='outline:check'){if(!input)throw Error('outline:check <outline.json>');const file=absolute(input);console.log(JSON.stringify(checkOutline(JSON.parse(fs.readFileSync(file,'utf8')),{baseDir:path.dirname(file)}),null,2));return;}
+  if(mode==='outline:lint'){
+   if(!input)throw Error('Usage: outline:lint <outline.json> [--pack <material-pack.json>] [--md <outline-plan.md>] [--write [<out.json>]]');
+   const file=absolute(input);
+   const flag=name=>args.includes(name)?args[args.indexOf(name)+1]:undefined;
+   const raw=JSON.parse(fs.readFileSync(file,'utf8'));
+   const {outline:normalized,report}=normalizeAndLintOutline(raw,{packFile:flag('--pack')&&absolute(flag('--pack')),baseDir:path.dirname(file)});
+   const mdOut=flag('--md');
+   let mdFile=null;
+   if(mdOut){mdFile=absolute(mdOut);fs.mkdirSync(path.dirname(mdFile),{recursive:true});fs.writeFileSync(mdFile,renderOutlinePlanMarkdown(normalized,report));}
+   const writeIdx=args.indexOf('--write');
+   let writtenFile=null;
+   if(writeIdx>=0){const nextArg=args[writeIdx+1];writtenFile=nextArg&&!nextArg.startsWith('--')?absolute(nextArg):file;fs.mkdirSync(path.dirname(writtenFile),{recursive:true});fs.writeFileSync(writtenFile,JSON.stringify(normalized,null,2));}
+   console.log(JSON.stringify({...report,...(mdFile?{mdFile}:{}),...(writtenFile?{writtenFile}:{})},null,2));
+   return;
+  }
   if(mode==='outline:baseline'){if(!input||!output)throw Error('outline:baseline <outline.json> <new-directory>');const file=absolute(input),dir=absolute(output),baselineFile=path.join(dir,'content-baseline.json'),scaffoldFile=path.join(dir,'authored-scaffold.json');if(fs.existsSync(baselineFile))throw Error('基线已存在：'+baselineFile+'；内容修订先审查来源，并在新目录生成新版本');const r=buildOutlineBaseline(JSON.parse(fs.readFileSync(file,'utf8')),{baseDir:path.dirname(file)});if(!r.ok){console.log(JSON.stringify({ok:false,issues:r.issues},null,2));process.exitCode=1;return;}fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(baselineFile,JSON.stringify(r.baseline,null,2));fs.writeFileSync(scaffoldFile,JSON.stringify(r.scaffold,null,2));console.log(JSON.stringify({ok:true,baselineFile,scaffoldFile,nodes:Object.keys(r.baseline.snapshot.nodes).length,relations:r.baseline.snapshot.relations.length,next:'复制 authored-scaffold.json 为同目录的 authored.json，填写页面、readerTask、regions 与规则清单后运行 make'},null,2));return;}
   if(mode==='wireframe'){if(!input||!output)throw Error('wireframe <authored.json|workspaceDir> <outDir>');const src=absolute(input);const project=fs.statSync(src).isDirectory()?loadProject(path.join(src,'deck-project.json')):createAuthoredProject(JSON.parse(fs.readFileSync(src,'utf8')));console.log(JSON.stringify({pages:await writeWireframes(project,absolute(output))},null,2));return;}
   if(mode==='review:rules'||mode==='review:kimi'){if(!input)throw Error('review:rules <workspaceDir> [--keep-packet <dir>]');const i=args.indexOf('--keep-packet'),p=args.indexOf('--prepare'),v=args.indexOf('--verdict');const r=await reviewRulesIndependently({workspaceDir:absolute(input),keepPacket:p>=0?absolute(args[p+1]):i<0?undefined:absolute(args[i+1]),full:args.includes('--full'),prepare:p>=0,verdict:v<0?undefined:absolute(args[v+1])});console.log(JSON.stringify(r,null,2));if(!r.ok)process.exitCode=1;return;}
@@ -117,20 +133,21 @@ async function main(args = process.argv.slice(2)) {
   if(mode==='prepare'&&input&&path.extname(input).toLowerCase()==='.pptx'&&output){const {pptxToMarkdown}=await import('../src/fusion/authoring/pptx-source.mjs');const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'dawang-pptx-'));try{const c=await pptxToMarkdown(absolute(input),tmp);const i=args.indexOf('--scenario');console.log(JSON.stringify({convertedFrom:absolute(input),slides:c.slides,images:c.images,skippedImages:c.skippedImages,...prepareMaterial({inputFile:c.markdown,outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]})},null,2));}finally{fs.rmSync(tmp,{recursive:true,force:true});}return;}
   if(mode==='prepare'){if(!input||!output)throw Error('prepare <material.pptx|html|json|md|txt> <new-directory> [--scenario id]');const i=args.indexOf('--scenario');console.log(JSON.stringify(prepareMaterial({inputFile:absolute(input),outDir:absolute(output),scenarioId:i<0?undefined:args[i+1]}),null,2));return;}
   if(mode==='ingest'){
-   if(!input||!output)throw Error('Usage: ingest <source-dir-or-file> <output-dir>');
+   if(!input)throw Error('Usage: ingest <source...> <output-dir> | [source...] --out <output-dir> [--draft <path>] [--history <path>] [--note <text-or-path>]');
    const pyScript=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'ingest-folder.py');
-   const res=spawnSync('python3',[pyScript,absolute(input),absolute(output)],{stdio:'inherit'});
+   const res=spawnSync('python3',[pyScript,...args.slice(1)],{stdio:'inherit',env:{...process.env,DAWANG_CALLER_CWD:caller}});
    if(res.status!==0)process.exitCode=res.status??1;
    return;
   }
   if(mode==='fast:build'){
-   if(!input||!output)throw Error('Usage: fast:build <outline.json|authored.json|deck-project.json> <output.html> [--pptx <output.pptx>] [--preview <overview.png>] [--palette <id>] [--font <bodyFont>] [--title-font <displayFont>] [--workspace <dir>]');
+   if(!input||!output)throw Error('Usage: fast:build <outline.json|authored.json|deck-project.json> <output.html> [--pptx <output.pptx>] [--preview <overview.png>] [--pack <material-pack.json>] [--palette <id>] [--font <bodyFont>] [--title-font <displayFont>] [--workspace <dir>]');
    const flag=name=>args.includes(name)?args[args.indexOf(name)+1]:undefined;
    const r=await fastBuildDeck({
     inputFile:absolute(input),
     outFile:absolute(output),
     pptxFile:flag('--pptx')&&absolute(flag('--pptx')),
     previewFile:flag('--preview')&&absolute(flag('--preview')),
+    packFile:flag('--pack')&&absolute(flag('--pack')),
     palette:flag('--palette')||null,
     header:flag('--header')||'tag',
     footer:flag('--footer'),

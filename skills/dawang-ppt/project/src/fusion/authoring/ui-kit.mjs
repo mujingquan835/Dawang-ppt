@@ -91,17 +91,17 @@ const ln = (id, [x1, y1], [x2, y2], style, extra = {}) => {
 // ===== PILL-01: Eyebrow Pill Badge (dot + label) =====
 export function uiEyebrowPill({ id, x, y, text, palette, dotColor }) {
   const t = uiTokens(palette);
-  const fs = 19;
+  const fs = 15;
   const label = String(text || '').trim();
   const tw = estWidth(label, fs);
-  const w = Math.max(140, Math.min(540, tw + 56));
-  const h = 38;
+  const w = Math.max(110, Math.min(480, tw + 44));
+  const h = 30;
   return {
     width: w, height: h,
     elements: [
-      shape(`${id}-bg`, [x, y, w, h], { fill: t.pale, stroke: t.line, strokeWidth: 1.5, radius: 19 }),
-      shape(`${id}-dot`, [x + 15, y + 14, 10, 10], { fill: dotColor || t.pop, radius: 5 }, { shape: 'ellipse' }),
-      txt(`${id}-tx`, label, [x + 33, y + 7, w - 46, 26], { fontSize: fs, fontWeight: 700, color: t.primary, lineHeight: 1.2 }),
+      shape(`${id}-bg`, [x, y, w, h], { fill: t.pale, stroke: t.line, strokeWidth: 1.5, radius: 15 }),
+      shape(`${id}-dot`, [x + 12, y + 11, 8, 8], { fill: dotColor || t.pop, radius: 4 }, { shape: 'ellipse' }),
+      txt(`${id}-tx`, label, [x + 26, y + 4, w - 36, 22], { fontSize: fs, fontWeight: 700, color: t.primary, lineHeight: 1.2 }),
     ],
   };
 }
@@ -135,19 +135,19 @@ export function uiStatusBadge({ id, x, y, text, tone = 'primary', palette, heigh
 export function uiSegmentedHeader({ id, x, y, width, sections = [], activeIndex = 0, palette }) {
   const t = uiTokens(palette);
   const list = sections.length ? sections.slice(0, 6) : ['01 核心结果', '02 关键动作', '03 问题复盘', '04 下一步规划'];
-  const h = 48, pad = 5, gap = 6;
+  const h = 42, pad = 4, gap = 6;
   const tabW = Math.floor((width - pad * 2 - gap * (list.length - 1)) / list.length);
   const elements = [
-    shape(`${id}-bar`, [x, y, width, h], { fill: t.pale, stroke: t.line, strokeWidth: 1.5, radius: 14 }),
+    shape(`${id}-bar`, [x, y, width, h], { fill: t.pale, stroke: t.line, strokeWidth: 1.5, radius: 12 }),
   ];
   list.forEach((label, i) => {
     const tx = x + pad + i * (tabW + gap);
     const active = i === activeIndex;
     if (active) {
-      elements.push(shape(`${id}-tab-${i}`, [tx, y + pad, tabW, h - pad * 2], { fill: t.surface, stroke: t.line, strokeWidth: 1, radius: 10 }));
+      elements.push(shape(`${id}-tab-${i}`, [tx, y + pad, tabW, h - pad * 2], { fill: t.surface, stroke: t.line, strokeWidth: 1, radius: 9 }));
     }
-    elements.push(txt(`${id}-lbl-${i}`, label, [tx + 8, y + 12, tabW - 16, 26], {
-      fontSize: 18, fontWeight: active ? 700 : 400, color: active ? t.primary : t.muted, textAlign: 'center', lineHeight: 1.25,
+    elements.push(txt(`${id}-lbl-${i}`, label, [tx + 8, y + 10, tabW - 16, 22], {
+      fontSize: 16, fontWeight: active ? 700 : 400, color: active ? t.primary : t.muted, textAlign: 'center', lineHeight: 1.25,
     }));
   });
   return { elements, height: h };
@@ -181,26 +181,26 @@ export function uiFloatingStatPills({ id, x, y, width, items = [], palette, dark
 }
 
 // ===== PILL-04: Modern Callout Banner =====
-export function uiCalloutBanner({ id, x, y, width, height = 94, label = '核心判断', text = '', badge = '', tone = 'primary', palette }) {
+export function uiCalloutBanner({ id, x, y, width, height = 82, label = '核心判断', text = '', badge = '', tone = 'primary', palette }) {
   const t = uiTokens(palette);
   const isPop = tone === 'pop' || tone === 'judgment';
   const bgFill = isPop ? t.popSoft : t.pale;
   const barFill = isPop ? t.pop : t.primary;
   const borderCol = isPop ? mixHex(t.pop, '#FFFFFF', 0.65) : t.line;
-  const badgeW = badge ? Math.min(180, estWidth(badge, 17) + 32) : 0;
-  const textX = x + 80;
-  const textW = width - 98 - (badgeW ? badgeW + 20 : 0);
-  const bodySize = fitBodySize(text, textW, Math.max(36, height - 44), 22, 16, 1.35);
+  const badgeW = badge ? Math.min(180, estWidth(badge, 16) + 32) : 0;
+  const textX = x + 76;
+  const textW = width - 94 - (badgeW ? badgeW + 20 : 0);
+  const bodySize = fitBodySize(text, textW, Math.max(32, height - 40), 20, 17, 1.38);
   const elements = [
     shape(`${id}-box`, [x, y, width, height], { fill: bgFill, stroke: borderCol, strokeWidth: 1.5, radius: 14 }),
     shape(`${id}-bar`, [x, y + 8, 7, height - 16], { fill: barFill, radius: 4 }),
-    shape(`${id}-ico`, [x + 24, y + Math.round((height - 42) / 2), 42, 42], { fill: barFill, radius: 11 }),
-    txt(`${id}-icx`, isPop ? '!' : '★', [x + 24, y + Math.round((height - 28) / 2), 42, 28], { fontSize: 21, fontWeight: 900, color: isPop ? '#FFFFFF' : t.onSolid, textAlign: 'center', lineHeight: 1.2 }),
-    txt(`${id}-lbl`, label, [textX, y + 13, textW, 26], { fontSize: 18, fontWeight: 700, color: barFill, lineHeight: 1.25 }),
-    txt(`${id}-tx`, text, [textX, y + 40, textW, height - 48], { fontSize: bodySize, fontWeight: 500, color: t.ink, lineHeight: 1.35 }),
+    shape(`${id}-ico`, [x + 22, y + Math.round((height - 38) / 2), 38, 38], { fill: barFill, radius: 10 }),
+    txt(`${id}-icx`, isPop ? '!' : '★', [x + 22, y + Math.round((height - 26) / 2), 38, 26], { fontSize: 19, fontWeight: 900, color: isPop ? '#FFFFFF' : t.onSolid, textAlign: 'center', lineHeight: 1.2 }),
+    txt(`${id}-lbl`, label, [textX, y + 11, textW, 24], { fontSize: 16, fontWeight: 700, color: barFill, lineHeight: 1.25 }),
+    txt(`${id}-tx`, text, [textX, y + 36, textW, height - 42], { fontSize: bodySize, fontWeight: 400, color: t.ink, lineHeight: 1.38 }),
   ];
   if (badge) {
-    const b = uiStatusBadge({ id: `${id}-bdg`, x: x + width - badgeW - 18, y: y + Math.round((height - 34) / 2), text: badge, tone: isPop ? 'solidPop' : 'solid', palette, height: 34, fontSize: 16 });
+    const b = uiStatusBadge({ id: `${id}-bdg`, x: x + width - badgeW - 18, y: y + Math.round((height - 32) / 2), text: badge, tone: isPop ? 'solidPop' : 'solid', palette, height: 32, fontSize: 15 });
     elements.push(...b.elements);
   }
   return { elements, height };

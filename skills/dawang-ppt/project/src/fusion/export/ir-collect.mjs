@@ -28,7 +28,45 @@ function decodeBase64Head(dataUrl, maxBytes = 65536) {
   return out;
 }
 
-// Fast pure-JS image dimension reader for PNG, JPEG, GIF, WebP and SVG.
+// Parse EXIF APP1 orientation tag (0x0112) from a JPEG APP1 segment payload starting at segStart (length segLen including length bytes).
+function readJpegExifOrientation(bytes, segStart, segLen) {
+  const end = Math.min(bytes.length, segStart + segLen);
+  if (segStart + 14 > end) return 1;
+  // Check "Exif\0\0"
+  if (
+    bytes[segStart + 2] !== 0x45 ||
+    bytes[segStart + 3] !== 0x78 ||
+    bytes[segStart + 4] !== 0x69 ||
+    bytes[segStart + 5] !== 0x66 ||
+    bytes[segStart + 6] !== 0x00 ||
+    bytes[segStart + 7] !== 0x00
+  ) {
+    return 1;
+  }
+  const tiff = segStart + 8;
+  const le = bytes[tiff] === 0x49 && bytes[tiff + 1] === 0x49;
+  const be = bytes[tiff] === 0x4d && bytes[tiff + 1] === 0x4d;
+  if (!le && !be) return 1;
+  const r16 = (o) => (le ? bytes[o] | (bytes[o + 1] << 8) : (bytes[o] << 8) | bytes[o + 1]);
+  const r32 = (o) =>
+    (le
+      ? bytes[o] | (bytes[o + 1] << 8) | (bytes[o + 2] << 16) | (bytes[o + 3] << 24)
+      : (bytes[o] << 24) | (bytes[o + 1] << 16) | (bytes[o + 2] << 8) | bytes[o + 3]) >>> 0;
+  if (r16(tiff + 2) !== 0x002a) return 1;
+  const ifd0 = tiff + r32(tiff + 4);
+  if (ifd0 + 2 > end) return 1;
+  const count = r16(ifd0);
+  for (let k = 0; k < count; k++) {
+    const entry = ifd0 + 2 + k * 12;
+    if (entry + 12 > end) break;
+    if (r16(entry) === 0x0112 && r16(entry + 2) === 3 && r32(entry + 4) >= 1) {
+      return r16(entry + 8);
+    }
+  }
+  return 1;
+}
+
+// Fast pure-JS image dimension reader for PNG, JPEG (EXIF-aware), GIF, and WebP.
 export function readImageBytesSize(bytes) {
   if (!bytes || bytes.length < 10) return null;
   const u16be = (o) => (bytes[o] << 8) | bytes[o + 1];
@@ -43,9 +81,10 @@ export function readImageBytesSize(bytes) {
   if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
     return { width: u16le(6), height: u16le(8) };
   }
-  // JPEG
+  // JPEG (with EXIF Orientation 5-8 swap so upright portrait photos report true visual dimensions)
   if (bytes[0] === 0xff && bytes[1] === 0xd8) {
     let i = 2;
+    let orientation = 1;
     while (i + 9 < bytes.length) {
       if (bytes[i] !== 0xff) { i++; continue; }
       while (i < bytes.length && bytes[i] === 0xff) i++;
@@ -54,8 +93,15 @@ export function readImageBytesSize(bytes) {
       if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
       if (i + 2 > bytes.length) break;
       const segLen = u16be(i);
+      if (marker === 0xe1 && orientation === 1) {
+        orientation = readJpegExifOrientation(bytes, i, segLen);
+      }
       if ((marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) || (marker >= 0xc9 && marker <= 0xcb) || (marker >= 0xcd && marker <= 0xcf)) {
-        if (i + 7 <= bytes.length) return { height: u16be(i + 3), width: u16be(i + 5) };
+        if (i + 7 <= bytes.length) {
+          const height = u16be(i + 3);
+          const width = u16be(i + 5);
+          return orientation >= 5 && orientation <= 8 ? { width: height, height: width } : { width, height };
+        }
       }
       if (segLen < 2) break;
       i += segLen;

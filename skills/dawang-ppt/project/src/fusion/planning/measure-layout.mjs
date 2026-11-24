@@ -38,8 +38,11 @@ async function createLayoutMeasurer({chrome='/Applications/Google Chrome.app/Con
           const generic=new Set(['serif','sans-serif','monospace','cursive','fantasy','system-ui','ui-sans-serif','ui-serif','ui-monospace','-apple-system']);
           const ctx=document.createElement('canvas').getContext('2d');
           for(const node of nodes)for(const el of [node,...node.querySelectorAll('span')]){
-           const family=getComputedStyle(el).fontFamily.split(',')[0].trim().replace(/^['"]|['"]$/g,'');
-           if(!generic.has(family)&&!['serif','monospace'].some(fallback=>{ctx.font='24px '+fallback;const base=ctx.measureText('Aa0123汉字').width;ctx.font='24px '+JSON.stringify(family)+','+fallback;return Math.abs(ctx.measureText('Aa0123汉字').width-base)>.01;}))throw new Error('font-unavailable: '+family);
+           const cs=getComputedStyle(el),family=cs.fontFamily.split(',')[0].trim().replace(/^['"]|['"]$/g,''),wght=cs.fontWeight||'400';
+           if(!generic.has(family)){
+            try{await document.fonts.load(`${wght} 24px ${JSON.stringify(family)}`,'Aa0123汉字');}catch{}
+            if(!['serif','monospace'].some(fallback=>{ctx.font=`${wght} 24px ${fallback}`;const base=ctx.measureText('Aa0123汉字').width;ctx.font=`${wght} 24px ${JSON.stringify(family)},${fallback}`;return Math.abs(ctx.measureText('Aa0123汉字').width-base)>.01;}))throw new Error('font-unavailable: '+family);
+           }
           }
           // Asked per text (lastLine:true): how many lines it wraps to and how many characters sit on the last one.
           // Asked per text (lastLine:true): how many lines it wraps to, how many characters sit on the last one, and the

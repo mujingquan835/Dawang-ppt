@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 const skill = path.resolve(import.meta.dirname, ".."), project = path.join(skill, "project"), args = process.argv.slice(2);
 // build is the new authoring contract. Historical inputs require explicit routes;
 // never infer a legacy fallback from a malformed or incomplete authored project.
-const aliases = { fast: "fast:build", build: "render:authored", preview: "preview:start", serve: "preview:start", export: "export:pptx", qa: "qa:project" };
+const aliases = { fast: "fast:build", build: "render:authored", preview: "preview:start", serve: "preview:start", export: "export:pptx", qa: "qa:project", lint: "outline:lint" };
 if (args[0] === "build" && args[1]) {
   const file = path.resolve(process.env.INIT_CWD || process.cwd(), args[1]);
   const input = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -21,12 +21,15 @@ if (args[0] === "build" && args[1]) {
 if (aliases[args[0]]) args[0] = aliases[args[0]];
 if (args[0] === "ingest") {
   const caller = process.env.INIT_CWD || process.cwd();
-  if (!args[1] || !args[2]) {
-    console.error("Usage: dawang ingest <source-dir-or-file> <output-dir>");
+  if (!args[1]) {
+    console.error("Usage: dawang ingest <source...> <output-dir> | [source...] --out <output-dir> [--draft <path>] [--history <path>] [--note <text-or-path>]");
     process.exit(1);
   }
   const pyScript = path.join(project, "scripts/ingest-folder.py");
-  const result = spawnSync("python3", [pyScript, path.resolve(caller, args[1]), path.resolve(caller, args[2])], { stdio: "inherit" });
+  const result = spawnSync("python3", [pyScript, ...args.slice(1)], {
+    stdio: "inherit",
+    env: { ...process.env, DAWANG_CALLER_CWD: caller },
+  });
   process.exitCode = result.status ?? 1;
 } else if (args[0] === "doctor") {
   const ok = fs.existsSync(path.join(project, "node_modules/.bin/tsx"));

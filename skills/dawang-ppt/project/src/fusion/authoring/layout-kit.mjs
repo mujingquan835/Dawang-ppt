@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { textElement, imageElement, lineElement } from './elements.mjs';
 import { pickIcon, iconElements } from './icons.mjs';
+import { readImageBytesSize } from '../export/ir-collect.mjs';
 
 // Layout tools for authored pages on the 1920×1080 canvas. Each tool takes content and a position and returns
 // elements plus the height it used, so a page can stack blocks without hand-computed coordinates. Grouping and
@@ -144,17 +145,19 @@ export function numberedList({ id, x, y, width, items, theme, badge = 56, titleS
   return { elements, height: cy - y - gap };
 }
 
-// PNG/JPEG pixel size from the file header, used for aspect ratio and the upscale limit.
+// PNG/JPEG(EXIF-aware)/WebP/GIF pixel size from the file header, used for aspect ratio and the upscale limit.
 export function imageSize(file) {
-  const b = fs.readFileSync(file);
-  if (b.readUInt32BE(0) === 0x89504e47) return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) };
-  if (b[0] === 0xff && b[1] === 0xd8) {
-    for (let i = 2; i < b.length - 9;) {
-      if (b[i] !== 0xff) { i++; continue; }
-      const marker = b[i + 1], len = b.readUInt16BE(i + 2);
-      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) return { width: b.readUInt16BE(i + 7), height: b.readUInt16BE(i + 5) };
-      i += 2 + len;
-    }
+  const fd = fs.openSync(file, 'r');
+  try {
+    const head = Buffer.alloc(65536);
+    const n = fs.readSync(fd, head, 0, head.length, 0);
+    const sz = readImageBytesSize(head.subarray(0, n));
+    if (sz && sz.width > 0 && sz.height > 0) return sz;
+    const full = fs.readFileSync(file);
+    const sz2 = readImageBytesSize(full);
+    if (sz2 && sz2.width > 0 && sz2.height > 0) return sz2;
+  } finally {
+    fs.closeSync(fd);
   }
   throw new Error('Unsupported image or unreadable size: ' + file);
 }
@@ -301,17 +304,17 @@ export function colorRoles(p) {
 }
 
 // Value with a smaller unit in one text element, centred in its column.
-// Heavy (900) figure paired with Light (300) unit creates clear typographic hierarchy.
+// Heavy (900) figure paired with Regular (400) unit creates crisp typographic hierarchy.
 const centredValue = ({ id, x, y, width, value, unit, size, color, theme }) => {
-  const unitSize = Math.max(20, Math.round(size * 0.42));
-  const runs = [{ text: String(value), style: { fontSize: size, fontWeight: 900, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: unitSize, fontWeight: 300, color } }] : [])];
+  const unitSize = Math.max(16, Math.round(size * 0.38));
+  const runs = [{ text: String(value), style: { fontSize: size, fontWeight: 900, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: unitSize, fontWeight: 400, color } }] : [])];
   return textElement({ id, text: String(value) + (unit ? ' ' + unit : ''), runs, bounds: [x, y, width, Math.round(size * 1.25)], style: theme.font(size, { fontWeight: 900, color, textAlign: 'center', lineHeight: 1.15 }) });
 };
 
 // KPI strip: one solid anchor block holds the summary figure (整体完成度, 年度合计), its peers follow on a tinted band
 // split by thin rules, each with its label or note below. The anchor is the one place the eye lands first.
 // Returns the column positions so content below can line up with each figure.
-export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, anchorWidth, size = 56, anchorSize, labelSize = 22, labelLines = 1, color, labelPosition = 'below' }) {
+export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, anchorWidth, size = 56, anchorSize, labelSize = 18, labelLines = 1, color, labelPosition = 'below' }) {
   const p = theme.palette, r = colorRoles(p), aw = anchor ? anchorWidth || Math.round(width * 0.17) : 0, elements = [];
   const n = items.length, colW = (width - aw) / n, valueH = Math.round(size * 1.25), labelH = Math.round(labelSize * 1.4 * labelLines);
   elements.push({ type: 'shape', id: `${id}-band`, component: 'kpiStrip', bounds: [x + aw, y, width - aw, height], style: { fill: r.band } });
@@ -320,7 +323,7 @@ export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, 
     // Subtle secondary-gold accent bar along the anchor's top edge (echoing blue-gold dual-tone craftsmanship)
     elements.push({ type: 'shape', id: `${id}-anchor-trim`, bounds: [x, y, aw, 5], style: { fill: r.secondary } });
     const block = labelH + 6 + valueH, ay = y + Math.round((height - block) / 2);
-    elements.push(textElement({ id: `${id}-anchor-label`, text: anchor.label, bounds: [x + 12, ay, aw - 24, labelH], style: theme.font(labelSize, { fontWeight: 300, color: p.inverse, textAlign: 'center' }) }));
+    elements.push(textElement({ id: `${id}-anchor-label`, text: anchor.label, bounds: [x + 12, ay, aw - 24, labelH], style: theme.font(labelSize, { fontWeight: 500, color: p.inverse, textAlign: 'center' }) }));
     elements.push(centredValue({ id: `${id}-anchor-value`, x: x + 12, y: ay + labelH + 6, width: aw - 24, value: anchor.value, unit: anchor.unit, size: anchorSize ?? Math.round(size * 1.05), color: p.inverse, theme }));
   }
   const columns = [];
@@ -332,7 +335,7 @@ export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, 
     const vy = labelPosition === 'above' && text ? top + labelH + 6 : top;
     // Three-tone rhythm across peer figures: first peer spotlights pop accent, alternating primary & warm secondary
     const figColor = it.color || color || (i === 0 ? popInk : i % 2 === 1 ? r.primary : secInk);
-    if (text) elements.push(textElement({ id: `${id}-label-${i + 1}`, text, bounds: [cx + 12, labelPosition === 'above' ? top : top + valueH + 6, cw - 24, labelH], style: theme.font(labelSize, { fontWeight: 300, color: p.muted, textAlign: 'center' }) }));
+    if (text) elements.push(textElement({ id: `${id}-label-${i + 1}`, text, bounds: [cx + 12, labelPosition === 'above' ? top : top + valueH + 6, cw - 24, labelH], style: theme.font(labelSize, { fontWeight: 400, color: p.body || p.muted, textAlign: 'center' }) }));
     elements.push(centredValue({ id: `${id}-value-${i + 1}`, x: cx + 12, y: vy, width: cw - 24, value: it.value, unit: it.unit, size, color: figColor, theme }));
     if (i > 0) elements.push(lineElement({ id: `${id}-rule-${i}`, from: [cx, y + Math.round(height * 0.28)], to: [cx, y + Math.round(height * 0.72)], style: { stroke: p.dark ? p.line : r.secondary, strokeWidth: 2 } }));
     columns.push([cx, cw]);
@@ -350,8 +353,8 @@ export function kpiStrip({ id, x, y, width, anchor, items, theme, height = 150, 
 export function metricTiles({ id, x, y, width, items, theme, size = 72, columns, gap = 24, highlight = 0, fill, icons = 'auto', highlightStyle = 'bar', tileHeight, growValue = false, iconCap = 180, figureSize }) {
   const p = theme.palette, cols = columns || items.length, tileW = Math.floor((width - gap * (cols - 1)) / cols);
   const tileFill = fill || p.tile || (String(p.bg).toUpperCase() === '#FFFFFF' ? p.pale : '#FFFFFF');
-  const labelSize = Math.max(20, Math.round(size * 0.3)), labelH = Math.round(labelSize * 1.4), noteH = items.some((it) => it.note) ? labelH + 2 : 0, naturalOf = (s) => 24 + labelH + 8 + Math.round(s * 1.32) + noteH + 18, tileH = Math.max(naturalOf(figureSize || size), Math.round(tileHeight || 0)), elements = [];
-  const unitOf = (s) => Math.max(20, Math.round(s * 0.32)), iconMax = iconCap, beforeOf = (s) => Math.max(20, Math.round(s * 0.6));
+  const labelSize = Math.max(17, Math.min(20, Math.round(size * 0.34))), labelH = Math.round(labelSize * 1.4), noteH = items.some((it) => it.note) ? labelH + 2 : 0, naturalOf = (s) => 24 + labelH + 8 + Math.round(s * 1.32) + noteH + 18, tileH = Math.max(naturalOf(figureSize || size), Math.round(tileHeight || 0)), elements = [];
+  const unitOf = (s) => Math.max(16, Math.round(s * 0.32)), iconMax = iconCap, beforeOf = (s) => Math.max(18, Math.round(s * 0.56));
   // item.before is the earlier value: it reads "before → value" on one line, smaller than the figure it leads to.
   const figureWidth = (it, s) => (it.before != null ? textWidth(`${it.before} → `, beforeOf(s)) : 0) + textWidth(String(it.value), s) + (it.unit ? textWidth(' ' + it.unit, unitOf(s)) : 0), widest = (s) => Math.max(...items.map((it) => figureWidth(it, s)));
   // A tile stretched taller than it needs shows that in the figure, not in a bigger icon. Tiles in one group share one size.
@@ -379,6 +382,7 @@ export function metricTiles({ id, x, y, width, items, theme, size = 72, columns,
       forcedValSize: (tileW / Math.max(1, tileH) >= 1.65 && tileW >= 360 && !withIcon) ? null : valueSize,
       forcedLabelSize: labelSize,
       iconInfo: withIcon ? { name, size: iconS } : null,
+      accentBar: on && highlightStyle === 'bar',
     });
     elements.push(...built.elements);
   });
@@ -390,19 +394,20 @@ export function metricTiles({ id, x, y, width, items, theme, size = 72, columns,
 // Adapts purely from the card's own (cw, ch) geometry — never hardcoded to a specific slide:
 //   - Wide horizontal card (cw / ch >= 1.65 & cw >= 360): Left Meta (Label + Target Pill) | Right Giant Figure
 //   - Square / compact card: Vertically stacked with figure scaled proportionally to fill the box cleanly
-function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme, p, r, forcedValSize = null, forcedLabelSize = null, iconInfo = null }) {
+function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme, p, r, forcedValSize = null, forcedLabelSize = null, iconInfo = null, maxValCap = null, accentBar = false }) {
   const pad = Math.min(28, Math.max(18, Math.round(cw * 0.055)));
   const iw = cw - pad * 2;
   const fill = solid ? r.primary : (p.dark ? (p.surface || '#152238') : '#FFFFFF');
   const stroke = solid ? null : (isPartner ? (p.dark ? p.line : lighten(r.secondary, 0.35)) : (p.line || '#E2E6EE'));
-  const topAccent = solid ? r.pop : isPartner ? r.secondary : r.primary;
-  const valColor = solid ? p.inverse : isPartner ? (p.dark ? r.secondary : readableInk(r.secondaryInk || r.secondary, fill, 3.2)) : r.primary;
-  const labelColor = solid ? (p.dark ? p.inverse : '#E2E8F0') : p.muted;
-  const rad = Math.max(16, theme.radius ?? 14);
+  const mainColor = p.primary ? r.primary : (p.accent || r.primary);
+  const topAccent = solid ? r.pop : isPartner ? r.secondary : mainColor;
+  const valColor = solid ? p.inverse : isPartner ? (p.dark ? r.secondary : readableInk(r.secondaryInk || r.secondary, fill, 3.2)) : mainColor;
+  const labelColor = solid ? (p.dark ? p.inverse : '#E2E8F0') : (p.body || p.muted);
+  const rad = theme.radius ?? 14;
   const elements = [];
 
   elements.push({ type: 'shape', id: `${id}-tile-${num}`, component: solid ? 'highlightTile' : 'metricTiles', bounds: [cx, cy, cw, ch], style: { fill, ...(stroke ? { stroke, strokeWidth: 1.5 } : {}), radius: rad } });
-  elements.push({ type: 'shape', id: `${id}-trim-${num}`, bounds: [cx + 20, cy, Math.max(24, cw - 40), 5], style: { fill: topAccent, radius: 3 } });
+  elements.push({ type: 'shape', id: accentBar ? `${id}-bar-${num}` : `${id}-trim-${num}`, bounds: [cx + 20, cy, Math.max(24, cw - 40), 5], style: { fill: topAccent, radius: 3 } });
 
   const parseRatio = (val, note) => {
     const n = (s) => { const m = String(s ?? '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
@@ -446,8 +451,8 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
   };
 
   const lead = it.before != null ? `${it.before} → ` : '';
-  const beforeOf = (s) => Math.max(20, Math.round(s * 0.56));
-  const unitOf = (s) => Math.max(20, Math.round(s * 0.34));
+  const beforeOf = (s) => Math.max(18, Math.round(s * 0.56));
+  const unitOf = (s) => Math.max(16, Math.round(s * 0.34));
   const figWidth = (s) => (lead ? textWidth(lead, beforeOf(s)) : 0) + textWidth(String(it.value), s) + (it.unit ? textWidth(' ' + it.unit, unitOf(s)) : 0);
 
   // Check if Horizontal Split (Left Meta | Right Giant Figure) fits cleanly without collisions
@@ -456,28 +461,29 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
   let useSplit = false;
   let splitLeftW = 0, splitRightW = 0, splitValSz = 0, splitLabelSz = 0;
   if (canSplit) {
-    splitLabelSz = forcedLabelSize || (solid ? Math.min(28, Math.max(22, Math.round(ch * 0.115))) : Math.min(23, Math.max(19, Math.round(ch * 0.1))));
+    splitLabelSz = forcedLabelSize || (solid ? Math.min(20, Math.max(17, Math.round(ch * 0.1))) : Math.min(19, Math.max(16, Math.round(ch * 0.09))));
     const natLabelW = Math.ceil(textWidth(it.label || '', splitLabelSz) * 1.08);
-    const natNoteW = it.note ? Math.ceil(textWidth(it.note, solid ? 18 : 16) * 1.15) + 30 : 0;
+    const natNoteW = it.note ? Math.ceil(textWidth(it.note, solid ? 15 : 14) * 1.15) + 28 : 0;
     splitLeftW = Math.min(Math.round(iw * 0.46), Math.max(Math.round(iw * 0.34), Math.min(Math.max(natLabelW, natNoteW) + 8, Math.round(iw * 0.46))));
     splitRightW = iw - splitLeftW - 18;
-    const maxByH = Math.min(solid ? 98 : 80, Math.round(innerH * (hasTrend ? 0.4 : (solid ? 0.54 : 0.46))));
+    const hardCap = maxValCap || (solid ? 76 : 64);
+    const maxByH = Math.min(hardCap, Math.round(innerH * (hasTrend ? 0.4 : (solid ? 0.52 : 0.44))));
     splitValSz = forcedValSize ? Math.min(forcedValSize, maxByH) : maxByH;
-    while (splitValSz > 36 && figWidth(splitValSz) > splitRightW * 0.94) splitValSz -= 2;
+    while (splitValSz > 32 && figWidth(splitValSz) > splitRightW * 0.94) splitValSz -= 2;
     const labelLines = estimateLines(it.label || '', splitLabelSz, splitLeftW);
-    if (splitValSz >= 40 && labelLines <= 2 && splitRightW >= 150) useSplit = true;
+    if (splitValSz >= 34 && labelLines <= 2 && splitRightW >= 150) useSplit = true;
   }
 
   let finalValSize = splitValSz;
   if (useSplit) {
     const labelSz = splitLabelSz;
     const labelH = Math.max(Math.ceil(labelSz * 1.35), textHeight(it.label || '', labelSz, splitLeftW, 1.3));
-    let noteSz = solid ? 18 : 16;
-    if (it.note) while (noteSz > 13 && Math.ceil(textWidth(it.note, noteSz) * 1.16) + 28 > splitLeftW) noteSz -= 1;
-    const pillW = it.note ? Math.min(splitLeftW, Math.ceil(textWidth(it.note, noteSz) * 1.16) + 28) : 0;
-    const pillH = it.note ? Math.max(30, Math.round(noteSz * 1.65)) : 0;
-    const deltaH = it.delta && !it.note ? 28 : 0;
-    const leftGap = (it.note || deltaH) ? Math.min(26, Math.max(12, Math.round((innerH - labelH - (pillH || deltaH)) * 0.3))) : 0;
+    let noteSz = solid ? 15 : 14;
+    if (it.note) while (noteSz > 12 && Math.ceil(textWidth(it.note, noteSz) * 1.16) + 26 > splitLeftW) noteSz -= 1;
+    const pillW = it.note ? Math.min(splitLeftW, Math.ceil(textWidth(it.note, noteSz) * 1.16) + 26) : 0;
+    const pillH = it.note ? Math.max(26, Math.round(noteSz * 1.65)) : 0;
+    const deltaH = it.delta && !it.note ? 26 : 0;
+    const leftGap = (it.note || deltaH) ? Math.min(22, Math.max(10, Math.round((innerH - labelH - (pillH || deltaH)) * 0.3))) : 0;
     const leftBlockH = labelH + ((it.note || deltaH) ? leftGap + (pillH || deltaH) : 0);
     const leftTop = cy + 10 + Math.round((innerH - leftBlockH) / 2);
 
@@ -504,7 +510,7 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
     }
     const runs = [
       { text: String(it.value), style: { fontSize: valSz, fontWeight: 900, color: valColor } },
-      ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSz, fontWeight: 300, color: solid ? labelColor : p.muted } }] : []),
+      ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSz, fontWeight: 400, color: solid ? labelColor : p.muted } }] : []),
     ];
     elements.push(textElement({ id: `${id}-value-${num}`, text: String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [rx, valY, splitRightW, valH], style: theme.font(valSz, { fontWeight: 900, lineHeight: 1.12, textAlign: 'right', color: valColor }) }));
     if (hasTrend) {
@@ -514,18 +520,19 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
   } else {
     // Stacked proportional mode (for square/tall/narrow cards or cards with icons)
     const textW = iconInfo ? iw - iconInfo.size - 16 : iw;
-    const labelSz = forcedLabelSize || Math.max(18, Math.min(24, Math.round(ch * 0.095)));
+    const labelSz = forcedLabelSize || Math.max(16, Math.min(19, Math.round(ch * 0.085)));
     const labelH = Math.round(labelSz * 1.4);
     const spkH = hasTrend ? Math.min(44, Math.max(26, Math.round(innerH * 0.22))) : 0;
-    const maxByH = Math.min(solid ? 84 : 68, Math.round((innerH - labelH - (it.note ? 44 : 12) - (hasTrend ? spkH + 8 : 0)) * 0.72));
-    let valSz = forcedValSize || maxByH;
+    const hardCap = maxValCap || (solid ? 72 : 60);
+    const maxByH = Math.min(hardCap, Math.round((innerH - labelH - (it.note ? 44 : 12) - (hasTrend ? spkH + 8 : 0)) * 0.72));
+    let valSz = forcedValSize ? Math.min(forcedValSize, maxValCap || forcedValSize) : maxByH;
     while (valSz > 26 && figWidth(valSz) > textW * 0.92) valSz -= 2;
     finalValSize = valSz;
     const unitSz = unitOf(valSz), valH = Math.round(valSz * 1.24);
-    let noteSz = solid ? 18 : 16;
-    if (it.note) while (noteSz > 13 && Math.ceil(textWidth(it.note, noteSz) * 1.16) + 26 > textW) noteSz -= 1;
-    const pillH = it.note ? Math.max(28, Math.round(noteSz * 1.55)) : 0;
-    const pillW = it.note ? Math.min(textW, Math.ceil(textWidth(it.note, noteSz) * 1.16) + 26) : 0;
+    let noteSz = solid ? 15 : 14;
+    if (it.note) while (noteSz > 12 && Math.ceil(textWidth(it.note, noteSz) * 1.16) + 24 > textW) noteSz -= 1;
+    const pillH = it.note ? Math.max(26, Math.round(noteSz * 1.55)) : 0;
+    const pillW = it.note ? Math.min(textW, Math.ceil(textWidth(it.note, noteSz) * 1.16) + 24) : 0;
     const blockH = labelH + 10 + valH + (hasTrend ? 8 + spkH : 0) + (it.note ? 10 + pillH : 0);
     const topY = cy + 10 + Math.max(8, Math.round((innerH - blockH) / 2));
 
@@ -538,7 +545,7 @@ function renderMetricCard({ id, num, cx, cy, cw, ch, it, solid, isPartner, theme
     const runs = [
       ...(lead ? [{ text: lead, style: { fontSize: beforeOf(valSz), fontWeight: 400, color: labelColor } }] : []),
       { text: String(it.value), style: { fontSize: valSz, fontWeight: 900, color: valColor } },
-      ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSz, fontWeight: 300, color: solid ? labelColor : p.muted } }] : []),
+      ...(it.unit ? [{ text: ' ' + it.unit, style: { fontSize: unitSz, fontWeight: 400, color: solid ? labelColor : p.muted } }] : []),
     ];
     elements.push(textElement({ id: `${id}-value-${num}`, text: lead + String(it.value) + (it.unit ? ' ' + it.unit : ''), runs, bounds: [cx + pad, topY + labelH + 10, textW, valH], style: theme.font(valSz, { fontWeight: 900, lineHeight: 1.15, color: valColor }) }));
 
@@ -613,7 +620,7 @@ export function metricBento({ id, x, y, width, height, items, theme, highlight =
     const it = ordered[idx];
     if (!it) return;
     const [cx, cy, cw, ch] = cell.rect;
-    const built = renderMetricCard({ id, num: origIdx[idx] + 1, cx, cy, cw, ch, it, solid: cell.solid, isPartner: cell.partner, theme, p, r });
+    const built = renderMetricCard({ id, num: origIdx[idx] + 1, cx, cy, cw, ch, it, solid: cell.solid, isPartner: cell.partner, theme, p, r, maxValCap: cell.solid ? 68 : 38 });
     elements.push(...built.elements);
     if (built.valueSize > maxValSize) maxValSize = built.valueSize;
   });
@@ -757,13 +764,20 @@ export function noteBar({ id, x, y, width, text, label = '复盘判断', theme, 
   return { elements, height: h };
 }
 
-// Type scale for dense report pages: pass as createTheme({ roles: REPORT_ROLES }). Body text at 20 leaves room for
-// several labelled modules on a page, and each level sits at least one step above the next.
+// Type scale for report pages: pass as createTheme({ roles: REPORT_ROLES }).
+// Restrained 4-tier hierarchy: Page Title (40–44px) > Section/Item Title (20–25px) > Body (18–21px Regular) > Caption (15–16px).
 export const REPORT_ROLES = {
-  eyebrow: { fontSize: 18, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
-  sectionTitle: { fontSize: 24 }, itemTitle: { fontSize: 24 }, stepTitle: { fontSize: 22 }, roleSubtitle: { fontSize: 20 },
-  body: { fontSize: 20 }, stepDetail: { fontSize: 20 }, tableHeader: { fontSize: 18 }, tableKey: { fontSize: 22 },
-  tableBody: { fontSize: 20 }, tableEmphasis: { fontSize: 22 }, caption: { fontSize: 18 }, lightNote: { fontSize: 18 }
+  eyebrow: { fontSize: 15, fontWeight: 700 }, pageTitle: { fontSize: 40 }, pageTitleFocus: { fontSize: 40 },
+  sectionTitle: { fontSize: 22 }, itemTitle: { fontSize: 20 }, stepTitle: { fontSize: 20 }, roleSubtitle: { fontSize: 18 },
+  body: { fontSize: 18, fontWeight: 400 }, stepDetail: { fontSize: 18, fontWeight: 400 }, tableHeader: { fontSize: 16, fontWeight: 600 }, tableKey: { fontSize: 19 },
+  tableBody: { fontSize: 18, fontWeight: 400 }, tableEmphasis: { fontSize: 19 }, caption: { fontSize: 15, fontWeight: 400 }, lightNote: { fontSize: 15, fontWeight: 400 }
+};
+
+export const REPORT_ROLES_COMPACT = {
+  eyebrow: { fontSize: 14, fontWeight: 700 }, pageTitle: { fontSize: 36 }, pageTitleFocus: { fontSize: 36 },
+  sectionTitle: { fontSize: 20 }, itemTitle: { fontSize: 18 }, stepTitle: { fontSize: 18 }, roleSubtitle: { fontSize: 17 },
+  body: { fontSize: 17, fontWeight: 400 }, stepDetail: { fontSize: 17, fontWeight: 400 }, tableHeader: { fontSize: 15, fontWeight: 600 }, tableKey: { fontSize: 17 },
+  tableBody: { fontSize: 17, fontWeight: 400 }, tableEmphasis: { fontSize: 17 }, caption: { fontSize: 14, fontWeight: 400 }, lightNote: { fontSize: 14, fontWeight: 400 }
 };
 
 // Preserve vivid saturated primary/accent hues while ensuring crisp legibility on both light and dark surfaces.
@@ -781,80 +795,79 @@ export const readableInk = (hex, bg = '#F3F5FA', minRatio = 3.1) => {
   return c;
 };
 
-// A roomier scale for decks with little content on each page; composeReportDeck picks whichever fits every page.
-// For pages with very little on them: larger still, same ratios.
+// Restrained roomier scales: body moves gently within 18-21px so flipping slides never jumps into giant Word-like text.
 export const REPORT_ROLES_HERO = {
-  eyebrow: { fontSize: 20, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
-  sectionTitle: { fontSize: 36 }, itemTitle: { fontSize: 34 }, stepTitle: { fontSize: 34 }, roleSubtitle: { fontSize: 30 },
-  body: { fontSize: 30 }, stepDetail: { fontSize: 30 }, tableHeader: { fontSize: 24 }, tableKey: { fontSize: 32 },
-  tableBody: { fontSize: 30 }, tableEmphasis: { fontSize: 32 }, caption: { fontSize: 22 }, lightNote: { fontSize: 22 }
+  eyebrow: { fontSize: 16, fontWeight: 700 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
+  sectionTitle: { fontSize: 25 }, itemTitle: { fontSize: 23 }, stepTitle: { fontSize: 22 }, roleSubtitle: { fontSize: 20 },
+  body: { fontSize: 21, fontWeight: 400 }, stepDetail: { fontSize: 21, fontWeight: 400 }, tableHeader: { fontSize: 17, fontWeight: 600 }, tableKey: { fontSize: 21 },
+  tableBody: { fontSize: 21, fontWeight: 400 }, tableEmphasis: { fontSize: 21 }, caption: { fontSize: 16, fontWeight: 400 }, lightNote: { fontSize: 16, fontWeight: 400 }
 };
 
-// Between the dense and roomy scales, and between roomy and hero, so a page can land on the size its content really fills.
 export const REPORT_ROLES_COMFY = {
-  eyebrow: { fontSize: 18, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
-  sectionTitle: { fontSize: 26 }, itemTitle: { fontSize: 26 }, stepTitle: { fontSize: 24 }, roleSubtitle: { fontSize: 22 },
-  body: { fontSize: 22 }, stepDetail: { fontSize: 22 }, tableHeader: { fontSize: 18 }, tableKey: { fontSize: 24 },
-  tableBody: { fontSize: 22 }, tableEmphasis: { fontSize: 24 }, caption: { fontSize: 18 }, lightNote: { fontSize: 18 }
+  eyebrow: { fontSize: 15, fontWeight: 700 }, pageTitle: { fontSize: 40 }, pageTitleFocus: { fontSize: 40 },
+  sectionTitle: { fontSize: 23 }, itemTitle: { fontSize: 21 }, stepTitle: { fontSize: 20 }, roleSubtitle: { fontSize: 19 },
+  body: { fontSize: 19, fontWeight: 400 }, stepDetail: { fontSize: 19, fontWeight: 400 }, tableHeader: { fontSize: 16, fontWeight: 600 }, tableKey: { fontSize: 20 },
+  tableBody: { fontSize: 19, fontWeight: 400 }, tableEmphasis: { fontSize: 20 }, caption: { fontSize: 15, fontWeight: 400 }, lightNote: { fontSize: 15, fontWeight: 400 }
 };
 
 export const REPORT_ROLES_LARGE = {
-  eyebrow: { fontSize: 20, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
-  sectionTitle: { fontSize: 32 }, itemTitle: { fontSize: 30 }, stepTitle: { fontSize: 30 }, roleSubtitle: { fontSize: 26 },
-  body: { fontSize: 26 }, stepDetail: { fontSize: 26 }, tableHeader: { fontSize: 22 }, tableKey: { fontSize: 28 },
-  tableBody: { fontSize: 26 }, tableEmphasis: { fontSize: 28 }, caption: { fontSize: 20 }, lightNote: { fontSize: 20 }
+  eyebrow: { fontSize: 16, fontWeight: 700 }, pageTitle: { fontSize: 42 }, pageTitleFocus: { fontSize: 42 },
+  sectionTitle: { fontSize: 24 }, itemTitle: { fontSize: 22 }, stepTitle: { fontSize: 21 }, roleSubtitle: { fontSize: 20 },
+  body: { fontSize: 20, fontWeight: 400 }, stepDetail: { fontSize: 20, fontWeight: 400 }, tableHeader: { fontSize: 17, fontWeight: 600 }, tableKey: { fontSize: 20 },
+  tableBody: { fontSize: 20, fontWeight: 400 }, tableEmphasis: { fontSize: 20 }, caption: { fontSize: 16, fontWeight: 400 }, lightNote: { fontSize: 16, fontWeight: 400 }
 };
 
 export const REPORT_ROLES_ROOMY = {
-  eyebrow: { fontSize: 20, fontWeight: 600 }, pageTitle: { fontSize: 44 }, pageTitleFocus: { fontSize: 44 },
-  sectionTitle: { fontSize: 30 }, itemTitle: { fontSize: 28 }, stepTitle: { fontSize: 28 }, roleSubtitle: { fontSize: 24 },
-  body: { fontSize: 24 }, stepDetail: { fontSize: 24 }, tableHeader: { fontSize: 20 }, tableKey: { fontSize: 26 },
-  tableBody: { fontSize: 24 }, tableEmphasis: { fontSize: 26 }, caption: { fontSize: 20 }, lightNote: { fontSize: 20 }
+  eyebrow: { fontSize: 16, fontWeight: 700 }, pageTitle: { fontSize: 42 }, pageTitleFocus: { fontSize: 42 },
+  sectionTitle: { fontSize: 24 }, itemTitle: { fontSize: 22 }, stepTitle: { fontSize: 21 }, roleSubtitle: { fontSize: 20 },
+  body: { fontSize: 20, fontWeight: 400 }, stepDetail: { fontSize: 20, fontWeight: 400 }, tableHeader: { fontSize: 17, fontWeight: 600 }, tableKey: { fontSize: 20 },
+  tableBody: { fontSize: 20, fontWeight: 400 }, tableEmphasis: { fontSize: 20 }, caption: { fontSize: 16, fontWeight: 400 }, lightNote: { fontSize: 16, fontWeight: 400 }
 };
 
 // A labelled statement: tinted band, colour bar, short label, then one sentence. It lets a reader get the page's logic
 // from the labels alone. tone 'judgment' (warm) is for the review verdict only, so it stays the one warm band on a page.
 export function labelBand({ id, x, y, width, label, text, theme, tone = 'primary', height, measurements, scale = 1 }) {
   const p = theme.palette, r = colorRoles(p), judgment = tone === 'judgment', warm = p.pop || p.gold;
+  const isCompact = Boolean(theme?.compact);
   const bandFill = p.dark ? (p.surface || '#152238') : (judgment ? lighten(warm, 0.91) : r.band);
   const accentBar = judgment ? warm : r.primary;
   const borderCol = p.dark ? (judgment ? warm : p.line) : (judgment ? lighten(warm, 0.68) : (p.line || '#E2E6EE'));
-  const grown = (role) => Math.min(34, Math.round(theme.roles[role].fontSize * scale / 2) * 2);
-  const badgeSz = Math.min(19, Math.max(16, Math.round(grown('stepTitle') * 0.68)));
+  const badgeSz = 15;
   const labelStyle = theme.font(badgeSz, { fontWeight: 700, color: judgment ? '#FFFFFF' : p.inverse, textAlign: 'center', lineHeight: 1.2 });
-  const bodySize = Math.min(22, Math.max(18, grown('body') - 4));
-  const textStyle = theme.roleStyle('body', { fontWeight: judgment ? 400 : 300, color: judgment ? p.ink : (p.muted || '#64748B'), fontSize: bodySize, lineHeight: 1.45 });
-  const badgeW = label ? Math.max(88, Math.min(220, Math.ceil(textWidth(label, badgeSz) * 1.15) + 30)) : 0;
-  const badgeH = Math.max(32, Math.ceil(badgeSz * 1.65));
-  const inlineRoom = label ? width - 26 - badgeW - 18 - 26 : width - 52;
+  const bodySize = Math.min(20, Math.max(isCompact ? 17 : 18, Math.round(theme.roles.body.fontSize * Math.min(scale, 1.05))));
+  const textStyle = theme.roleStyle('body', { fontWeight: judgment ? 500 : 400, color: judgment ? p.ink : (p.body || '#334155'), fontSize: bodySize, lineHeight: 1.42 });
+  const badgeW = label ? Math.max(82, Math.min(200, Math.ceil(textWidth(label, badgeSz) * 1.15) + 28)) : 0;
+  const badgeH = isCompact ? 26 : 28;
+  const vPad = isCompact ? 16 : 24;
+  const inlineRoom = label ? width - 24 - badgeW - 16 - 24 : width - 48;
   // Compact single-row inline layout when the band is wide and text fits in <= 2 lines beside the pill badge (sleek modern Callout).
   const canInline = Boolean(label) && width >= 880 && textHeight(text, bodySize, inlineRoom, 1.4) <= Math.ceil(bodySize * 1.4 * 2.1);
   const rad = Math.max(14, theme.radius ?? 14);
   if (canInline) {
     const th = Math.ceil(measurements?.get(`${id}-text`)?.height ?? textHeight(text, bodySize, inlineRoom, 1.4));
     const need = Math.max(badgeH, th);
-    const h = Math.max(need + 28, height || 0);
+    const h = Math.max(need + vPad, height || 0);
     return {
       height: h,
       elements: [
         { type: 'shape', id: `${id}-bar`, component: 'labelBand', bounds: [x, y, width, h], style: { fill: bandFill, stroke: borderCol, strokeWidth: 1.5, radius: rad } },
-        { type: 'shape', id: `${id}-mark`, bounds: [x, y + 10, 7, Math.max(20, h - 20)], style: { fill: accentBar, radius: 4 } },
-        { type: 'shape', id: `${id}-badge`, bounds: [x + 26, y + Math.round((h - badgeH) / 2), badgeW, badgeH], style: { fill: accentBar, radius: Math.round(badgeH / 2) } },
-        textElement({ id: `${id}-label`, text: label, bounds: [x + 26, y + Math.round((h - badgeSz * 1.25) / 2), badgeW, Math.ceil(badgeSz * 1.3)], style: labelStyle }),
-        textElement({ id: `${id}-text`, text, bounds: [x + 26 + badgeW + 18, y + Math.round((h - th) / 2), inlineRoom, th], style: textStyle }),
+        { type: 'shape', id: `${id}-mark`, bounds: [x, y + 10, 6, Math.max(20, h - 20)], style: { fill: accentBar, radius: 3 } },
+        { type: 'shape', id: `${id}-badge`, bounds: [x + 24, y + Math.round((h - badgeH) / 2), badgeW, badgeH], style: { fill: accentBar, radius: Math.round(badgeH / 2) } },
+        textElement({ id: `${id}-label`, text: label, bounds: [x + 24, y + Math.round((h - badgeSz * 1.25) / 2), badgeW, Math.ceil(badgeSz * 1.3)], style: labelStyle }),
+        textElement({ id: `${id}-text`, text, bounds: [x + 24 + badgeW + 16, y + Math.round((h - th) / 2), inlineRoom, th], style: textStyle }),
       ],
     };
   }
-  const tw = width - 56, th = Math.ceil(measurements?.get(`${id}-text`)?.height ?? textHeight(text, textStyle.fontSize, tw, textStyle.lineHeight));
-  const need = (label ? badgeH + 10 : 0) + th, h = Math.max(need + 30, height || 0), top = y + Math.round((h - need) / 2);
+  const tw = width - 52, th = Math.ceil(measurements?.get(`${id}-text`)?.height ?? textHeight(text, textStyle.fontSize, tw, textStyle.lineHeight));
+  const need = (label ? badgeH + 10 : 0) + th, h = Math.max(need + vPad, height || 0), top = y + Math.round((h - need) / 2);
   return { height: h, elements: [
     { type: 'shape', id: `${id}-bar`, component: 'labelBand', bounds: [x, y, width, h], style: { fill: bandFill, stroke: borderCol, strokeWidth: 1.5, radius: rad } },
-    { type: 'shape', id: `${id}-mark`, bounds: [x, y + 10, 7, Math.max(20, h - 20)], style: { fill: accentBar, radius: 4 } },
+    { type: 'shape', id: `${id}-mark`, bounds: [x, y + 10, 6, Math.max(20, h - 20)], style: { fill: accentBar, radius: 3 } },
     ...(label ? [
-      { type: 'shape', id: `${id}-badge`, bounds: [x + 26, top, badgeW, badgeH], style: { fill: accentBar, radius: Math.round(badgeH / 2) } },
-      textElement({ id: `${id}-label`, text: label, bounds: [x + 26, top + Math.round((badgeH - badgeSz * 1.2) / 2), badgeW, Math.ceil(badgeSz * 1.3)], style: labelStyle }),
+      { type: 'shape', id: `${id}-badge`, bounds: [x + 24, top, badgeW, badgeH], style: { fill: accentBar, radius: Math.round(badgeH / 2) } },
+      textElement({ id: `${id}-label`, text: label, bounds: [x + 24, top + Math.round((badgeH - badgeSz * 1.2) / 2), badgeW, Math.ceil(badgeSz * 1.3)], style: labelStyle }),
     ] : []),
-    textElement({ id: `${id}-text`, text, bounds: [x + 26, top + (label ? badgeH + 10 : 0), tw, th], style: textStyle })
+    textElement({ id: `${id}-text`, text, bounds: [x + 24, top + (label ? badgeH + 10 : 0), tw, th], style: textStyle })
   ] };
 }
 
@@ -862,24 +875,21 @@ export function labelBand({ id, x, y, width, label, text, theme, tone = 'primary
 // sentence on each row. items: [{ title, detail }]. stacked puts the sentence under its handle; height spreads the rows.
 // Element ids: `${id}-panel`, `${id}-title-n`, `${id}-detail-n`.
 export function actionPanel({ id, x, y, width, heading, items, theme, height, stacked = false, measurements, scale = 1 }) {
-  const p = theme.palette, pad = 26, elements = [], cardBg = p.surface || '#FFFFFF';
+  const p = theme.palette, isCompact = Boolean(theme?.compact), pad = isCompact ? 18 : 24, elements = [], cardBg = p.surface || '#FFFFFF';
   const accentInk = readableInk(p.accent, cardBg);
-  const grown = (role) => Math.min(36, Math.round(theme.roles[role].fontSize * scale / 2) * 2);
-  const titleFontSize = grown('stepTitle');
-  // Refined typographic hierarchy: body detail stays crisp at 11pt (22px max), in 300 Light (细体) and softer muted slate gray so titles breathe and pop.
-  const detailFontSize = Math.min(22, Math.max(18, Math.round(titleFontSize * 0.72 / 2) * 2));
+  const grown = (role) => Math.min(24, Math.round(theme.roles[role].fontSize * Math.min(scale, 1.06) / 2) * 2);
+  const titleFontSize = Math.min(22, grown('stepTitle'));
+  const detailFontSize = Math.min(20, Math.max(isCompact ? 17 : 18, theme.roles.stepDetail.fontSize));
   const titleStyle = theme.roleStyle('stepTitle', { color: accentInk, fontWeight: 700, fontSize: titleFontSize });
-  const detailStyle = theme.roleStyle('stepDetail', { color: p.muted || '#64748B', fontWeight: 300, fontSize: detailFontSize, lineHeight: 1.48 });
-  // The number badge follows the item title's size and sits on the centre of its first line; its digit is centred by a
-  // line box exactly as tall as the badge (a fixed 26px badge sat high beside a 30px title and its digit overflowed).
-  const badge = Math.max(28, Math.round(titleStyle.fontSize * 0.9 / 2) * 2), numSize = Math.max(16, Math.round(badge * 0.6));
+  const detailStyle = theme.roleStyle('stepDetail', { color: p.body || '#334155', fontWeight: 400, fontSize: detailFontSize, lineHeight: 1.45 });
+  const badge = 26, numSize = 14;
   const titleX = x + pad + badge + 12, titleH = Math.ceil(titleStyle.fontSize * titleStyle.lineHeight), badgeDy = Math.round((titleH - badge) / 2);
   const titleW = stacked ? width - pad * 2 - badge - 12 : Math.max(...items.map((it) => textWidth(it.title, titleStyle.fontSize))) + 16;
   const detailX = stacked ? titleX : titleX + titleW + 12, detailW = x + width - pad - detailX;
   const detailH = (it, i) => (it.detail ? Math.ceil(measurements?.get(`${id}-detail-${i + 1}`)?.height ?? textHeight(it.detail, detailStyle.fontSize, detailW, detailStyle.lineHeight)) : 0);
   const rows = items.map((it, i) => (stacked && it.detail ? titleH + 4 + detailH(it, i) : Math.max(titleH, detailH(it, i))));
   const headingStyle = theme.roleStyle('sectionTitle', { color: accentInk, lineHeight: 1.3 }), headingBox = heading ? Math.ceil(measurements?.get(`${id}-heading`)?.height ?? textHeight(heading, headingStyle.fontSize, width - pad * 2, headingStyle.lineHeight)) : 0;
-  const headH = heading ? headingBox + 12 : 0, rowGap = 21, need = (pad - 6) * 2 + headH + rows.reduce((a, b) => a + b, 0) + (items.length - 1) * rowGap, h = Math.max(need, height || 0);
+  const headH = heading ? headingBox + 10 : 0, rowGap = isCompact ? 12 : 18, need = (pad - 6) * 2 + headH + rows.reduce((a, b) => a + b, 0) + (items.length - 1) * rowGap, h = Math.max(need, height || 0);
   const spare = Math.floor((h - need) / (items.length + 1));
   elements.push({ type: 'shape', id: `${id}-panel`, component: 'actionPanel', bounds: [x, y, width, h], style: { fill: cardBg, stroke: p.line, strokeWidth: 1.5, radius: theme.radius ?? 0 } });
   let cy = y + pad - 6;
@@ -903,16 +913,40 @@ export function actionPanel({ id, x, y, width, heading, items, theme, height, st
 }
 
 // Bullet points with a hanging indent: each point is its own text box after a small dot, so wrapped lines start
-// under the text, not under the dot.
+// under the text, not under the dot. Step down 1-2px if a narrow card leaves a 1-2 char orphan tail on line 2+.
 export const indentOf = (size) => Math.round(size * 0.9), pointGap = (size) => Math.round(size * 0.3);
-export const pointsHeight = (points = [], size, width, lh) => points.reduce((h, s, i) => h + textHeight(s, size, width - indentOf(size), lh) + (i ? pointGap(size) : 0), 0);
+function hasOrphanPointTail(points, sz, width) {
+  const limit = (width - indentOf(sz)) * 0.95;
+  for (const s of points) {
+    let lines = 1, used = 0, lastCount = 0;
+    for (const ch of String(s ?? '')) {
+      const cw = /[‐-⁯⺀-￯]/.test(ch) ? sz : /\s/.test(ch) ? sz * 0.3 : sz * 0.56;
+      if (used + cw > limit && used > 0) { lines++; used = cw; lastCount = /\s/.test(ch) ? 0 : 1; }
+      else { used += cw; if (!/\s/.test(ch)) lastCount++; }
+    }
+    if (lines > 1 && lastCount > 0 && lastCount <= 2) return true;
+  }
+  return false;
+}
+export function fitPointFontSize(points = [], size = 18, width = 300) {
+  const floor = Math.max(15, size - 2);
+  for (let sz = size; sz >= floor; sz -= 1) {
+    if (!hasOrphanPointTail(points, sz, width)) return sz;
+  }
+  return size;
+}
+export const pointsHeight = (points = [], size, width, lh) => {
+  const sz = fitPointFontSize(points, size, width);
+  return points.reduce((h, s, i) => h + textHeight(s, sz, width - indentOf(sz), lh) + (i ? pointGap(sz) : 0), 0);
+};
 export function pointList({ id, x, y, width, points = [], size, color, theme, lh }) {
-  const elements = [], d = Math.max(6, Math.round(size * 0.26));
+  const sz = fitPointFontSize(points, size, width);
+  const elements = [], d = Math.max(5, Math.round(sz * 0.25));
   points.forEach((s, i) => {
-    const h = textHeight(s, size, width - indentOf(size), lh);
-    elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x, y + Math.round((size * lh - d) / 2), d, d], style: { fill: color, radius: d / 2 } });
-    elements.push(textElement({ id: `${id}-${i + 1}`, text: s, bounds: [x + indentOf(size), y, width - indentOf(size), h], style: theme.font(size, { fontWeight: 300, color, lineHeight: lh }) }));
-    y += h + pointGap(size);
+    const h = textHeight(s, sz, width - indentOf(sz), lh);
+    elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x, y + Math.round((sz * lh - d) / 2), d, d], style: { fill: color, radius: d / 2 } });
+    elements.push(textElement({ id: `${id}-${i + 1}`, text: s, bounds: [x + indentOf(sz), y, width - indentOf(sz), h], style: theme.font(sz, { fontWeight: 400, color, lineHeight: lh }) }));
+    y += h + pointGap(sz);
   });
   return elements;
 }
@@ -926,24 +960,25 @@ export function pointList({ id, x, y, width, points = [], size, color, theme, lh
 //   - 'bars'  (ranked horizontal progress bars): clean stacked proportion bars + right percentage pills
 //   - 'tiles' (hero + breakdown grid): left solid primary Total Hero card + right breakdown cards
 export function categoryBreakdownCard({ id, x, y, width, height, title = '', total = '', badge = '', items = [], theme, variant = 'bar' }) {
-  const p = theme.palette, r = colorRoles(p), list = items.slice(0, 5);
+  const p = theme.palette, r = colorRoles(p), list = items.slice(0, 6);
   if (!list.length) return { elements: [], height: 0 };
-  const pad = 28, iw = width - pad * 2, surf = p.surface || '#FFFFFF';
+  const isCompact = Boolean(theme?.compact);
+  const pad = isCompact ? 20 : 28, iw = width - pad * 2, surf = p.surface || '#FFFFFF';
   const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
-  const rad = Math.max(16, theme.radius ?? 14);
-  const segColors = [r.primary, r.secondary, r.pop, p.dark ? '#38BDF8' : lighten(r.primary, 0.38), p.muted || '#64748B'];
+  const rad = theme.radius ?? 14;
+  const segColors = [r.primary, r.secondary, r.pop, p.dark ? '#38BDF8' : lighten(r.primary, 0.38), p.muted || '#64748B', '#94A3B8'];
   const totalPct = list.reduce((s, it) => s + (Number(it.pct) || 0), 0) || 100;
 
   if (variant === 'bars') {
-    const headH = title || total ? 54 : 0, rowH = 54, rowGap = 14;
+    const headH = title || total ? (isCompact ? 44 : 50) : 0, rowH = isCompact ? 42 : 50, rowGap = isCompact ? 8 : 12;
     const natural = pad * 2 + headH + list.length * rowH + (list.length - 1) * rowGap;
     const h = Math.max(natural, height || 0);
     const topOff = Math.round((h - natural) / 2);
     const elements = [{ type: 'shape', id: `${id}-panel`, component: 'categoryBreakdown', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
     let curY = y + pad + topOff;
     if (headH) {
-      elements.push(textElement({ id: `${id}-title`, text: title || '结构构成', bounds: [x + pad, curY + 6, iw - 360, 32], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
-      if (total) elements.push(textElement({ id: `${id}-total`, text: `合计 ${total}`, bounds: [x + width - pad - 340, curY + 2, 340, 36], style: theme.font(28, { fontWeight: 900, color: p.ink, textAlign: 'right', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-title`, text: title || '结构构成', bounds: [x + pad, curY + 4, iw - 360, 30], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      if (total) elements.push(textElement({ id: `${id}-total`, text: `合计 ${total}`, bounds: [x + width - pad - 340, curY + 2, 340, 34], style: theme.font(26, { fontWeight: 900, color: p.ink, textAlign: 'right', lineHeight: 1.2 }) }));
       curY += headH;
     }
     const labelW = Math.min(340, Math.round(iw * 0.24)), valW = 240, trackW = iw - labelW - valW - 36;
@@ -952,30 +987,30 @@ export function categoryBreakdownCard({ id, x, y, width, height, title = '', tot
       const col = segColors[i % segColors.length];
       const pct = Number(it.pct) || Math.round(100 / list.length);
       elements.push({ type: 'shape', id: `${id}-row-${i + 1}`, bounds: [x + pad, ry, iw, rowH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 12 } });
-      elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x + pad + 18, ry + 21, 12, 12], style: { fill: col, radius: 4 } });
-      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [x + pad + 40, ry + 14, labelW - 44, 26], style: theme.font(21, { fontWeight: 600, color: p.ink, lineHeight: 1.25 }) }));
+      elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [x + pad + 18, ry + 19, 12, 12], style: { fill: col, radius: 4 } });
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [x + pad + 40, ry + 12, labelW - 44, 26], style: theme.font(19, { fontWeight: 600, color: p.ink, lineHeight: 1.25 }) }));
       const tx = x + pad + labelW + 14;
-      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [tx, ry + 19, trackW, 16], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 8 } });
-      elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [tx, ry + 19, Math.max(24, Math.round((trackW * pct) / Math.max(totalPct, 100))), 16], style: { fill: col, radius: 8 } });
+      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [tx, ry + 17, trackW, 16], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 8 } });
+      elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [tx, ry + 17, Math.max(24, Math.round((trackW * pct) / Math.max(totalPct, 100))), 16], style: { fill: col, radius: 8 } });
       const vTxt = `${it.value ?? ''}  ${pct}%`.trim();
-      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: vTxt, bounds: [x + width - pad - valW - 14, ry + 13, valW, 28], style: theme.font(22, { fontWeight: 900, color: i === 2 ? r.pop : readableInk(col, subBg, 3.0), textAlign: 'right', lineHeight: 1.25 }) }));
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: vTxt, bounds: [x + width - pad - valW - 14, ry + 11, valW, 28], style: theme.font(20, { fontWeight: 900, color: i === 2 ? r.pop : readableInk(col, subBg, 3.0), textAlign: 'right', lineHeight: 1.25 }) }));
     });
     return { elements, height: h };
   }
 
   if (variant === 'tiles') {
-    const gap = 16, heroW = total ? Math.round(width * 0.30) : 0, restX = x + (heroW ? heroW + gap : 0), restW = width - (heroW ? heroW + gap : 0);
-    const natural = 228, h = Math.max(natural, height || 0);
+    const gap = 16, heroW = total ? Math.round(width * 0.28) : 0, restX = x + (heroW ? heroW + gap : 0), restW = width - (heroW ? heroW + gap : 0);
+    const natural = 216, h = Math.max(natural, height || 0);
     const elements = [];
     if (heroW) {
       elements.push({ type: 'shape', id: `${id}-panel`, component: 'categoryBreakdown', bounds: [x, y, heroW, h], style: { fill: r.primary, radius: rad } });
       elements.push({ type: 'shape', id: `${id}-htrim`, bounds: [x + 22, y, heroW - 44, 5], style: { fill: r.pop, radius: 3 } });
-      if (title) elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + 24, y + 26, heroW - 48, 30], style: theme.font(19, { fontWeight: 600, color: p.inverse, lineHeight: 1.3 }) }));
-      elements.push(textElement({ id: `${id}-total`, text: String(total), bounds: [x + 24, y + Math.round(h * 0.36), heroW - 48, 56], style: theme.font(46, { fontWeight: 900, color: p.inverse, lineHeight: 1.1 }) }));
+      if (title) elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + 24, y + 24, heroW - 48, 28], style: theme.font(18, { fontWeight: 600, color: p.inverse, lineHeight: 1.3 }) }));
+      elements.push(textElement({ id: `${id}-total`, text: String(total), bounds: [x + 24, y + Math.round(h * 0.36), heroW - 48, 52], style: theme.font(44, { fontWeight: 900, color: p.inverse, lineHeight: 1.1 }) }));
       if (badge) {
-        const bdgW = Math.min(heroW - 48, Math.ceil(textWidth(badge, 15) * 1.16) + 24);
-        elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + 24, y + h - 48, bdgW, 28], style: { fill: r.pop, radius: 14 } });
-        elements.push(textElement({ id: `${id}-bdg-tx`, text: badge, bounds: [x + 30, y + h - 44, bdgW - 12, 20], style: theme.font(14, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+        const bdgW = Math.min(heroW - 48, Math.ceil(textWidth(badge, 14) * 1.16) + 24);
+        elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + 24, y + h - 46, bdgW, 26], style: { fill: r.pop, radius: 13 } });
+        elements.push(textElement({ id: `${id}-bdg-tx`, text: badge, bounds: [x + 30, y + h - 43, bdgW - 12, 20], style: theme.font(13, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
       }
     }
     const cw = Math.floor((restW - gap * (list.length - 1)) / list.length);
@@ -985,19 +1020,28 @@ export function categoryBreakdownCard({ id, x, y, width, height, title = '', tot
       const pct = Number(it.pct) || Math.round(100 / list.length);
       elements.push({ type: 'shape', id: `${id}-sub-${i + 1}`, ...(i === 0 && !heroW ? { component: 'categoryBreakdown' } : {}), bounds: [cx, y, cw, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } });
       elements.push({ type: 'shape', id: `${id}-trim-${i + 1}`, bounds: [cx + 20, y, cw - 40, 5], style: { fill: col, radius: 3 } });
-      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 22, y + 24, cw - 44, 28], style: theme.font(20, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.25 }) }));
-      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: String(it.value ?? `${pct}%`), bounds: [cx + 22, y + Math.round(h * 0.35), cw - 44, 46], style: theme.font(38, { fontWeight: 900, color: p.ink, lineHeight: 1.15 }) }));
-      elements.push(textElement({ id: `${id}-pct-${i + 1}`, text: `占比 ${pct}%`, bounds: [cx + 22, y + h - 58, cw - 44, 24], style: theme.font(17, { fontWeight: 700, color: i === 2 ? r.pop : readableInk(col, surf, 3.0), lineHeight: 1.2 }) }));
-      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [cx + 22, y + h - 22, cw - 44, 7], style: { fill: p.line || '#E2E6EE', radius: 4 } });
-      elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [cx + 22, y + h - 22, Math.max(18, Math.round(((cw - 44) * pct) / Math.max(totalPct, 100))), 7], style: { fill: col, radius: 4 } });
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 20, y + 22, cw - 40, 26], style: theme.font(17, { fontWeight: 500, color: p.body || '#475569', lineHeight: 1.25 }) }));
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: String(it.value ?? `${pct}%`), bounds: [cx + 20, y + Math.round(h * 0.35), cw - 40, 40], style: theme.font(32, { fontWeight: 900, color: p.ink, lineHeight: 1.15 }) }));
+      elements.push(textElement({ id: `${id}-pct-${i + 1}`, text: `占比 ${pct}%`, bounds: [cx + 20, y + h - 54, cw - 40, 22], style: theme.font(15, { fontWeight: 700, color: i === 2 ? r.pop : readableInk(col, surf, 3.0), lineHeight: 1.2 }) }));
+      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [cx + 20, y + h - 22, cw - 40, 7], style: { fill: p.line || '#E2E6EE', radius: 4 } });
+      elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [cx + 20, y + h - 22, Math.max(18, Math.round(((cw - 40) * pct) / Math.max(totalPct, 100))), 7], style: { fill: col, radius: 4 } });
     });
     return { elements, height: h };
   }
 
-  const headerH = total ? 66 : 38;
-  const barH = 18;
-  const subCardH = 104;
-  const natural = pad + headerH + 18 + barH + 22 + subCardH + pad;
+  const headerH = total ? (isCompact ? 50 : 60) : (isCompact ? 28 : 34);
+  const barH = isCompact ? 14 : 16;
+  const headerGap = isCompact ? 12 : 16;
+  const barGap = isCompact ? 14 : 20;
+  const singleCw = Math.floor((iw - 14 * (list.length - 1)) / list.length);
+  const useGrid = singleCw < 175 && list.length >= 4;
+  const cols = useGrid ? (list.length === 4 ? 2 : 3) : list.length;
+  const rowsCount = useGrid ? Math.ceil(list.length / cols) : 1;
+  const cGap = useGrid ? 12 : 14;
+  const rGap = 10;
+  const subCardH = useGrid ? (isCompact ? 70 : 76) : (isCompact ? 80 : 96);
+  const cardsTotalH = rowsCount * subCardH + (rowsCount - 1) * rGap;
+  const natural = pad + headerH + headerGap + barH + barGap + cardsTotalH + pad;
   const h = Math.max(natural, height || 0);
   const cyShift = Math.round((h - natural) / 2);
   const elements = [
@@ -1007,20 +1051,20 @@ export function categoryBreakdownCard({ id, x, y, width, height, title = '', tot
   // Header row: title + giant total + optional semantic badge pill
   let curY = y + pad + cyShift;
   if (total) {
-    if (title) elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, iw - 220, 26], style: theme.font(20, { fontWeight: 600, color: p.muted || '#64748B', lineHeight: 1.25 }) }));
-    elements.push(textElement({ id: `${id}-total`, text: String(total), bounds: [x + pad, curY + 26, iw - 240, 44], style: theme.font(38, { fontWeight: 900, color: p.ink, lineHeight: 1.12 }) }));
+    if (title) elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, iw - 220, 24], style: theme.font(18, { fontWeight: 600, color: p.body || '#475569', lineHeight: 1.25 }) }));
+    elements.push(textElement({ id: `${id}-total`, text: String(total), bounds: [x + pad, curY + (isCompact ? 20 : 24), iw - 240, 38], style: theme.font(isCompact ? 30 : 34, { fontWeight: 900, color: p.ink, lineHeight: 1.12 }) }));
   } else if (title) {
-    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 4, iw - 220, 32], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw - 220, 28], style: theme.font(isCompact ? 20 : 22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
   }
   if (badge) {
-    const bw = Math.min(240, Math.ceil(textWidth(badge, 17) * 1.16) + 32), bh = 32;
+    const bw = Math.min(240, Math.ceil(textWidth(badge, 15) * 1.16) + 28), bh = 28;
     const okBg = p.dark ? '#11302B' : '#ECFDF5', okFg = p.dark ? '#34D399' : '#047857';
-    elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + width - pad - bw, curY + Math.round((headerH - bh) / 2), bw, bh], style: { fill: okBg, radius: 16 } });
-    elements.push(textElement({ id: `${id}-bdg-tx`, text: badge, bounds: [x + width - pad - bw + 8, curY + Math.round((headerH - 22) / 2), bw - 16, 22], style: theme.font(16, { fontWeight: 700, color: okFg, textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + width - pad - bw, curY + Math.round((headerH - bh) / 2), bw, bh], style: { fill: okBg, radius: 14 } });
+    elements.push(textElement({ id: `${id}-bdg-tx`, text: badge, bounds: [x + width - pad - bw + 8, curY + Math.round((headerH - 20) / 2), bw - 16, 20], style: theme.font(15, { fontWeight: 700, color: okFg, textAlign: 'center', lineHeight: 1.2 }) }));
   }
 
   // Segmented horizontal bar
-  curY += headerH + 18;
+  curY += headerH + headerGap;
   const segGap = 6, usableW = iw - segGap * (list.length - 1);
   let sx = x + pad;
   list.forEach((it, i) => {
@@ -1030,24 +1074,26 @@ export function categoryBreakdownCard({ id, x, y, width, height, title = '', tot
     sx += sw + segGap;
   });
 
-  // Bottom breakdown sub-cards
-  curY += barH + 22;
-  const cGap = 16, cw = Math.floor((iw - cGap * (list.length - 1)) / list.length);
+  // Bottom breakdown sub-cards (auto multi-row grid when column width is tight)
+  curY += barH + barGap;
+  const cw = Math.floor((iw - cGap * (cols - 1)) / cols);
   list.forEach((it, i) => {
-    const cx = x + pad + i * (cw + cGap);
+    const colIdx = i % cols, rowIdx = Math.floor(i / cols);
+    const cx = x + pad + colIdx * (cw + cGap);
+    const ry = curY + rowIdx * (subCardH + rGap);
     const col = segColors[i % segColors.length];
-    elements.push({ type: 'shape', id: `${id}-sub-${i + 1}`, bounds: [cx, curY, cw, subCardH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 12 } });
-    elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [cx + 18, curY + 20, 12, 12], style: { fill: col, radius: 4 } });
-    elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 38, curY + 14, cw - 54, 26], style: theme.font(20, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.25 }) }));
+    elements.push({ type: 'shape', id: `${id}-sub-${i + 1}`, bounds: [cx, ry, cw, subCardH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 12 } });
+    elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [cx + 14, ry + (subCardH < 84 ? 14 : 19), 10, 10], style: { fill: col, radius: 3 } });
+    elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 32, ry + (subCardH < 84 ? 8 : 12), cw - 44, 24], style: theme.font(isCompact ? 15 : 16, { fontWeight: 500, color: p.body || '#475569', lineHeight: 1.25 }) }));
     const valText = String(it.value ?? `${it.pct}%`);
     const pctText = it.pct != null ? `${it.pct}%` : '';
-    let vSz = 30;
-    while (vSz > 20 && textWidth(valText + ' ' + pctText, vSz) > cw - 36) vSz -= 2;
+    let vSz = subCardH < 84 ? 22 : 26;
+    while (vSz > 16 && textWidth(valText + (pctText && !valText.includes('%') ? '  ' + pctText : ''), vSz) > cw - 28) vSz -= 2;
     const runs = [
       { text: valText, style: { fontSize: vSz, fontWeight: 900, color: p.ink } },
-      ...(pctText && !valText.includes('%') ? [{ text: '  ' + pctText, style: { fontSize: 18, fontWeight: 700, color: i === 2 ? r.pop : readableInk(col, subBg, 3.0) } }] : []),
+      ...(pctText && !valText.includes('%') ? [{ text: '  ' + pctText, style: { fontSize: 14, fontWeight: 700, color: i === 2 ? r.pop : readableInk(col, subBg, 3.0) } }] : []),
     ];
-    elements.push(textElement({ id: `${id}-val-${i + 1}`, text: valText + (pctText ? ' ' + pctText : ''), runs, bounds: [cx + 18, curY + 48, cw - 36, 40], style: theme.font(vSz, { fontWeight: 900, color: p.ink, lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-val-${i + 1}`, text: valText + (pctText ? ' ' + pctText : ''), runs, bounds: [cx + 14, ry + (subCardH < 84 ? 36 : 46), cw - 28, 32], style: theme.font(vSz, { fontWeight: 900, color: p.ink, lineHeight: 1.2 }) }));
   });
   return { elements, height: h };
 }
@@ -1060,7 +1106,7 @@ export function conversionFunnel({ id, x, y, width, height, title = '', steps = 
   const p = theme.palette, r = colorRoles(p), list = steps.slice(0, 6);
   if (!list.length) return { elements: [], height: 0 };
   const pad = 28, iw = width - pad * 2, surf = p.surface || '#FFFFFF';
-  const rad = Math.max(16, theme.radius ?? 14);
+  const rad = theme.radius ?? 14;
   const parseNum = (st) => {
     const raw = `${st.value ?? ''}${st.unit || ''}`.replace(/,/g, '');
     const m = raw.match(/\d+(?:\.\d+)?/);
@@ -1104,8 +1150,8 @@ export function conversionFunnel({ id, x, y, width, height, title = '', steps = 
       const badgeTxt = `STEP 0${i + 1}`;
       elements.push({ type: 'shape', id: `${id}-numbg-${i + 1}`, bounds: [cx + 22, cardY + 22, 86, 26], style: { fill: isLast ? r.pop : r.band, radius: 13 } });
       elements.push(textElement({ id: `${id}-num-${i + 1}`, text: badgeTxt, bounds: [cx + 22, cardY + 25, 86, 20], style: theme.font(14, { fontWeight: 800, color: isLast ? '#FFFFFF' : readableInk(r.primary, r.band), textAlign: 'center', lineHeight: 1.2 }) }));
-      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: st.label || '', bounds: [cx + 22, cardY + 60, cw - 44, 32], style: theme.font(23, { fontWeight: 700, color: isLast ? p.inverse : p.ink, lineHeight: 1.25 }) }));
-      if (st.detail) elements.push(textElement({ id: `${id}-sub-${i + 1}`, text: st.detail, bounds: [cx + 22, cardY + 96, cw - 44, 56], style: theme.font(18, { fontWeight: 300, color: isLast ? p.inverse : (p.muted || '#64748B'), lineHeight: 1.38 }) }));
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: st.label || '', bounds: [cx + 22, cardY + 58, cw - 44, 30], style: theme.font(20, { fontWeight: 700, color: isLast ? p.inverse : p.ink, lineHeight: 1.25 }) }));
+      if (st.detail) elements.push(textElement({ id: `${id}-sub-${i + 1}`, text: st.detail, bounds: [cx + 22, cardY + 92, cw - 44, 54], style: theme.font(17, { fontWeight: 400, color: isLast ? p.inverse : (p.body || '#475569'), lineHeight: 1.38 }) }));
       const valStr = `${st.value ?? ''}${st.unit ? ' ' + st.unit : ''}`;
       let vSz = 38;
       while (vSz > 24 && textWidth(valStr, vSz) > cw - 44) vSz -= 2;
@@ -1161,9 +1207,9 @@ export function conversionFunnel({ id, x, y, width, height, title = '', steps = 
     elements.push({ type: 'shape', id: `${id}-numbg-${i + 1}`, bounds: [x + pad, ry + Math.round((rowH - badgeD) / 2), badgeD, badgeD], style: { fill: isLast ? r.pop : r.band, radius: 17 }, shape: 'ellipse' });
     elements.push(textElement({ id: `${id}-num-${i + 1}`, text: String(i + 1).padStart(2, '0'), bounds: [x + pad, ry + Math.round((rowH - 22) / 2), badgeD, 22], style: theme.font(16, { fontWeight: 900, color: isLast ? '#FFFFFF' : readableInk(r.primary, r.band), textAlign: 'center', lineHeight: 1.2 }) }));
     const hasSub = Boolean(st.detail);
-    elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: st.label || '', bounds: [x + pad + badgeD + 14, ry + Math.round((rowH - (hasSub ? 50 : 28)) / 2), leftW - badgeD - 18, 28], style: theme.font(22, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+    elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: st.label || '', bounds: [x + pad + badgeD + 14, ry + Math.round((rowH - (hasSub ? 48 : 26)) / 2), leftW - badgeD - 18, 26], style: theme.font(20, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
     if (hasSub) {
-      elements.push(textElement({ id: `${id}-sub-${i + 1}`, text: st.detail, bounds: [x + pad + badgeD + 14, ry + Math.round((rowH - 50) / 2) + 28, leftW - badgeD - 18, 24], style: theme.font(18, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.25 }) }));
+      elements.push(textElement({ id: `${id}-sub-${i + 1}`, text: st.detail, bounds: [x + pad + badgeD + 14, ry + Math.round((rowH - 48) / 2) + 26, leftW - badgeD - 18, 24], style: theme.font(17, { fontWeight: 400, color: p.body || '#475569', lineHeight: 1.25 }) }));
     }
 
     // Center: centered rounded funnel bar with bold figure inside
@@ -1198,12 +1244,14 @@ export function conversionFunnel({ id, x, y, width, height, title = '', steps = 
 export function hubArchitecture({ id, x, y, width, height, title = '', center = {}, inputs = [], outputs = [], theme, variant = 'horizontal' }) {
   const p = theme.palette, r = colorRoles(p);
   const inList = inputs.slice(0, 4), outList = outputs.slice(0, 4);
-  const pad = 28, iw = width - pad * 2, surf = p.surface || '#FFFFFF';
-  const rad = Math.max(16, theme.radius ?? 14);
-  const headH = title ? 52 : 0;
+  const isCompact = Boolean(theme?.compact);
+  const activeVariant = variant === 'horizontal' && width < 1120 ? 'layered' : variant;
+  const pad = isCompact ? 22 : 28, iw = width - pad * 2, surf = p.surface || '#FFFFFF';
+  const rad = theme.radius ?? 14;
+  const headH = title ? (isCompact ? 44 : 52) : 0;
 
-  if (variant === 'layered') {
-    const rowH = 114, hubH = 110, arrowGap = 42;
+  if (activeVariant === 'layered') {
+    const rowH = isCompact ? 104 : 114, hubH = isCompact ? 96 : 110, arrowGap = isCompact ? 34 : 42;
     const natural = pad * 2 + headH + rowH + arrowGap + hubH + arrowGap + rowH;
     const h = Math.max(natural, height || 0);
     const topOff = Math.round((h - natural) / 2);
@@ -1212,37 +1260,42 @@ export function hubArchitecture({ id, x, y, width, height, title = '', center = 
     ];
     let curY = y + pad + topOff;
     if (title) {
-      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, iw, 34], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, p.dark ? '#142138' : '#F8FAFC'), lineHeight: 1.3 }) }));
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, iw, 34], style: theme.font(isCompact ? 21 : 24, { fontWeight: 700, color: readableInk(p.accent, p.dark ? '#142138' : '#F8FAFC'), lineHeight: 1.3 }) }));
       curY += headH;
     }
     const hubY = curY + rowH + arrowGap;
     const outY = hubY + hubH + arrowGap;
     const drawRow = (list, ry, isOut) => {
-      const gap = 18, cw = Math.floor((iw - gap * (list.length - 1)) / Math.max(1, list.length));
+      const gap = 16, cw = Math.floor((iw - gap * (list.length - 1)) / Math.max(1, list.length));
+      const narrowCard = cw < 280;
       list.forEach((item, i) => {
         const cx = x + pad + i * (cw + gap), midX = cx + Math.round(cw / 2);
         elements.push({ ...lineElement({ id: `${id}-${isOut ? 'out' : 'in'}-ln-${i + 1}`, from: isOut ? [midX, hubY + hubH + 4] : [midX, ry + rowH + 4], to: isOut ? [midX, ry - 6] : [midX, hubY - 6], style: { stroke: isOut ? r.pop : r.primary, strokeWidth: 2.5 } }), endArrow: true });
         elements.push({ type: 'shape', id: `${id}-${isOut ? 'out' : 'in'}-card-${i + 1}`, bounds: [cx, ry, cw, rowH], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: 14 } });
-        elements.push({ type: 'shape', id: `${id}-${isOut ? 'out' : 'in'}-dot-${i + 1}`, bounds: [cx + 20, ry + 24, 12, 12], style: { fill: isOut ? (p.dark ? '#34D399' : '#10B981') : (i === 0 ? r.pop : r.primary), radius: 6 }, shape: 'ellipse' });
-        elements.push(textElement({ id: `${id}-${isOut ? 'out' : 'in'}-t-${i + 1}`, text: item.title || '', bounds: [cx + 42, ry + 18, cw - 60, 28], style: theme.font(22, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
-        if (item.detail) elements.push(textElement({ id: `${id}-${isOut ? 'out' : 'in'}-d-${i + 1}`, text: item.detail, bounds: [cx + 20, ry + 54, cw - 40, 52], style: theme.font(18, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.35 }) }));
+        elements.push({ type: 'shape', id: `${id}-${isOut ? 'out' : 'in'}-dot-${i + 1}`, bounds: [cx + 16, ry + 22, 12, 12], style: { fill: isOut ? (p.dark ? '#34D399' : '#10B981') : (i === 0 ? r.pop : r.primary), radius: 6 }, shape: 'ellipse' });
+        elements.push(textElement({ id: `${id}-${isOut ? 'out' : 'in'}-t-${i + 1}`, text: item.title || '', bounds: [cx + 36, ry + 16, cw - 50, 26], style: theme.font(narrowCard ? 18 : 20, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+        if (item.detail) elements.push(textElement({ id: `${id}-${isOut ? 'out' : 'in'}-d-${i + 1}`, text: item.detail, bounds: [cx + 16, ry + 48, cw - 32, rowH - 54], style: theme.font(narrowCard ? 15 : 17, { fontWeight: 400, color: p.body || '#475569', lineHeight: 1.35 }) }));
       });
     };
     drawRow(inList, curY, false);
     drawRow(outList, outY, true);
     const badgeTxt = center.badge || 'CORE';
     const lPillW = Math.min(200, Math.max(88, Math.ceil(textWidth(badgeTxt, 14) * 1.2) + 28));
+    const hubTitleX = x + pad + 28 + lPillW + 18;
+    const hubTitleW = Math.min(360, Math.max(180, Math.round(iw * 0.36)));
+    const hubSubX = hubTitleX + hubTitleW + 16;
+    const hubSubW = Math.max(140, x + pad + iw - 24 - hubSubX);
     elements.push({ type: 'shape', id: `${id}-hub-card`, bounds: [x + pad, hubY, iw, hubH], style: { fill: r.primary, radius: 18 } });
     elements.push({ type: 'shape', id: `${id}-hub-trim`, bounds: [x + pad + 28, hubY, iw - 56, 5], style: { fill: r.pop, radius: 3 } });
-    elements.push({ type: 'shape', id: `${id}-hub-pill`, bounds: [x + pad + 32, hubY + 41, lPillW, 28], style: { fill: r.pop, radius: 14 } });
-    elements.push(textElement({ id: `${id}-hub-ptx`, text: badgeTxt, bounds: [x + pad + 32, hubY + 45, lPillW, 20], style: theme.font(14, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
-    elements.push(textElement({ id: `${id}-hub-t`, text: center.title || '核心中台', bounds: [x + pad + 32 + lPillW + 20, hubY + 34, 380, 40], style: theme.font(30, { fontWeight: 900, color: p.inverse, lineHeight: 1.25 }) }));
-    if (center.sub) elements.push(textElement({ id: `${id}-hub-sub`, text: String(center.sub).replace(/\n/g, '  ·  '), bounds: [x + pad + 32 + lPillW + 412, hubY + 40, Math.max(200, iw - (64 + lPillW + 412)), 32], style: theme.font(20, { fontWeight: 300, color: p.inverse, textAlign: 'right', lineHeight: 1.3 }) }));
+    elements.push({ type: 'shape', id: `${id}-hub-pill`, bounds: [x + pad + 28, hubY + Math.round((hubH - 28) / 2), lPillW, 28], style: { fill: r.pop, radius: 14 } });
+    elements.push(textElement({ id: `${id}-hub-ptx`, text: badgeTxt, bounds: [x + pad + 28, hubY + Math.round((hubH - 28) / 2) + 4, lPillW, 20], style: theme.font(14, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-hub-t`, text: center.title || '核心中台', bounds: [hubTitleX, hubY + Math.round((hubH - 38) / 2), hubTitleW, 38], style: theme.font(iw < 980 ? 22 : 28, { fontWeight: 900, color: p.inverse, lineHeight: 1.25 }) }));
+    if (center.sub) elements.push(textElement({ id: `${id}-hub-sub`, text: String(center.sub).replace(/\n/g, '  ·  '), bounds: [hubSubX, hubY + Math.round((hubH - 32) / 2), hubSubW, 32], style: theme.font(iw < 980 ? 16 : 19, { fontWeight: 400, color: p.inverse, textAlign: 'right', lineHeight: 1.3 }) }));
     return { elements, height: h };
   }
 
   const rowsMax = Math.max(inList.length, outList.length, 1);
-  const nodeGap = 20, baseNodeH = 108;
+  const nodeGap = isCompact ? 14 : 20, baseNodeH = isCompact ? 98 : 108;
   const natural = pad * 2 + headH + rowsMax * baseNodeH + (rowsMax - 1) * nodeGap;
   const h = Math.max(natural, height || 0);
   const bodyH = h - pad * 2 - headH;
@@ -1253,10 +1306,11 @@ export function hubArchitecture({ id, x, y, width, height, title = '', center = 
     { type: 'shape', id: `${id}-panel`, component: 'hubArchitecture', bounds: [x, y, width, h], style: { fill: p.dark ? (p.band || '#142138') : '#F8FAFC', stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } },
   ];
   if (title) {
-    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, y + pad, iw, 34], style: theme.font(24, { fontWeight: 700, color: readableInk(p.accent, p.dark ? '#142138' : '#F8FAFC'), lineHeight: 1.3 }) }));
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, y + pad, iw, 34], style: theme.font(isCompact ? 21 : 24, { fontWeight: 700, color: readableInk(p.accent, p.dark ? '#142138' : '#F8FAFC'), lineHeight: 1.3 }) }));
   }
 
   const colW = Math.floor(iw * 0.31);
+  const narrowCol = colW < 280;
   const hubW = Math.floor(iw * 0.22);
   const connW = Math.floor((iw - colW * 2 - hubW) / 2);
   const leftX = x + pad;
@@ -1280,13 +1334,14 @@ export function hubArchitecture({ id, x, y, width, height, title = '', center = 
 
       elements.push({ type: 'shape', id: `${id}-${isOutput ? 'out' : 'in'}-card-${i + 1}`, bounds: [cx, ny, colW, nodeH], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: 14 } });
       const dotColor = isOutput ? (p.dark ? '#34D399' : '#10B981') : (i === 0 ? r.pop : r.primary);
-      elements.push({ type: 'shape', id: `${id}-${isOutput ? 'out' : 'in'}-dot-${i + 1}`, bounds: [cx + 18, ny + Math.round((nodeH - 12) / 2), 12, 12], style: { fill: dotColor, radius: 6 }, shape: 'ellipse' });
+      elements.push({ type: 'shape', id: `${id}-${isOutput ? 'out' : 'in'}-dot-${i + 1}`, bounds: [cx + 16, ny + Math.round((nodeH - 12) / 2), 12, 12], style: { fill: dotColor, radius: 6 }, shape: 'ellipse' });
 
       const hasDet = Boolean(item.detail);
-      const textStartY = ny + Math.round((nodeH - (hasDet ? 54 : 28)) / 2);
-      elements.push(textElement({ id: `${id}-${isOutput ? 'out' : 'in'}-t-${i + 1}`, text: item.title || '', bounds: [cx + 42, textStartY, colW - 58, 28], style: theme.font(22, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      const detH = narrowCol ? 40 : 28;
+      const textStartY = ny + Math.max(10, Math.round((nodeH - (hasDet ? 26 + detH : 28)) / 2));
+      elements.push(textElement({ id: `${id}-${isOutput ? 'out' : 'in'}-t-${i + 1}`, text: item.title || '', bounds: [cx + 38, textStartY, colW - 52, 26], style: theme.font(narrowCol ? 18 : 20, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
       if (hasDet) {
-        elements.push(textElement({ id: `${id}-${isOutput ? 'out' : 'in'}-d-${i + 1}`, text: item.detail, bounds: [cx + 42, textStartY + 30, colW - 58, 26], style: theme.font(18, { fontWeight: 300, color: p.muted || '#64748B', lineHeight: 1.3 }) }));
+        elements.push(textElement({ id: `${id}-${isOutput ? 'out' : 'in'}-d-${i + 1}`, text: item.detail, bounds: [cx + 38, textStartY + 26, colW - 52, detH], style: theme.font(narrowCol ? 15 : 17, { fontWeight: 400, color: p.body || '#475569', lineHeight: 1.3 }) }));
       }
     });
   };
@@ -1302,9 +1357,9 @@ export function hubArchitecture({ id, x, y, width, height, title = '', center = 
   elements.push({ type: 'shape', id: `${id}-hub-pill`, bounds: [hubX + Math.round((hubW - corePillW) / 2), hubY + Math.round(hubH * 0.22), corePillW, 28], style: { fill: r.pop, radius: 14 } });
   elements.push(textElement({ id: `${id}-hub-ptx`, text: hBadgeTxt, bounds: [hubX + Math.round((hubW - corePillW) / 2), hubY + Math.round(hubH * 0.22) + 4, corePillW, 20], style: theme.font(14, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
   const hubTitle = center.title || '核心中台';
-  elements.push(textElement({ id: `${id}-hub-t`, text: hubTitle, bounds: [hubX + 18, hubY + Math.round(hubH * 0.44), hubW - 36, 40], style: theme.font(26, { fontWeight: 900, color: p.inverse, textAlign: 'center', lineHeight: 1.25 }) }));
+  elements.push(textElement({ id: `${id}-hub-t`, text: hubTitle, bounds: [hubX + 18, hubY + Math.round(hubH * 0.44), hubW - 36, 40], style: theme.font(narrowCol ? 22 : 26, { fontWeight: 900, color: p.inverse, textAlign: 'center', lineHeight: 1.25 }) }));
   if (center.sub) {
-    elements.push(textElement({ id: `${id}-hub-sub`, text: center.sub, bounds: [hubX + 18, hubY + Math.round(hubH * 0.66), hubW - 36, 48], style: theme.font(18, { fontWeight: 300, color: p.inverse, textAlign: 'center', lineHeight: 1.35 }) }));
+    elements.push(textElement({ id: `${id}-hub-sub`, text: center.sub, bounds: [hubX + 18, hubY + Math.round(hubH * 0.66), hubW - 36, 48], style: theme.font(narrowCol ? 16 : 18, { fontWeight: 400, color: p.inverse, textAlign: 'center', lineHeight: 1.35 }) }));
   }
 
   return { elements, height: h };

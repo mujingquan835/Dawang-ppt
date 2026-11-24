@@ -15,7 +15,7 @@ const fitSize = (text, width, max, min = 28) => {
   const em = Math.max(1, textWidth(String(text), 1));
   return Math.max(min, Math.min(max, Math.floor((width * 0.92) / em)));
 };
-const valueRuns = (value, unit, size, color) => [{ text: String(value), style: { fontSize: size, fontWeight: 900, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: Math.max(20, Math.round(size * 0.4)), fontWeight: 300, color } }] : [])];
+const valueRuns = (value, unit, size, color) => [{ text: String(value), style: { fontSize: size, fontWeight: 900, color } }, ...(unit ? [{ text: ' ' + unit, style: { fontSize: Math.max(15, Math.round(size * 0.38)), fontWeight: 400, color } }] : [])];
 
 export function answerBlock({ id, x, y, width, height, label, value, unit, note, theme, fill }) {
   const p = theme.palette, r = colorRoles(p), pad = 36, iw = width - pad * 2;
@@ -37,15 +37,15 @@ export function answerBlock({ id, x, y, width, height, label, value, unit, note,
 
 // before / after: { label, value, unit? }; note: one line under both (达成 128.6%, 同比 +56%).
 export function comparePair({ id, x, y, width, height, before, after, note, theme, solidAfter = false }) {
-  const p = theme.palette, r = colorRoles(p), arrow = 64, sideW = Math.round((width - arrow) / 2), pad = 28;
-  const size = Math.min(fitSize(`${before.value}${before.unit ? ' ' + before.unit : ''}`, sideW - pad * 2, 72), fitSize(`${after.value}${after.unit ? ' ' + after.unit : ''}`, sideW - pad * 2, 72));
-  const valueH = Math.round(size * 1.3), noteH = note ? 40 : 0, need = pad * 2 + 36 + 8 + valueH;
+  const p = theme.palette, r = colorRoles(p), arrow = width < 480 ? 44 : 64, sideW = Math.round((width - arrow) / 2), pad = width < 480 ? 18 : 26;
+  const size = Math.min(fitSize(`${before.value}${before.unit ? ' ' + before.unit : ''}`, sideW - pad * 2, 64, 18), fitSize(`${after.value}${after.unit ? ' ' + after.unit : ''}`, sideW - pad * 2, 64, 18));
+  const valueH = Math.round(size * 1.3), noteH = note ? 40 : 0, need = pad * 2 + 28 + 8 + valueH;
   const sideH = Math.max(need, (height || 0) - noteH), elements = [];
   const side = (k, s, sx, fillColor, ink) => {
     elements.push({ type: 'shape', id: `${id}-${k}`, ...(k === 'after' ? { component: 'comparePair' } : {}), bounds: [sx, y, sideW, sideH], style: { fill: fillColor, radius: theme.radius ?? 0 } });
-    const top = y + Math.round((sideH - (36 + 8 + valueH)) / 2);
-    elements.push(textElement({ id: `${id}-${k}-label`, text: s.label, bounds: [sx + pad, top, sideW - pad * 2, 36], style: theme.font(24, { fontWeight: 700, color: ink }) }));
-    elements.push(textElement({ id: `${id}-${k}-value`, text: `${s.value}${s.unit ? ' ' + s.unit : ''}`, runs: valueRuns(s.value, s.unit, size, ink), bounds: [sx + pad, top + 44, sideW - pad * 2, valueH], style: theme.font(size, { fontWeight: 800, color: ink, lineHeight: 1.15 }) }));
+    const top = y + Math.round((sideH - (28 + 8 + valueH)) / 2);
+    elements.push(textElement({ id: `${id}-${k}-label`, text: s.label, bounds: [sx + pad, top, sideW - pad * 2, 28], style: theme.font(18, { fontWeight: 600, color: ink }) }));
+    elements.push(textElement({ id: `${id}-${k}-value`, text: `${s.value}${s.unit ? ' ' + s.unit : ''}`, runs: valueRuns(s.value, s.unit, size, ink), bounds: [sx + pad, top + 36, sideW - pad * 2, valueH], style: theme.font(size, { fontWeight: 800, color: ink, lineHeight: 1.15 }) }));
   };
   side('before', before, x, r.soft, r.secondaryInk);
   side('after', after, x + sideW + arrow, solidAfter ? r.primary : r.band, solidAfter ? p.inverse : r.primary);

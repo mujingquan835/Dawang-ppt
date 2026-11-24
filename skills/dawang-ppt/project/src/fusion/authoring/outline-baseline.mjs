@@ -88,6 +88,8 @@ function collect(outline, baseDir) {
       addZone(key, 'labelBand', 'support', [addNode(key, 'statement', st.text, st, st.from)]);
     });
     if (page.role === 'cover') addZone('cover', 'coverPanel', 'focus', [addNode('status', 'statement', page.keyLine.text, page, { locator: page.keyLine.from || '封面状态句', excerpt: page.keyLine.text })]);
+    else if (page.role === 'section') addZone('section', 'sectionPanel', 'focus', [addNode('status', 'statement', page.keyLine.text, page, { locator: page.keyLine.from || '章节导引句', excerpt: page.keyLine.text })]);
+    else if (page.role === 'closing') addZone('closing', 'closingPanel', 'focus', [addNode('status', 'statement', page.keyLine.text, page, { locator: page.keyLine.from || '收尾总结句', excerpt: page.keyLine.text })]);
     if (dataRefs.length) addZone('metrics', 'metricTiles', 'data', dataRefs);
     if (itemRefs.length) addZone('items', 'numberedList', 'support', itemRefs);
     stepsOf(page.flows, 'flow');

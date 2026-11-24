@@ -13,6 +13,7 @@ import { exportProjectPptxHeadless } from '../export/pptx.mjs';
 import { reportPalette } from './report-palettes.mjs';
 import { renderPreviewGrid } from './preview-grid.mjs';
 import { attachLayoutVariants } from './layout-variants.mjs';
+import { normalizeAndLintOutline } from './outline-normalizer.mjs';
 
 function slugifyProjectId(title) {
   const ascii = String(title || 'deck')
@@ -32,13 +33,15 @@ function normalizeSemanticOutline(raw) {
   const scenario = raw.scenario || 'management-report';
   const pages = (raw.pages || []).map((p, idx) => {
     const id = p.id || `p${idx + 1}`;
+    const role = p.role || (idx === 0 && p.isCover ? 'cover' : 'summary');
+    const fallbackText = p.subtitle || p.name || p.title || (role === 'closing' ? '感谢聆听 · 欢迎指正' : role === 'section' ? `章节 ${idx + 1}` : `第 ${idx + 1} 页`);
     const keyLine = typeof p.keyLine === 'string'
       ? { text: p.keyLine, source: 'quoted', from: 'outline' }
-      : (p.keyLine || { text: p.title || `第 ${idx + 1} 页`, source: 'quoted', from: 'outline' });
+      : (p.keyLine || { text: fallbackText, source: 'quoted', from: 'outline' });
     return {
       ...p,
       id,
-      role: p.role || (idx === 0 && p.isCover ? 'cover' : 'summary'),
+      role,
       keyLine,
     };
   });
@@ -70,6 +73,11 @@ function buildLightweightScaffold(outline, paletteId) {
     if (p.role === 'cover') {
       addZone('cover', 'focus');
       if (p.data?.length) addZone('metrics', 'data');
+      if (p.photos?.length) addZone('photos', 'media');
+    } else if (p.role === 'section' || p.role === 'closing') {
+      addZone(p.role, 'focus');
+      if (p.data?.length) addZone('metrics', 'data');
+      if (p.items?.length) addZone('items', 'evidence');
       if (p.photos?.length) addZone('photos', 'media');
     } else {
       if (p.data?.length) addZone('metrics', 'data');
@@ -151,6 +159,7 @@ export async function fastBuildDeck({
   outFile,
   pptxFile = null,
   previewFile = null,
+  packFile = null,
   palette = null,
   header = 'tag',
   footer,
@@ -163,14 +172,37 @@ export async function fastBuildDeck({
   const absInput = path.resolve(inputFile);
   const inputDir = path.dirname(absInput);
   const raw = JSON.parse(fs.readFileSync(absInput, 'utf8'));
+  const explicitWsDir = workspaceDir ? path.resolve(workspaceDir) : null;
+  const existingWsFile = explicitWsDir ? path.join(explicitWsDir, 'deck-project.json') : null;
+  const prevWorkspaceProject = existingWsFile && fs.existsSync(existingWsFile)
+    ? (() => { try { return loadProject(existingWsFile); } catch { return null; } })()
+    : null;
 
   let project;
   let composeInfo = null;
+  let outlineLintInfo = null;
 
   const composeStart = performance.now();
   if (Array.isArray(raw.pages)) {
+    // Pre-compose normalizer: resolve IMG-XX / TBL-XX short IDs, strip duplicate numberings, auto-fill pct & focus
+    const { outline: lintedOutline, report: lintReport } = normalizeAndLintOutline(raw, {
+      packFile,
+      baseDir: inputDir,
+    });
+    outlineLintInfo = {
+      packFile: lintReport.packFile,
+      resolvedPhotos: lintReport.resolvedPhotosCount,
+      resolvedTables: lintReport.resolvedTablesCount,
+      autoFixes: lintReport.autoFixes.length,
+      warnings: lintReport.warnings,
+      overloadPages: lintReport.overloadPages,
+      sparsePages: lintReport.sparsePages,
+    };
     // Lightweight semantic outline -> deterministic whole-deck composer (pure Node)
-    const outline = normalizeSemanticOutline(raw);
+    const outline = normalizeSemanticOutline({
+      ...lintedOutline,
+      ...(lintedOutline.projectId ? {} : prevWorkspaceProject?.requirements?.projectId ? { projectId: prevWorkspaceProject.requirements.projectId } : {}),
+    });
     const paletteChoice = palette || raw.palette || 'blue-gold';
     const deck = buildLightweightScaffold(outline, paletteChoice);
     const measurer = createFastMeasurer();
@@ -230,7 +262,10 @@ export async function fastBuildDeck({
   const wsDir = workspacePath(project.requirements.projectId, workspaceDir);
   const staged = stageMedia(project, inputDir, wsDir);
   const projectFile = path.join(wsDir, 'deck-project.json');
-  const saved = saveProject(projectFile, staged, null);
+  const existingRev = fs.existsSync(projectFile)
+    ? (() => { try { return loadProject(projectFile)?.revision || null; } catch { return null; } })()
+    : null;
+  const saved = saveProject(projectFile, staged, existingRev);
   if (!saved.ok) throw new Error('Failed to save workspace project: ' + JSON.stringify(saved));
   project = saved.project;
   phases.workspaceMs = Math.round(performance.now() - stageStart);
@@ -289,6 +324,7 @@ export async function fastBuildDeck({
     ...(pptxResult ? { pptx: pptxResult } : {}),
     ...(previewResult ? { preview: previewResult } : {}),
     ...(composeInfo ? { compose: composeInfo } : {}),
+    ...(outlineLintInfo ? { outlineLint: outlineLintInfo } : {}),
     phases,
     durationMs: Math.round(performance.now() - start),
   };

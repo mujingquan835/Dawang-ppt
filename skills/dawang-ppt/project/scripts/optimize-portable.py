@@ -62,14 +62,29 @@ def optimize_one_image(spec: dict) -> dict:
         b64 = spec["dataUrl"].split(",", 1)[1]
         raw = base64.b64decode(b64)
 
-    # Keep small images (< 90 KB) or SVGs/GIFs untouched
-    if len(raw) < 90_000:
-        mime = spec.get("mime", "image/jpeg")
+    is_png = len(raw) >= 8 and raw[:8] == b"\x89PNG\r\n\x1a\n"
+    is_jpg = len(raw) >= 2 and raw[:2] == b"\xff\xd8"
+    is_webp = len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WEBP"
+    is_gif = len(raw) >= 3 and raw[:3] == b"GIF"
+    # Only treat as SVG when magic bytes are NOT a raster format (some AI PNGs embed a C2PA <svg> icon in metadata chunks)
+    is_svg = (not (is_png or is_jpg or is_webp or is_gif)) and (
+        spec.get("mime") == "image/svg+xml" or raw.lstrip()[:1024].lower().startswith((b"<svg", b"<?xml"))
+    )
+    if is_svg or is_gif:
+        mime = "image/svg+xml" if is_svg else "image/gif"
         return {"key": key, "dataUrl": f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"}
 
     im = Image.open(io.BytesIO(raw))
     if im.format in ("GIF",):
         return {"key": key, "dataUrl": f"data:image/gif;base64,{base64.b64encode(raw).decode('ascii')}"}
+
+    exif_orientation = im.getexif().get(0x0112, 1) if hasattr(im, "getexif") else 1
+    must_transcode = is_webp or spec.get("mime") == "image/webp" or (exif_orientation not in (None, 1))
+
+    # Keep small standard images (< 90 KB) untouched unless WebP or EXIF-rotated
+    if len(raw) < 90_000 and not must_transcode:
+        mime = spec.get("mime", "image/jpeg")
+        return {"key": key, "dataUrl": f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"}
 
     im = ImageOps.exif_transpose(im)
     has_alpha = im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info)
@@ -91,8 +106,8 @@ def optimize_one_image(spec: dict) -> dict:
         mime = "image/jpeg"
 
     optimized = out.getvalue()
-    # Only replace if actually smaller (or resized)
-    if len(optimized) < len(raw) or max(w, h) > max_dim:
+    # Always use transcoded output for WebP/EXIF-rotated images, or when smaller/resized
+    if must_transcode or len(optimized) < len(raw) or max(w, h) > max_dim:
         return {"key": key, "dataUrl": f"data:{mime};base64,{base64.b64encode(optimized).decode('ascii')}"}
     orig_mime = spec.get("mime", "image/png")
     return {"key": key, "dataUrl": f"data:{orig_mime};base64,{base64.b64encode(raw).decode('ascii')}"}
