@@ -726,6 +726,44 @@ def detect_relation_signals(docs: list[dict], tables: list[dict], directives: li
         signals.append({"component": "periods", "reason": "存在时间周期或阶段推进节点", "evidence": "时间轴关键词"})
     if re.search(r"闭环|流程|步骤|链路|复盘回流", blob):
         signals.append({"component": "flows", "reason": "存在步骤链路或闭环回流", "evidence": "流程闭环关键词"})
+    if re.search(r"四象限|象限|优先级|重要.*紧急|价值.*(?:复杂度|难度|成本)|波士顿", blob):
+        signals.append({"component": "matrix", "reason": "存在二维优先级/定位划分", "evidence": "四象限/优先级关键词"})
+    if re.search(r"(?:问题|痛点|现状).*(?:原因|根因|症结|归因).*(?:解法|对策|方案|举措|优化)", blob, re.S):
+        signals.append({"component": "diagnosis", "reason": "存在「问题→归因→解法」三联复盘逻辑", "evidence": "复盘诊断三段结构"})
+    if re.search(r"(?:月度|全年|12\s*个?月|多周期).*(?:达标|达成|追踪|SLA|预警)|达标\s*\d+/\d+", blob):
+        signals.append({"component": "tracker", "reason": "存在连续多周期达标/预警状态追踪", "evidence": "多周期达标关键词"})
+    if re.search(r"方案对比|竞品对比|选型|能力矩阵|支持.*不支持|版本差异", blob):
+        signals.append({"component": "featureMatrix", "reason": "存在多方案/竞品能力勾选对比", "evidence": "方案选型对比关键词"})
+    if re.search(r"(?:达成率|完成率|按期率|满意度|覆盖率).*(?:\d+%|\d+\.\d+%)", blob):
+        signals.append({"component": "gauges", "reason": "存在多项百分比达成率指标，适合环形仪表盘", "evidence": "多达成率百分比"})
+    if re.search(r"金字塔|分层架构|战略分层|(?:愿景层|应用层|中台层|能力层|底座层)", blob):
+        signals.append({"component": "pyramid", "reason": "存在自顶向下或底座支撑的分层战略/架构", "evidence": "分层架构关键词"})
+    if re.search(r"甘特|多团队.*排期|并行.*(?:排期|研发|推进)|泳道|看板", blob):
+        signals.append({"component": "gantt", "reason": "存在跨团队多泳道并行排期或任务看板", "evidence": "甘特/并行排期关键词"})
+    if re.search(r"客户反馈|一线声音|用户证言|评价|金句|负责人反馈", blob):
+        signals.append({"component": "quotes", "reason": "存在客户证言、一线反馈或高管金句", "evidence": "证言/金句关键词"})
+    if re.search(r"同比|环比|去年.*今年|各季度|分月对比", blob):
+        signals.append({"component": "barChart", "reason": "存在多周期/同比双柱对比数据", "evidence": "同比/周期柱图关键词"})
+    if re.search(r"增长走势|月度趋势|变化曲线|走势.*目标", blob):
+        signals.append({"component": "lineChart", "reason": "存在连续时间序列增长曲线与趋势走势", "evidence": "趋势曲线关键词"})
+    if re.search(r"TOP\s*\d+|排行|榜单|大区贡献|排名前", blob, re.I):
+        signals.append({"component": "rankList", "reason": "存在 TOP 排行榜或区域/渠道贡献排序", "evidence": "排行榜关键词"})
+    if re.search(r"一页纸|高管总览|执行摘要|Executive\s*Summary|核心定调", blob, re.I):
+        signals.append({"component": "execBrief", "reason": "存在高管一页纸核心定调与辅指标汇总", "evidence": "高管摘要关键词"})
+    if re.search(r"增长飞轮|生态闭环|正循环|PDCA|环形闭环", blob, re.I):
+        signals.append({"component": "orbit", "reason": "存在核心引擎驱动的环形增长飞轮/生态正循环", "evidence": "飞轮/正循环关键词"})
+    if re.search(r"冰山|水面.*水下|表象.*(?:根因|本质|深层)|外显.*底层", blob):
+        signals.append({"component": "iceberg", "reason": "存在表象症状与深层根因的冰山双层归因", "evidence": "冰山/表象根因关键词"})
+    if re.search(r"雷达|五维|六维|多维.*(?:评估|能力|成熟度|评分)", blob):
+        signals.append({"component": "radar", "reason": "存在多维度能力评分/成熟度评估", "evidence": "多维能力评分关键词"})
+    if re.search(r"立项档案|项目概况|基本信息|负责人.*预算|实施周期", blob):
+        signals.append({"component": "specCard", "reason": "存在项目档案/结构化属性键值信息", "evidence": "立项/档案键值关键词"})
+    if re.search(r"OKR|KR\s*[1-9]|关键结果|核心目标.*关键结果", blob, re.I):
+        signals.append({"component": "okr", "reason": "存在 Objective 与 KR 关键结果目标拆解", "evidence": "OKR关键词"})
+    if re.search(r"风险.*(?:预案|应对|措施)|高风险|中风险|风险盘点", blob):
+        signals.append({"component": "risks", "reason": "存在风险分级预警与应对预案", "evidence": "风险预案关键词"})
+    if re.search(r"双轨|业务线.*技术线|业务.*支撑.*路线图|双线协同", blob):
+        signals.append({"component": "dualTrack", "reason": "存在业务与技术双轨并行协同路线图", "evidence": "双轨路线图关键词"})
     return signals
 
 

@@ -69,12 +69,11 @@ function photoNodes(id, src, bounds, ph = {}, t = {}, radius = 16) {
   if (ih > availH) { ih = availH; iw = ih * r; }
   iw = Math.max(1, Math.round(iw));
   ih = Math.max(1, Math.round(ih));
-  const tightCard = bw > Math.max(240, iw + 64);
-  const cardW = tightCard ? Math.min(bw, Math.max(220, iw + 36)) : bw;
-  const cardX = bx + Math.round((bw - cardW) / 2);
+  const cardW = bw;
+  const cardX = bx;
   const ix = cardX + Math.round((cardW - iw) / 2);
   const iy = by + padTop + Math.round((availH - ih) / 2);
-  const cardFill = t.dark ? '#162238' : '#F8FAFC';
+  const cardFill = t.dark ? '#162238' : (t.pale || '#F4F7FB');
   const cardStroke = t.line || (t.dark ? '#334155' : '#CBD5E1');
   const els = [
     shape(`${id}-card`, [cardX, by, cardW, bh], { fill: cardFill, stroke: cardStroke, strokeWidth: 1.5, radius: Math.max(12, radius) }),
@@ -1034,6 +1033,64 @@ export function attachLayoutVariants({ deck, outline, palette, footer = '', base
         if (!needText(page.hub.center?.title)) return false;
         for (const hi of asList(page.hub.inputs)) if (!needText(hi.title)) return false;
         for (const ho of asList(page.hub.outputs)) if (!needText(ho.title)) return false;
+      }
+      if (page.matrix) {
+        for (const q of asList(page.matrix.quadrants)) if (!needText(q.title)) return false;
+      }
+      if (page.diagnosis) {
+        for (const di of asList(page.diagnosis.items)) if (!needText(di.title)) return false;
+      }
+      if (page.tracker) {
+        for (const ti of asList(page.tracker.items)) if (!needText(ti.label)) return false;
+      }
+      if (page.featureMatrix) {
+        for (const fr of asList(page.featureMatrix.rows)) if (!needText(Array.isArray(fr) ? fr[0] : fr.feature)) return false;
+      }
+      if (page.gauges) {
+        for (const gi of asList(Array.isArray(page.gauges) ? page.gauges : page.gauges.items)) if (!needText(gi.label)) return false;
+      }
+      if (page.pyramid) {
+        for (const ly of asList(Array.isArray(page.pyramid) ? page.pyramid : page.pyramid.layers)) if (!needText(ly.title)) return false;
+      }
+      if (page.gantt) {
+        for (const ln of asList(Array.isArray(page.gantt) ? page.gantt : page.gantt.lanes)) if (!needText(ln.task || ln.name)) return false;
+      }
+      if (page.quotes) {
+        for (const qi of asList(Array.isArray(page.quotes) ? page.quotes : page.quotes.items)) if (!needText(qi.author || qi.quote)) return false;
+      }
+      if (page.barChart) {
+        for (const c of asList(page.barChart.categories)) if (!needText(c)) return false;
+      }
+      if (page.lineChart) {
+        for (const c of asList(page.lineChart.categories)) if (!needText(c)) return false;
+      }
+      if (page.rankList) {
+        for (const ri of asList(Array.isArray(page.rankList) ? page.rankList : page.rankList.items)) if (!needText(ri.label)) return false;
+      }
+      if (page.execBrief) {
+        if (!needText(page.execBrief.headline || page.execBrief.value)) return false;
+      }
+      if (page.orbit) {
+        for (const nd of asList(page.orbit.nodes)) if (!needText(nd.title)) return false;
+      }
+      if (page.iceberg) {
+        const dList = Array.isArray(page.iceberg.deep) ? page.iceberg.deep : asList(page.iceberg.deep?.items);
+        for (const di of dList) if (!needText(di.title)) return false;
+      }
+      if (page.radar) {
+        for (const ri of asList(Array.isArray(page.radar) ? page.radar : page.radar.items)) if (!needText(ri.label)) return false;
+      }
+      if (page.specCard) {
+        for (const si of asList(Array.isArray(page.specCard) ? page.specCard : page.specCard.items)) if (!needText(si.label)) return false;
+      }
+      if (page.okr) {
+        for (const kr of asList(page.okr.keyResults)) if (!needText(kr.title)) return false;
+      }
+      if (page.risks) {
+        for (const rk of asList(Array.isArray(page.risks) ? page.risks : page.risks.items)) if (!needText(rk.risk)) return false;
+      }
+      if (page.dualTrack) {
+        for (const tr of asList(page.dualTrack.tracks)) if (!needText(tr.name)) return false;
       }
       if (asList(page.photos).length > 0 && imgCount === 0) return false;
       return true;

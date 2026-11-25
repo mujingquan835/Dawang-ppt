@@ -161,6 +161,25 @@ function evaluatePageHealth(page, pageId) {
   if (page.breakdown) activeZones.push('breakdown');
   if (page.funnel) activeZones.push('funnel');
   if (page.hub) activeZones.push('hub');
+  if (page.matrix) activeZones.push('matrix');
+  if (page.diagnosis) activeZones.push('diagnosis');
+  if (page.tracker) activeZones.push('tracker');
+  if (page.featureMatrix) activeZones.push('featureMatrix');
+  if (page.gauges) activeZones.push('gauges');
+  if (page.pyramid) activeZones.push('pyramid');
+  if (page.gantt) activeZones.push('gantt');
+  if (page.quotes) activeZones.push('quotes');
+  if (page.barChart) activeZones.push('barChart');
+  if (page.lineChart) activeZones.push('lineChart');
+  if (page.rankList) activeZones.push('rankList');
+  if (page.execBrief) activeZones.push('execBrief');
+  if (page.orbit) activeZones.push('orbit');
+  if (page.iceberg) activeZones.push('iceberg');
+  if (page.radar) activeZones.push('radar');
+  if (page.specCard) activeZones.push('specCard');
+  if (page.okr) activeZones.push('okr');
+  if (page.risks) activeZones.push('risks');
+  if (page.dualTrack) activeZones.push('dualTrack');
   if (page.compare) activeZones.push('compare');
   if (periods.length) activeZones.push('periods');
   if (tables.length) activeZones.push('table');
@@ -174,6 +193,25 @@ function evaluatePageHealth(page, pageId) {
   if (page.breakdown) loadScore += 42;
   if (page.funnel) loadScore += 46;
   if (page.hub) loadScore += 48;
+  if (page.matrix) loadScore += 48;
+  if (page.diagnosis) loadScore += 42;
+  if (page.tracker) loadScore += 38;
+  if (page.featureMatrix) loadScore += 44;
+  if (page.gauges) loadScore += 42;
+  if (page.pyramid) loadScore += 44;
+  if (page.gantt) loadScore += 46;
+  if (page.quotes) loadScore += 40;
+  if (page.barChart) loadScore += 44;
+  if (page.lineChart) loadScore += 44;
+  if (page.rankList) loadScore += 42;
+  if (page.execBrief) loadScore += 46;
+  if (page.orbit) loadScore += 46;
+  if (page.iceberg) loadScore += 44;
+  if (page.radar) loadScore += 44;
+  if (page.specCard) loadScore += 36;
+  if (page.okr) loadScore += 44;
+  if (page.risks) loadScore += 40;
+  if (page.dualTrack) loadScore += 46;
   if (page.compare) {
     const rows = Math.max(asList(page.compare.left).length, asList(page.compare.right).length);
     loadScore += 36 + Math.min(rows, 6) * 4;
@@ -189,6 +227,25 @@ function evaluatePageHealth(page, pageId) {
     page.breakdown && 'breakdown',
     page.funnel && 'funnel',
     page.hub && 'hub',
+    page.matrix && 'matrix',
+    page.diagnosis && 'diagnosis',
+    page.tracker && 'tracker',
+    page.featureMatrix && 'featureMatrix',
+    page.gauges && 'gauges',
+    page.pyramid && 'pyramid',
+    page.gantt && 'gantt',
+    page.quotes && 'quotes',
+    page.barChart && 'barChart',
+    page.lineChart && 'lineChart',
+    page.rankList && 'rankList',
+    page.execBrief && 'execBrief',
+    page.orbit && 'orbit',
+    page.iceberg && 'iceberg',
+    page.radar && 'radar',
+    page.specCard && 'specCard',
+    page.okr && 'okr',
+    page.risks && 'risks',
+    page.dualTrack && 'dualTrack',
     page.compare && 'compare',
     periods.length && 'periods',
     tables.length && 'table',
@@ -235,6 +292,89 @@ function collectPageNumericBlob(page) {
     parts.push(page.hub.title, page.hub.center?.title, page.hub.center?.sub);
     for (const hi of asList(page.hub.inputs)) parts.push(hi.title, hi.detail);
     for (const ho of asList(page.hub.outputs)) parts.push(ho.title, ho.detail);
+  }
+  if (page.matrix) {
+    parts.push(page.matrix.title, page.matrix.xLabel, page.matrix.yLabel);
+    for (const q of asList(page.matrix.quadrants)) parts.push(q.title, q.tag, q.detail, ...asList(q.items).map((it) => (typeof it === 'string' ? it : `${it.title || ''} ${it.detail || ''}`)));
+  }
+  if (page.diagnosis) {
+    const dItems = Array.isArray(page.diagnosis) ? page.diagnosis : asList(page.diagnosis.items);
+    parts.push(page.diagnosis.title);
+    for (const di of dItems) parts.push(di.tag, di.title, di.detail, di.metric, ...asList(di.points));
+  }
+  if (page.tracker) {
+    const tItems = Array.isArray(page.tracker) ? page.tracker : asList(page.tracker.items);
+    parts.push(page.tracker.title, page.tracker.summary, page.tracker.badge);
+    for (const ti of tItems) parts.push(ti.label, ti.value, ti.note);
+  }
+  if (page.featureMatrix) {
+    parts.push(page.featureMatrix.title);
+    for (const fc of asList(page.featureMatrix.columns)) parts.push(typeof fc === 'string' ? fc : `${fc.name || ''} ${fc.badge || ''}`);
+    for (const fr of asList(page.featureMatrix.rows)) parts.push(Array.isArray(fr) ? fr.join(' ') : `${fr.feature || ''} ${asList(fr.values).join(' ')}`);
+  }
+  if (page.gauges) {
+    parts.push(page.gauges.title);
+    for (const gi of asList(Array.isArray(page.gauges) ? page.gauges : page.gauges.items)) parts.push(gi.label, gi.pct != null ? `${gi.pct}%` : '', gi.value, gi.target, gi.detail);
+  }
+  if (page.pyramid) {
+    parts.push(page.pyramid.title);
+    for (const ly of asList(Array.isArray(page.pyramid) ? page.pyramid : page.pyramid.layers)) parts.push(ly.level, ly.title, ly.detail, ly.badge);
+  }
+  if (page.gantt) {
+    parts.push(page.gantt.title, ...asList(page.gantt.columns));
+    for (const ln of asList(Array.isArray(page.gantt) ? page.gantt : page.gantt.lanes)) parts.push(ln.name, ln.task, ln.owner, ln.status);
+  }
+  if (page.quotes) {
+    parts.push(page.quotes.title);
+    for (const qi of asList(Array.isArray(page.quotes) ? page.quotes : page.quotes.items)) parts.push(qi.quote, qi.author, qi.role, qi.tag);
+  }
+  if (page.barChart) {
+    parts.push(page.barChart.title, page.barChart.unit, page.barChart.badge, ...asList(page.barChart.categories));
+    for (const s of asList(page.barChart.series)) parts.push(s.name, ...asList(s.values));
+  }
+  if (page.lineChart) {
+    parts.push(page.lineChart.title, page.lineChart.unit, page.lineChart.badge, ...asList(page.lineChart.categories));
+    for (const s of asList(page.lineChart.series)) parts.push(s.name, ...asList(s.values));
+  }
+  if (page.rankList) {
+    parts.push(page.rankList.title, page.rankList.unit, page.rankList.badge);
+    for (const ri of asList(Array.isArray(page.rankList) ? page.rankList : page.rankList.items)) parts.push(ri.label, ri.value, ri.delta);
+  }
+  if (page.execBrief) {
+    parts.push(page.execBrief.badge, page.execBrief.headline, page.execBrief.value, page.execBrief.unit, page.execBrief.summary);
+    for (const m of asList(page.execBrief.metrics)) parts.push(m.label, m.value, m.unit, m.delta);
+  }
+  if (page.orbit) {
+    parts.push(page.orbit.title, page.orbit.center?.title, page.orbit.center?.sub);
+    for (const nd of asList(page.orbit.nodes)) parts.push(nd.title, nd.detail);
+  }
+  if (page.iceberg) {
+    parts.push(page.iceberg.title, page.iceberg.waterlineLabel, page.iceberg.surface?.title, page.iceberg.surface?.summary);
+    const dList = Array.isArray(page.iceberg.deep) ? page.iceberg.deep : asList(page.iceberg.deep?.items);
+    for (const di of dList) parts.push(di.tag, di.title, di.detail);
+  }
+  if (page.radar) {
+    parts.push(page.radar.title, page.radar.badge);
+    for (const ri of asList(Array.isArray(page.radar) ? page.radar : page.radar.items)) parts.push(ri.label, ri.value, ri.detail);
+  }
+  if (page.specCard) {
+    parts.push(page.specCard.title, page.specCard.badge);
+    for (const si of asList(Array.isArray(page.specCard) ? page.specCard : page.specCard.items)) parts.push(si.label, si.value);
+  }
+  if (page.okr) {
+    parts.push(page.okr.title, page.okr.objective?.title, page.okr.objective?.progress != null ? `${page.okr.objective.progress}%` : '');
+    for (const kr of asList(page.okr.keyResults)) parts.push(kr.code, kr.title, kr.detail, kr.progress != null ? `${kr.progress}%` : '');
+  }
+  if (page.risks) {
+    parts.push(page.risks.title, page.risks.badge);
+    for (const rk of asList(Array.isArray(page.risks) ? page.risks : page.risks.items)) parts.push(rk.level, rk.risk, rk.impact, rk.mitigation);
+  }
+  if (page.dualTrack) {
+    parts.push(page.dualTrack.title);
+    for (const tr of asList(page.dualTrack.tracks)) {
+      parts.push(tr.name, tr.badge);
+      for (const st of asList(tr.steps)) parts.push(st.stage, st.title, st.detail);
+    }
   }
   if (page.compare) {
     for (const x of [...asList(page.compare.left), ...asList(page.compare.right)]) parts.push(x.title, x.detail);
@@ -417,6 +557,66 @@ export function normalizeAndLintOutline(rawOutline, { pack = null, packFile = nu
       page.breakdown = { ...page.breakdown, items: bItems };
     }
 
+    // 6b. Tolerant normalization for Batch 2 & Batch 3 modern UI modules
+    if (Array.isArray(page.diagnosis)) {
+      page.diagnosis = { items: page.diagnosis };
+      autoFixes.push({ page: pid, field: 'diagnosis', from: 'array', to: 'object{items}' });
+    }
+    if (Array.isArray(page.tracker)) {
+      page.tracker = { items: page.tracker };
+      autoFixes.push({ page: pid, field: 'tracker', from: 'array', to: 'object{items}' });
+    }
+    if (Array.isArray(page.gauges)) {
+      page.gauges = { items: page.gauges };
+      autoFixes.push({ page: pid, field: 'gauges', from: 'array', to: 'object{items}' });
+    }
+    if (page.gauges && Array.isArray(page.gauges.items)) {
+      page.gauges = {
+        ...page.gauges,
+        items: page.gauges.items.map((gi) => {
+          if (typeof gi.pct === 'string') {
+            const n = parseFloat(gi.pct.replace('%', '').trim());
+            if (Number.isFinite(n)) {
+              autoFixes.push({ page: pid, field: 'gauges.items[].pct', from: gi.pct, to: n });
+              return { ...gi, pct: n };
+            }
+          }
+          return gi;
+        }),
+      };
+    }
+    if (Array.isArray(page.pyramid)) {
+      page.pyramid = { layers: page.pyramid };
+      autoFixes.push({ page: pid, field: 'pyramid', from: 'array', to: 'object{layers}' });
+    }
+    if (Array.isArray(page.quotes)) {
+      page.quotes = { items: page.quotes };
+      autoFixes.push({ page: pid, field: 'quotes', from: 'array', to: 'object{items}' });
+    }
+    if (page.gantt && Array.isArray(page.gantt.lanes)) {
+      const gCols = asList(page.gantt.columns).map((c) => String(c).trim());
+      const resolveColIdx = (v, fallback) => {
+        if (typeof v === 'number' && Number.isFinite(v)) return v;
+        const s = String(v ?? '').trim();
+        const found = gCols.findIndex((c) => c === s || c.includes(s) || s.includes(c));
+        if (found >= 0) return found + 1;
+        const m = s.match(/\d+/);
+        return m ? Number(m[0]) : fallback;
+      };
+      page.gantt = {
+        ...page.gantt,
+        lanes: page.gantt.lanes.map((ln) => {
+          const ns = resolveColIdx(ln.start, 1);
+          const ne = Math.max(ns, resolveColIdx(ln.end, ns));
+          if (ns !== ln.start || ne !== ln.end) {
+            autoFixes.push({ page: pid, field: 'gantt.lanes[].start/end', from: `${ln.start}-${ln.end}`, to: `${ns}-${ne}` });
+            return { ...ln, start: ns, end: ne };
+          }
+          return ln;
+        }),
+      };
+    }
+
     // 7. Auto-pick focus from keyLine numeric figure when missing
     if (!['cover', 'section', 'closing'].includes(page.role) && effectiveKl && (!page.focus || !effectiveKl.includes(page.focus))) {
       const m = KEY_FOCUS_RE.exec(effectiveKl);
@@ -496,7 +696,7 @@ export function normalizeAndLintOutline(rawOutline, { pack = null, packFile = nu
     warnings.push({
       page: `p${mr.fromPage}+`,
       code: 'layout-monotony',
-      message: `第 ${mr.fromPage} 页起连续 ${mr.count} 页仅使用单一 ${mr.kind} 模块，建议按真实关系升级为 breakdown / funnel / compare / periods`,
+      message: `第 ${mr.fromPage} 页起连续 ${mr.count} 页仅使用单一 ${mr.kind} 模块，建议按真实关系升级为 breakdown / funnel / matrix / diagnosis / tracker / featureMatrix / gauges / pyramid / gantt / quotes / compare / periods`,
     });
   }
 

@@ -1364,3 +1364,2473 @@ export function hubArchitecture({ id, x, y, width, height, title = '', center = 
 
   return { elements, height: h };
 }
+
+// =========================================================================
+// Modern Web UI Batch 2: Quadrant Matrix, Diagnosis Trio, Period Tracker, Feature Matrix
+// =========================================================================
+
+// 2x2 Quadrant Matrix with 3 visual styles:
+//   - 'grid'  (default): modern cross-axis coordinate frame + 4 micro-bordered quadrant cards
+//   - 'cards' (2x2 Bento): borderless axis-free 2x2 Bento cards with top accent trim
+//   - 'split' (hero + 3 stack): primary highlighted quadrant enlarged on left, remaining 3 stacked on right
+export function quadrantMatrix({ id, x, y, width, height, title = '', xLabel = '', yLabel = '', quadrants = [], theme, variant = 'grid' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(quadrants) ? quadrants : []).slice(0, 4);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const okCol = p.dark ? '#34D399' : '#10B981';
+  const okBg = p.dark ? '#11302B' : '#ECFDF5';
+  const popBg = p.dark ? '#331E12' : '#FFF7ED';
+  const pad = isCompact ? 18 : 24;
+  const headH = title ? (isCompact ? 38 : 44) : 0;
+
+  const toneStyle = (q, idx) => {
+    const tone = q.tone || (q.highlight ? 'primary' : idx === 0 ? 'primary' : idx === 1 ? 'pop' : idx === 2 ? 'ok' : 'muted');
+    if (tone === 'primary') return { bar: r.primary, badgeBg: p.pale || '#EEF2FF', badgeFg: readableInk(r.primary, p.pale || '#EEF2FF'), border: r.primary, fill: surf, numBg: r.primary, numFg: p.inverse || '#FFFFFF' };
+    if (tone === 'pop') return { bar: r.pop, badgeBg: popBg, badgeFg: r.pop, border: p.line || '#E2E6EE', fill: surf, numBg: r.pop, numFg: '#FFFFFF' };
+    if (tone === 'ok') return { bar: okCol, badgeBg: okBg, badgeFg: okCol, border: p.line || '#E2E6EE', fill: surf, numBg: okCol, numFg: '#FFFFFF' };
+    return { bar: muted, badgeBg: subBg, badgeFg: muted, border: p.line || '#E2E6EE', fill: subBg, numBg: muted, numFg: '#FFFFFF' };
+  };
+
+  const renderQuadContent = (elements, q, idx, cx, cy, cw, ch, darkCard = false) => {
+    const ts = toneStyle(q, idx);
+    const cPad = isCompact ? 16 : 20;
+    const tagTxt = q.tag || `Q${idx + 1}`;
+    const tagW = Math.min(Math.round(cw * 0.36), Math.max(66, Math.ceil(textWidth(tagTxt, 13) * 1.18) + 22));
+    const numSz = 28;
+    const tx = cx + cPad;
+    const ty = cy + (darkCard ? 22 : 18);
+    // Number badge
+    elements.push({ type: 'shape', id: `${id}-qnum-${idx + 1}`, bounds: [tx, ty + 1, numSz, numSz], style: { fill: darkCard ? r.pop : ts.numBg, radius: 8 } });
+    elements.push(textElement({ id: `${id}-qntx-${idx + 1}`, text: `0${idx + 1}`, bounds: [tx, ty + 4, numSz, 22], style: theme.font(14, { fontWeight: 900, color: darkCard ? '#FFFFFF' : ts.numFg, textAlign: 'center', lineHeight: 1.2 }) }));
+    // Right tag pill
+    elements.push({ type: 'shape', id: `${id}-qtag-bg-${idx + 1}`, bounds: [cx + cw - cPad - tagW, ty + 2, tagW, 26], style: { fill: darkCard ? mixHexLocal(r.primary, '#FFFFFF', 0.16) : ts.badgeBg, radius: 13 } });
+    elements.push(textElement({ id: `${id}-qtag-tx-${idx + 1}`, text: tagTxt, bounds: [cx + cw - cPad - tagW + 6, ty + 5, tagW - 12, 20], style: theme.font(13, { fontWeight: 700, color: darkCard ? '#FFFFFF' : ts.badgeFg, textAlign: 'center', lineHeight: 1.2 }) }));
+    // Quadrant title
+    const titleW = Math.max(80, cw - cPad * 2 - numSz - tagW - 18);
+    elements.push(textElement({ id: `${id}-qt-${idx + 1}`, text: q.title || '', bounds: [tx + numSz + 10, ty + 1, titleW, 30], style: theme.font(isCompact ? 19 : 21, { fontWeight: 700, color: darkCard ? (p.inverse || '#FFFFFF') : p.ink, lineHeight: 1.25 }) }));
+
+    const bodyTop = ty + 38;
+    const bodyH = Math.max(40, cy + ch - bodyTop - 14);
+    const bodyColor = darkCard ? (p.inverse || '#FFFFFF') : muted;
+    const pts = Array.isArray(q.items) && q.items.length ? q.items : (q.detail ? [q.detail] : []);
+    if (pts.length) {
+      const fs = pts.length >= 4 || bodyH < 100 ? 17 : (isCompact ? 18 : 20);
+      const lineGap = pts.length >= 4 ? 6 : 10;
+      const availPer = Math.max(24, Math.floor((bodyH - lineGap * (pts.length - 1)) / pts.length));
+      let curY = bodyTop;
+      pts.slice(0, 4).forEach((pt, pi) => {
+        const ptStr = typeof pt === 'string' ? pt : `${pt.title || ''}${pt.detail ? `：${pt.detail}` : ''}`;
+        if (curY + 20 > cy + ch - 8) return;
+        elements.push({ type: 'shape', id: `${id}-qdot-${idx + 1}-${pi + 1}`, bounds: [tx + 2, curY + Math.round(fs * 0.45), 7, 7], style: { fill: darkCard ? r.pop : ts.bar, radius: 4 }, shape: 'ellipse' });
+        const bh = Math.min(availPer, cy + ch - 10 - curY);
+        elements.push(textElement({ id: `${id}-qp-${idx + 1}-${pi + 1}`, text: ptStr, bounds: [tx + 18, curY, cw - cPad * 2 - 18, bh], style: theme.font(fs, { fontWeight: 300, color: bodyColor, lineHeight: 1.35 }) }));
+        curY += bh + lineGap;
+      });
+    }
+  };
+
+  const natural = isCompact ? 420 : 500;
+  const h = Math.max(natural, height || 0);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'quadrantMatrix', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, width - pad * 2, 32], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    curY += headH;
+  }
+
+  if (variant === 'split') {
+    const focusIdx = Math.max(0, list.findIndex((q) => q.highlight));
+    const focusQ = list[focusIdx];
+    const others = list.map((q, i) => ({ q, i })).filter((o) => o.i !== focusIdx);
+    const bodyH = h - (curY - y) - pad;
+    const gap = 18;
+    const leftW = Math.round((width - pad * 2 - gap) * 0.44);
+    const rightX = x + pad + leftW + gap;
+    const rightW = width - pad * 2 - leftW - gap;
+    elements.push({ type: 'shape', id: `${id}-qcard-${focusIdx + 1}`, bounds: [x + pad, curY, leftW, bodyH], style: { fill: r.primary, radius: rad } });
+    elements.push({ type: 'shape', id: `${id}-qtrim-${focusIdx + 1}`, bounds: [x + pad + 22, curY, leftW - 44, 5], style: { fill: r.pop, radius: 3 } });
+    renderQuadContent(elements, focusQ, focusIdx, x + pad, curY, leftW, bodyH, true);
+    const rowGap = 14;
+    const rowH = Math.floor((bodyH - rowGap * Math.max(0, others.length - 1)) / Math.max(1, others.length));
+    others.forEach(({ q, i }, oi) => {
+      const ry = curY + oi * (rowH + rowGap);
+      const ts = toneStyle(q, i);
+      elements.push({ type: 'shape', id: `${id}-qcard-${i + 1}`, bounds: [rightX, ry, rightW, rowH], style: { fill: ts.fill, stroke: ts.border, strokeWidth: 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-qtrim-${i + 1}`, bounds: [rightX, ry + 14, 5, Math.max(24, rowH - 28)], style: { fill: ts.bar, radius: 3 } });
+      renderQuadContent(elements, q, i, rightX + 6, ry, rightW - 6, rowH, false);
+    });
+    return { elements, height: h };
+  }
+
+  const showAxes = variant !== 'cards';
+  const yAxisW = showAxes && yLabel ? 44 : 0;
+  const xAxisH = showAxes && xLabel ? 36 : 0;
+  const gridX = x + pad + yAxisW;
+  const gridY = curY;
+  const gridW = width - pad * 2 - yAxisW;
+  const gridH = h - (curY - y) - pad - xAxisH;
+  const gap = showAxes ? 24 : 16;
+  const cw = Math.floor((gridW - gap) / 2);
+  const ch = Math.floor((gridH - gap) / 2);
+
+  if (showAxes) {
+    const midX = gridX + cw + Math.round(gap / 2);
+    const midY = gridY + ch + Math.round(gap / 2);
+    elements.push({ ...lineElement({ id: `${id}-axis-x`, from: [gridX, midY], to: [gridX + gridW, midY], style: { stroke: p.line || '#CBD5E1', strokeWidth: 2 } }), endArrow: true });
+    elements.push({ ...lineElement({ id: `${id}-axis-y`, from: [midX, gridY + gridH], to: [midX, gridY], style: { stroke: p.line || '#CBD5E1', strokeWidth: 2 } }), endArrow: true });
+    if (yLabel) {
+      const yChars = String(yLabel).slice(0, 8).split('').join('\n');
+      elements.push(textElement({ id: `${id}-ylabel`, text: yChars, bounds: [x + pad - 2, gridY + Math.round(gridH * 0.12), 36, Math.round(gridH * 0.76)], style: theme.font(15, { fontWeight: 700, color: muted, textAlign: 'center', lineHeight: 1.25 }) }));
+    }
+    if (xLabel) {
+      const xlW = Math.min(gridW, Math.max(160, Math.ceil(textWidth(xLabel, 15) * 1.15) + 32));
+      const xlX = gridX + Math.round((gridW - xlW) / 2);
+      elements.push({ type: 'shape', id: `${id}-xlabel-bg`, bounds: [xlX, gridY + gridH + 8, xlW, 26], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 13 } });
+      elements.push(textElement({ id: `${id}-xlabel`, text: xLabel, bounds: [xlX + 8, gridY + gridH + 11, xlW - 16, 20], style: theme.font(14, { fontWeight: 700, color: muted, textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+  }
+
+  list.forEach((q, idx) => {
+    const col = idx % 2, row = Math.floor(idx / 2);
+    const cx = gridX + col * (cw + gap);
+    const cy = gridY + row * (ch + gap);
+    const ts = toneStyle(q, idx);
+    const isFocus = q.highlight || (idx === 0 && !list.some((it) => it.highlight));
+    elements.push({ type: 'shape', id: `${id}-qcard-${idx + 1}`, bounds: [cx, cy, cw, ch], style: { fill: ts.fill, stroke: isFocus ? ts.bar : ts.border, strokeWidth: isFocus ? 2 : 1.5, radius: rad } });
+    elements.push({ type: 'shape', id: `${id}-qtrim-${idx + 1}`, bounds: [cx + 20, cy, cw - 40, 4], style: { fill: ts.bar, radius: 2 } });
+    renderQuadContent(elements, q, idx, cx, cy, cw, ch, false);
+  });
+
+  return { elements, height: h };
+}
+
+// Diagnosis Trio (Issue -> Root Cause -> Solution) with 3 visual styles:
+//   - 'trio'      (default): horizontal 3-card diagnostic flow with semantic top bars & arrow connectors
+//   - 'spotlight' (focus last): first N-1 light micro-border cards + final high-contrast solid primary card
+//   - 'stacked'   (horizontal rows): stacked wide strips for dense diagnostic narratives
+export function diagnosisTrio({ id, x, y, width, height, title = '', items = [], theme, variant = 'trio' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(items) ? items : []).slice(0, 4);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const errCol = p.dark ? '#FB7185' : '#DC2626';
+  const errBg = p.dark ? '#321820' : '#FEF2F2';
+  const warnCol = r.pop;
+  const warnBg = p.dark ? '#331E12' : '#FFF7ED';
+  const okCol = p.dark ? '#34D399' : '#059669';
+  const okBg = p.dark ? '#11302B' : '#ECFDF5';
+  const defaultTags = ['01 现状问题', '02 根因定位', '03 优化解法', '04 预期成效'];
+
+  const resolveTone = (it, idx) => {
+    const tone = it.tone || (idx === 0 ? 'err' : idx === 1 ? 'warn' : idx === list.length - 1 ? 'primary' : 'ok');
+    if (tone === 'err') return { bar: errCol, bg: errBg, fg: errCol };
+    if (tone === 'warn' || tone === 'pop') return { bar: warnCol, bg: warnBg, fg: warnCol };
+    if (tone === 'ok') return { bar: okCol, bg: okBg, fg: okCol };
+    return { bar: r.primary, bg: p.pale || '#EEF2FF', fg: readableInk(r.primary, p.pale || '#EEF2FF') };
+  };
+
+  const pad = isCompact ? 16 : 22;
+  const headH = title ? (isCompact ? 38 : 44) : 0;
+
+  if (variant === 'stacked') {
+    const rowGap = isCompact ? 18 : 22;
+    const minRowH = isCompact ? 86 : 104;
+    const natural = pad * 2 + headH + list.length * minRowH + (list.length - 1) * rowGap;
+    const h = Math.max(natural, height || 0);
+    const bodyH = h - pad * 2 - headH;
+    const rowH = Math.floor((bodyH - rowGap * (list.length - 1)) / list.length);
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'diagnosisTrio', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad;
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, width - pad * 2, 32], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      curY += headH;
+    }
+    const iw = width - pad * 2;
+    const leftW = Math.min(360, Math.round(iw * 0.28));
+    list.forEach((it, idx) => {
+      const ry = curY + idx * (rowH + rowGap);
+      const ts = resolveTone(it, idx);
+      const isLast = idx === list.length - 1;
+      elements.push({ type: 'shape', id: `${id}-card-${idx + 1}`, bounds: [x + pad, ry, iw, rowH], style: { fill: isLast ? (p.pale || '#EEF2FF') : subBg, stroke: isLast ? r.primary : (p.line || '#E2E6EE'), strokeWidth: isLast ? 2 : 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-bar-${idx + 1}`, bounds: [x + pad, ry + 14, 6, Math.max(24, rowH - 28)], style: { fill: ts.bar, radius: 3 } });
+      const tag = it.tag || defaultTags[idx] || `0${idx + 1}`;
+      const tagW = Math.min(leftW - 24, Math.max(96, Math.ceil(textWidth(tag, 14) * 1.18) + 24));
+      elements.push({ type: 'shape', id: `${id}-tag-bg-${idx + 1}`, bounds: [x + pad + 22, ry + 14, tagW, 26], style: { fill: ts.bg, radius: 13 } });
+      elements.push(textElement({ id: `${id}-tag-tx-${idx + 1}`, text: tag, bounds: [x + pad + 28, ry + 17, tagW - 12, 20], style: theme.font(14, { fontWeight: 700, color: ts.fg, textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-t-${idx + 1}`, text: it.title || '', bounds: [x + pad + 22, ry + 48, leftW - 28, Math.max(28, rowH - 56)], style: theme.font(isCompact ? 19 : 21, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      const detText = it.detail || (Array.isArray(it.points) ? it.points.join('；') : '');
+      const metW = it.metric ? 180 : 0;
+      elements.push(textElement({ id: `${id}-d-${idx + 1}`, text: detText, bounds: [x + pad + leftW + 14, ry + Math.max(14, Math.round((rowH - 56) / 2)), iw - leftW - metW - 36, Math.max(40, rowH - 26)], style: theme.font(isCompact ? 18 : 20, { fontWeight: 300, color: muted, lineHeight: 1.4 }) }));
+      if (it.metric) {
+        elements.push({ type: 'shape', id: `${id}-met-bg-${idx + 1}`, bounds: [x + pad + iw - metW - 14, ry + Math.round((rowH - 34) / 2), metW, 34], style: { fill: surf, stroke: ts.bar, strokeWidth: 1.5, radius: 17 } });
+        elements.push(textElement({ id: `${id}-met-tx-${idx + 1}`, text: String(it.metric), bounds: [x + pad + iw - metW - 8, ry + Math.round((rowH - 22) / 2), metW - 12, 22], style: theme.font(15, { fontWeight: 700, color: ts.fg, textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+      if (idx < list.length - 1) {
+        const ax = x + Math.round(width / 2);
+        elements.push({ ...lineElement({ id: `${id}-arr-${idx + 1}`, from: [ax, ry + rowH + 2], to: [ax, ry + rowH + rowGap - 2], style: { stroke: p.line || '#CBD5E1', strokeWidth: 2.5 } }), endArrow: true });
+      }
+    });
+    return { elements, height: h };
+  }
+
+  const arrowGap = 36;
+  const natural = isCompact ? 330 : 430;
+  const h = Math.max(natural, height || 0);
+  const bodyTop = y + headH;
+  const cardH = h - headH;
+  const cw = Math.floor((width - arrowGap * (list.length - 1)) / list.length);
+  const elements = [];
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x, y + 4, width, 32], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, p.bg || surf), lineHeight: 1.25 }) }));
+  }
+  list.forEach((it, idx) => {
+    const cx = x + idx * (cw + arrowGap);
+    const ts = resolveTone(it, idx);
+    const isSpot = variant === 'spotlight' && idx === list.length - 1;
+    const isLast = idx === list.length - 1;
+    elements.push({
+      type: 'shape', id: `${id}-card-${idx + 1}`, ...(idx === 0 ? { component: 'diagnosisTrio' } : {}),
+      bounds: [cx, bodyTop, cw, cardH],
+      style: isSpot
+        ? { fill: r.primary, radius: rad }
+        : { fill: surf, stroke: isLast ? r.primary : (p.line || '#E2E6EE'), strokeWidth: isLast ? 2 : 1.5, radius: rad },
+    });
+    elements.push({ type: 'shape', id: `${id}-trim-${idx + 1}`, bounds: [cx + 22, bodyTop, cw - 44, 5], style: { fill: isSpot ? r.pop : ts.bar, radius: 3 } });
+
+    const cPad = isCompact ? 20 : 24;
+    const tag = it.tag || defaultTags[idx] || `0${idx + 1}`;
+    const tagW = Math.min(cw - cPad * 2, Math.max(108, Math.ceil(textWidth(tag, 15) * 1.18) + 26));
+    elements.push({ type: 'shape', id: `${id}-tag-bg-${idx + 1}`, bounds: [cx + cPad, bodyTop + 22, tagW, 30], style: { fill: isSpot ? r.pop : ts.bg, radius: 15 } });
+    elements.push(textElement({ id: `${id}-tag-tx-${idx + 1}`, text: tag, bounds: [cx + cPad + 8, bodyTop + 26, tagW - 16, 22], style: theme.font(15, { fontWeight: 700, color: isSpot ? '#FFFFFF' : ts.fg, textAlign: 'center', lineHeight: 1.2 }) }));
+
+    const titleY = bodyTop + 68;
+    const titleH = 62;
+    elements.push(textElement({ id: `${id}-t-${idx + 1}`, text: it.title || '', bounds: [cx + cPad, titleY, cw - cPad * 2, titleH], style: theme.font(isCompact ? 22 : 25, { fontWeight: 700, color: isSpot ? (p.inverse || '#FFFFFF') : p.ink, lineHeight: 1.25 }) }));
+
+    const metH = it.metric ? 44 : 0;
+    const detY = titleY + titleH + 6;
+    const detH = Math.max(50, bodyTop + cardH - detY - metH - 20);
+    const detText = it.detail || (Array.isArray(it.points) ? it.points.map((pt) => `• ${pt}`).join('\n') : '');
+    elements.push(textElement({ id: `${id}-d-${idx + 1}`, text: detText, bounds: [cx + cPad, detY, cw - cPad * 2, detH], style: theme.font(isCompact ? 18 : 21, { fontWeight: 300, color: isSpot ? (p.inverse || '#FFFFFF') : muted, lineHeight: 1.45 }) }));
+
+    if (it.metric) {
+      const mY = bodyTop + cardH - 52;
+      elements.push({ type: 'shape', id: `${id}-met-bg-${idx + 1}`, bounds: [cx + cPad, mY, cw - cPad * 2, 34], style: { fill: isSpot ? mixHexLocal(r.primary, '#FFFFFF', 0.16) : subBg, stroke: isSpot ? null : (p.line || '#E2E6EE'), strokeWidth: isSpot ? 0 : 1, radius: 10 } });
+      elements.push(textElement({ id: `${id}-met-tx-${idx + 1}`, text: String(it.metric), bounds: [cx + cPad + 12, mY + 6, cw - cPad * 2 - 24, 22], style: theme.font(15, { fontWeight: 700, color: isSpot ? '#FFFFFF' : ts.fg, lineHeight: 1.2 }) }));
+    }
+
+    if (idx < list.length - 1) {
+      const midY = bodyTop + Math.round(cardH / 2);
+      elements.push({ ...lineElement({ id: `${id}-arr-${idx + 1}`, from: [cx + cw + 4, midY], to: [cx + cw + arrowGap - 4, midY], style: { stroke: idx === list.length - 2 ? r.pop : r.primary, strokeWidth: 2.5 } }), endArrow: true });
+    }
+  });
+
+  return { elements, height: h };
+}
+
+// Tremor Multi-Period Tracker (12-month / multi-cycle SLA & target tracking) with 3 visual styles:
+//   - 'blocks'  (default): classic Tremor rounded status blocks row + summary pill + legend + anomaly notes
+//   - 'bars'    (metric bars): proportional vertical bars with baseline reference rule
+//   - 'compact' (grid tiles): 2-row micro-card grid showing each period's status & value
+export function periodTracker({ id, x, y, width, height, title = '', summary = '', badge = '', legend = {}, items = [], theme, variant = 'blocks' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(items) ? items : []).slice(0, 18);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const okCol = p.dark ? '#34D399' : '#10B981';
+  const okBg = p.dark ? '#11302B' : '#ECFDF5';
+  const warnCol = r.pop;
+  const missCol = p.dark ? '#FB7185' : '#EF4444';
+  const pendCol = p.dark ? '#334155' : '#CBD5E1';
+
+  const statusMeta = (st) => {
+    const s = String(st || 'ok').toLowerCase();
+    if (s === 'miss' || s === 'err' || s === 'fail' || s === '未达标') return { col: missCol, mark: '✕', key: 'miss' };
+    if (s === 'warn' || s === 'risk' || s === '预警' || s === '接近') return { col: warnCol, mark: '!', key: 'warn' };
+    if (s === 'pending' || s === 'todo' || s === '待开始') return { col: pendCol, mark: '·', key: 'pending' };
+    return { col: okCol, mark: '✓', key: 'ok' };
+  };
+
+  const counts = { ok: 0, warn: 0, miss: 0, pending: 0 };
+  list.forEach((it) => { counts[statusMeta(it.status).key]++; });
+  const activeTotal = Math.max(1, list.length - counts.pending);
+  const autoBadge = badge || `达标 ${counts.ok}/${activeTotal}`;
+  const pad = isCompact ? 18 : 26;
+  const iw = width - pad * 2;
+
+  if (variant === 'compact') {
+    const cols = list.length <= 6 ? list.length : Math.ceil(list.length / 2);
+    const rowsN = Math.ceil(list.length / cols);
+    const headH = 44, cGap = 12, rGap = 12, tileH = isCompact ? 76 : 88;
+    const natural = pad * 2 + headH + rowsN * tileH + (rowsN - 1) * rGap + 8;
+    const h = Math.max(natural, height || 0);
+    const topOff = Math.round((h - natural) / 2);
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'periodTracker', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad + topOff;
+    elements.push(textElement({ id: `${id}-title`, text: title || '周期达标追踪', bounds: [x + pad, curY + 4, iw - 240, 30], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    const bdgW = Math.min(220, Math.max(108, Math.ceil(textWidth(autoBadge, 14) * 1.2) + 26));
+    elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + width - pad - bdgW, curY + 4, bdgW, 28], style: { fill: okBg, radius: 14 } });
+    elements.push(textElement({ id: `${id}-bdg-tx`, text: autoBadge, bounds: [x + width - pad - bdgW + 8, curY + 8, bdgW - 16, 20], style: theme.font(14, { fontWeight: 700, color: okCol, textAlign: 'center', lineHeight: 1.2 }) }));
+    curY += headH + 8;
+
+    const cw = Math.floor((iw - cGap * (cols - 1)) / cols);
+    list.forEach((it, i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      const cx = x + pad + col * (cw + cGap);
+      const cy = curY + row * (tileH + rGap);
+      const sm = statusMeta(it.status);
+      elements.push({ type: 'shape', id: `${id}-tile-${i + 1}`, bounds: [cx, cy, cw, tileH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 12 } });
+      elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [cx, cy + 12, 5, tileH - 24], style: { fill: sm.col, radius: 3 } });
+      elements.push({ type: 'shape', id: `${id}-dot-${i + 1}`, bounds: [cx + cw - 22, cy + 14, 10, 10], style: { fill: sm.col, radius: 5 }, shape: 'ellipse' });
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 14, cy + 10, cw - 40, 24], style: theme.font(16, { fontWeight: 600, color: p.ink, lineHeight: 1.2 }) }));
+      const valTxt = it.value != null ? String(it.value) : (sm.key === 'ok' ? '达标' : sm.key === 'warn' ? '预警' : sm.key === 'miss' ? '未达标' : '待启动');
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: valTxt, bounds: [cx + 14, cy + 38, cw - 24, 30], style: theme.font(cw < 140 ? 18 : 22, { fontWeight: 900, color: sm.key === 'pending' ? muted : sm.col, lineHeight: 1.2 }) }));
+    });
+    return { elements, height: h };
+  }
+
+  const notes = list.filter((it) => it.note).slice(0, 3);
+  const headH = summary ? 58 : 42;
+  const noteH = notes.length ? 46 : 0;
+  const chartH = variant === 'bars' ? (isCompact ? 132 : 164) : (isCompact ? 96 : 114);
+  const natural = pad * 2 + headH + 16 + chartH + (noteH ? 16 + noteH : 0);
+  const h = Math.max(natural, height || 0);
+  const topOff = Math.round((h - natural) / 2);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'periodTracker', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+
+  let curY = y + pad + topOff;
+  elements.push(textElement({ id: `${id}-title`, text: title || '周期达标追踪', bounds: [x + pad, curY, iw - 420, 30], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+  if (summary) {
+    elements.push(textElement({ id: `${id}-sum`, text: summary, bounds: [x + pad, curY + 32, iw - 420, 24], style: theme.font(17, { fontWeight: 300, color: muted, lineHeight: 1.25 }) }));
+  }
+
+  // Right status pill + inline legend
+  const bdgW = Math.min(200, Math.max(108, Math.ceil(textWidth(autoBadge, 14) * 1.2) + 24));
+  elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + width - pad - bdgW, curY + 2, bdgW, 28], style: { fill: okBg, radius: 14 } });
+  elements.push(textElement({ id: `${id}-bdg-tx`, text: autoBadge, bounds: [x + width - pad - bdgW + 6, curY + 6, bdgW - 12, 20], style: theme.font(14, { fontWeight: 700, color: okCol, textAlign: 'center', lineHeight: 1.2 }) }));
+
+  const legItems = [
+    { col: okCol, label: legend.ok || '达标' },
+    { col: warnCol, label: legend.warn || '预警' },
+    { col: missCol, label: legend.miss || '未达标' },
+  ];
+  let lx = x + width - pad - bdgW - 18;
+  for (let li = legItems.length - 1; li >= 0; li--) {
+    const lw = Math.ceil(textWidth(legItems[li].label, 14) * 1.15) + 18;
+    lx -= lw;
+    elements.push({ type: 'shape', id: `${id}-lgd-${li + 1}`, bounds: [lx, curY + 11, 10, 10], style: { fill: legItems[li].col, radius: 3 } });
+    elements.push(textElement({ id: `${id}-lgt-${li + 1}`, text: legItems[li].label, bounds: [lx + 14, curY + 6, lw - 14, 20], style: theme.font(14, { fontWeight: 400, color: muted, lineHeight: 1.2 }) }));
+    lx -= 12;
+  }
+
+  curY += headH + 16;
+  const gap = list.length >= 12 ? 10 : 14;
+  const bw = Math.floor((iw - gap * (list.length - 1)) / list.length);
+  const startX = x + pad + Math.round((iw - (bw * list.length + gap * (list.length - 1))) / 2);
+
+  if (variant === 'bars') {
+    const nums = list.map((it) => {
+      const m = String(it.value ?? '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+      return m ? Number(m[0]) : (statusMeta(it.status).key === 'ok' ? 100 : statusMeta(it.status).key === 'warn' ? 78 : statusMeta(it.status).key === 'miss' ? 52 : 30);
+    });
+    const maxV = Math.max(...nums, 100);
+    const barAreaH = chartH - 54;
+    const baseY = curY + 24 + barAreaH;
+    elements.push(lineElement({ id: `${id}-baseline`, from: [x + pad, baseY], to: [x + width - pad, baseY], style: { stroke: p.line || '#CBD5E1', strokeWidth: 1.5, strokeDash: 'dash' } }));
+    list.forEach((it, i) => {
+      const bx = startX + i * (bw + gap);
+      const sm = statusMeta(it.status);
+      const bh = Math.max(18, Math.round((nums[i] / maxV) * barAreaH));
+      const by = baseY - bh;
+      elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [bx, by, bw, bh], style: { fill: sm.col, radius: Math.min(10, Math.floor(bw / 3)) } });
+      if (it.value != null) {
+        elements.push(textElement({ id: `${id}-val-${i + 1}`, text: String(it.value), bounds: [bx - 4, by - 22, bw + 8, 20], style: theme.font(bw < 72 ? 13 : 15, { fontWeight: 700, color: sm.key === 'pending' ? muted : p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [bx - 4, baseY + 8, bw + 8, 22], style: theme.font(bw < 72 ? 14 : 16, { fontWeight: 500, color: muted, textAlign: 'center', lineHeight: 1.2 }) }));
+    });
+  } else {
+    const blockH = isCompact ? 54 : 64;
+    list.forEach((it, i) => {
+      const bx = startX + i * (bw + gap);
+      const sm = statusMeta(it.status);
+      elements.push({ type: 'shape', id: `${id}-seg-${i + 1}`, bounds: [bx, curY, bw, blockH], style: { fill: sm.col, radius: Math.min(12, Math.floor(bw / 3)) } });
+      if (bw >= 34) {
+        elements.push(textElement({ id: `${id}-mk-${i + 1}`, text: sm.mark, bounds: [bx, curY + Math.round((blockH - 22) / 2), bw, 22], style: theme.font(17, { fontWeight: 900, color: sm.key === 'pending' ? muted : '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [bx - 4, curY + blockH + 8, bw + 8, 22], style: theme.font(bw < 72 ? 14 : 16, { fontWeight: 600, color: p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+      if (it.value != null) {
+        elements.push(textElement({ id: `${id}-val-${i + 1}`, text: String(it.value), bounds: [bx - 4, curY + blockH + 29, bw + 8, 20], style: theme.font(bw < 72 ? 12 : 14, { fontWeight: 300, color: muted, textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+    });
+  }
+
+  if (notes.length) {
+    const ny = curY + chartH + 14;
+    elements.push({ type: 'shape', id: `${id}-notes-bg`, bounds: [x + pad, ny, iw, noteH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 10 } });
+    const noteText = notes.map((n) => `${n.label}：${n.note}`).join('   |   ');
+    elements.push(textElement({ id: `${id}-notes-tx`, text: `波动摘录  ·  ${noteText}`, bounds: [x + pad + 16, ny + 12, iw - 32, 24], style: theme.font(16, { fontWeight: 300, color: muted, lineHeight: 1.25 }) }));
+  }
+
+  return { elements, height: h };
+}
+
+// SaaS Feature Comparison Matrix with 3 visual styles:
+//   - 'matrix'  (default): clean SaaS comparison grid with highlighted recommended column & semantic check badges
+//   - 'cards'   (plan cards): each column rendered as a standalone vertical plan card side-by-side
+//   - 'compact' (dense matrix): tight row height for 7-10 feature rows
+export function featureMatrixCard({ id, x, y, width, height, title = '', columns = [], rows = [], theme, variant = 'matrix' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const cols = (Array.isArray(columns) ? columns : []).slice(0, 5).map((c) => (typeof c === 'string' ? { name: c } : (c || {})));
+  const rList = (Array.isArray(rows) ? rows : []).slice(0, 10).map((row) => (Array.isArray(row) ? { feature: row[0], values: row.slice(1) } : (row || {})));
+  if (!cols.length || !rList.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact) || variant === 'compact';
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const okCol = p.dark ? '#34D399' : '#059669';
+  const okBg = p.dark ? '#11302B' : '#ECFDF5';
+  const warnCol = r.pop;
+  const warnBg = p.dark ? '#331E12' : '#FFF7ED';
+  const hiBg = p.dark ? mixHexLocal(surf, r.primary, 0.22) : (p.pale || '#EEF2FF');
+
+  const classifyCell = (val) => {
+    if (val === true || val === '✓' || val === '是' || val === '支持') return { kind: 'yes', text: '✓' };
+    if (val === false || val === '✕' || val === '否' || val === '不支持' || val === '无' || val === '-' || val === '—') return { kind: 'no', text: '—' };
+    if (val === 'partial' || val === '部分' || val === '◐') return { kind: 'partial', text: '◐' };
+    return { kind: 'text', text: String(val ?? '') };
+  };
+
+  if (variant === 'cards') {
+    const headH = title ? 40 : 0;
+    const gap = 18;
+    const cw = Math.floor((width - gap * (cols.length - 1)) / cols.length);
+    const rowH = Math.max(36, Math.min(54, Math.floor(((height || 440) - headH - 96) / Math.max(1, rList.length))));
+    const cardH = Math.max(88 + rList.length * rowH + 16, (height || 0) - headH);
+    const h = headH + cardH;
+    const elements = [];
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x, y + 4, width, 30], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, p.bg || surf), lineHeight: 1.25 }) }));
+    }
+    cols.forEach((col, ci) => {
+      const cx = x + ci * (cw + gap);
+      const cy = y + headH;
+      const hi = Boolean(col.highlight);
+      elements.push({ type: 'shape', id: `${id}-col-${ci + 1}`, ...(ci === 0 ? { component: 'featureMatrix' } : {}), bounds: [cx, cy, cw, cardH], style: { fill: hi ? hiBg : surf, stroke: hi ? r.primary : (p.line || '#E2E6EE'), strokeWidth: hi ? 2.5 : 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-ctrim-${ci + 1}`, bounds: [cx + 18, cy, cw - 36, 5], style: { fill: hi ? r.pop : (p.line || '#CBD5E1'), radius: 3 } });
+      elements.push(textElement({ id: `${id}-ch-${ci + 1}`, text: col.name || '', bounds: [cx + 20, cy + 20, cw - 40, 30], style: theme.font(21, { fontWeight: 700, color: hi ? readableInk(r.primary, hiBg) : p.ink, lineHeight: 1.25 }) }));
+      if (col.badge) {
+        const bdgW = Math.min(cw - 40, Math.max(76, Math.ceil(textWidth(col.badge, 13) * 1.2) + 22));
+        elements.push({ type: 'shape', id: `${id}-cbg-${ci + 1}`, bounds: [cx + cw - 20 - bdgW, cy + 21, bdgW, 24], style: { fill: hi ? r.pop : subBg, radius: 12 } });
+        elements.push(textElement({ id: `${id}-ctx-${ci + 1}`, text: col.badge, bounds: [cx + cw - 20 - bdgW + 6, cy + 24, bdgW - 12, 18], style: theme.font(13, { fontWeight: 700, color: hi ? '#FFFFFF' : muted, textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+      elements.push(lineElement({ id: `${id}-cdiv-${ci + 1}`, from: [cx + 20, cy + 64], to: [cx + cw - 20, cy + 64], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1 } }));
+      rList.forEach((row, ri) => {
+        const ry = cy + 74 + ri * rowH;
+        const cell = classifyCell((row.values || [])[ci]);
+        const iconSz = 22;
+        const iy = ry + Math.round((rowH - iconSz) / 2);
+        if (cell.kind === 'yes' || cell.kind === 'partial') {
+          elements.push({ type: 'shape', id: `${id}-ic-${ci + 1}-${ri + 1}`, bounds: [cx + 20, iy, iconSz, iconSz], style: { fill: cell.kind === 'yes' ? okBg : warnBg, radius: 11 }, shape: 'ellipse' });
+          elements.push(textElement({ id: `${id}-it-${ci + 1}-${ri + 1}`, text: cell.text, bounds: [cx + 20, iy + 2, iconSz, 18], style: theme.font(13, { fontWeight: 900, color: cell.kind === 'yes' ? okCol : warnCol, textAlign: 'center', lineHeight: 1.2 }) }));
+        } else if (cell.kind === 'no') {
+          elements.push(textElement({ id: `${id}-it-${ci + 1}-${ri + 1}`, text: '—', bounds: [cx + 20, iy + 1, iconSz, 20], style: theme.font(16, { fontWeight: 400, color: muted, textAlign: 'center', lineHeight: 1.2 }) }));
+        } else {
+          elements.push({ type: 'shape', id: `${id}-ic-${ci + 1}-${ri + 1}`, bounds: [cx + 27, iy + 7, 8, 8], style: { fill: hi ? r.primary : muted, radius: 4 }, shape: 'ellipse' });
+        }
+        const labelTxt = cell.kind === 'text' ? `${row.feature}：${cell.text}` : String(row.feature || '');
+        elements.push(textElement({ id: `${id}-rf-${ci + 1}-${ri + 1}`, text: labelTxt, bounds: [cx + 50, ry + Math.round((rowH - 24) / 2), cw - 68, 26], style: theme.font(17, { fontWeight: cell.kind === 'no' ? 300 : (hi ? 500 : 400), color: cell.kind === 'no' ? muted : p.ink, lineHeight: 1.25 }) }));
+      });
+    });
+    return { elements, height: h };
+  }
+
+  const pad = isCompact ? 16 : 24;
+  const titleH = title ? (isCompact ? 36 : 44) : 0;
+  const headH = isCompact ? 60 : 76;
+  const rowH = isCompact ? 44 : 58;
+  const natural = pad * 2 + titleH + headH + rList.length * rowH + 8;
+  const h = Math.max(natural, height || 0);
+  const actualRowH = Math.floor((h - pad * 2 - titleH - headH - 6) / rList.length);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'featureMatrix', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, width - pad * 2, 30], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    curY += titleH;
+  }
+
+  const iw = width - pad * 2;
+  const featW = Math.round(iw * (cols.length >= 4 ? 0.28 : 0.34));
+  const colW = Math.floor((iw - featW) / cols.length);
+  const tableTop = curY;
+  const tableH = headH + rList.length * actualRowH;
+
+  // Highlighted column backdrop & frame (drawn first so rows sit cleanly on top)
+  cols.forEach((col, ci) => {
+    if (!col.highlight) return;
+    const cx = x + pad + featW + ci * colW;
+    elements.push({ type: 'shape', id: `${id}-hi-bg-${ci + 1}`, bounds: [cx + 2, tableTop, colW - 4, tableH], style: { fill: hiBg, stroke: r.primary, strokeWidth: 2, radius: 12 } });
+    elements.push({ type: 'shape', id: `${id}-hi-trim-${ci + 1}`, bounds: [cx + 16, tableTop, colW - 32, 5], style: { fill: r.pop, radius: 3 } });
+  });
+
+  // Header labels
+  elements.push(textElement({ id: `${id}-fh`, text: '能力维度', bounds: [x + pad + 14, tableTop + Math.round((headH - 24) / 2), featW - 24, 24], style: theme.font(17, { fontWeight: 700, color: muted, lineHeight: 1.2 }) }));
+  cols.forEach((col, ci) => {
+    const cx = x + pad + featW + ci * colW;
+    const hi = Boolean(col.highlight);
+    const hasBadge = Boolean(col.badge);
+    if (hasBadge) {
+      const bdgW = Math.min(colW - 24, Math.max(78, Math.ceil(textWidth(col.badge, 12) * 1.2) + 22));
+      elements.push({ type: 'shape', id: `${id}-cbg-${ci + 1}`, bounds: [cx + Math.round((colW - bdgW) / 2), tableTop + 14, bdgW, 22], style: { fill: hi ? r.pop : subBg, radius: 11 } });
+      elements.push(textElement({ id: `${id}-ctx-${ci + 1}`, text: col.badge, bounds: [cx + Math.round((colW - bdgW) / 2) + 4, tableTop + 17, bdgW - 8, 16], style: theme.font(12, { fontWeight: 700, color: hi ? '#FFFFFF' : muted, textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+    elements.push(textElement({ id: `${id}-ch-${ci + 1}`, text: col.name || '', bounds: [cx + 8, tableTop + (hasBadge ? 42 : Math.round((headH - 26) / 2)), colW - 16, 26], style: theme.font(isCompact ? 18 : 20, { fontWeight: 700, color: hi ? readableInk(r.primary, hiBg) : p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+  });
+  elements.push(lineElement({ id: `${id}-hdiv`, from: [x + pad, tableTop + headH], to: [x + pad + iw, tableTop + headH], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1.5 } }));
+
+  // Feature rows
+  rList.forEach((row, ri) => {
+    const ry = tableTop + headH + ri * actualRowH;
+    if (ri % 2 === 1) {
+      elements.push({ type: 'shape', id: `${id}-rbg-${ri + 1}`, bounds: [x + pad, ry + 1, featW, actualRowH - 2], style: { fill: subBg, radius: 6 } });
+    }
+    if (ri > 0) {
+      elements.push(lineElement({ id: `${id}-rdiv-${ri + 1}`, from: [x + pad, ry], to: [x + pad + iw, ry], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1 } }));
+    }
+    elements.push(textElement({ id: `${id}-rf-${ri + 1}`, text: String(row.feature || ''), bounds: [x + pad + 14, ry + Math.round((actualRowH - 24) / 2), featW - 24, 26], style: theme.font(isCompact ? 17 : 19, { fontWeight: 600, color: p.ink, lineHeight: 1.25 }) }));
+    cols.forEach((col, ci) => {
+      const cx = x + pad + featW + ci * colW;
+      const hi = Boolean(col.highlight);
+      const cell = classifyCell((row.values || [])[ci]);
+      const midX = cx + Math.round(colW / 2);
+      const midY = ry + Math.round(actualRowH / 2);
+      if (cell.kind === 'yes') {
+        const sz = 26;
+        elements.push({ type: 'shape', id: `${id}-c-${ri + 1}-${ci + 1}`, bounds: [midX - 13, midY - 13, sz, sz], style: { fill: hi ? r.primary : okBg, radius: 13 }, shape: 'ellipse' });
+        elements.push(textElement({ id: `${id}-ct-${ri + 1}-${ci + 1}`, text: '✓', bounds: [midX - 13, midY - 10, sz, 20], style: theme.font(15, { fontWeight: 900, color: hi ? '#FFFFFF' : okCol, textAlign: 'center', lineHeight: 1.2 }) }));
+      } else if (cell.kind === 'partial') {
+        const sz = 26;
+        elements.push({ type: 'shape', id: `${id}-c-${ri + 1}-${ci + 1}`, bounds: [midX - 13, midY - 13, sz, sz], style: { fill: warnBg, radius: 13 }, shape: 'ellipse' });
+        elements.push(textElement({ id: `${id}-ct-${ri + 1}-${ci + 1}`, text: '◐', bounds: [midX - 13, midY - 10, sz, 20], style: theme.font(15, { fontWeight: 900, color: warnCol, textAlign: 'center', lineHeight: 1.2 }) }));
+      } else if (cell.kind === 'no') {
+        elements.push(textElement({ id: `${id}-ct-${ri + 1}-${ci + 1}`, text: '—', bounds: [cx + 8, midY - 11, colW - 16, 22], style: theme.font(18, { fontWeight: 300, color: muted, textAlign: 'center', lineHeight: 1.2 }) }));
+      } else {
+        elements.push(textElement({ id: `${id}-ct-${ri + 1}-${ci + 1}`, text: cell.text, bounds: [cx + 10, midY - 12, colW - 20, 24], style: theme.font(isCompact ? 16 : 18, { fontWeight: hi ? 700 : 300, color: hi ? readableInk(r.primary, hiBg) : muted, textAlign: 'center', lineHeight: 1.25 }) }));
+      }
+    });
+  });
+
+  return { elements, height: h };
+}
+
+function mixHexLocal(a, b, t) {
+  const parse = (hex) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const ra = parse(a), rb = parse(b);
+  if (!ra || !rb) return a || '#EEF2FF';
+  return '#' + [0, 1, 2].map((i) => Math.max(0, Math.min(255, Math.round(ra[i] + (rb[i] - ra[i]) * t))).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+// =========================================================================
+// Card Density & Proportion Engine (Anti-Empty-Box Core Utilities)
+// =========================================================================
+function fitCardHeight(contentH, availH, { maxStretch = 1.35, minH = 92, stretchToFill = false } = {}) {
+  const base = Math.max(minH, Math.ceil(contentH));
+  if (!availH || availH <= 0) return base;
+  if (stretchToFill) return Math.max(base, Math.round(availH));
+  return Math.min(Math.round(availH), Math.max(base, Math.round(base * maxStretch)));
+}
+
+function extractCardMetric(text, explicitMetric = '') {
+  if (explicitMetric) return String(explicitMetric).trim();
+  const s = String(text || '');
+  const m = s.match(/[+\-]?\d+(?:\.\d+)?\s*(?:%|pp|倍|×|万|亿|套|天|个月|项|城|家|小时|分钟)/);
+  return m ? m[0].replace(/\s+/g, '') : '';
+}
+
+function adaptiveBodyFont(text, isCompact = false, base = 20) {
+  if (isCompact) return Math.max(16, base - 3);
+  const len = String(text || '').length;
+  if (len <= 34) return Math.min(22, base + 1);
+  if (len <= 68) return base;
+  return Math.max(17, base - 2);
+}
+
+// =========================================================================
+// Modern Web UI Batch 3 (Final Backlog Clear):
+//   - radialGauges (Donut / Radial Ring)
+//   - pyramidStack (Layered Pyramid / Stack)
+//   - modernGantt  (Multi-Lane Gantt / Kanban Columns)
+//   - quoteCards   (Quote / Testimonial / Owner Pills)
+// =========================================================================
+
+// Radial / Donut Progress Gauges (100% Native PPTX ellipses & arc chord lines) with 3 styles:
+//   - 'ring'   (default): smooth segmented circular progress ring + big 900% readout + bottom value/target
+//   - 'radial' (tick gauge): 24-tick Apple Watch style radial dial around center readout
+//   - 'row'    (horizontal cards): left compact ring + right title, value & target pill
+export function radialGauges({ id, x, y, width, height, title = '', items = [], theme, variant = 'ring' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(items) ? items : []).slice(0, 4);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const trackCol = p.dark ? '#233554' : '#E2E8F0';
+  const okCol = p.dark ? '#34D399' : '#10B981';
+
+  const pickColor = (it, idx) => {
+    if (it.tone === 'pop') return r.pop;
+    if (it.tone === 'ok') return okCol;
+    if (it.tone === 'secondary') return r.secondary;
+    if (it.highlight || idx === 0) return r.primary;
+    return [r.primary, r.pop, okCol, r.secondary][idx % 4];
+  };
+
+  const drawRingArc = (elements, prefix, cx, cy, radius, pctVal, col, mode = 'ring') => {
+    const clamped = Math.max(0, Math.min(100, Number(pctVal) || 0));
+    if (mode === 'radial') {
+      const ticks = 28;
+      const lit = Math.round((clamped / 100) * ticks);
+      for (let t = 0; t < ticks; t++) {
+        const ang = (-90 + (t * 360) / ticks) * (Math.PI / 180);
+        const rIn = radius - 14, rOut = radius;
+        const x1 = Math.round(cx + rIn * Math.cos(ang)), y1 = Math.round(cy + rIn * Math.sin(ang));
+        const x2 = Math.round(cx + rOut * Math.cos(ang)), y2 = Math.round(cy + rOut * Math.sin(ang));
+        elements.push(lineElement({ id: `${prefix}-tk-${t + 1}`, from: [x1, y1], to: [x2, y2], style: { stroke: t < lit ? col : trackCol, strokeWidth: 4.5 } }));
+      }
+      return;
+    }
+    const sw = Math.max(10, Math.min(16, Math.round(radius * 0.17)));
+    const padS = Math.ceil(sw / 2) + 4;
+    const boxSz = (radius + padS) * 2;
+    const c = radius + padS;
+    const bx = Math.round(cx - c), by = Math.round(cy - c);
+    // Smooth full circular track via SVG vector path (zero jagged segments, crisp on all zoom levels)
+    const fullCirclePath = `M ${c} ${c - radius} A ${radius} ${radius} 0 1 1 ${c} ${c + radius} A ${radius} ${radius} 0 1 1 ${c} ${c - radius}`;
+    elements.push({
+      type: 'vector', id: `${prefix}-trk`, shape: 'ellipse',
+      bounds: [bx, by, boxSz, boxSz],
+      viewBox: [0, 0, boxSz, boxSz],
+      path: fullCirclePath,
+      style: { fill: 'none', stroke: trackCol, strokeWidth: sw, strokeLinecap: 'round' },
+    });
+    if (clamped <= 0) return;
+    let arcPath;
+    if (clamped >= 99.5) {
+      arcPath = fullCirclePath;
+    } else {
+      const deg = (clamped / 100) * 360;
+      const radEnd = (-90 + deg) * (Math.PI / 180);
+      const ex = (c + radius * Math.cos(radEnd)).toFixed(2);
+      const ey = (c + radius * Math.sin(radEnd)).toFixed(2);
+      const largeArc = deg > 180 ? 1 : 0;
+      arcPath = `M ${c} ${c - radius} A ${radius} ${radius} 0 ${largeArc} 1 ${ex} ${ey}`;
+    }
+    elements.push({
+      type: 'vector', id: `${prefix}-arc`, shape: 'ellipse',
+      bounds: [bx, by, boxSz, boxSz],
+      viewBox: [0, 0, boxSz, boxSz],
+      path: arcPath,
+      style: { fill: 'none', stroke: col, strokeWidth: sw, strokeLinecap: 'round' },
+    });
+  };
+
+  const headH = title ? (isCompact ? 38 : 44) : 0;
+  const elements = [];
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x, y + 4, width, 32], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, p.bg || surf), lineHeight: 1.25 }) }));
+  }
+
+  if (variant === 'row') {
+    const rowGap = 16;
+    const minRowH = isCompact ? 116 : 138;
+    const natural = headH + list.length * minRowH + (list.length - 1) * rowGap;
+    const h = Math.max(natural, height || 0);
+    const rowH = Math.floor((h - headH - rowGap * (list.length - 1)) / list.length);
+    list.forEach((it, idx) => {
+      const ry = y + headH + idx * (rowH + rowGap);
+      const col = pickColor(it, idx);
+      const hi = Boolean(it.highlight);
+      elements.push({ type: 'shape', id: `${id}-card-${idx + 1}`, ...(idx === 0 ? { component: 'radialGauges' } : {}), bounds: [x, ry, width, rowH], style: { fill: surf, stroke: hi ? col : (p.line || '#E2E6EE'), strokeWidth: hi ? 2 : 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-bar-${idx + 1}`, bounds: [x, ry + 16, 5, Math.max(24, rowH - 32)], style: { fill: col, radius: 3 } });
+      const rRing = Math.min(48, Math.max(34, Math.floor((rowH - 26) / 2)));
+      const rcx = x + 36 + rRing, rcy = ry + Math.round(rowH / 2);
+      drawRingArc(elements, `${id}-g${idx + 1}`, rcx, rcy, rRing, it.pct, col, 'ring');
+      const pctTxt = `${Math.round(Number(it.pct) || 0)}%`;
+      elements.push(textElement({ id: `${id}-pct-${idx + 1}`, text: pctTxt, bounds: [rcx - rRing + 6, rcy - 14, rRing * 2 - 12, 28], style: theme.font(rRing >= 44 ? 22 : 18, { fontWeight: 900, color: p.ink, textAlign: 'center', lineHeight: 1.15 }) }));
+      const tx = rcx + rRing + 34;
+      const rightW = Math.max(220, width - (tx - x) - 280);
+      elements.push(textElement({ id: `${id}-lbl-${idx + 1}`, text: it.label || '', bounds: [tx, ry + Math.round(rowH * 0.22), rightW, 30], style: theme.font(22, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      if (it.target || it.detail) {
+        elements.push(textElement({ id: `${id}-sub-${idx + 1}`, text: it.detail || it.target || '', bounds: [tx, ry + Math.round(rowH * 0.56), rightW, 28], style: theme.font(18, { fontWeight: 300, color: muted, lineHeight: 1.3 }) }));
+      }
+      if (it.value) {
+        elements.push(textElement({ id: `${id}-val-${idx + 1}`, text: String(it.value), bounds: [x + width - 264, ry + Math.round((rowH - 42) / 2), 236, 42], style: theme.font(34, { fontWeight: 900, color: readableInk(col, surf, 3.0), textAlign: 'right', lineHeight: 1.15 }) }));
+      }
+    });
+    return { elements, height: h };
+  }
+
+  const gap = 20;
+  const natural = isCompact ? 340 : 420;
+  const h = Math.max(natural, height || 0);
+  const cardH = h - headH;
+  const cw = Math.floor((width - gap * (list.length - 1)) / list.length);
+  list.forEach((it, idx) => {
+    const cx = x + idx * (cw + gap);
+    const cy = y + headH;
+    const col = pickColor(it, idx);
+    const hi = Boolean(it.highlight);
+    elements.push({ type: 'shape', id: `${id}-card-${idx + 1}`, ...(idx === 0 ? { component: 'radialGauges' } : {}), bounds: [cx, cy, cw, cardH], style: { fill: surf, stroke: hi ? col : (p.line || '#E2E6EE'), strokeWidth: hi ? 2 : 1.5, radius: rad } });
+    elements.push({ type: 'shape', id: `${id}-trim-${idx + 1}`, bounds: [cx + 22, cy, cw - 44, 5], style: { fill: col, radius: 3 } });
+
+    const rRing = Math.min(82, Math.max(54, Math.floor(Math.min(cw - 76, cardH * 0.44) / 2)));
+    const rcx = cx + Math.round(cw / 2);
+    const rcy = cy + 32 + rRing;
+    drawRingArc(elements, `${id}-g${idx + 1}`, rcx, rcy, rRing, it.pct, col, variant === 'radial' ? 'radial' : 'ring');
+
+    const pctTxt = `${Math.round(Number(it.pct) || 0)}%`;
+    elements.push(textElement({ id: `${id}-pct-${idx + 1}`, text: pctTxt, bounds: [rcx - rRing + 10, rcy - 20, rRing * 2 - 20, 40], style: theme.font(rRing >= 70 ? 34 : 28, { fontWeight: 900, color: p.ink, textAlign: 'center', lineHeight: 1.15 }) }));
+
+    const lblY = rcy + rRing + 24;
+    elements.push(textElement({ id: `${id}-lbl-${idx + 1}`, text: it.label || '', bounds: [cx + 18, lblY, cw - 36, 30], style: theme.font(isCompact ? 19 : 21, { fontWeight: 700, color: p.ink, textAlign: 'center', lineHeight: 1.25 }) }));
+    if (it.value) {
+      elements.push(textElement({ id: `${id}-val-${idx + 1}`, text: String(it.value), bounds: [cx + 18, lblY + 34, cw - 36, 34], style: theme.font(isCompact ? 24 : 28, { fontWeight: 900, color: readableInk(col, surf, 3.0), textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+    if (it.target) {
+      const tW = Math.min(cw - 44, Math.max(108, Math.ceil(textWidth(it.target, 14) * 1.18) + 24));
+      const tY = Math.min(cy + cardH - 42, lblY + (it.value ? 76 : 42));
+      elements.push({ type: 'shape', id: `${id}-tbg-${idx + 1}`, bounds: [cx + Math.round((cw - tW) / 2), tY, tW, 28], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 14 } });
+      elements.push(textElement({ id: `${id}-ttx-${idx + 1}`, text: String(it.target), bounds: [cx + Math.round((cw - tW) / 2) + 8, tY + 4, tW - 16, 20], style: theme.font(14, { fontWeight: 300, color: muted, textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+  });
+
+  return { elements, height: h };
+}
+
+// Layered Pyramid / Strategic Stack with 3 visual styles:
+//   - 'pyramid' (default): tapered horizontal pyramid tiers on left + aligned detail cards on right
+//   - 'stack'   (layered stack): full-width architectural stack bands with left level badges
+//   - 'cards'   (stepped columns): left-to-right ascending tier cards with arrow connectors
+export function pyramidStack({ id, x, y, width, height, title = '', layers = [], theme, variant = 'pyramid' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(layers) ? layers : []).slice(0, 5);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const tierColors = [r.pop, r.primary, mixHexLocal(r.primary, '#FFFFFF', p.dark ? 0.2 : 0.25), r.secondary, muted];
+
+  const pad = isCompact ? 18 : 24;
+  const headH = title ? (isCompact ? 38 : 44) : 0;
+  const natural = isCompact ? 380 : 460;
+  const h = Math.max(natural, height || 0);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'pyramidStack', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, width - pad * 2, 32], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    curY += headH;
+  }
+  const iw = width - pad * 2;
+  const bodyH = h - (curY - y) - pad;
+
+  if (variant === 'cards') {
+    const gap = 24;
+    const cw = Math.floor((iw - gap * (list.length - 1)) / list.length);
+    list.forEach((ly, i) => {
+      const cx = x + pad + i * (cw + gap);
+      const col = tierColors[i % tierColors.length];
+      const topShift = Math.round(((list.length - 1 - i) / Math.max(1, list.length - 1)) * 42);
+      const ch = bodyH - topShift;
+      const cy = curY + topShift;
+      elements.push({ type: 'shape', id: `${id}-c-${i + 1}`, bounds: [cx, cy, cw, ch], style: { fill: i === 0 ? r.primary : subBg, stroke: i === 0 ? r.primary : (p.line || '#E2E6EE'), strokeWidth: 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-ctrim-${i + 1}`, bounds: [cx + 18, cy, cw - 36, 5], style: { fill: i === 0 ? r.pop : col, radius: 3 } });
+      const lv = ly.level || `L${i + 1}`;
+      const lvW = Math.min(cw - 32, Math.max(72, Math.ceil(textWidth(lv, 14) * 1.18) + 22));
+      elements.push({ type: 'shape', id: `${id}-lvbg-${i + 1}`, bounds: [cx + 18, cy + 20, lvW, 26], style: { fill: i === 0 ? r.pop : col, radius: 13 } });
+      elements.push(textElement({ id: `${id}-lvtx-${i + 1}`, text: lv, bounds: [cx + 22, cy + 23, lvW - 8, 20], style: theme.font(13, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-t-${i + 1}`, text: ly.title || '', bounds: [cx + 18, cy + 58, cw - 36, 54], style: theme.font(21, { fontWeight: 700, color: i === 0 ? (p.inverse || '#FFFFFF') : p.ink, lineHeight: 1.25 }) }));
+      if (ly.detail) {
+        elements.push(textElement({ id: `${id}-d-${i + 1}`, text: ly.detail, bounds: [cx + 18, cy + 116, cw - 36, Math.max(48, ch - 132)], style: theme.font(18, { fontWeight: 300, color: i === 0 ? (p.inverse || '#FFFFFF') : muted, lineHeight: 1.45 }) }));
+      }
+      if (i < list.length - 1) {
+        const my = curY + Math.round(bodyH * 0.55);
+        elements.push({ ...lineElement({ id: `${id}-arr-${i + 1}`, from: [cx + cw + 3, my], to: [cx + cw + gap - 3, my], style: { stroke: p.line || '#CBD5E1', strokeWidth: 2 } }), endArrow: true });
+      }
+    });
+    return { elements, height: h };
+  }
+
+  const rowGap = isCompact ? 12 : 16;
+  const rowH = Math.floor((bodyH - rowGap * (list.length - 1)) / list.length);
+
+  if (variant === 'stack') {
+    const lvW = Math.min(220, Math.round(iw * 0.16));
+    list.forEach((ly, i) => {
+      const ry = curY + i * (rowH + rowGap);
+      const col = tierColors[i % tierColors.length];
+      elements.push({ type: 'shape', id: `${id}-row-${i + 1}`, bounds: [x + pad, ry, iw, rowH], style: { fill: i === 0 ? (p.pale || '#EEF2FF') : subBg, stroke: i === 0 ? r.primary : (p.line || '#E2E6EE'), strokeWidth: i === 0 ? 2 : 1.5, radius: 12 } });
+      elements.push({ type: 'shape', id: `${id}-lvbg-${i + 1}`, bounds: [x + pad, ry, lvW, rowH], style: { fill: col, radius: 12 } });
+      elements.push(textElement({ id: `${id}-lvtx-${i + 1}`, text: ly.level || `L${i + 1}`, bounds: [x + pad + 10, ry + Math.round((rowH - 26) / 2), lvW - 20, 26], style: theme.font(18, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.25 }) }));
+      const titleW = Math.round((iw - lvW) * 0.34);
+      elements.push(textElement({ id: `${id}-t-${i + 1}`, text: ly.title || '', bounds: [x + pad + lvW + 22, ry + Math.round((rowH - 30) / 2), titleW, 30], style: theme.font(21, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      if (ly.detail) {
+        const bdgReserve = ly.badge ? 140 : 0;
+        elements.push(textElement({ id: `${id}-d-${i + 1}`, text: ly.detail, bounds: [x + pad + lvW + titleW + 32, ry + Math.max(12, Math.round((rowH - 48) / 2)), iw - lvW - titleW - bdgReserve - 50, Math.max(30, rowH - 22)], style: theme.font(18, { fontWeight: 300, color: muted, lineHeight: 1.38 }) }));
+      }
+      if (ly.badge) {
+        const bW = Math.min(126, Math.max(80, Math.ceil(textWidth(ly.badge, 13) * 1.2) + 20));
+        elements.push({ type: 'shape', id: `${id}-bg-${i + 1}`, bounds: [x + pad + iw - bW - 14, ry + Math.round((rowH - 26) / 2), bW, 26], style: { fill: i === 0 ? r.pop : surf, stroke: i === 0 ? null : (p.line || '#E2E6EE'), strokeWidth: i === 0 ? 0 : 1, radius: 13 } });
+        elements.push(textElement({ id: `${id}-bt-${i + 1}`, text: ly.badge, bounds: [x + pad + iw - bW - 8, ry + Math.round((rowH - 18) / 2), bW - 12, 18], style: theme.font(13, { fontWeight: 700, color: i === 0 ? '#FFFFFF' : muted, textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+    });
+    return { elements, height: h };
+  }
+
+  // Default 'pyramid': tapered centered pyramid on left (44%) + connector + detail card on right (52%)
+  const pyrZoneW = Math.round(iw * 0.44);
+  const connW = 36;
+  const detX = x + pad + pyrZoneW + connW;
+  const detW = iw - pyrZoneW - connW;
+  const minW = Math.round(pyrZoneW * 0.46);
+  const maxW = pyrZoneW;
+  list.forEach((ly, i) => {
+    const ry = curY + i * (rowH + rowGap);
+    const col = tierColors[i % tierColors.length];
+    const ratio = list.length === 1 ? 1 : i / (list.length - 1);
+    const tw = Math.round(minW + (maxW - minW) * ratio);
+    const tx = x + pad + Math.round((pyrZoneW - tw) / 2);
+    elements.push({ type: 'shape', id: `${id}-tier-${i + 1}`, bounds: [tx, ry, tw, rowH], style: { fill: col, radius: 12 } });
+    const lv = ly.level || `L${i + 1}`;
+    elements.push(textElement({ id: `${id}-lvtx-${i + 1}`, text: lv, bounds: [tx + 12, ry + Math.round((rowH - (ly.title ? 46 : 24)) / 2), tw - 24, 22], style: theme.font(14, { fontWeight: 700, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-pt-${i + 1}`, text: ly.title || '', bounds: [tx + 12, ry + Math.round((rowH - 46) / 2) + 22, tw - 24, 26], style: theme.font(tw < 280 ? 17 : 20, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+
+    const midY = ry + Math.round(rowH / 2);
+    elements.push(lineElement({ id: `${id}-ln-${i + 1}`, from: [tx + tw + 4, midY], to: [detX - 4, midY], style: { stroke: p.line || '#CBD5E1', strokeWidth: 1.5, strokeDash: 'dash' } }));
+
+    elements.push({ type: 'shape', id: `${id}-det-${i + 1}`, bounds: [detX, ry, detW, rowH], style: { fill: i === 0 ? (p.pale || '#EEF2FF') : subBg, stroke: i === 0 ? r.primary : (p.line || '#E2E6EE'), strokeWidth: i === 0 ? 1.5 : 1, radius: 12 } });
+    elements.push({ type: 'shape', id: `${id}-dbar-${i + 1}`, bounds: [detX, ry + 12, 5, Math.max(20, rowH - 24)], style: { fill: col, radius: 3 } });
+    const bdgW = ly.badge ? Math.min(126, Math.max(76, Math.ceil(textWidth(ly.badge, 13) * 1.18) + 20)) : 0;
+    elements.push(textElement({ id: `${id}-t-${i + 1}`, text: ly.title || '', bounds: [detX + 18, ry + 12, detW - bdgW - 36, 26], style: theme.font(19, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+    if (ly.badge) {
+      elements.push({ type: 'shape', id: `${id}-bg-${i + 1}`, bounds: [detX + detW - bdgW - 14, ry + 12, bdgW, 24], style: { fill: i === 0 ? r.pop : surf, stroke: i === 0 ? null : (p.line || '#E2E6EE'), strokeWidth: i === 0 ? 0 : 1, radius: 12 } });
+      elements.push(textElement({ id: `${id}-bt-${i + 1}`, text: ly.badge, bounds: [detX + detW - bdgW - 8, ry + 15, bdgW - 12, 18], style: theme.font(12, { fontWeight: 700, color: i === 0 ? '#FFFFFF' : muted, textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+    if (ly.detail) {
+      elements.push(textElement({ id: `${id}-d-${i + 1}`, text: ly.detail, bounds: [detX + 18, ry + 42, detW - 32, Math.max(26, rowH - 48)], style: theme.font(17, { fontWeight: 300, color: muted, lineHeight: 1.35 }) }));
+    }
+  });
+
+  return { elements, height: h };
+}
+
+// Multi-Lane Modern Gantt & Kanban Board (Kibo UI inspired) with 3 styles:
+//   - 'gantt'   (default): multi-lane timeline grid with color-coded capsule schedule bars
+//   - 'kanban'  (3-column board): auto-grouped into 已完成 / 进行中 / 规划中 modern Kanban columns
+//   - 'compact' (dense schedule list): compact high-density schedule table
+export function modernGantt({ id, x, y, width, height, title = '', columns = [], lanes = [], theme, variant = 'gantt' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const cols = (Array.isArray(columns) && columns.length ? columns : ['1月', '2月', '3月', '4月', '5月', '6月']).slice(0, 12);
+  const list = (Array.isArray(lanes) ? lanes : []).slice(0, 8);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact) || variant === 'compact';
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const okCol = p.dark ? '#34D399' : '#059669';
+  const okBg = p.dark ? '#11302B' : '#ECFDF5';
+  const warnCol = r.pop;
+  const warnBg = p.dark ? '#331E12' : '#FFF7ED';
+
+  const statusInfo = (st) => {
+    const s = String(st || 'active').toLowerCase();
+    if (s === 'done' || s === 'completed' || s === '已完成') return { key: 'done', label: '已完成', col: okCol, bg: okBg, fg: '#FFFFFF' };
+    if (s === 'risk' || s === 'warn' || s === '延期' || s === '重点') return { key: 'active', label: '重点攻坚', col: warnCol, bg: warnBg, fg: '#FFFFFF' };
+    if (s === 'todo' || s === 'planned' || s === '规划中' || s === '待启动') return { key: 'todo', label: '规划中', col: muted, bg: subBg, fg: '#FFFFFF' };
+    return { key: 'active', label: '进行中', col: r.primary, bg: p.pale || '#EEF2FF', fg: p.inverse || '#FFFFFF' };
+  };
+
+  if (variant === 'kanban') {
+    const headH = title ? 40 : 0;
+    const natural = isCompact ? 380 : 450;
+    const h = Math.max(natural, height || 0);
+    const colH = h - headH;
+    const elements = [];
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x, y + 4, width, 30], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, p.bg || surf), lineHeight: 1.25 }) }));
+    }
+    const groups = [
+      { key: 'done', title: '已完成', col: okCol, bg: okBg, items: [] },
+      { key: 'active', title: '进行中', col: r.primary, bg: p.pale || '#EEF2FF', items: [] },
+      { key: 'todo', title: '规划中', col: muted, bg: subBg, items: [] },
+    ];
+    list.forEach((ln) => {
+      const si = statusInfo(ln.status);
+      const g = groups.find((x) => x.key === si.key) || groups[1];
+      g.items.push({ ...ln, _si: si });
+    });
+    const gap = 18;
+    const cw = Math.floor((width - gap * 2) / 3);
+    groups.forEach((g, gi) => {
+      const gx = x + gi * (cw + gap);
+      const gy = y + headH;
+      elements.push({ type: 'shape', id: `${id}-kcol-${gi + 1}`, ...(gi === 0 ? { component: 'modernGantt' } : {}), bounds: [gx, gy, cw, colH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-kdot-${gi + 1}`, bounds: [gx + 18, gy + 22, 10, 10], style: { fill: g.col, radius: 5 }, shape: 'ellipse' });
+      elements.push(textElement({ id: `${id}-kt-${gi + 1}`, text: g.title, bounds: [gx + 36, gy + 15, cw - 100, 26], style: theme.font(19, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+      elements.push({ type: 'shape', id: `${id}-kcnt-bg-${gi + 1}`, bounds: [gx + cw - 52, gy + 15, 34, 24], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 12 } });
+      elements.push(textElement({ id: `${id}-kcnt-${gi + 1}`, text: String(g.items.length), bounds: [gx + cw - 52, gy + 18, 34, 18], style: theme.font(13, { fontWeight: 700, color: g.col, textAlign: 'center', lineHeight: 1.2 }) }));
+
+      const cGap = 12;
+      const availH = colH - 64;
+      const cardH = Math.min(116, Math.max(76, Math.floor((availH - cGap * Math.max(0, g.items.length - 1)) / Math.max(1, g.items.length))));
+      g.items.slice(0, 4).forEach((ln, ii) => {
+        const cy = gy + 52 + ii * (cardH + cGap);
+        if (cy + cardH > gy + colH - 8) return;
+        elements.push({ type: 'shape', id: `${id}-kc-${gi + 1}-${ii + 1}`, bounds: [gx + 14, cy, cw - 28, cardH], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 12 } });
+        elements.push({ type: 'shape', id: `${id}-kbar-${gi + 1}-${ii + 1}`, bounds: [gx + 14, cy + 12, 4, cardH - 24], style: { fill: ln._si.col, radius: 2 } });
+        const sLbl = cols[Math.max(0, (Number(ln.start) || 1) - 1)] || '';
+        const eLbl = cols[Math.min(cols.length - 1, (Number(ln.end) || cols.length) - 1)] || '';
+        const spanTxt = sLbl && eLbl ? (sLbl === eLbl ? sLbl : `${sLbl}–${eLbl}`) : '';
+        elements.push(textElement({ id: `${id}-kln-${gi + 1}-${ii + 1}`, text: `${ln.name || ''}${ln.owner ? ` · ${ln.owner}` : ''}`, bounds: [gx + 28, cy + 12, cw - 120, 22], style: theme.font(14, { fontWeight: 600, color: muted, lineHeight: 1.2 }) }));
+        if (spanTxt) {
+          elements.push(textElement({ id: `${id}-ksp-${gi + 1}-${ii + 1}`, text: spanTxt, bounds: [gx + cw - 108, cy + 12, 82, 20], style: theme.font(13, { fontWeight: 700, color: ln._si.col, textAlign: 'right', lineHeight: 1.2 }) }));
+        }
+        elements.push(textElement({ id: `${id}-ktsk-${gi + 1}-${ii + 1}`, text: ln.task || '', bounds: [gx + 28, cy + 38, cw - 52, Math.max(26, cardH - 46)], style: theme.font(18, { fontWeight: 700, color: p.ink, lineHeight: 1.3 }) }));
+      });
+    });
+    return { elements, height: h };
+  }
+
+  const pad = isCompact ? 16 : 24;
+  const titleH = title ? (isCompact ? 34 : 42) : 0;
+  const colHeadH = 38;
+  const rowH = isCompact ? 46 : 58;
+  const natural = pad * 2 + titleH + colHeadH + list.length * rowH + 14;
+  const h = Math.max(natural, height || 0);
+  const actualRowH = Math.floor((h - pad * 2 - titleH - colHeadH - 14) / list.length);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'modernGantt', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY, width - pad * 2 - 280, 32], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    const leg = [{ col: okCol, lbl: '已完成' }, { col: r.primary, lbl: '进行中' }, { col: muted, lbl: '规划中' }];
+    let lx = x + width - pad;
+    for (let li = leg.length - 1; li >= 0; li--) {
+      const lw = 76;
+      lx -= lw;
+      elements.push({ type: 'shape', id: `${id}-lgd-${li + 1}`, bounds: [lx, curY + 10, 10, 10], style: { fill: leg[li].col, radius: 3 } });
+      elements.push(textElement({ id: `${id}-lgt-${li + 1}`, text: leg[li].lbl, bounds: [lx + 14, curY + 5, 60, 20], style: theme.font(14, { fontWeight: 400, color: muted, lineHeight: 1.2 }) }));
+    }
+    curY += titleH;
+  }
+
+  const iw = width - pad * 2;
+  const laneW = Math.min(260, Math.round(iw * 0.2));
+  const gridX = x + pad + laneW;
+  const gridW = iw - laneW;
+  const colW = gridW / cols.length;
+  const gridTop = curY;
+  const gridH = colHeadH + list.length * actualRowH;
+
+  // Column headers & vertical dashed grid lines
+  elements.push({ type: 'shape', id: `${id}-chbg`, bounds: [x + pad, gridTop, iw, colHeadH], style: { fill: subBg, radius: 8 } });
+  elements.push(textElement({ id: `${id}-lh`, text: '负责团队 / 泳道', bounds: [x + pad + 14, gridTop + 9, laneW - 24, 22], style: theme.font(15, { fontWeight: 700, color: muted, lineHeight: 1.2 }) }));
+  cols.forEach((c, ci) => {
+    const cx = Math.round(gridX + ci * colW);
+    elements.push(textElement({ id: `${id}-ch-${ci + 1}`, text: String(c), bounds: [cx, gridTop + 9, Math.round(colW), 22], style: theme.font(15, { fontWeight: 700, color: p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(lineElement({ id: `${id}-vline-${ci + 1}`, from: [cx, gridTop + colHeadH], to: [cx, gridTop + gridH], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1, strokeDash: 'dash' } }));
+  });
+
+  list.forEach((ln, ri) => {
+    const ry = gridTop + colHeadH + ri * actualRowH;
+    if (ri > 0) {
+      elements.push(lineElement({ id: `${id}-hline-${ri + 1}`, from: [x + pad, ry], to: [x + pad + iw, ry], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1 } }));
+    }
+    const si = statusInfo(ln.status);
+    elements.push(textElement({ id: `${id}-ln-${ri + 1}`, text: ln.name || '', bounds: [x + pad + 14, ry + Math.round((actualRowH - (ln.owner ? 38 : 22)) / 2), laneW - 24, 22], style: theme.font(17, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+    if (ln.owner) {
+      elements.push(textElement({ id: `${id}-ow-${ri + 1}`, text: ln.owner, bounds: [x + pad + 14, ry + Math.round((actualRowH - 38) / 2) + 21, laneW - 24, 18], style: theme.font(13, { fontWeight: 300, color: muted, lineHeight: 1.2 }) }));
+    }
+    const sIdx = Math.max(0, Math.min(cols.length - 1, (Number(ln.start) || 1) - 1));
+    const eIdx = Math.max(sIdx, Math.min(cols.length - 1, (Number(ln.end) || (sIdx + 1)) - 1));
+    const bx = Math.round(gridX + sIdx * colW) + 6;
+    const bw = Math.max(Math.round(colW) - 12, Math.round((eIdx - sIdx + 1) * colW) - 12);
+    const barH = Math.min(38, actualRowH - 14);
+    const by = ry + Math.round((actualRowH - barH) / 2);
+    elements.push({ type: 'shape', id: `${id}-bar-${ri + 1}`, bounds: [bx, by, bw, barH], style: { fill: si.col, radius: Math.round(barH / 2) } });
+    elements.push(textElement({ id: `${id}-tsk-${ri + 1}`, text: ln.task || '', bounds: [bx + 14, by + Math.round((barH - 22) / 2), Math.max(40, bw - 28), 22], style: theme.font(isCompact ? 14 : 16, { fontWeight: 700, color: si.fg, lineHeight: 1.2 }) }));
+  });
+
+  return { elements, height: h };
+}
+
+// Quote / Testimonial & Owner Cards with 3 visual styles:
+//   - 'cards'     (default): modern testimonial card grid with watermark quotation mark & Owner avatar pill
+//   - 'spotlight' (featured hero): highlighted quote elevated as solid primary spotlight card
+//   - 'rows'      (horizontal strips): left owner profile column + right quote & value badge
+export function quoteCards({ id, x, y, width, height, title = '', items = [], theme, variant = 'cards' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(items) ? items : []).slice(0, 4);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const avatarCols = [r.primary, r.pop, p.dark ? '#34D399' : '#059669', r.secondary];
+
+  const headH = title ? (isCompact ? 38 : 44) : 0;
+  const elements = [];
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x, y + 4, width, 32], style: theme.font(22, { fontWeight: 700, color: readableInk(p.accent, p.bg || surf), lineHeight: 1.25 }) }));
+  }
+
+  if (variant === 'rows') {
+    const rowGap = 16;
+    const minRowH = isCompact ? 114 : 132;
+    const natural = headH + list.length * minRowH + (list.length - 1) * rowGap;
+    const h = Math.max(natural, height || 0);
+    const rowH = Math.floor((h - headH - rowGap * (list.length - 1)) / list.length);
+    const leftW = Math.min(300, Math.round(width * 0.23));
+    list.forEach((it, idx) => {
+      const ry = y + headH + idx * (rowH + rowGap);
+      const aCol = avatarCols[idx % avatarCols.length];
+      const hi = Boolean(it.highlight);
+      elements.push({ type: 'shape', id: `${id}-card-${idx + 1}`, ...(idx === 0 ? { component: 'quoteCards' } : {}), bounds: [x, ry, width, rowH], style: { fill: surf, stroke: hi ? r.primary : (p.line || '#E2E6EE'), strokeWidth: hi ? 2 : 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-bar-${idx + 1}`, bounds: [x, ry + 16, 5, Math.max(24, rowH - 32)], style: { fill: aCol, radius: 3 } });
+      // Owner Avatar Pill
+      const avSz = 44;
+      const avY = ry + Math.round((rowH - avSz) / 2);
+      elements.push({ type: 'shape', id: `${id}-av-${idx + 1}`, shape: 'ellipse', bounds: [x + 24, avY, avSz, avSz], style: { fill: aCol, radius: 22 } });
+      elements.push(textElement({ id: `${id}-avt-${idx + 1}`, text: String(it.author || 'A').slice(0, 1), bounds: [x + 24, avY + 10, avSz, 24], style: theme.font(20, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-au-${idx + 1}`, text: it.author || '', bounds: [x + 80, avY + 1, leftW - 90, 24], style: theme.font(18, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+      if (it.role) {
+        elements.push(textElement({ id: `${id}-rl-${idx + 1}`, text: it.role, bounds: [x + 80, avY + 25, leftW - 90, 20], style: theme.font(14, { fontWeight: 300, color: muted, lineHeight: 1.2 }) }));
+      }
+      elements.push(lineElement({ id: `${id}-div-${idx + 1}`, from: [x + leftW, ry + 18], to: [x + leftW, ry + rowH - 18], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1 } }));
+      const tagW = it.tag ? Math.min(180, Math.max(96, Math.ceil(textWidth(it.tag, 13) * 1.2) + 24)) : 0;
+      elements.push(textElement({ id: `${id}-qt-${idx + 1}`, text: `“${it.quote || ''}”`, bounds: [x + leftW + 24, ry + Math.max(14, Math.round((rowH - 58) / 2)), width - leftW - tagW - 60, Math.max(44, rowH - 28)], style: theme.font(isCompact ? 18 : 20, { fontWeight: 300, color: p.ink, lineHeight: 1.45 }) }));
+      if (it.tag) {
+        elements.push({ type: 'shape', id: `${id}-tbg-${idx + 1}`, bounds: [x + width - tagW - 20, ry + Math.round((rowH - 28) / 2), tagW, 28], style: { fill: hi ? r.pop : subBg, stroke: hi ? null : (p.line || '#E2E6EE'), strokeWidth: hi ? 0 : 1, radius: 14 } });
+        elements.push(textElement({ id: `${id}-ttx-${idx + 1}`, text: it.tag, bounds: [x + width - tagW - 14, ry + Math.round((rowH - 18) / 2), tagW - 12, 18], style: theme.font(13, { fontWeight: 700, color: hi ? '#FFFFFF' : muted, textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+    });
+    return { elements, height: h };
+  }
+
+  const gap = 20;
+  const cw = Math.floor((width - gap * (list.length - 1)) / list.length);
+  const cPad = isCompact ? 20 : 26;
+  const footerH = 74;
+  const bodyFs = list.length === 1 ? 28 : adaptiveBodyFont(list.map((x) => x.quote || '').sort((a, b) => b.length - a.length)[0], isCompact, 21);
+  const maxBodyLines = Math.max(2, ...list.map((it) => estimateLines(String(it.quote || ''), bodyFs, cw - cPad * 2)));
+  const naturalBodyH = Math.ceil(maxBodyLines * bodyFs * 1.52);
+  const contentCardH = 66 + naturalBodyH + 28 + footerH;
+  const availCardH = height ? Math.max(contentCardH, height - headH) : contentCardH;
+  const cardH = fitCardHeight(contentCardH, availCardH, { maxStretch: 1.28, minH: 230 });
+  const h = headH + cardH;
+  const spotIdx = variant === 'spotlight' ? Math.max(0, list.findIndex((it) => it.highlight)) : -1;
+
+  list.forEach((it, idx) => {
+    const cx = x + idx * (cw + gap);
+    const cy = y + headH;
+    const isSpot = idx === spotIdx;
+    const aCol = avatarCols[idx % avatarCols.length];
+    elements.push({
+      type: 'shape', id: `${id}-card-${idx + 1}`, ...(idx === 0 ? { component: 'quoteCards' } : {}),
+      bounds: [cx, cy, cw, cardH],
+      style: isSpot
+        ? { fill: r.primary, radius: rad }
+        : { fill: surf, stroke: it.highlight ? r.primary : (p.line || '#E2E6EE'), strokeWidth: it.highlight ? 2 : 1.5, radius: rad },
+    });
+    elements.push({ type: 'shape', id: `${id}-trim-${idx + 1}`, bounds: [cx + 22, cy, cw - 44, 5], style: { fill: isSpot ? r.pop : aCol, radius: 3 } });
+
+    // Top row: decorative quote glyph + right value tag pill
+    elements.push(textElement({ id: `${id}-qm-${idx + 1}`, text: '“', bounds: [cx + cPad - 4, cy + 14, 48, 46], style: theme.font(52, { fontWeight: 900, color: isSpot ? r.pop : mixHexLocal(aCol, surf, 0.55), lineHeight: 1 }) }));
+    if (it.tag) {
+      const tW = Math.min(cw - cPad * 2 - 52, Math.max(92, Math.ceil(textWidth(it.tag, 13) * 1.2) + 22));
+      elements.push({ type: 'shape', id: `${id}-tbg-${idx + 1}`, bounds: [cx + cw - cPad - tW, cy + 22, tW, 26], style: { fill: isSpot ? r.pop : subBg, stroke: isSpot ? null : (p.line || '#E2E6EE'), strokeWidth: isSpot ? 0 : 1, radius: 13 } });
+      elements.push(textElement({ id: `${id}-ttx-${idx + 1}`, text: it.tag, bounds: [cx + cw - cPad - tW + 6, cy + 25, tW - 12, 20], style: theme.font(13, { fontWeight: 700, color: isSpot ? '#FFFFFF' : readableInk(aCol, subBg, 3.0), textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+
+    // Quote body vertically centered between quote header and footer
+    const midTop = cy + 62;
+    const midAvailH = Math.max(60, cardH - 62 - footerH - 14);
+    const thisLines = estimateLines(String(it.quote || ''), bodyFs, cw - cPad * 2);
+    const thisTextH = Math.min(midAvailH, Math.ceil(thisLines * bodyFs * 1.52) + 6);
+    const bodyY = midTop + Math.max(0, Math.round((midAvailH - thisTextH) / 2));
+    elements.push(textElement({ id: `${id}-qt-${idx + 1}`, text: String(it.quote || ''), bounds: [cx + cPad, bodyY, cw - cPad * 2, thisTextH], style: theme.font(bodyFs, { fontWeight: 300, color: isSpot ? (p.inverse || '#FFFFFF') : p.ink, lineHeight: 1.5 }) }));
+
+    // Bottom divider + Owner avatar pill
+    const fY = cy + cardH - footerH;
+    elements.push(lineElement({ id: `${id}-div-${idx + 1}`, from: [cx + cPad, fY], to: [cx + cw - cPad, fY], style: { stroke: isSpot ? mixHexLocal(r.primary, '#FFFFFF', 0.24) : (p.line || '#E2E6EE'), strokeWidth: 1 } }));
+    const avSz = 42;
+    const avY = fY + Math.round((footerH - avSz) / 2);
+    elements.push({ type: 'shape', id: `${id}-av-${idx + 1}`, shape: 'ellipse', bounds: [cx + cPad, avY, avSz, avSz], style: { fill: isSpot ? r.pop : aCol, radius: 21 } });
+    elements.push(textElement({ id: `${id}-avt-${idx + 1}`, text: String(it.author || 'A').slice(0, 1), bounds: [cx + cPad, avY + 9, avSz, 24], style: theme.font(19, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-au-${idx + 1}`, text: it.author || '', bounds: [cx + cPad + avSz + 14, avY + 1, cw - cPad * 2 - avSz - 16, 22], style: theme.font(18, { fontWeight: 700, color: isSpot ? (p.inverse || '#FFFFFF') : p.ink, lineHeight: 1.2 }) }));
+    if (it.role) {
+      elements.push(textElement({ id: `${id}-rl-${idx + 1}`, text: it.role, bounds: [cx + cPad + avSz + 14, avY + 24, cw - cPad * 2 - avSz - 16, 20], style: theme.font(14, { fontWeight: 300, color: isSpot ? mixHexLocal(r.primary, '#FFFFFF', 0.78) : muted, lineHeight: 1.2 }) }));
+    }
+  });
+
+  return { elements, height: h };
+}
+
+// =========================================================================
+// Modern Web UI v2 Batch 1:
+//   - groupedBarChart (V2-DATA-01: Grouped / Stacked / Horizontal Bar Chart)
+//   - multiLineChart  (V2-DATA-02: Smooth SVG Multi-Line / Area / Combo Chart)
+//   - rankedBarList   (V2-CARD-03: Ranked BarList / Podium / Dual-Col Tiles)
+//   - executiveBrief  (V2-CARD-01: Executive One-Pager Bento Brief)
+// =========================================================================
+
+function parseChartNum(v) {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  const m = String(v ?? '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : 0;
+}
+
+export function groupedBarChart({ id, x, y, width, height, title = '', unit = '', badge = '', categories = [], series = [], theme, variant = 'grouped' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const cats = (Array.isArray(categories) ? categories : []).slice(0, 10);
+  const sers = (Array.isArray(series) ? series : []).slice(0, 3).map((s, si) => ({
+    name: s?.name || `序列${si + 1}`,
+    values: (Array.isArray(s?.values) ? s.values : []).map(parseChartNum),
+    tone: s?.tone || (si === 0 && (series.length > 1) ? 'muted' : 'primary'),
+  }));
+  if (!cats.length || !sers.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const serCol = (s, si) => {
+    if (s.tone === 'pop') return r.pop;
+    if (s.tone === 'muted') return p.dark ? '#334155' : '#CBD5E1';
+    if (s.tone === 'secondary') return r.secondary;
+    return si === 0 && sers.length > 1 ? (p.dark ? '#334155' : '#CBD5E1') : r.primary;
+  };
+
+  const pad = isCompact ? 18 : 26;
+  const headH = 44;
+  const natural = isCompact ? 360 : 440;
+  const h = Math.max(natural, height || 0);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'groupedBarChart', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  const iw = width - pad * 2;
+  const headY = y + pad;
+  const titleTxt = title ? (unit ? `${title}（${unit}）` : title) : '分组柱状对比';
+  elements.push(textElement({ id: `${id}-title`, text: titleTxt, bounds: [x + pad, headY + 2, iw - 420, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+
+  // Right badge + series legend
+  let rx = x + width - pad;
+  if (badge) {
+    const bW = Math.min(200, Math.max(96, Math.ceil(textWidth(badge, 13) * 1.2) + 24));
+    rx -= bW;
+    elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [rx, headY + 4, bW, 26], style: { fill: p.dark ? '#11302B' : '#ECFDF5', radius: 13 } });
+    elements.push(textElement({ id: `${id}-bdg-tx`, text: badge, bounds: [rx + 6, headY + 7, bW - 12, 20], style: theme.font(13, { fontWeight: 700, color: p.dark ? '#34D399' : '#059669', textAlign: 'center', lineHeight: 1.2 }) }));
+    rx -= 16;
+  }
+  for (let si = sers.length - 1; si >= 0; si--) {
+    const lw = Math.ceil(textWidth(sers[si].name, 14) * 1.15) + 18;
+    rx -= lw;
+    elements.push({ type: 'shape', id: `${id}-lgd-${si + 1}`, bounds: [rx, headY + 12, 10, 10], style: { fill: serCol(sers[si], si), radius: 3 } });
+    elements.push(textElement({ id: `${id}-lgt-${si + 1}`, text: sers[si].name, bounds: [rx + 14, headY + 7, lw - 14, 20], style: theme.font(14, { fontWeight: 400, color: muted, lineHeight: 1.2 }) }));
+    rx -= 14;
+  }
+
+  const plotTop = headY + headH + 10;
+  const plotH = h - (plotTop - y) - pad;
+
+  if (variant === 'horizontal') {
+    const rowGap = 12;
+    const rowH = Math.floor((plotH - rowGap * (cats.length - 1)) / cats.length);
+    const lblW = Math.min(180, Math.round(iw * 0.16));
+    const maxV = Math.max(1, ...sers.flatMap((s) => s.values));
+    const trackW = iw - lblW - 86;
+    cats.forEach((cat, ci) => {
+      const ry = plotTop + ci * (rowH + rowGap);
+      elements.push({ type: 'shape', id: `${id}-hrow-${ci + 1}`, bounds: [x + pad, ry, iw, rowH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 10 } });
+      elements.push(textElement({ id: `${id}-cat-${ci + 1}`, text: String(cat), bounds: [x + pad + 14, ry + Math.round((rowH - 22) / 2), lblW - 20, 22], style: theme.font(17, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+      const subBarH = Math.max(10, Math.min(20, Math.floor((rowH - 16 - (sers.length - 1) * 4) / sers.length)));
+      const barsTotalH = sers.length * subBarH + (sers.length - 1) * 4;
+      const startY = ry + Math.round((rowH - barsTotalH) / 2);
+      sers.forEach((s, si) => {
+        const v = s.values[ci] ?? 0;
+        const bw = Math.max(18, Math.round((v / maxV) * trackW));
+        const by = startY + si * (subBarH + 4);
+        const col = (si === sers.length - 1 && v === maxV) ? r.pop : serCol(s, si);
+        elements.push({ type: 'shape', id: `${id}-hb-${ci + 1}-${si + 1}`, bounds: [x + pad + lblW, by, bw, subBarH], style: { fill: col, radius: Math.round(subBarH / 2) } });
+        elements.push(textElement({ id: `${id}-hv-${ci + 1}-${si + 1}`, text: String(v), bounds: [x + pad + lblW + bw + 8, by - 2, 68, subBarH + 4], style: theme.font(13, { fontWeight: si === sers.length - 1 ? 700 : 400, color: si === sers.length - 1 ? p.ink : muted, lineHeight: 1.2 }) }));
+      });
+    });
+    return { elements, height: h };
+  }
+
+  const labelH = 32;
+  const valPad = 26;
+  const barAreaH = plotH - labelH - valPad;
+  const baseY = plotTop + valPad + barAreaH;
+
+  // 3 horizontal dashed guide lines
+  for (let g = 0; g < 3; g++) {
+    const gy = Math.round(plotTop + valPad + (barAreaH * g) / 2);
+    elements.push(lineElement({ id: `${id}-grid-${g + 1}`, from: [x + pad, gy], to: [x + width - pad, gy], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1, strokeDash: g < 2 ? 'dash' : undefined } }));
+  }
+
+  const groupW = iw / cats.length;
+  if (variant === 'stacked') {
+    const sums = cats.map((_, ci) => sers.reduce((acc, s) => acc + (s.values[ci] ?? 0), 0));
+    const maxSum = Math.max(1, ...sums);
+    const barW = Math.min(72, Math.max(26, Math.round(groupW * 0.44)));
+    cats.forEach((cat, ci) => {
+      const gx = x + pad + ci * groupW + Math.round((groupW - barW) / 2);
+      let curBottom = baseY;
+      sers.forEach((s, si) => {
+        const v = s.values[ci] ?? 0;
+        const bh = Math.max(6, Math.round((v / maxSum) * barAreaH));
+        const by = curBottom - bh;
+        const col = si === sers.length - 1 && sums[ci] === maxSum ? r.pop : serCol(s, si);
+        elements.push({ type: 'shape', id: `${id}-sb-${ci + 1}-${si + 1}`, bounds: [gx, by, barW, bh], style: { fill: col, radius: si === sers.length - 1 ? 8 : 2 } });
+        curBottom = by - 2;
+      });
+      elements.push(textElement({ id: `${id}-sv-${ci + 1}`, text: String(sums[ci]), bounds: [gx - 12, curBottom - 22, barW + 24, 20], style: theme.font(15, { fontWeight: 700, color: sums[ci] === maxSum ? r.pop : p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-cat-${ci + 1}`, text: String(cat), bounds: [Math.round(x + pad + ci * groupW), baseY + 8, Math.round(groupW), 22], style: theme.font(16, { fontWeight: 600, color: muted, textAlign: 'center', lineHeight: 1.2 }) }));
+    });
+    return { elements, height: h };
+  }
+
+  // Default 'grouped'
+  const allVals = sers.flatMap((s) => s.values);
+  const maxV = Math.max(1, ...allVals);
+  const lastSer = sers[sers.length - 1];
+  const peakIdx = lastSer.values.indexOf(Math.max(...lastSer.values));
+  const innerGap = 8;
+  const maxPairW = Math.min(groupW * 0.68, 128);
+  const barW = Math.max(18, Math.min(48, Math.floor((maxPairW - innerGap * (sers.length - 1)) / sers.length)));
+  const pairW = barW * sers.length + innerGap * (sers.length - 1);
+
+  cats.forEach((cat, ci) => {
+    const startX = Math.round(x + pad + ci * groupW + (groupW - pairW) / 2);
+    sers.forEach((s, si) => {
+      const v = s.values[ci] ?? 0;
+      const bh = Math.max(14, Math.round((v / maxV) * barAreaH));
+      const bx = startX + si * (barW + innerGap);
+      const by = baseY - bh;
+      const isPeak = si === sers.length - 1 && ci === peakIdx;
+      const col = isPeak ? r.pop : serCol(s, si);
+      elements.push({ type: 'shape', id: `${id}-b-${ci + 1}-${si + 1}`, bounds: [bx, by, barW, bh], style: { fill: col, radius: Math.min(8, Math.floor(barW / 3)) } });
+      elements.push(textElement({ id: `${id}-v-${ci + 1}-${si + 1}`, text: String(v), bounds: [bx - 10, by - 22, barW + 20, 20], style: theme.font(14, { fontWeight: si === sers.length - 1 ? 700 : 400, color: isPeak ? r.pop : (si === sers.length - 1 ? p.ink : muted), textAlign: 'center', lineHeight: 1.2 }) }));
+    });
+    elements.push(textElement({ id: `${id}-cat-${ci + 1}`, text: String(cat), bounds: [Math.round(x + pad + ci * groupW), baseY + 8, Math.round(groupW), 22], style: theme.font(16, { fontWeight: 600, color: ci === peakIdx ? p.ink : muted, textAlign: 'center', lineHeight: 1.2 }) }));
+  });
+  return { elements, height: h };
+}
+
+export function multiLineChart({ id, x, y, width, height, title = '', unit = '', badge = '', categories = [], series = [], theme, variant = 'line' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const cats = (Array.isArray(categories) ? categories : []).slice(0, 12);
+  const sers = (Array.isArray(series) ? series : []).slice(0, 3).map((s, si) => ({
+    name: s?.name || `趋势${si + 1}`,
+    values: (Array.isArray(s?.values) ? s.values : []).map(parseChartNum),
+    dashed: Boolean(s?.dashed),
+    tone: s?.tone || (si === 0 ? 'primary' : si === 1 ? 'muted' : 'pop'),
+  }));
+  if (cats.length < 2 || !sers.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const serCol = (s, si) => (s.tone === 'pop' ? r.pop : s.tone === 'muted' ? muted : s.tone === 'secondary' ? r.secondary : si === 0 ? r.primary : r.pop);
+
+  const pad = isCompact ? 18 : 26;
+  const headH = 44;
+  const natural = isCompact ? 360 : 440;
+  const h = Math.max(natural, height || 0);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'multiLineChart', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  const iw = width - pad * 2;
+  const headY = y + pad;
+  const titleTxt = title ? (unit ? `${title}（${unit}）` : title) : '趋势走势分析';
+  elements.push(textElement({ id: `${id}-title`, text: titleTxt, bounds: [x + pad, headY + 2, iw - 420, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+
+  let rx = x + width - pad;
+  if (badge) {
+    const bW = Math.min(200, Math.max(96, Math.ceil(textWidth(badge, 13) * 1.2) + 24));
+    rx -= bW;
+    elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [rx, headY + 4, bW, 26], style: { fill: p.dark ? '#331E12' : '#FFF7ED', radius: 13 } });
+    elements.push(textElement({ id: `${id}-bdg-tx`, text: badge, bounds: [rx + 6, headY + 7, bW - 12, 20], style: theme.font(13, { fontWeight: 700, color: r.pop, textAlign: 'center', lineHeight: 1.2 }) }));
+    rx -= 16;
+  }
+  for (let si = sers.length - 1; si >= 0; si--) {
+    const lw = Math.ceil(textWidth(sers[si].name, 14) * 1.15) + 22;
+    rx -= lw;
+    elements.push(lineElement({ id: `${id}-lgd-${si + 1}`, from: [rx, headY + 17], to: [rx + 14, headY + 17], style: { stroke: serCol(sers[si], si), strokeWidth: 3, ...(sers[si].dashed ? { strokeDash: 'dash' } : {}) } }));
+    elements.push(textElement({ id: `${id}-lgt-${si + 1}`, text: sers[si].name, bounds: [rx + 18, headY + 7, lw - 18, 20], style: theme.font(14, { fontWeight: 400, color: muted, lineHeight: 1.2 }) }));
+    rx -= 14;
+  }
+
+  const plotTop = headY + headH + 20;
+  const labelH = 34;
+  const plotH = h - (plotTop - y) - pad - labelH;
+  const baseY = plotTop + plotH;
+  const allVals = sers.flatMap((s) => s.values);
+  const maxV = Math.max(...allVals);
+  const minV = Math.min(0, ...allVals);
+  const span = Math.max(1, maxV - minV);
+
+  // Grid lines
+  for (let g = 0; g < 4; g++) {
+    const gy = Math.round(plotTop + (plotH * g) / 3);
+    elements.push(lineElement({ id: `${id}-grid-${g + 1}`, from: [x + pad, gy], to: [x + width - pad, gy], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1, strokeDash: g < 3 ? 'dash' : undefined } }));
+  }
+
+  const padX = 38;
+  const stepX = (iw - padX * 2) / (cats.length - 1);
+  const ptX = (ci) => Math.round(x + pad + padX + ci * stepX);
+  const ptY = (val) => Math.round(baseY - ((val - minV) / span) * (plotH - 14));
+
+  // Optional 'bars' combo mode: draw primary series as soft bars + secondary as pop line
+  if (variant === 'bars') {
+    const main = sers[0];
+    const barW = Math.min(54, Math.max(20, Math.round(stepX * 0.44)));
+    cats.forEach((cat, ci) => {
+      const v = main.values[ci] ?? 0;
+      const cx = ptX(ci), cy = ptY(v);
+      const bh = Math.max(12, baseY - cy);
+      const isLast = ci === cats.length - 1;
+      elements.push({ type: 'shape', id: `${id}-cb-${ci + 1}`, bounds: [cx - Math.round(barW / 2), cy, barW, bh], style: { fill: isLast ? r.pop : mixHexLocal(r.primary, surf, p.dark ? 0.25 : 0.35), radius: 8 } });
+      elements.push(textElement({ id: `${id}-cv-${ci + 1}`, text: String(v), bounds: [cx - 32, cy - 24, 64, 20], style: theme.font(14, { fontWeight: 700, color: isLast ? r.pop : p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+    });
+  }
+
+  // Optional 'area' soft fill under primary curve
+  if (variant === 'area') {
+    const main = sers[0];
+    const pts = cats.map((_, ci) => [ptX(ci) - (x + pad), ptY(main.values[ci] ?? 0) - plotTop]);
+    const areaD = `M ${pts[0][0]} ${plotH} ` + pts.map(([px, py]) => `L ${px} ${py}`).join(' ') + ` L ${pts[pts.length - 1][0]} ${plotH} Z`;
+    elements.push({
+      type: 'vector', id: `${id}-area`,
+      bounds: [x + pad, plotTop, iw, plotH],
+      viewBox: [0, 0, iw, plotH],
+      path: areaD,
+      style: { fill: mixHexLocal(r.primary, surf, p.dark ? 0.72 : 0.86), stroke: 'none', strokeWidth: 0 },
+    });
+  }
+
+  // Draw series lines via crisp SVG vector paths (or dashed segments)
+  sers.forEach((s, si) => {
+    if (variant === 'bars' && si === 0) return;
+    const col = serCol(s, si);
+    const pts = cats.map((_, ci) => [ptX(ci), ptY(s.values[ci] ?? 0)]);
+    if (s.dashed) {
+      for (let ci = 0; ci < pts.length - 1; ci++) {
+        elements.push(lineElement({ id: `${id}-dl-${si + 1}-${ci + 1}`, from: pts[ci], to: pts[ci + 1], style: { stroke: col, strokeWidth: 2.5, strokeDash: 'dash' } }));
+      }
+    } else {
+      const relD = pts.map(([px, py], idx) => `${idx === 0 ? 'M' : 'L'} ${px - (x + pad)} ${py - plotTop}`).join(' ');
+      elements.push({
+        type: 'vector', id: `${id}-ln-${si + 1}`,
+        bounds: [x + pad, plotTop, iw, plotH],
+        viewBox: [0, 0, iw, plotH],
+        path: relD,
+        style: { fill: 'none', stroke: col, strokeWidth: si === 0 ? 4 : 3, strokeLinecap: 'round', strokeLinejoin: 'round' },
+      });
+    }
+    if (si === 0 || variant === 'bars') {
+      pts.forEach(([px, py], ci) => {
+        const isLast = ci === pts.length - 1;
+        const dotSz = isLast ? 14 : 10;
+        elements.push({ type: 'shape', id: `${id}-dot-${si + 1}-${ci + 1}`, shape: 'ellipse', bounds: [px - dotSz / 2, py - dotSz / 2, dotSz, dotSz], style: { fill: isLast ? r.pop : surf, stroke: isLast ? r.pop : col, strokeWidth: 3, radius: dotSz / 2 } });
+        elements.push(textElement({ id: `${id}-vl-${si + 1}-${ci + 1}`, text: String(s.values[ci] ?? ''), bounds: [px - 36, py - 28, 72, 20], style: theme.font(isLast ? 16 : 14, { fontWeight: isLast ? 900 : 700, color: isLast ? r.pop : p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+      });
+    }
+  });
+
+  // X-axis category labels
+  cats.forEach((cat, ci) => {
+    const cx = ptX(ci);
+    elements.push(textElement({ id: `${id}-cat-${ci + 1}`, text: String(cat), bounds: [cx - 44, baseY + 10, 88, 22], style: theme.font(15, { fontWeight: ci === cats.length - 1 ? 700 : 500, color: ci === cats.length - 1 ? p.ink : muted, textAlign: 'center', lineHeight: 1.2 }) }));
+  });
+  return { elements, height: h };
+}
+
+export function rankedBarList({ id, x, y, width, height, title = '', unit = '', badge = '', items = [], theme, variant = 'bars' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(items) ? items : []).slice(0, 8).map((it) => ({
+    ...it,
+    _num: it.num != null ? Number(it.num) : parseChartNum(it.value),
+  }));
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const maxN = Math.max(1, ...list.map((it) => it._num));
+  const pad = isCompact ? 18 : 26;
+  const headH = title ? 44 : 0;
+  const iw = width - pad * 2;
+
+  if (variant === 'podium' && list.length >= 3) {
+    const top3 = list.slice(0, 3), rest = list.slice(3);
+    const natural = isCompact ? 370 : 440;
+    const h = Math.max(natural, height || 0);
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'rankedBarList', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad;
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw - 200, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      if (unit) elements.push(textElement({ id: `${id}-unit`, text: `单位：${unit}`, bounds: [x + width - pad - 180, curY + 6, 180, 22], style: theme.font(14, { fontWeight: 400, color: muted, textAlign: 'right', lineHeight: 1.2 }) }));
+      curY += headH;
+    }
+    const bodyH = h - (curY - y) - pad;
+    const topH = rest.length ? Math.round(bodyH * 0.56) : bodyH;
+    const gap = 16;
+    const cw = Math.floor((iw - gap * 2) / 3);
+    top3.forEach((it, idx) => {
+      const cx = x + pad + idx * (cw + gap);
+      const isFirst = idx === 0;
+      elements.push({ type: 'shape', id: `${id}-pod-${idx + 1}`, bounds: [cx, curY, cw, topH], style: isFirst ? { fill: r.primary, radius: rad } : { fill: subBg, stroke: idx === 1 ? r.primary : (p.line || '#E2E6EE'), strokeWidth: 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-ptrim-${idx + 1}`, bounds: [cx + 20, curY, cw - 40, 5], style: { fill: isFirst ? r.pop : (idx === 1 ? r.primary : r.secondary), radius: 3 } });
+      elements.push({ type: 'shape', id: `${id}-pnum-${idx + 1}`, bounds: [cx + 20, curY + 20, 56, 26], style: { fill: isFirst ? r.pop : (idx === 1 ? r.primary : muted), radius: 13 } });
+      elements.push(textElement({ id: `${id}-pnumt-${idx + 1}`, text: `TOP ${idx + 1}`, bounds: [cx + 20, curY + 23, 56, 20], style: theme.font(13, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-lbl-${idx + 1}`, text: it.label || '', bounds: [cx + 20, curY + 56, cw - 40, 28], style: theme.font(21, { fontWeight: 700, color: isFirst ? (p.inverse || '#FFFFFF') : p.ink, lineHeight: 1.25 }) }));
+      elements.push(textElement({ id: `${id}-val-${idx + 1}`, text: String(it.value ?? it._num), bounds: [cx + 20, curY + Math.max(90, topH - 68), cw - 40, 44], style: theme.font(34, { fontWeight: 900, color: isFirst ? (p.inverse || '#FFFFFF') : (idx === 1 ? r.primary : p.ink), lineHeight: 1.15 }) }));
+    });
+    if (rest.length) {
+      const ry0 = curY + topH + 14;
+      const rGap = 10;
+      const rowH = Math.floor((bodyH - topH - 14 - rGap * (rest.length - 1)) / rest.length);
+      rest.forEach((it, ri) => {
+        const ry = ry0 + ri * (rowH + rGap);
+        const rank = ri + 4;
+        elements.push({ type: 'shape', id: `${id}-rrow-${rank}`, bounds: [x + pad, ry, iw, rowH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 10 } });
+        elements.push(textElement({ id: `${id}-rn-${rank}`, text: `0${rank}`, bounds: [x + pad + 14, ry + Math.round((rowH - 22) / 2), 34, 22], style: theme.font(15, { fontWeight: 800, color: muted, lineHeight: 1.2 }) }));
+        elements.push(textElement({ id: `${id}-lbl-${rank}`, text: it.label || '', bounds: [x + pad + 54, ry + Math.round((rowH - 24) / 2), 200, 24], style: theme.font(18, { fontWeight: 600, color: p.ink, lineHeight: 1.2 }) }));
+        const tx = x + pad + 266, tw = iw - 420;
+        elements.push({ type: 'shape', id: `${id}-trk-${rank}`, bounds: [tx, ry + Math.round((rowH - 12) / 2), tw, 12], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 6 } });
+        elements.push({ type: 'shape', id: `${id}-fil-${rank}`, bounds: [tx, ry + Math.round((rowH - 12) / 2), Math.max(20, Math.round((it._num / maxN) * tw)), 12], style: { fill: mixHexLocal(r.primary, surf, 0.3), radius: 6 } });
+        elements.push(textElement({ id: `${id}-val-${rank}`, text: String(it.value ?? it._num), bounds: [x + width - pad - 144, ry + Math.round((rowH - 24) / 2), 130, 24], style: theme.font(19, { fontWeight: 800, color: p.ink, textAlign: 'right', lineHeight: 1.2 }) }));
+      });
+    }
+    return { elements, height: h };
+  }
+
+  if (variant === 'tiles') {
+    const cols = 2, rowsN = Math.ceil(list.length / 2);
+    const rGap = 14, cGap = 16;
+    const minTileH = 82;
+    const natural = pad * 2 + headH + rowsN * minTileH + (rowsN - 1) * rGap;
+    const h = Math.max(natural, height || 0);
+    const tileH = Math.floor((h - pad * 2 - headH - rGap * (rowsN - 1)) / rowsN);
+    const cw = Math.floor((iw - cGap) / cols);
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'rankedBarList', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad;
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      curY += headH;
+    }
+    list.forEach((it, i) => {
+      const col = i % 2, row = Math.floor(i / 2);
+      const cx = x + pad + col * (cw + cGap), cy = curY + row * (tileH + rGap);
+      const isTop = i === 0;
+      const barCol = isTop ? r.pop : (i < 3 ? r.primary : mixHexLocal(r.primary, surf, 0.38));
+      elements.push({ type: 'shape', id: `${id}-t-${i + 1}`, bounds: [cx, cy, cw, tileH], style: { fill: subBg, stroke: isTop ? r.pop : (p.line || '#E2E6EE'), strokeWidth: isTop ? 1.5 : 1, radius: 12 } });
+      elements.push({ type: 'shape', id: `${id}-nb-${i + 1}`, bounds: [cx + 16, cy + 16, 28, 28], style: { fill: barCol, radius: 8 } });
+      elements.push(textElement({ id: `${id}-nt-${i + 1}`, text: String(i + 1), bounds: [cx + 16, cy + 19, 28, 22], style: theme.font(15, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 54, cy + 18, cw - 200, 26], style: theme.font(19, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: String(it.value ?? it._num), bounds: [cx + cw - 144, cy + 16, 128, 28], style: theme.font(22, { fontWeight: 900, color: isTop ? r.pop : p.ink, textAlign: 'right', lineHeight: 1.2 }) }));
+      const tw = cw - 32;
+      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [cx + 16, cy + tileH - 22, tw, 10], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 5 } });
+      elements.push({ type: 'shape', id: `${id}-fil-${i + 1}`, bounds: [cx + 16, cy + tileH - 22, Math.max(20, Math.round((it._num / maxN) * tw)), 10], style: { fill: barCol, radius: 5 } });
+    });
+    return { elements, height: h };
+  }
+
+  // Default 'bars' (Tremor Ranked BarList)
+  const rowGap = isCompact ? 10 : 14;
+  const minRowH = isCompact ? 46 : 56;
+  const natural = pad * 2 + headH + list.length * minRowH + (list.length - 1) * rowGap;
+  const h = Math.max(natural, height || 0);
+  const rowH = Math.floor((h - pad * 2 - headH - rowGap * (list.length - 1)) / list.length);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'rankedBarList', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw - 220, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    const rHint = badge || (unit ? `单位：${unit}` : '');
+    if (rHint) elements.push(textElement({ id: `${id}-unit`, text: rHint, bounds: [x + width - pad - 200, curY + 6, 200, 22], style: theme.font(14, { fontWeight: 500, color: muted, textAlign: 'right', lineHeight: 1.2 }) }));
+    curY += headH;
+  }
+  const lblW = Math.min(260, Math.round(iw * 0.2));
+  const valW = 190;
+  const trackW = iw - 56 - lblW - valW - 28;
+  list.forEach((it, i) => {
+    const ry = curY + i * (rowH + rowGap);
+    const isTop = i === 0;
+    const col = isTop ? r.pop : (i < 3 ? r.primary : mixHexLocal(r.primary, surf, p.dark ? 0.35 : 0.45));
+    elements.push({ type: 'shape', id: `${id}-row-${i + 1}`, bounds: [x + pad, ry, iw, rowH], style: { fill: isTop ? (p.dark ? '#2B1B14' : '#FFF7ED') : subBg, stroke: isTop ? r.pop : (p.line || '#E2E6EE'), strokeWidth: isTop ? 1.5 : 1, radius: 12 } });
+    const nSz = 30;
+    elements.push({ type: 'shape', id: `${id}-nb-${i + 1}`, bounds: [x + pad + 14, ry + Math.round((rowH - nSz) / 2), nSz, nSz], style: { fill: col, radius: 8 } });
+    elements.push(textElement({ id: `${id}-nt-${i + 1}`, text: String(i + 1), bounds: [x + pad + 14, ry + Math.round((rowH - 22) / 2), nSz, 22], style: theme.font(15, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [x + pad + 56, ry + Math.round((rowH - 24) / 2), lblW - 10, 26], style: theme.font(19, { fontWeight: i < 3 ? 700 : 500, color: p.ink, lineHeight: 1.25 }) }));
+    const tx = x + pad + 56 + lblW + 8;
+    const barH = 14;
+    elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [tx, ry + Math.round((rowH - barH) / 2), trackW, barH], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 7 } });
+    elements.push({ type: 'shape', id: `${id}-fil-${i + 1}`, bounds: [tx, ry + Math.round((rowH - barH) / 2), Math.max(24, Math.round((it._num / maxN) * trackW)), barH], style: { fill: col, radius: 7 } });
+    const vDisp = `${it.value ?? it._num}${it.delta ? `  ${it.delta}` : ''}`;
+    elements.push(textElement({ id: `${id}-val-${i + 1}`, text: vDisp, bounds: [x + width - pad - valW - 14, ry + Math.round((rowH - 26) / 2), valW, 26], style: theme.font(20, { fontWeight: 900, color: isTop ? r.pop : p.ink, textAlign: 'right', lineHeight: 1.2 }) }));
+  });
+  return { elements, height: h };
+}
+
+export function executiveBriefCard({ id, x, y, width, height, badge = '', headline = '', value = '', unit = '', summary = '', metrics = [], theme, variant = 'bento' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(metrics) ? metrics : []).slice(0, 4);
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 16;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const okCol = p.dark ? '#34D399' : '#059669';
+  const natural = isCompact ? 370 : 450;
+  const h = Math.max(natural, height || 0);
+  const elements = [];
+
+  const metricTone = (m) => (m.tone === 'ok' ? okCol : m.tone === 'pop' ? r.pop : m.tone === 'primary' ? r.primary : p.ink);
+
+  if (variant === 'topHero') {
+    const gap = 18;
+    const heroH = Math.round(h * 0.52);
+    const botH = h - heroH - gap;
+    elements.push({ type: 'shape', id: `${id}-hero`, component: 'executiveBrief', bounds: [x, y, width, heroH], style: { fill: r.primary, radius: rad } });
+    elements.push({ type: 'shape', id: `${id}-htrim`, bounds: [x + 28, y, width - 56, 6], style: { fill: r.pop, radius: 3 } });
+    const leftW = value ? Math.round(width * 0.38) : 0;
+    if (badge) {
+      const bW = Math.min(260, Math.max(110, Math.ceil(textWidth(badge, 13) * 1.2) + 26));
+      elements.push({ type: 'shape', id: `${id}-hbg`, bounds: [x + 32, y + 26, bW, 28], style: { fill: r.pop, radius: 14 } });
+      elements.push(textElement({ id: `${id}-hbtx`, text: badge, bounds: [x + 38, y + 30, bW - 12, 20], style: theme.font(13, { fontWeight: 800, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+    if (value) {
+      elements.push(textElement({ id: `${id}-hval`, text: `${value}${unit}`, bounds: [x + 32, y + Math.round(heroH * 0.38), leftW - 44, 88], style: theme.font(68, { fontWeight: 900, color: p.inverse || '#FFFFFF', lineHeight: 1.05 }) }));
+    }
+    const rx = x + (leftW ? leftW + 16 : 32);
+    const rw = width - (rx - x) - 36;
+    if (headline) {
+      elements.push(textElement({ id: `${id}-ht`, text: headline, bounds: [rx, y + 48, rw, 44], style: theme.font(28, { fontWeight: 700, color: p.inverse || '#FFFFFF', lineHeight: 1.25 }) }));
+    }
+    if (summary) {
+      elements.push(textElement({ id: `${id}-hs`, text: summary, bounds: [rx, y + 102, rw, Math.max(54, heroH - 120)], style: theme.font(20, { fontWeight: 300, color: mixHexLocal(r.primary, '#FFFFFF', 0.85), lineHeight: 1.5 }) }));
+    }
+    if (list.length) {
+      const cw = Math.floor((width - gap * (list.length - 1)) / list.length);
+      list.forEach((m, i) => {
+        const cx = x + i * (cw + gap), cy = y + heroH + gap;
+        elements.push({ type: 'shape', id: `${id}-m-${i + 1}`, bounds: [cx, cy, cw, botH], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } });
+        elements.push({ type: 'shape', id: `${id}-mt-${i + 1}`, bounds: [cx + 20, cy, cw - 40, 4], style: { fill: i === 0 ? r.pop : r.primary, radius: 2 } });
+        elements.push(textElement({ id: `${id}-ml-${i + 1}`, text: m.label || '', bounds: [cx + 22, cy + 22, cw - 44, 24], style: theme.font(17, { fontWeight: 500, color: muted, lineHeight: 1.25 }) }));
+        elements.push(textElement({ id: `${id}-mv-${i + 1}`, text: `${m.value ?? ''}${m.unit || ''}`, bounds: [cx + 22, cy + Math.round(botH * 0.36), cw - 44, 52], style: theme.font(38, { fontWeight: 900, color: metricTone(m), lineHeight: 1.15 }) }));
+        if (m.delta) {
+          elements.push(textElement({ id: `${id}-md-${i + 1}`, text: String(m.delta), bounds: [cx + 22, cy + botH - 36, cw - 44, 22], style: theme.font(15, { fontWeight: 700, color: m.tone === 'pop' ? r.pop : okCol, lineHeight: 1.2 }) }));
+        }
+      });
+    }
+    return { elements, height: h };
+  }
+
+  // Default 'bento' & 'light' (Left 46% Hero Card + Right 54% 2x2 Sub-Cards)
+  const isLight = variant === 'light';
+  const gap = 20;
+  const heroW = list.length ? Math.round((width - gap) * 0.46) : width;
+  elements.push({
+    type: 'shape', id: `${id}-hero`, component: 'executiveBrief',
+    bounds: [x, y, heroW, h],
+    style: isLight
+      ? { fill: surf, stroke: r.primary, strokeWidth: 2, radius: rad }
+      : { fill: r.primary, radius: rad },
+  });
+  elements.push({ type: 'shape', id: `${id}-htrim`, bounds: [x + 26, y, heroW - 52, 6], style: { fill: r.pop, radius: 3 } });
+  const hPad = 32;
+  let hy = y + 32;
+  if (badge) {
+    const bW = Math.min(heroW - hPad * 2, Math.max(110, Math.ceil(textWidth(badge, 13) * 1.2) + 26));
+    elements.push({ type: 'shape', id: `${id}-hbg`, bounds: [x + hPad, hy, bW, 28], style: { fill: isLight ? (p.pale || '#EEF2FF') : r.pop, radius: 14 } });
+    elements.push(textElement({ id: `${id}-hbtx`, text: badge, bounds: [x + hPad + 6, hy + 4, bW - 12, 20], style: theme.font(13, { fontWeight: 800, color: isLight ? r.primary : '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    hy += 46;
+  }
+  if (value) {
+    elements.push(textElement({ id: `${id}-hval`, text: `${value}${unit}`, bounds: [x + hPad, hy, heroW - hPad * 2, 86], style: theme.font(72, { fontWeight: 900, color: isLight ? r.primary : (p.inverse || '#FFFFFF'), lineHeight: 1.05 }) }));
+    hy += 98;
+  }
+  if (headline) {
+    elements.push(textElement({ id: `${id}-ht`, text: headline, bounds: [x + hPad, hy, heroW - hPad * 2, 66], style: theme.font(26, { fontWeight: 700, color: isLight ? p.ink : (p.inverse || '#FFFFFF'), lineHeight: 1.28 }) }));
+    hy += 72;
+  }
+  if (summary) {
+    elements.push(textElement({ id: `${id}-hs`, text: summary, bounds: [x + hPad, hy, heroW - hPad * 2, Math.max(54, y + h - hy - 26)], style: theme.font(20, { fontWeight: 300, color: isLight ? muted : mixHexLocal(r.primary, '#FFFFFF', 0.85), lineHeight: 1.5 }) }));
+  }
+
+  if (list.length) {
+    const rx = x + heroW + gap, rw = width - heroW - gap;
+    const cols = list.length <= 2 ? 1 : 2;
+    const rowsN = Math.ceil(list.length / cols);
+    const cGap = 16, rGap = 16;
+    const cw = Math.floor((rw - cGap * (cols - 1)) / cols);
+    const ch = Math.floor((h - rGap * (rowsN - 1)) / rowsN);
+    const iconGlyphs = ['★', '✓', '⚡', '♥'];
+    list.forEach((m, i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      const cx = rx + col * (cw + cGap), cy = y + row * (ch + rGap);
+      const accentC = m.tone === 'pop' ? r.pop : (m.tone === 'ok' ? okCol : r.primary);
+      const softBg = m.tone === 'pop' ? (p.dark ? '#331E12' : '#FFF7ED') : (m.tone === 'ok' ? (p.dark ? '#11302B' : '#ECFDF5') : (p.pale || '#EEF2FF'));
+      elements.push({ type: 'shape', id: `${id}-m-${i + 1}`, bounds: [cx, cy, cw, ch], style: { fill: isLight ? subBg : surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-mt-${i + 1}`, bounds: [cx + 20, cy, cw - 40, 4], style: { fill: accentC, radius: 2 } });
+
+      const valFull = `${m.value ?? ''}${m.unit || ''}`;
+      const isWide = cw / Math.max(1, ch) >= 1.55 && cw >= 320;
+      if (isWide) {
+        // Aspect-aware horizontal split: Left (icon + title + delta pill) | Right (giant 900 readout)
+        const leftBoxW = Math.round(cw * 0.48);
+        const rightBoxX = cx + leftBoxW + 8;
+        const rightBoxW = cw - leftBoxW - 30;
+        const icSz = 36;
+        const blockH = icSz + 10 + 26 + (m.delta ? 34 : 0);
+        const ly0 = cy + Math.max(16, Math.round((ch - blockH) / 2));
+        elements.push({ type: 'shape', id: `${id}-mic-${i + 1}`, bounds: [cx + 22, ly0, icSz, icSz], style: { fill: softBg, radius: 10 } });
+        elements.push(textElement({ id: `${id}-mict-${i + 1}`, text: m.icon || iconGlyphs[i % iconGlyphs.length], bounds: [cx + 22, ly0 + 7, icSz, 22], style: theme.font(18, { fontWeight: 900, color: accentC, textAlign: 'center', lineHeight: 1.2 }) }));
+        elements.push(textElement({ id: `${id}-ml-${i + 1}`, text: m.label || '', bounds: [cx + 22, ly0 + icSz + 10, leftBoxW - 22, 26], style: theme.font(18, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+        if (m.delta) {
+          const dW = Math.min(leftBoxW - 22, Math.max(96, Math.ceil(textWidth(String(m.delta), 13) * 1.18) + 22));
+          elements.push({ type: 'shape', id: `${id}-mdb-${i + 1}`, bounds: [cx + 22, ly0 + icSz + 42, dW, 24], style: { fill: softBg, radius: 12 } });
+          elements.push(textElement({ id: `${id}-md-${i + 1}`, text: String(m.delta), bounds: [cx + 28, ly0 + icSz + 45, dW - 12, 18], style: theme.font(13, { fontWeight: 700, color: accentC, textAlign: 'center', lineHeight: 1.2 }) }));
+        }
+        const vFs = Math.max(36, Math.min(58, Math.floor((rightBoxW * 0.96) / Math.max(1, textWidth(valFull, 1)))));
+        elements.push(textElement({ id: `${id}-mv-${i + 1}`, text: valFull, bounds: [rightBoxX, cy + Math.round((ch - Math.ceil(vFs * 1.15)) / 2), rightBoxW, Math.ceil(vFs * 1.15)], style: theme.font(vFs, { fontWeight: 900, color: metricTone(m), textAlign: 'right', lineHeight: 1.1 }) }));
+      } else {
+        elements.push(textElement({ id: `${id}-ml-${i + 1}`, text: m.label || '', bounds: [cx + 24, cy + 24, cw - 48, 26], style: theme.font(18, { fontWeight: 500, color: muted, lineHeight: 1.25 }) }));
+        elements.push(textElement({ id: `${id}-mv-${i + 1}`, text: valFull, bounds: [cx + 24, cy + Math.round(ch * 0.38), cw - 48, 56], style: theme.font(cw < 360 ? 38 : 46, { fontWeight: 900, color: metricTone(m), lineHeight: 1.15 }) }));
+        if (m.delta) {
+          elements.push(textElement({ id: `${id}-md-${i + 1}`, text: String(m.delta), bounds: [cx + 24, cy + ch - 40, cw - 48, 24], style: theme.font(16, { fontWeight: 700, color: m.tone === 'pop' ? r.pop : okCol, lineHeight: 1.2 }) }));
+        }
+      }
+    });
+  }
+  return { elements, height: h };
+}
+
+// =========================================================================
+// Modern Web UI v2 Batch 2 (Strategic Infographics):
+//   - orbitFlywheel (V2-INFO-01: Orbit Growth Flywheel / Cycle / Grid)
+//   - icebergModel  (V2-INFO-02: Surface vs Deep Root-Cause Iceberg)
+//   - radarScoreCard(V2-INFO-03: Smooth SVG Polygon Radar + Score Breakdown)
+// =========================================================================
+
+export function orbitFlywheel({ id, x, y, width, height, title = '', center = {}, nodes = [], theme, variant = 'orbit' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(nodes) ? nodes : []).slice(0, 6);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const okCol = p.dark ? '#34D399' : '#059669';
+  const nodeCols = [r.primary, r.pop, r.secondary, okCol, mixHexLocal(r.primary, '#FFFFFF', 0.25), muted];
+  const pad = isCompact ? 18 : 24;
+  const headH = title ? (isCompact ? 36 : 42) : 0;
+  const natural = isCompact ? 390 : 460;
+  const h = Math.max(natural, height || 0);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'orbitFlywheel', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  const iw = width - pad * 2;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    curY += headH;
+  }
+  const bodyH = h - (curY - y) - pad;
+
+  if (variant === 'cycle') {
+    const retH = 44;
+    const cardH = Math.max(180, bodyH - retH);
+    const arrowGap = 28;
+    const cw = Math.floor((iw - arrowGap * (list.length - 1)) / list.length);
+    list.forEach((nd, i) => {
+      const cx = x + pad + i * (cw + arrowGap);
+      const col = nodeCols[i % nodeCols.length];
+      elements.push({ type: 'shape', id: `${id}-nc-${i + 1}`, bounds: [cx, curY, cw, cardH], style: { fill: subBg, stroke: i === 0 ? r.primary : (p.line || '#E2E6EE'), strokeWidth: i === 0 ? 2 : 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-ntrim-${i + 1}`, bounds: [cx + 18, curY, cw - 36, 5], style: { fill: col, radius: 3 } });
+      elements.push({ type: 'shape', id: `${id}-nb-${i + 1}`, bounds: [cx + 18, curY + 20, 32, 32], style: { fill: col, radius: 10 } });
+      elements.push(textElement({ id: `${id}-nbt-${i + 1}`, text: `0${i + 1}`, bounds: [cx + 18, curY + 24, 32, 24], style: theme.font(15, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-nt-${i + 1}`, text: nd.title || '', bounds: [cx + 18, curY + 64, cw - 36, 54], style: theme.font(20, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      if (nd.detail) {
+        elements.push(textElement({ id: `${id}-nd-${i + 1}`, text: nd.detail, bounds: [cx + 18, curY + 124, cw - 36, Math.max(48, cardH - 140)], style: theme.font(17, { fontWeight: 300, color: muted, lineHeight: 1.42 }) }));
+      }
+      if (i < list.length - 1) {
+        const my = curY + Math.round(cardH / 2);
+        elements.push({ ...lineElement({ id: `${id}-arr-${i + 1}`, from: [cx + cw + 3, my], to: [cx + cw + arrowGap - 3, my], style: { stroke: col, strokeWidth: 2.5 } }), endArrow: true });
+      }
+    });
+    // Return feedback loop line
+    const ly = curY + cardH + 26;
+    const xStart = x + pad + iw - Math.round(cw / 2);
+    const xEnd = x + pad + Math.round(cw / 2);
+    elements.push(lineElement({ id: `${id}-ret-r`, from: [xStart, curY + cardH + 4], to: [xStart, ly], style: { stroke: r.pop, strokeWidth: 2, strokeDash: 'dash' } }));
+    elements.push(lineElement({ id: `${id}-ret-b`, from: [xStart, ly], to: [xEnd, ly], style: { stroke: r.pop, strokeWidth: 2, strokeDash: 'dash' } }));
+    elements.push({ ...lineElement({ id: `${id}-ret-l`, from: [xEnd, ly], to: [xEnd, curY + cardH + 4], style: { stroke: r.pop, strokeWidth: 2, strokeDash: 'dash' } }), endArrow: true });
+    const retLbl = center.title ? `${center.title} · 持续正循环` : '持续正循环飞轮';
+    const rlW = Math.min(320, Math.max(160, Math.ceil(textWidth(retLbl, 14) * 1.2) + 28));
+    elements.push({ type: 'shape', id: `${id}-ret-bg`, bounds: [x + Math.round((width - rlW) / 2), ly - 13, rlW, 26], style: { fill: surf, stroke: r.pop, strokeWidth: 1.2, radius: 13 } });
+    elements.push(textElement({ id: `${id}-ret-tx`, text: retLbl, bounds: [x + Math.round((width - rlW) / 2) + 8, ly - 9, rlW - 16, 18], style: theme.font(13, { fontWeight: 700, color: r.pop, textAlign: 'center', lineHeight: 1.2 }) }));
+    return { elements, height: h };
+  }
+
+  if (variant === 'grid') {
+    const hubH = 74, gap = 16;
+    elements.push({ type: 'shape', id: `${id}-hub`, bounds: [x + pad, curY, iw, hubH], style: { fill: r.primary, radius: rad } });
+    elements.push({ type: 'shape', id: `${id}-htrim`, bounds: [x + pad + 24, curY, iw - 48, 5], style: { fill: r.pop, radius: 3 } });
+    const cBadge = center.badge || 'CORE';
+    const cbW = Math.max(76, Math.ceil(textWidth(cBadge, 13) * 1.2) + 24);
+    elements.push({ type: 'shape', id: `${id}-hbg`, bounds: [x + pad + 22, curY + 23, cbW, 28], style: { fill: r.pop, radius: 14 } });
+    elements.push(textElement({ id: `${id}-hbtx`, text: cBadge, bounds: [x + pad + 26, curY + 27, cbW - 8, 20], style: theme.font(13, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-ht`, text: center.title || '核心飞轮', bounds: [x + pad + cbW + 38, curY + 21, 360, 32], style: theme.font(24, { fontWeight: 900, color: p.inverse || '#FFFFFF', lineHeight: 1.25 }) }));
+    if (center.sub) {
+      elements.push(textElement({ id: `${id}-hsub`, text: center.sub, bounds: [x + pad + cbW + 408, curY + 25, Math.max(180, iw - cbW - 432), 26], style: theme.font(17, { fontWeight: 300, color: mixHexLocal(r.primary, '#FFFFFF', 0.82), textAlign: 'right', lineHeight: 1.25 }) }));
+    }
+    const cols = 2, rowsN = Math.ceil(list.length / 2);
+    const gridTop = curY + hubH + gap, gridH = bodyH - hubH - gap;
+    const cw = Math.floor((iw - gap) / 2), ch = Math.floor((gridH - gap * (rowsN - 1)) / rowsN);
+    list.forEach((nd, i) => {
+      const col = i % 2, row = Math.floor(i / 2);
+      const cx = x + pad + col * (cw + gap), cy = gridTop + row * (ch + gap);
+      const colr = nodeCols[i % nodeCols.length];
+      elements.push({ type: 'shape', id: `${id}-nc-${i + 1}`, bounds: [cx, cy, cw, ch], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-nbar-${i + 1}`, bounds: [cx, cy + 14, 5, Math.max(24, ch - 28)], style: { fill: colr, radius: 3 } });
+      elements.push(textElement({ id: `${id}-nt-${i + 1}`, text: `0${i + 1}  ${nd.title || ''}`, bounds: [cx + 22, cy + 18, cw - 40, 28], style: theme.font(20, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      if (nd.detail) {
+        elements.push(textElement({ id: `${id}-nd-${i + 1}`, text: nd.detail, bounds: [cx + 22, cy + 52, cw - 40, Math.max(36, ch - 64)], style: theme.font(18, { fontWeight: 300, color: muted, lineHeight: 1.4 }) }));
+      }
+    });
+    return { elements, height: h };
+  }
+
+  // Default 'orbit': left nodes + center circular hub with outer dashed orbit ring + right nodes
+  const midX = x + Math.round(width / 2);
+  const midY = curY + Math.round(bodyH / 2);
+  const hubR = Math.min(92, Math.max(72, Math.floor(bodyH * 0.24)));
+  const orbitR = hubR + 34;
+
+  // Outer dashed orbit ring via SVG vector
+  const orbBox = (orbitR + 8) * 2;
+  const oc = orbitR + 8;
+  const orbPath = `M ${oc} ${oc - orbitR} A ${orbitR} ${orbitR} 0 1 1 ${oc} ${oc + orbitR} A ${orbitR} ${orbitR} 0 1 1 ${oc} ${oc - orbitR}`;
+  elements.push({
+    type: 'vector', id: `${id}-orb-ring`, shape: 'ellipse',
+    bounds: [midX - oc, midY - oc, orbBox, orbBox],
+    viewBox: [0, 0, orbBox, orbBox],
+    path: orbPath,
+    style: { fill: 'none', stroke: p.line || '#CBD5E1', strokeWidth: 2 },
+  });
+
+  const leftCount = Math.ceil(list.length / 2);
+  const leftNodes = list.slice(0, leftCount);
+  const rightNodes = list.slice(leftCount);
+  const colW = Math.floor((iw - orbitR * 2 - 56) / 2);
+  const leftX = x + pad;
+  const rightX = x + width - pad - colW;
+
+  const drawSide = (sideList, sx, isRight, idxOffset) => {
+    const nGap = 22;
+    const detFs = adaptiveBodyFont(sideList.map((n) => n.detail || '').sort((a, b) => b.length - a.length)[0], isCompact, 19);
+    const maxDetLines = Math.max(1, ...sideList.map((nd) => (nd.detail ? estimateLines(nd.detail, detFs, colW - 44) : 0)));
+    const contentH = 56 + Math.ceil(maxDetLines * detFs * 1.42) + 20;
+    const maxSlotH = Math.floor((bodyH - nGap * Math.max(0, sideList.length - 1)) / Math.max(1, sideList.length));
+    const cardH = fitCardHeight(contentH, maxSlotH, { maxStretch: 1.28, minH: 108 });
+    const totalSideH = sideList.length * cardH + (sideList.length - 1) * nGap;
+    const sy0 = curY + Math.round((bodyH - totalSideH) / 2);
+    sideList.forEach((nd, i) => {
+      const globalIdx = isRight ? idxOffset + i : i;
+      const cy = sy0 + i * (cardH + nGap);
+      const colr = nodeCols[globalIdx % nodeCols.length];
+      const autoMetric = extractCardMetric(nd.detail, nd.metric);
+      elements.push({ type: 'shape', id: `${id}-nc-${globalIdx + 1}`, bounds: [sx, cy, colW, cardH], style: { fill: subBg, stroke: globalIdx === 0 ? r.primary : (p.line || '#E2E6EE'), strokeWidth: globalIdx === 0 ? 1.8 : 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-ntrim-${globalIdx + 1}`, bounds: [sx, cy + 14, 5, Math.max(24, cardH - 28)], style: { fill: colr, radius: 3 } });
+      // Subtle corner watermark
+      elements.push(textElement({ id: `${id}-nwm-${globalIdx + 1}`, text: `0${globalIdx + 1}`, bounds: [sx + colW - 76, cy + cardH - 52, 64, 48], style: theme.font(44, { fontWeight: 900, color: mixHexLocal(colr, subBg, 0.88), textAlign: 'right', lineHeight: 1 }) }));
+      elements.push({ type: 'shape', id: `${id}-nb-${globalIdx + 1}`, bounds: [sx + 20, cy + 16, 28, 28], style: { fill: colr, radius: 8 } });
+      elements.push(textElement({ id: `${id}-nbt-${globalIdx + 1}`, text: `0${globalIdx + 1}`, bounds: [sx + 20, cy + 19, 28, 22], style: theme.font(14, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+      const metW = autoMetric ? Math.min(120, Math.max(66, Math.ceil(textWidth(autoMetric, 15) * 1.18) + 20)) : 0;
+      elements.push(textElement({ id: `${id}-nt-${globalIdx + 1}`, text: nd.title || '', bounds: [sx + 58, cy + 16, colW - 76 - metW, 28], style: theme.font(21, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      if (autoMetric) {
+        elements.push({ type: 'shape', id: `${id}-nmb-${globalIdx + 1}`, bounds: [sx + colW - metW - 16, cy + 16, metW, 28], style: { fill: p.pale || '#EEF2FF', radius: 8 } });
+        elements.push(textElement({ id: `${id}-nmt-${globalIdx + 1}`, text: autoMetric, bounds: [sx + colW - metW - 12, cy + 20, metW - 8, 20], style: theme.font(15, { fontWeight: 900, color: colr, textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+      if (nd.detail) {
+        elements.push(textElement({ id: `${id}-nd-${globalIdx + 1}`, text: nd.detail, bounds: [sx + 20, cy + 52, colW - 44, Math.max(32, cardH - 64)], style: theme.font(detFs, { fontWeight: 300, color: muted, lineHeight: 1.42 }) }));
+      }
+      // Connector arrow toward/from center orbit
+      const cardMidY = cy + Math.round(cardH / 2);
+      const fromPt = isRight ? [midX + orbitR + 4, cardMidY] : [sx + colW + 4, cardMidY];
+      const toPt = isRight ? [sx - 4, cardMidY] : [midX - orbitR - 4, cardMidY];
+      elements.push({ ...lineElement({ id: `${id}-ln-${globalIdx + 1}`, from: fromPt, to: toPt, style: { stroke: colr, strokeWidth: 2 } }), endArrow: true });
+    });
+  };
+
+  drawSide(leftNodes, leftX, false, 0);
+  drawSide(rightNodes, rightX, true, leftCount);
+
+  // Center circular hub
+  elements.push({ type: 'shape', id: `${id}-hub-halo`, shape: 'ellipse', bounds: [midX - hubR - 12, midY - hubR - 12, (hubR + 12) * 2, (hubR + 12) * 2], style: { fill: p.pale || '#EEF2FF', radius: hubR + 12 } });
+  elements.push({ type: 'shape', id: `${id}-hub`, shape: 'ellipse', bounds: [midX - hubR, midY - hubR, hubR * 2, hubR * 2], style: { fill: r.primary, radius: hubR } });
+  const cBadge = center.badge || 'CORE';
+  const cbW = Math.min(hubR * 1.4, Math.max(66, Math.ceil(textWidth(cBadge, 12) * 1.2) + 20));
+  elements.push({ type: 'shape', id: `${id}-hbg`, bounds: [midX - Math.round(cbW / 2), midY - 46, cbW, 22], style: { fill: r.pop, radius: 11 } });
+  elements.push(textElement({ id: `${id}-hbtx`, text: cBadge, bounds: [midX - Math.round(cbW / 2) + 4, midY - 43, cbW - 8, 16], style: theme.font(12, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+  elements.push(textElement({ id: `${id}-ht`, text: center.title || '增长飞轮', bounds: [midX - hubR + 14, midY - 14, (hubR - 14) * 2, 32], style: theme.font(22, { fontWeight: 900, color: p.inverse || '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+  if (center.sub) {
+    elements.push(textElement({ id: `${id}-hsub`, text: center.sub, bounds: [midX - hubR + 16, midY + 22, (hubR - 16) * 2, 36], style: theme.font(14, { fontWeight: 300, color: mixHexLocal(r.primary, '#FFFFFF', 0.85), textAlign: 'center', lineHeight: 1.3 }) }));
+  }
+
+  return { elements, height: h };
+}
+
+export function icebergModel({ id, x, y, width, height, title = '', waterlineLabel = '海平面 · 透过现象看本质', surface = {}, deep = {}, theme, variant = 'iceberg' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const deepItems = (Array.isArray(deep) ? deep : (Array.isArray(deep?.items) ? deep.items : [])).slice(0, 4);
+  if (!surface?.title && !deepItems.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const pad = isCompact ? 18 : 24;
+  const headH = title ? (isCompact ? 36 : 42) : 0;
+  const natural = isCompact ? 380 : 460;
+  const h = Math.max(natural, height || 0);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'icebergModel', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  const iw = width - pad * 2;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    curY += headH;
+  }
+  const bodyH = h - (curY - y) - pad;
+
+  if (variant === 'split') {
+    const gap = 42;
+    const leftW = Math.round((iw - gap) * 0.36);
+    const rightX = x + pad + leftW + gap;
+    const rightW = iw - leftW - gap;
+    elements.push({ type: 'shape', id: `${id}-surf`, bounds: [x + pad, curY, leftW, bodyH], style: { fill: p.pale || '#EEF2FF', stroke: r.primary, strokeWidth: 2, radius: rad } });
+    const sBadge = surface.badge || '水面表象 · 20%';
+    const sbW = Math.min(leftW - 40, Math.max(110, Math.ceil(textWidth(sBadge, 13) * 1.2) + 24));
+    elements.push({ type: 'shape', id: `${id}-sbg`, bounds: [x + pad + 22, curY + 24, sbW, 28], style: { fill: r.pop, radius: 14 } });
+    elements.push(textElement({ id: `${id}-sbtx`, text: sBadge, bounds: [x + pad + 28, curY + 28, sbW - 12, 20], style: theme.font(13, { fontWeight: 800, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-st`, text: surface.title || '可见现象', bounds: [x + pad + 22, curY + 68, leftW - 44, 54], style: theme.font(24, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+    const sBody = surface.summary || (Array.isArray(surface.items) ? surface.items.map((s) => `• ${s}`).join('\n') : '');
+    if (sBody) {
+      elements.push(textElement({ id: `${id}-sd`, text: sBody, bounds: [x + pad + 22, curY + 132, leftW - 44, Math.max(60, bodyH - 152)], style: theme.font(19, { fontWeight: 300, color: muted, lineHeight: 1.48 }) }));
+    }
+    elements.push({ ...lineElement({ id: `${id}-arr`, from: [x + pad + leftW + 6, curY + Math.round(bodyH / 2)], to: [rightX - 6, curY + Math.round(bodyH / 2)], style: { stroke: r.pop, strokeWidth: 3 } }), endArrow: true });
+
+    const rGap = 14;
+    const rowH = Math.floor((bodyH - rGap * Math.max(0, deepItems.length - 1)) / Math.max(1, deepItems.length));
+    deepItems.forEach((di, i) => {
+      const ry = curY + i * (rowH + rGap);
+      elements.push({ type: 'shape', id: `${id}-dc-${i + 1}`, bounds: [rightX, ry, rightW, rowH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } });
+      elements.push({ type: 'shape', id: `${id}-dbar-${i + 1}`, bounds: [rightX, ry + 14, 5, Math.max(24, rowH - 28)], style: { fill: i === 0 ? r.pop : r.primary, radius: 3 } });
+      elements.push(textElement({ id: `${id}-dt-${i + 1}`, text: `深层根因 0${i + 1} · ${di.title || ''}`, bounds: [rightX + 22, ry + 14, rightW - 40, 26], style: theme.font(19, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      if (di.detail) {
+        elements.push(textElement({ id: `${id}-dd-${i + 1}`, text: di.detail, bounds: [rightX + 22, ry + 46, rightW - 40, Math.max(30, rowH - 54)], style: theme.font(18, { fontWeight: 300, color: muted, lineHeight: 1.4 }) }));
+      }
+    });
+    return { elements, height: h };
+  }
+
+  // Default 'iceberg' & 'darkDeep'
+  const isDarkDeep = variant === 'darkDeep';
+  const topH = Math.round(bodyH * 0.30);
+  const lineH = 44;
+  const botH = bodyH - topH - lineH;
+
+  // Surface card (centered slightly narrower like iceberg tip)
+  const tipW = Math.round(iw * 0.78);
+  const tipX = x + pad + Math.round((iw - tipW) / 2);
+  elements.push({ type: 'shape', id: `${id}-surf`, bounds: [tipX, curY, tipW, topH], style: { fill: p.pale || '#EEF2FF', stroke: r.primary, strokeWidth: 2, radius: rad } });
+  const sBadge = surface.badge || '可见表象 · 20%';
+  const sbW = Math.min(200, Math.max(112, Math.ceil(textWidth(sBadge, 13) * 1.2) + 24));
+  elements.push({ type: 'shape', id: `${id}-sbg`, bounds: [tipX + tipW - sbW - 22, curY + 20, sbW, 26], style: { fill: r.pop, radius: 13 } });
+  elements.push(textElement({ id: `${id}-sbtx`, text: sBadge, bounds: [tipX + tipW - sbW - 16, curY + 23, sbW - 12, 20], style: theme.font(13, { fontWeight: 800, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+  elements.push(textElement({ id: `${id}-st`, text: surface.title || '水面之上 · 外显症状', bounds: [tipX + 24, curY + 18, tipW - sbW - 60, 28], style: theme.font(21, { fontWeight: 700, color: readableInk(r.primary, p.pale || '#EEF2FF'), lineHeight: 1.25 }) }));
+  const sBody = surface.summary || (Array.isArray(surface.items) ? surface.items.join('  ·  ') : '');
+  if (sBody) {
+    elements.push(textElement({ id: `${id}-sd`, text: sBody, bounds: [tipX + 24, curY + 52, tipW - 48, Math.max(36, topH - 62)], style: theme.font(18, { fontWeight: 300, color: p.ink, lineHeight: 1.4 }) }));
+  }
+
+  // Waterline dashed rule + pill
+  const wy = curY + topH + Math.round(lineH / 2);
+  elements.push(lineElement({ id: `${id}-water`, from: [x + pad, wy], to: [x + width - pad, wy], style: { stroke: r.pop, strokeWidth: 2, strokeDash: 'dash' } }));
+  const wlW = Math.min(360, Math.max(180, Math.ceil(textWidth(waterlineLabel, 13) * 1.2) + 32));
+  elements.push({ type: 'shape', id: `${id}-wbg`, bounds: [x + Math.round((width - wlW) / 2), wy - 13, wlW, 26], style: { fill: surf, stroke: r.pop, strokeWidth: 1.5, radius: 13 } });
+  elements.push(textElement({ id: `${id}-wtx`, text: waterlineLabel, bounds: [x + Math.round((width - wlW) / 2) + 8, wy - 9, wlW - 16, 18], style: theme.font(13, { fontWeight: 800, color: r.pop, textAlign: 'center', lineHeight: 1.2 }) }));
+
+  // Deep underwater container & cards (content-driven height + auto metric corner badge)
+  const botY = curY + topH + lineH;
+  const dPad = isDarkDeep ? 18 : 0;
+  const dGap = 16;
+  const dw = Math.floor((iw - dPad * 2 - dGap * (deepItems.length - 1)) / Math.max(1, deepItems.length));
+  const detFs = adaptiveBodyFont(deepItems.map((x) => x.detail || '').sort((a, b) => b.length - a.length)[0], isCompact, 20);
+  const maxLines = Math.max(2, ...deepItems.map((di) => (di.detail ? estimateLines(di.detail, detFs, dw - 40) : 1)));
+  const contentDeepH = 92 + Math.ceil(maxLines * detFs * 1.45) + 22;
+  const dh = fitCardHeight(contentDeepH, botH - dPad * 2, { maxStretch: 1.28, minH: 148 });
+  const actualBotH = dh + dPad * 2;
+  const actualPanelH = (botY - y) + actualBotH + pad;
+  elements[0].bounds[3] = actualPanelH;
+  if (isDarkDeep) {
+    elements.push({ type: 'shape', id: `${id}-deep-bg`, bounds: [x + pad, botY, iw, actualBotH], style: { fill: r.primary, radius: rad } });
+  }
+  deepItems.forEach((di, i) => {
+    const cx = x + pad + dPad + i * (dw + dGap);
+    const cy = botY + dPad;
+    const autoMetric = extractCardMetric(di.detail, di.metric);
+    const accentC = i === 0 ? r.pop : r.primary;
+    elements.push({
+      type: 'shape', id: `${id}-dc-${i + 1}`,
+      bounds: [cx, cy, dw, dh],
+      style: isDarkDeep
+        ? { fill: mixHexLocal(r.primary, '#FFFFFF', 0.12), stroke: mixHexLocal(r.primary, '#FFFFFF', 0.25), strokeWidth: 1, radius: 12 }
+        : { fill: i === 0 ? (p.dark ? '#2A1B14' : '#FFFBF7') : subBg, stroke: i === 0 ? r.pop : (p.line || '#E2E6EE'), strokeWidth: i === 0 ? 1.5 : 1.5, radius: rad },
+    });
+    elements.push({ type: 'shape', id: `${id}-dtrim-${i + 1}`, bounds: [cx + 20, cy, dw - 40, 4], style: { fill: isDarkDeep ? r.pop : accentC, radius: 2 } });
+    // Subtle corner watermark
+    elements.push(textElement({ id: `${id}-dwm-${i + 1}`, text: `0${i + 1}`, bounds: [cx + dw - 76, cy + dh - 56, 64, 52], style: theme.font(48, { fontWeight: 900, color: isDarkDeep ? mixHexLocal(r.primary, '#FFFFFF', 0.20) : mixHexLocal(accentC, subBg, 0.88), textAlign: 'right', lineHeight: 1 }) }));
+    const dTag = di.tag || `根因 0${i + 1}`;
+    const dtW = Math.min(dw - 36, Math.max(76, Math.ceil(textWidth(dTag, 13) * 1.2) + 20));
+    elements.push({ type: 'shape', id: `${id}-dtbg-${i + 1}`, bounds: [cx + 20, cy + 18, dtW, 24], style: { fill: isDarkDeep ? r.pop : (i === 0 ? (p.dark ? '#331E12' : '#FFF7ED') : (p.pale || '#EEF2FF')), radius: 12 } });
+    elements.push(textElement({ id: `${id}-dttx-${i + 1}`, text: dTag, bounds: [cx + 24, cy + 21, dtW - 8, 18], style: theme.font(13, { fontWeight: 700, color: isDarkDeep ? '#FFFFFF' : accentC, textAlign: 'center', lineHeight: 1.2 }) }));
+    if (autoMetric) {
+      const mW = Math.min(126, Math.max(72, Math.ceil(textWidth(autoMetric, 18) * 1.15) + 20));
+      elements.push({ type: 'shape', id: `${id}-dmb-${i + 1}`, bounds: [cx + dw - mW - 18, cy + 14, mW, 32], style: { fill: isDarkDeep ? mixHexLocal(r.primary, '#FFFFFF', 0.18) : (i === 0 ? (p.dark ? '#331E12' : '#FFF7ED') : (p.pale || '#EEF2FF')), radius: 9 } });
+      elements.push(textElement({ id: `${id}-dmt-${i + 1}`, text: autoMetric, bounds: [cx + dw - mW - 14, cy + 19, mW - 8, 22], style: theme.font(18, { fontWeight: 900, color: isDarkDeep ? '#FFFFFF' : accentC, textAlign: 'center', lineHeight: 1.15 }) }));
+    }
+    elements.push(textElement({ id: `${id}-dt-${i + 1}`, text: di.title || '', bounds: [cx + 20, cy + 56, dw - 40, 30], style: theme.font(21, { fontWeight: 700, color: isDarkDeep ? (p.inverse || '#FFFFFF') : p.ink, lineHeight: 1.25 }) }));
+    if (di.detail) {
+      elements.push(textElement({ id: `${id}-dd-${i + 1}`, text: di.detail, bounds: [cx + 20, cy + 92, dw - 40, Math.max(44, dh - 104)], style: theme.font(detFs, { fontWeight: 300, color: isDarkDeep ? mixHexLocal(r.primary, '#FFFFFF', 0.85) : muted, lineHeight: 1.45 }) }));
+    }
+  });
+
+  return { elements, height: actualPanelH };
+}
+
+export function radarScoreCard({ id, x, y, width, height, title = '', max = 10, badge = '', items = [], theme, variant = 'radar' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(items) ? items : []).slice(0, 8).map((it) => ({
+    ...it,
+    _val: parseChartNum(it.value),
+  }));
+  if (list.length < 3) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const maxVal = Math.max(Number(max) || 10, ...list.map((it) => it._val));
+  const avgVal = (list.reduce((s, it) => s + it._val, 0) / list.length).toFixed(1);
+  const peakIdx = list.reduce((best, it, i) => (it._val > list[best]._val ? i : best), 0);
+  const pad = isCompact ? 18 : 24;
+  const headH = title ? (isCompact ? 38 : 44) : 0;
+  const natural = isCompact ? 380 : 450;
+  const h = Math.max(natural, height || 0);
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'radarScoreCard', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  const iw = width - pad * 2;
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw - 240, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    const bTxt = badge || `综合均分 ${avgVal} / ${maxVal}`;
+    const bW = Math.min(220, Math.max(118, Math.ceil(textWidth(bTxt, 13) * 1.2) + 24));
+    elements.push({ type: 'shape', id: `${id}-bdg-bg`, bounds: [x + width - pad - bW, curY + 3, bW, 26], style: { fill: p.pale || '#EEF2FF', radius: 13 } });
+    elements.push(textElement({ id: `${id}-bdg-tx`, text: bTxt, bounds: [x + width - pad - bW + 6, curY + 6, bW - 12, 20], style: theme.font(13, { fontWeight: 700, color: r.primary, textAlign: 'center', lineHeight: 1.2 }) }));
+    curY += headH;
+  }
+  const bodyH = h - (curY - y) - pad;
+
+  if (variant === 'cards') {
+    const cols = list.length <= 4 ? list.length : 3;
+    const rowsN = Math.ceil(list.length / cols);
+    const gap = 14;
+    const cw = Math.floor((iw - gap * (cols - 1)) / cols);
+    const ch = Math.floor((bodyH - gap * (rowsN - 1)) / rowsN);
+    list.forEach((it, i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      const cx = x + pad + col * (cw + gap), cy = curY + row * (ch + gap);
+      const isPeak = i === peakIdx;
+      elements.push({ type: 'shape', id: `${id}-rc-${i + 1}`, bounds: [cx, cy, cw, ch], style: { fill: subBg, stroke: isPeak ? r.pop : (p.line || '#E2E6EE'), strokeWidth: isPeak ? 2 : 1, radius: 12 } });
+      elements.push({ type: 'shape', id: `${id}-rtrim-${i + 1}`, bounds: [cx + 18, cy, cw - 36, 4], style: { fill: isPeak ? r.pop : r.primary, radius: 2 } });
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [cx + 18, cy + 16, cw - 36, 26], style: theme.font(19, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: `${it._val} / ${maxVal}`, bounds: [cx + 18, cy + Math.round(ch * 0.34), cw - 36, 40], style: theme.font(30, { fontWeight: 900, color: isPeak ? r.pop : r.primary, lineHeight: 1.15 }) }));
+      if (it.detail) {
+        elements.push(textElement({ id: `${id}-det-${i + 1}`, text: it.detail, bounds: [cx + 18, cy + ch - 46, cw - 36, 34], style: theme.font(15, { fontWeight: 300, color: muted, lineHeight: 1.3 }) }));
+      }
+    });
+    return { elements, height: h };
+  }
+
+  if (variant === 'bars') {
+    const rGap = 12;
+    const rowH = Math.floor((bodyH - rGap * (list.length - 1)) / list.length);
+    const lblW = Math.min(220, Math.round(iw * 0.18));
+    const valW = 110;
+    const trackW = iw - lblW - valW - 36;
+    list.forEach((it, i) => {
+      const ry = curY + i * (rowH + rGap);
+      const isPeak = i === peakIdx;
+      elements.push({ type: 'shape', id: `${id}-br-${i + 1}`, bounds: [x + pad, ry, iw, rowH], style: { fill: subBg, stroke: isPeak ? r.pop : (p.line || '#E2E6EE'), strokeWidth: isPeak ? 1.5 : 1, radius: 10 } });
+      elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [x + pad + 18, ry + Math.round((rowH - 24) / 2), lblW - 24, 24], style: theme.font(19, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+      const tx = x + pad + lblW + 6;
+      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [tx, ry + Math.round((rowH - 14) / 2), trackW, 14], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 7 } });
+      elements.push({ type: 'shape', id: `${id}-fil-${i + 1}`, bounds: [tx, ry + Math.round((rowH - 14) / 2), Math.max(20, Math.round((it._val / maxVal) * trackW)), 14], style: { fill: isPeak ? r.pop : r.primary, radius: 7 } });
+      elements.push(textElement({ id: `${id}-val-${i + 1}`, text: String(it._val), bounds: [x + width - pad - valW - 14, ry + Math.round((rowH - 26) / 2), valW, 26], style: theme.font(22, { fontWeight: 900, color: isPeak ? r.pop : p.ink, textAlign: 'right', lineHeight: 1.2 }) }));
+    });
+    return { elements, height: h };
+  }
+
+  // Default 'radar': Left 44% SVG Radar Polygon + Right 54% Score Breakdown
+  const radarW = Math.round(iw * 0.44);
+  const rcx = x + pad + Math.round(radarW / 2);
+  const rcy = curY + Math.round(bodyH / 2);
+  const R = Math.min(132, Math.max(88, Math.floor(Math.min(radarW - 130, bodyH - 86) / 2)));
+  const n = list.length;
+  const ptAt = (idx, ratio) => {
+    const ang = (-90 + (idx * 360) / n) * (Math.PI / 180);
+    return [rcx + R * ratio * Math.cos(ang), rcy + R * ratio * Math.sin(ang)];
+  };
+
+  const boxSz = (R + 12) * 2;
+  const bc = R + 12;
+  const bx = rcx - bc, by = rcy - bc;
+  const polyPath = (ratioFn) => list.map((_, i) => {
+    const [px, py] = ptAt(i, ratioFn(i));
+    return `${i === 0 ? 'M' : 'L'} ${(px - bx).toFixed(1)} ${(py - by).toFixed(1)}`;
+  }).join(' ') + ' Z';
+
+  // 3 concentric web polygons
+  [1, 0.66, 0.33].forEach((lv, li) => {
+    elements.push({
+      type: 'vector', id: `${id}-web-${li + 1}`,
+      bounds: [bx, by, boxSz, boxSz], viewBox: [0, 0, boxSz, boxSz],
+      path: polyPath(() => lv),
+      style: { fill: 'none', stroke: p.line || '#CBD5E1', strokeWidth: li === 0 ? 1.5 : 1 },
+    });
+  });
+  // Spokes + outer labels
+  list.forEach((it, i) => {
+    const [ex, ey] = ptAt(i, 1);
+    elements.push(lineElement({ id: `${id}-spk-${i + 1}`, from: [rcx, rcy], to: [Math.round(ex), Math.round(ey)], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1 } }));
+    const [lx, ly] = ptAt(i, 1.24);
+    elements.push(textElement({ id: `${id}-rlbl-${i + 1}`, text: it.label || '', bounds: [Math.round(lx - 48), Math.round(ly - 12), 96, 24], style: theme.font(15, { fontWeight: i === peakIdx ? 700 : 600, color: i === peakIdx ? r.pop : p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+  });
+
+  // Value polygon fill + stroke
+  elements.push({
+    type: 'vector', id: `${id}-poly`,
+    bounds: [bx, by, boxSz, boxSz], viewBox: [0, 0, boxSz, boxSz],
+    path: polyPath((i) => Math.max(0.12, list[i]._val / maxVal)),
+    style: { fill: mixHexLocal(r.primary, surf, p.dark ? 0.68 : 0.80), stroke: r.primary, strokeWidth: 3, strokeLinejoin: 'round' },
+  });
+  // Peak vertex dot
+  const [pkx, pky] = ptAt(peakIdx, list[peakIdx]._val / maxVal);
+  elements.push({ type: 'shape', id: `${id}-pkdot`, shape: 'ellipse', bounds: [Math.round(pkx - 6), Math.round(pky - 6), 12, 12], style: { fill: r.pop, radius: 6 } });
+
+  // Right score list
+  const rx = x + pad + radarW + 24;
+  const rw = iw - radarW - 24;
+  const rGap = 12;
+  const rowH = Math.floor((bodyH - rGap * (list.length - 1)) / list.length);
+  list.forEach((it, i) => {
+    const ry = curY + i * (rowH + rGap);
+    const isPeak = i === peakIdx;
+    elements.push({ type: 'shape', id: `${id}-sr-${i + 1}`, bounds: [rx, ry, rw, rowH], style: { fill: subBg, stroke: isPeak ? r.pop : (p.line || '#E2E6EE'), strokeWidth: isPeak ? 1.5 : 1, radius: 10 } });
+    const lW = Math.min(150, Math.round(rw * 0.25));
+    elements.push(textElement({ id: `${id}-lbl-${i + 1}`, text: it.label || '', bounds: [rx + 16, ry + Math.round((rowH - 22) / 2), lW, 22], style: theme.font(17, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+    const tx = rx + 16 + lW + 8, valW = 84, tw = Math.max(80, rw - lW - valW - 44);
+    elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [tx, ry + Math.round((rowH - 12) / 2), tw, 12], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 6 } });
+    elements.push({ type: 'shape', id: `${id}-fil-${i + 1}`, bounds: [tx, ry + Math.round((rowH - 12) / 2), Math.max(18, Math.round((it._val / maxVal) * tw)), 12], style: { fill: isPeak ? r.pop : r.primary, radius: 6 } });
+    elements.push(textElement({ id: `${id}-val-${i + 1}`, text: `${it._val}`, bounds: [rx + rw - valW - 14, ry + Math.round((rowH - 24) / 2), valW, 24], style: theme.font(20, { fontWeight: 900, color: isPeak ? r.pop : p.ink, textAlign: 'right', lineHeight: 1.2 }) }));
+  });
+
+  return { elements, height: h };
+}
+
+// =========================================================================
+// Modern Web UI v2 Batch 3 (Final 4 Modules — Native Anti-Empty-Box Built-in):
+//   - specProfileCard    (V2-CARD-02: Project Spec / Description Key-Value Card)
+//   - okrGoalTree        (V2-FLOW-01: Objective -> Key Results Tree)
+//   - riskMitigationStrip(V2-FLOW-02: Risk Level & Mitigation Plan Strip)
+//   - dualTrackRoadmap   (V2-FLOW-03: Business x Tech Dual-Track Roadmap)
+// =========================================================================
+
+export function specProfileCard({ id, x, y, width, height, title = '', badge = '', items = [], theme, variant = 'grid' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(items) ? items : []).slice(0, 8);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact);
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const okCol = p.dark ? '#34D399' : '#059669';
+  const pad = isCompact ? 18 : 24;
+  const headH = title ? 42 : 0;
+  const iw = width - pad * 2;
+  const valTone = (it) => (it.tone === 'pop' ? r.pop : it.tone === 'ok' ? okCol : it.tone === 'primary' ? r.primary : p.ink);
+
+  if (variant === 'rows') {
+    const cols = 2, rowsN = Math.ceil(list.length / 2);
+    const rGap = 10, cGap = 16;
+    const rowH = fitCardHeight(56, height ? Math.floor((height - pad * 2 - headH - rGap * (rowsN - 1)) / rowsN) : 64, { maxStretch: 1.25, minH: 54 });
+    const h = pad * 2 + headH + rowsN * rowH + (rowsN - 1) * rGap;
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'specProfileCard', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad;
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw - 180, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      if (badge) {
+        const bW = Math.min(170, Math.max(88, Math.ceil(textWidth(badge, 13) * 1.2) + 22));
+        elements.push({ type: 'shape', id: `${id}-bg`, bounds: [x + width - pad - bW, curY + 4, bW, 26], style: { fill: p.dark ? '#11302B' : '#ECFDF5', radius: 13 } });
+        elements.push(textElement({ id: `${id}-bt`, text: badge, bounds: [x + width - pad - bW + 6, curY + 7, bW - 12, 20], style: theme.font(13, { fontWeight: 700, color: okCol, textAlign: 'center', lineHeight: 1.2 }) }));
+      }
+      curY += headH;
+    }
+    const cw = Math.floor((iw - cGap) / 2);
+    list.forEach((it, i) => {
+      const col = i % 2, row = Math.floor(i / 2);
+      const cx = x + pad + col * (cw + cGap), cy = curY + row * (rowH + rGap);
+      elements.push({ type: 'shape', id: `${id}-r-${i + 1}`, bounds: [cx, cy, cw, rowH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 10 } });
+      elements.push(textElement({ id: `${id}-k-${i + 1}`, text: it.label || '', bounds: [cx + 16, cy + Math.round((rowH - 22) / 2), Math.round(cw * 0.36), 22], style: theme.font(16, { fontWeight: 400, color: muted, lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-v-${i + 1}`, text: String(it.value ?? ''), bounds: [cx + Math.round(cw * 0.38), cy + Math.round((rowH - 24) / 2), Math.round(cw * 0.62) - 18, 24], style: theme.font(19, { fontWeight: 700, color: valTone(it), textAlign: 'right', lineHeight: 1.2 }) }));
+    });
+    return { elements, height: h };
+  }
+
+  const cols = list.length <= 4 ? 2 : 3;
+  const rowsN = Math.ceil(list.length / cols);
+  const cGap = 14, rGap = 14;
+  const cw = Math.floor((iw - cGap * (cols - 1)) / cols);
+  const cellH = fitCardHeight(88, height ? Math.floor((height - pad * 2 - headH - rGap * (rowsN - 1)) / rowsN) : 108, { maxStretch: 1.28, minH: 88 });
+  const h = pad * 2 + headH + rowsN * cellH + (rowsN - 1) * rGap;
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'specProfileCard', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw - 200, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    if (badge) {
+      const bW = Math.min(180, Math.max(88, Math.ceil(textWidth(badge, 13) * 1.2) + 22));
+      elements.push({ type: 'shape', id: `${id}-bg`, bounds: [x + width - pad - bW, curY + 4, bW, 26], style: { fill: p.dark ? '#11302B' : '#ECFDF5', radius: 13 } });
+      elements.push(textElement({ id: `${id}-bt`, text: badge, bounds: [x + width - pad - bW + 6, curY + 7, bW - 12, 20], style: theme.font(13, { fontWeight: 700, color: okCol, textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+    curY += headH;
+  }
+  const hiIdx = variant === 'highlight' ? Math.max(0, list.findIndex((x) => x.highlight || x.tone === 'pop' || x.tone === 'primary')) : -1;
+  list.forEach((it, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const cx = x + pad + col * (cw + cGap), cy = curY + row * (cellH + rGap);
+    const isHi = i === hiIdx;
+    elements.push({ type: 'shape', id: `${id}-c-${i + 1}`, bounds: [cx, cy, cw, cellH], style: isHi ? { fill: r.primary, radius: 12 } : { fill: subBg, stroke: it.highlight ? r.primary : (p.line || '#E2E6EE'), strokeWidth: it.highlight ? 1.5 : 1, radius: 12 } });
+    elements.push({ type: 'shape', id: `${id}-bar-${i + 1}`, bounds: [cx, cy + 14, 4, Math.max(20, cellH - 28)], style: { fill: isHi ? r.pop : (it.tone === 'pop' ? r.pop : it.tone === 'ok' ? okCol : r.primary), radius: 2 } });
+    elements.push(textElement({ id: `${id}-k-${i + 1}`, text: it.label || '', bounds: [cx + 18, cy + 16, cw - 32, 22], style: theme.font(15, { fontWeight: 400, color: isHi ? mixHexLocal(r.primary, '#FFFFFF', 0.8) : muted, lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-v-${i + 1}`, text: String(it.value ?? ''), bounds: [cx + 18, cy + 44, cw - 32, 34], style: theme.font(22, { fontWeight: 800, color: isHi ? (p.inverse || '#FFFFFF') : valTone(it), lineHeight: 1.2 }) }));
+  });
+  return { elements, height: h };
+}
+
+export function okrGoalTree({ id, x, y, width, height, title = '', objective = {}, keyResults = [], theme, variant = 'tree' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const krs = (Array.isArray(keyResults) ? keyResults : []).slice(0, 5);
+  if (!krs.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact) || variant === 'compact';
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const okCol = p.dark ? '#34D399' : '#059669';
+  const okBg = p.dark ? '#11302B' : '#ECFDF5';
+  const pad = isCompact ? 16 : 24;
+  const headH = title ? 40 : 0;
+  const iw = width - pad * 2;
+  const pctColor = (pct) => (pct >= 95 ? okCol : pct >= 70 ? r.primary : r.pop);
+
+  if (variant === 'top') {
+    const objH = 104, gap = 18;
+    const cw = Math.floor((iw - 14 * (krs.length - 1)) / krs.length);
+    const krH = fitCardHeight(168, height ? height - pad * 2 - headH - objH - gap : 210, { maxStretch: 1.28, minH: 156 });
+    const h = pad * 2 + headH + objH + gap + krH;
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'okrGoalTree', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad;
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      curY += headH;
+    }
+    elements.push({ type: 'shape', id: `${id}-obj`, bounds: [x + pad, curY, iw, objH], style: { fill: r.primary, radius: rad } });
+    elements.push({ type: 'shape', id: `${id}-otrim`, bounds: [x + pad + 24, curY, iw - 48, 5], style: { fill: r.pop, radius: 3 } });
+    const obTag = objective.code || 'OBJECTIVE';
+    elements.push({ type: 'shape', id: `${id}-obg`, bounds: [x + pad + 24, curY + 18, 118, 24], style: { fill: r.pop, radius: 12 } });
+    elements.push(textElement({ id: `${id}-obt`, text: obTag, bounds: [x + pad + 28, curY + 21, 110, 18], style: theme.font(12, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-ot`, text: objective.title || '', bounds: [x + pad + 24, curY + 50, iw - 220, 36], style: theme.font(25, { fontWeight: 800, color: p.inverse || '#FFFFFF', lineHeight: 1.25 }) }));
+    if (objective.progress != null) {
+      elements.push(textElement({ id: `${id}-op`, text: `${objective.progress}%`, bounds: [x + width - pad - 180, curY + 26, 156, 52], style: theme.font(44, { fontWeight: 900, color: p.inverse || '#FFFFFF', textAlign: 'right', lineHeight: 1.1 }) }));
+    }
+    const ky = curY + objH + gap;
+    krs.forEach((kr, i) => {
+      const cx = x + pad + i * (cw + 14);
+      const pct = parseChartNum(kr.progress);
+      const col = pctColor(pct);
+      elements.push({ type: 'shape', id: `${id}-kr-${i + 1}`, bounds: [cx, ky, cw, krH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: 12 } });
+      elements.push({ type: 'shape', id: `${id}-krt-${i + 1}`, bounds: [cx + 16, ky, cw - 32, 4], style: { fill: col, radius: 2 } });
+      elements.push(textElement({ id: `${id}-krc-${i + 1}`, text: kr.code || `KR${i + 1}`, bounds: [cx + 18, ky + 16, 70, 22], style: theme.font(14, { fontWeight: 800, color: col, lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-krp-${i + 1}`, text: `${pct}%`, bounds: [cx + cw - 92, ky + 14, 74, 24], style: theme.font(18, { fontWeight: 900, color: col, textAlign: 'right', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-krl-${i + 1}`, text: kr.title || '', bounds: [cx + 18, ky + 46, cw - 36, 48], style: theme.font(19, { fontWeight: 700, color: p.ink, lineHeight: 1.3 }) }));
+      if (kr.detail) {
+        elements.push(textElement({ id: `${id}-krd-${i + 1}`, text: kr.detail, bounds: [cx + 18, ky + 98, cw - 36, Math.max(24, krH - 126)], style: theme.font(16, { fontWeight: 300, color: muted, lineHeight: 1.35 }) }));
+      }
+      elements.push({ type: 'shape', id: `${id}-trk-${i + 1}`, bounds: [cx + 18, ky + krH - 20, cw - 36, 8], style: { fill: p.dark ? '#1E2C47' : '#E2E8F0', radius: 4 } });
+      elements.push({ type: 'shape', id: `${id}-fil-${i + 1}`, bounds: [cx + 18, ky + krH - 20, Math.max(16, Math.round((Math.min(100, pct) / 100) * (cw - 36))), 8], style: { fill: col, radius: 4 } });
+    });
+    return { elements, height: h };
+  }
+
+  // Default 'tree' & 'compact': Left Objective Card + Connectors + Right KR Rows
+  const rGap = isCompact ? 10 : 14;
+  const krRowH = fitCardHeight(isCompact ? 68 : 88, height ? Math.floor((height - pad * 2 - headH - rGap * (krs.length - 1)) / krs.length) : 108, { maxStretch: 1.25, minH: 68 });
+  const bodyH = krs.length * krRowH + (krs.length - 1) * rGap;
+  const h = pad * 2 + headH + bodyH;
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'okrGoalTree', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    curY += headH;
+  }
+  const objW = Math.round(iw * 0.30);
+  const connW = 34;
+  const krX = x + pad + objW + connW;
+  const krW = iw - objW - connW;
+
+  // Left Objective Card
+  elements.push({ type: 'shape', id: `${id}-obj`, bounds: [x + pad, curY, objW, bodyH], style: { fill: r.primary, radius: rad } });
+  elements.push({ type: 'shape', id: `${id}-otrim`, bounds: [x + pad + 22, curY, objW - 44, 5], style: { fill: r.pop, radius: 3 } });
+  const obTag = objective.code || 'OBJECTIVE 01';
+  const obW = Math.min(objW - 40, Math.max(108, Math.ceil(textWidth(obTag, 12) * 1.2) + 24));
+  elements.push({ type: 'shape', id: `${id}-obg`, bounds: [x + pad + 24, curY + 26, obW, 24], style: { fill: r.pop, radius: 12 } });
+  elements.push(textElement({ id: `${id}-obt`, text: obTag, bounds: [x + pad + 28, curY + 29, obW - 8, 18], style: theme.font(12, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) }));
+  elements.push(textElement({ id: `${id}-ot`, text: objective.title || '', bounds: [x + pad + 24, curY + 64, objW - 48, Math.max(60, bodyH - 150)], style: theme.font(24, { fontWeight: 800, color: p.inverse || '#FFFFFF', lineHeight: 1.32 }) }));
+  if (objective.progress != null) {
+    elements.push(textElement({ id: `${id}-opl`, text: '综合达成率', bounds: [x + pad + 24, curY + bodyH - 78, objW - 48, 20], style: theme.font(14, { fontWeight: 400, color: mixHexLocal(r.primary, '#FFFFFF', 0.78), lineHeight: 1.2 }) }));
+    elements.push(textElement({ id: `${id}-op`, text: `${objective.progress}%`, bounds: [x + pad + 24, curY + bodyH - 56, objW - 48, 44], style: theme.font(38, { fontWeight: 900, color: p.inverse || '#FFFFFF', lineHeight: 1.1 }) }));
+  }
+
+  const objMidY = curY + Math.round(bodyH / 2);
+  krs.forEach((kr, i) => {
+    const ry = curY + i * (krRowH + rGap);
+    const midY = ry + Math.round(krRowH / 2);
+    const pct = parseChartNum(kr.progress);
+    const col = pctColor(pct);
+    elements.push({ ...lineElement({ id: `${id}-ln-${i + 1}`, from: [x + pad + objW + 3, objMidY], to: [krX - 4, midY], style: { stroke: col, strokeWidth: 2 } }), endArrow: true });
+    elements.push({ type: 'shape', id: `${id}-kr-${i + 1}`, bounds: [krX, ry, krW, krRowH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: 12 } });
+    elements.push({ type: 'shape', id: `${id}-krb-${i + 1}`, bounds: [krX, ry + 12, 5, Math.max(20, krRowH - 24)], style: { fill: col, radius: 3 } });
+    const pillW = 86;
+    elements.push({ type: 'shape', id: `${id}-krpb-${i + 1}`, bounds: [krX + krW - pillW - 16, ry + Math.round((krRowH - 30) / 2), pillW, 30], style: { fill: pct >= 95 ? okBg : (pct >= 70 ? (p.pale || '#EEF2FF') : (p.dark ? '#331E12' : '#FFF7ED')), radius: 15 } });
+    elements.push(textElement({ id: `${id}-krp-${i + 1}`, text: `${pct}%`, bounds: [krX + krW - pillW - 12, ry + Math.round((krRowH - 22) / 2), pillW - 8, 22], style: theme.font(16, { fontWeight: 900, color: col, textAlign: 'center', lineHeight: 1.2 }) }));
+    const codeTxt = kr.code || `KR${i + 1}`;
+    elements.push(textElement({ id: `${id}-krl-${i + 1}`, text: `${codeTxt} · ${kr.title || ''}`, bounds: [krX + 20, ry + (kr.detail ? 14 : Math.round((krRowH - 24) / 2)), krW - pillW - 48, 26], style: theme.font(isCompact ? 18 : 20, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+    if (kr.detail) {
+      elements.push(textElement({ id: `${id}-krd-${i + 1}`, text: kr.detail, bounds: [krX + 20, ry + 44, krW - pillW - 48, Math.max(22, krRowH - 52)], style: theme.font(isCompact ? 16 : 18, { fontWeight: 300, color: muted, lineHeight: 1.35 }) }));
+    }
+  });
+  return { elements, height: h };
+}
+
+export function riskMitigationStrip({ id, x, y, width, height, title = '', badge = '', items = [], theme, variant = 'rows' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const list = (Array.isArray(items) ? items : []).slice(0, 5);
+  if (!list.length) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact) || variant === 'compact';
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const errCol = p.dark ? '#FB7185' : '#DC2626', errBg = p.dark ? '#321820' : '#FEF2F2';
+  const warnCol = r.pop, warnBg = p.dark ? '#331E12' : '#FFF7ED';
+  const okCol = p.dark ? '#34D399' : '#059669', okBg = p.dark ? '#11302B' : '#ECFDF5';
+  const pad = isCompact ? 16 : 24;
+  const headH = title ? 42 : 0;
+  const iw = width - pad * 2;
+
+  const levelMeta = (lv) => {
+    const s = String(lv || 'medium').toLowerCase();
+    if (s === 'high' || s === '高' || s === '高风险') return { label: '高风险', col: errCol, bg: errBg };
+    if (s === 'low' || s === '低' || s === '低风险') return { label: '低风险', col: okCol, bg: okBg };
+    return { label: '中风险', col: warnCol, bg: warnBg };
+  };
+
+  if (variant === 'cards') {
+    const gap = 16;
+    const cw = Math.floor((iw - gap * (list.length - 1)) / list.length);
+    const cardH = fitCardHeight(210, height ? height - pad * 2 - headH : 260, { maxStretch: 1.28, minH: 196 });
+    const h = pad * 2 + headH + cardH;
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'riskMitigationStrip', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad;
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      curY += headH;
+    }
+    list.forEach((it, i) => {
+      const cx = x + pad + i * (cw + gap);
+      const lm = levelMeta(it.level);
+      elements.push({ type: 'shape', id: `${id}-rc-${i + 1}`, bounds: [cx, curY, cw, cardH], style: { fill: subBg, stroke: lm.label === '高风险' ? lm.col : (p.line || '#E2E6EE'), strokeWidth: lm.label === '高风险' ? 1.8 : 1.2, radius: 12 } });
+      elements.push({ type: 'shape', id: `${id}-rtrim-${i + 1}`, bounds: [cx + 18, curY, cw - 36, 4], style: { fill: lm.col, radius: 2 } });
+      elements.push({ type: 'shape', id: `${id}-lbg-${i + 1}`, bounds: [cx + 18, curY + 18, 82, 24], style: { fill: lm.bg, radius: 12 } });
+      elements.push(textElement({ id: `${id}-ltx-${i + 1}`, text: lm.label, bounds: [cx + 22, curY + 21, 74, 18], style: theme.font(13, { fontWeight: 800, color: lm.col, textAlign: 'center', lineHeight: 1.2 }) }));
+      elements.push(textElement({ id: `${id}-rt-${i + 1}`, text: it.risk || '', bounds: [cx + 18, curY + 52, cw - 36, 48], style: theme.font(19, { fontWeight: 700, color: p.ink, lineHeight: 1.28 }) }));
+      elements.push(lineElement({ id: `${id}-rdiv-${i + 1}`, from: [cx + 18, curY + 108], to: [cx + cw - 18, curY + 108], style: { stroke: p.line || '#E2E6EE', strokeWidth: 1, strokeDash: 'dash' } }));
+      elements.push(textElement({ id: `${id}-rm-${i + 1}`, text: `预案：${it.mitigation || ''}`, bounds: [cx + 18, curY + 118, cw - 36, Math.max(44, cardH - 130)], style: theme.font(17, { fontWeight: 300, color: muted, lineHeight: 1.4 }) }));
+    });
+    return { elements, height: h };
+  }
+
+  // Default 'rows' & 'compact'
+  const rGap = isCompact ? 10 : 14;
+  const rowH = fitCardHeight(isCompact ? 68 : 88, height ? Math.floor((height - pad * 2 - headH - rGap * (list.length - 1)) / list.length) : 104, { maxStretch: 1.25, minH: 68 });
+  const h = pad * 2 + headH + list.length * rowH + (list.length - 1) * rGap;
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'riskMitigationStrip', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw - 220, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    if (badge) {
+      const bW = Math.min(200, Math.max(100, Math.ceil(textWidth(badge, 13) * 1.2) + 22));
+      elements.push({ type: 'shape', id: `${id}-bg`, bounds: [x + width - pad - bW, curY + 4, bW, 26], style: { fill: warnBg, radius: 13 } });
+      elements.push(textElement({ id: `${id}-bt`, text: badge, bounds: [x + width - pad - bW + 6, curY + 7, bW - 12, 20], style: theme.font(13, { fontWeight: 700, color: warnCol, textAlign: 'center', lineHeight: 1.2 }) }));
+    }
+    curY += headH;
+  }
+  const lvW = 104, riskW = Math.round((iw - lvW - 44) * 0.44);
+  list.forEach((it, i) => {
+    const ry = curY + i * (rowH + rGap);
+    const lm = levelMeta(it.level);
+    elements.push({ type: 'shape', id: `${id}-row-${i + 1}`, bounds: [x + pad, ry, iw, rowH], style: { fill: subBg, stroke: lm.label === '高风险' ? lm.col : (p.line || '#E2E6EE'), strokeWidth: lm.label === '高风险' ? 1.5 : 1, radius: 12 } });
+    elements.push({ type: 'shape', id: `${id}-lbg-${i + 1}`, bounds: [x + pad + 16, ry + Math.round((rowH - 28) / 2), 84, 28], style: { fill: lm.bg, radius: 14 } });
+    elements.push(textElement({ id: `${id}-ltx-${i + 1}`, text: lm.label, bounds: [x + pad + 20, ry + Math.round((rowH - 20) / 2), 76, 20], style: theme.font(14, { fontWeight: 800, color: lm.col, textAlign: 'center', lineHeight: 1.2 }) }));
+    const rx1 = x + pad + lvW + 12;
+    elements.push(textElement({ id: `${id}-rt-${i + 1}`, text: it.risk || '', bounds: [rx1, ry + (it.impact ? 14 : Math.round((rowH - 24) / 2)), riskW, 26], style: theme.font(isCompact ? 18 : 20, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+    if (it.impact) {
+      elements.push(textElement({ id: `${id}-ri-${i + 1}`, text: it.impact, bounds: [rx1, ry + 44, riskW, Math.max(22, rowH - 50)], style: theme.font(16, { fontWeight: 300, color: muted, lineHeight: 1.3 }) }));
+    }
+    const divX = rx1 + riskW + 12;
+    elements.push(lineElement({ id: `${id}-div-${i + 1}`, from: [divX, ry + 14], to: [divX, ry + rowH - 14], style: { stroke: p.line || '#CBD5E1', strokeWidth: 1.2 } }));
+    elements.push(textElement({ id: `${id}-rm-${i + 1}`, text: `应对预案：${it.mitigation || ''}`, bounds: [divX + 18, ry + Math.max(14, Math.round((rowH - 44) / 2)), iw - (divX - (x + pad)) - 32, Math.max(36, rowH - 24)], style: theme.font(isCompact ? 17 : 19, { fontWeight: 400, color: p.ink, lineHeight: 1.4 }) }));
+  });
+  return { elements, height: h };
+}
+
+export function dualTrackRoadmap({ id, x, y, width, height, title = '', tracks = [], theme, variant = 'tracks' }) {
+  const p = theme.palette, r = colorRoles(p);
+  const trList = (Array.isArray(tracks) ? tracks : []).slice(0, 2);
+  if (trList.length < 2) return { elements: [], height: 0 };
+  const isCompact = Boolean(theme?.compact) || variant === 'compact';
+  const surf = p.surface || '#FFFFFF';
+  const subBg = p.dark ? (p.band || '#142138') : '#F8FAFC';
+  const rad = theme.radius ?? 14;
+  const muted = p.muted || (p.dark ? '#94A3B8' : '#64748B');
+  const pad = isCompact ? 16 : 24;
+  const headH = title ? 40 : 0;
+  const iw = width - pad * 2;
+  const cols = Math.max(trList[0]?.steps?.length || 0, trList[1]?.steps?.length || 0, 1);
+
+  if (variant === 'paired') {
+    const gap = 16;
+    const cw = Math.floor((iw - gap * (cols - 1)) / cols);
+    const slotH = fitCardHeight(112, height ? Math.floor((height - pad * 2 - headH - 46) / 2) : 136, { maxStretch: 1.25, minH: 102 });
+    const h = pad * 2 + headH + 36 + slotH * 2 + 16;
+    const elements = [{ type: 'shape', id: `${id}-panel`, component: 'dualTrackRoadmap', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+    let curY = y + pad;
+    if (title) {
+      elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+      curY += headH;
+    }
+    for (let ci = 0; ci < cols; ci++) {
+      const cx = x + pad + ci * (cw + gap);
+      const s0 = (trList[0].steps || [])[ci] || {}, s1 = (trList[1].steps || [])[ci] || {};
+      const stageLbl = s0.stage || s1.stage || `阶段 ${ci + 1}`;
+      elements.push({ type: 'shape', id: `${id}-sh-${ci + 1}`, bounds: [cx, curY, cw, 28], style: { fill: ci === 0 ? r.primary : subBg, stroke: ci === 0 ? null : (p.line || '#E2E6EE'), strokeWidth: ci === 0 ? 0 : 1, radius: 14 } });
+      elements.push(textElement({ id: `${id}-sht-${ci + 1}`, text: stageLbl, bounds: [cx + 8, curY + 4, cw - 16, 20], style: theme.font(14, { fontWeight: 800, color: ci === 0 ? '#FFFFFF' : p.ink, textAlign: 'center', lineHeight: 1.2 }) }));
+      [s0, s1].forEach((st, ti) => {
+        const sy = curY + 38 + ti * (slotH + 14);
+        const col = ti === 0 ? r.primary : r.pop;
+        elements.push({ type: 'shape', id: `${id}-pc-${ti + 1}-${ci + 1}`, bounds: [cx, sy, cw, slotH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1.2, radius: 12 } });
+        elements.push({ type: 'shape', id: `${id}-pb-${ti + 1}-${ci + 1}`, bounds: [cx, sy + 12, 4, slotH - 24], style: { fill: col, radius: 2 } });
+        elements.push(textElement({ id: `${id}-ptg-${ti + 1}-${ci + 1}`, text: trList[ti].name || '', bounds: [cx + 16, sy + 12, cw - 28, 18], style: theme.font(13, { fontWeight: 700, color: col, lineHeight: 1.2 }) }));
+        elements.push(textElement({ id: `${id}-pt-${ti + 1}-${ci + 1}`, text: st.title || '', bounds: [cx + 16, sy + 34, cw - 28, 24], style: theme.font(18, { fontWeight: 700, color: p.ink, lineHeight: 1.2 }) }));
+        if (st.detail) {
+          elements.push(textElement({ id: `${id}-pd-${ti + 1}-${ci + 1}`, text: st.detail, bounds: [cx + 16, sy + 62, cw - 28, Math.max(26, slotH - 70)], style: theme.font(16, { fontWeight: 300, color: muted, lineHeight: 1.35 }) }));
+        }
+      });
+    }
+    return { elements, height: h };
+  }
+
+  // Default 'tracks' & 'compact': 2 horizontal track bands stacked
+  const bandGap = isCompact ? 14 : 20;
+  const bandH = fitCardHeight(isCompact ? 132 : 162, height ? Math.floor((height - pad * 2 - headH - bandGap) / 2) : 186, { maxStretch: 1.25, minH: 128 });
+  const h = pad * 2 + headH + bandH * 2 + bandGap;
+  const elements = [{ type: 'shape', id: `${id}-panel`, component: 'dualTrackRoadmap', bounds: [x, y, width, h], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.5, radius: rad } }];
+  let curY = y + pad;
+  if (title) {
+    elements.push(textElement({ id: `${id}-title`, text: title, bounds: [x + pad, curY + 2, iw, 30], style: theme.font(21, { fontWeight: 700, color: readableInk(p.accent, surf), lineHeight: 1.25 }) }));
+    curY += headH;
+  }
+  trList.forEach((tr, ti) => {
+    const by = curY + ti * (bandH + bandGap);
+    const col = ti === 0 ? r.primary : r.pop;
+    const steps = (Array.isArray(tr.steps) ? tr.steps : []).slice(0, 5);
+    elements.push({ type: 'shape', id: `${id}-tb-${ti + 1}`, bounds: [x + pad, by, iw, bandH], style: { fill: subBg, stroke: p.line || '#E2E6EE', strokeWidth: 1.2, radius: 14 } });
+    elements.push({ type: 'shape', id: `${id}-tbar-${ti + 1}`, bounds: [x + pad, by + 14, 5, bandH - 28], style: { fill: col, radius: 3 } });
+    elements.push(textElement({ id: `${id}-tn-${ti + 1}`, text: tr.name || `轨道 ${ti + 1}`, bounds: [x + pad + 20, by + 14, iw - 240, 24], style: theme.font(18, { fontWeight: 800, color: col, lineHeight: 1.2 }) }));
+    if (tr.badge) {
+      elements.push(textElement({ id: `${id}-tbg-${ti + 1}`, text: tr.badge, bounds: [x + width - pad - 200, by + 15, 184, 22], style: theme.font(14, { fontWeight: 600, color: muted, textAlign: 'right', lineHeight: 1.2 }) }));
+    }
+    const nGap = 18;
+    const nw = Math.floor((iw - 40 - nGap * Math.max(0, steps.length - 1)) / Math.max(1, steps.length));
+    const ny = by + 48, nh = bandH - 62;
+    steps.forEach((st, si) => {
+      const nx = x + pad + 20 + si * (nw + nGap);
+      elements.push({ type: 'shape', id: `${id}-st-${ti + 1}-${si + 1}`, bounds: [nx, ny, nw, nh], style: { fill: surf, stroke: p.line || '#E2E6EE', strokeWidth: 1.2, radius: 10 } });
+      elements.push({ type: 'shape', id: `${id}-sl-${ti + 1}-${si + 1}`, bounds: [nx, ny + 10, 4, Math.max(16, nh - 20)], style: { fill: col, radius: 2 } });
+      const headLine = st.stage ? `${st.stage} · ${st.title || ''}` : (st.title || '');
+      elements.push(textElement({ id: `${id}-stt-${ti + 1}-${si + 1}`, text: headLine, bounds: [nx + 16, ny + 12, nw - 26, 24], style: theme.font(18, { fontWeight: 700, color: p.ink, lineHeight: 1.25 }) }));
+      if (st.detail) {
+        elements.push(textElement({ id: `${id}-std-${ti + 1}-${si + 1}`, text: st.detail, bounds: [nx + 16, ny + 40, nw - 26, Math.max(24, nh - 48)], style: theme.font(16, { fontWeight: 300, color: muted, lineHeight: 1.35 }) }));
+      }
+      if (si < steps.length - 1) {
+        const my = ny + Math.round(nh / 2);
+        elements.push({ ...lineElement({ id: `${id}-arr-${ti + 1}-${si + 1}`, from: [nx + nw + 2, my], to: [nx + nw + nGap - 2, my], style: { stroke: col, strokeWidth: 2 } }), endArrow: true });
+      }
+    });
+  });
+  return { elements, height: h };
+}

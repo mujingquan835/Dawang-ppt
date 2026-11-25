@@ -1,6 +1,6 @@
 import { imageElement } from './elements.mjs';
 import { validImageCrop } from '../scene/image-crop.mjs';
-import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_COMPACT, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, categoryBreakdownCard, conversionFunnel, createTheme, hubArchitecture, imageSize, kpiStrip, labelBand, metricBento, metricTiles, photoGroup, readableInk, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
+import { REPORT_ROLES, REPORT_ROLES_COMFY, REPORT_ROLES_COMPACT, REPORT_ROLES_HERO, REPORT_ROLES_LARGE, REPORT_ROLES_ROOMY, actionPanel, categoryBreakdownCard, conversionFunnel, createTheme, diagnosisTrio, dualTrackRoadmap, executiveBriefCard, featureMatrixCard, groupedBarChart, hubArchitecture, icebergModel, imageSize, kpiStrip, labelBand, metricBento, metricTiles, modernGantt, multiLineChart, okrGoalTree, orbitFlywheel, periodTracker, photoGroup, pyramidStack, quadrantMatrix, quoteCards, radarScoreCard, radialGauges, rankedBarList, readableInk, riskMitigationStrip, specProfileCard, textWidth, colorRoles, lighten, pointList, pointsHeight } from './layout-kit.mjs';
 import { comparePair, periodBand, periodTimeline } from './report-kit.mjs';
 import path from 'node:path';
 import { capacityFlow, capacityTable, flowEdgeBindings, measureModule } from './capacity-kit.mjs';
@@ -68,7 +68,7 @@ function pageParts(page, zoneIds) {
   const tops = statements.filter((st) => !st.asMetric && !(st.tone === 'judgment' || st.place === 'bottom' || (st.place !== 'top' && CLOSING.test(st.label || '')))).map((st) => st.zone);
   const bottoms = statements.filter((st) => !st.asMetric && !tops.includes(st.zone)).map((st) => st.zone), phrases = statements.filter((st) => st.asMetric).map((st) => st.zone);
   const moduleOrder = page.role === 'summary' ? ['metrics', 'items', 'table'] : ['table', 'items', 'metrics'];
-  const tables = zoneIds.filter((z) => /^table-\d+$/.test(z)), core = [...moduleOrder.filter(has), ...tables, ...phrases, ...['breakdown', 'funnel', 'hub', 'compare', 'periods'].filter(has)];
+  const tables = zoneIds.filter((z) => /^table-\d+$/.test(z)), core = [...moduleOrder.filter(has), ...tables, ...phrases, ...['breakdown', 'funnel', 'hub', 'matrix', 'diagnosis', 'tracker', 'featureMatrix', 'gauges', 'pyramid', 'gantt', 'quotes', 'barChart', 'lineChart', 'rankList', 'execBrief', 'orbit', 'iceberg', 'radar', 'specCard', 'okr', 'risks', 'dualTrack', 'compare', 'periods'].filter(has)];
   const flows = zoneIds.filter((z) => /^(flow|chain)-\d+$/.test(z)), order = asList(page.order);
   if (!order.length) return { has, tops, bottoms, core, flows, order };
   // page.order states the reading order: sentences listed before the first module open the page, the others close it.
@@ -91,10 +91,15 @@ function pairSoloFigure(page, rows, tightGroup = false) {
 export function defaultLayout(page, zoneIds) {
   const { has, tops, bottoms, core, flows, order } = pageParts(page, zoneIds), pairs = [];
   const photos = asList(page.photos);
+  // Portrait-only small groups (1–2 tall posters/screenshots) belong in a tall side column where they fill naturally,
+  // instead of being squashed into a short horizontal bottom strip.
+  const allTallPortrait = photos.length > 0 && photos.length <= 2 && photos.every((ph) => {
+    try { return (validImageCrop(ph.crop) ? aspect(ph.src) * ph.crop[2] / ph.crop[3] : aspect(ph.src)) < 0.88; } catch { return false; }
+  });
   // Full-width band preference: when 3+ photos can form a balanced bottom visual strip,
-  // or when a full-width KPI strip (3–5 figures) coexists with items/table and photos,
+  // or when a full-width KPI strip (3–5 figures) coexists with items/table and landscape photos,
   // stacking full-width rows keeps the KPI strip wide and expansive instead of squeezing it into a narrow side column.
-  const preferFullBand = has('photos') && (photos.length >= 3 || (has('metrics') && asList(page.data).length >= 3 && (has('items') || has('table') || has('breakdown') || has('compare') || has('periods') || has('funnel') || has('hub'))));
+  const preferFullBand = has('photos') && !allTallPortrait && (photos.length >= 3 || (has('metrics') && asList(page.data).length >= 3 && (has('items') || has('table') || has('breakdown') || has('compare') || has('periods') || has('funnel') || has('hub') || has('matrix') || has('diagnosis') || has('tracker') || has('featureMatrix') || has('gauges') || has('pyramid') || has('gantt') || has('quotes') || has('barChart') || has('lineChart') || has('rankList') || has('execBrief') || has('orbit') || has('iceberg') || has('radar') || has('specCard') || has('okr') || has('risks') || has('dualTrack'))));
   if (order.length) {
     // Modules follow the stated order; neighbouring flows share a row.
     const at = (z) => order.indexOf(z) < 0 ? 999 : order.indexOf(z), seq = [...core, ...flows].sort((a, b) => at(a) - at(b)), isFlow = (z) => flows.includes(z), mid = [];
@@ -140,7 +145,7 @@ export function defaultLayout(page, zoneIds) {
 // The structure a reader sees on a page: which kinds of module sit in which kind of row (full width, a pair, beside the
 // photos, a photo band). Sentence bands that open or close the page are left out, and flows and chains count as one kind.
 // Two neighbouring pages with the same structure look like one template filled twice (blind review 2026-11-12).
-const zoneKind = (z) => { const k = String(z).replace(/-\d+$/, ''); return k === 'chain' ? 'flow' : ['metrics', 'items', 'table', 'flow', 'compare', 'periods', 'breakdown', 'funnel', 'hub', 'photos'].includes(k) ? k : 'st'; };
+const zoneKind = (z) => { const k = String(z).replace(/-\d+$/, ''); return k === 'chain' ? 'flow' : ['metrics', 'items', 'table', 'flow', 'compare', 'periods', 'breakdown', 'funnel', 'hub', 'matrix', 'diagnosis', 'tracker', 'featureMatrix', 'gauges', 'pyramid', 'gantt', 'quotes', 'barChart', 'lineChart', 'rankList', 'execBrief', 'orbit', 'iceberg', 'radar', 'specCard', 'okr', 'risks', 'dualTrack', 'photos'].includes(k) ? k : 'st'; };
 export function layoutSignature(rows) {
   const kinds = (zs) => zs.flat().map(zoneKind).filter((k) => k !== 'st').join(',');
   const parts = asList(rows).map((r) => (r === 'photos' ? 'band' : typeof r === 'string' ? zoneKind(r) : Array.isArray(r) ? (kinds(r) ? `pair:${kinds(r)}` : 'st') : `${r.photosLeft ? 'side-left' : 'side'}:${kinds(r.left)}`));
@@ -208,12 +213,13 @@ export function framedContainPhoto({ id, ph, bounds: [cx, cy, cw, cellH], theme,
   if (ih > availH) { ih = availH; iw = ih * r; }
   iw = Math.max(1, Math.round(iw));
   ih = Math.max(1, Math.round(ih));
-  const tightCard = cw > Math.max(240, iw + 64);
-  const cardW = tightCard ? Math.min(cw, Math.max(220, iw + 36)) : cw;
-  const cardX = cx + Math.round((cw - cardW) / 2);
+  // Always fill the allocated column width `cw` so adjacent cards align edge-to-edge with full-width modules above,
+  // eliminating awkward narrow-strip gaps in multi-column photo bands.
+  const cardW = cw;
+  const cardX = cx;
   const ix = cardX + Math.round((cardW - iw) / 2);
   const iy = cy + padTop + Math.round((availH - ih) / 2);
-  const cardFill = surfaceFill || (p.dark ? '#162238' : '#F8FAFC');
+  const cardFill = surfaceFill || (p.dark ? '#162238' : (p.pale || '#F4F7FB'));
   const cardStroke = p.dark ? (p.line || '#334155') : (p.line || '#CBD5E1');
   const elements = [
     { type: 'shape', id: `${id}-card`, bounds: [cardX, cy, cardW, cellH], style: { fill: cardFill, stroke: cardStroke, strokeWidth: 1.5, radius: Math.max(12, theme.radius ?? 14) } },
@@ -626,11 +632,13 @@ function pageWriter({ page, zones, theme, measurer }) {
       if (page.figureForm === 'strip' && !goals.length) { const made = w >= W - 1 ? await stripRow(fit, x, y, w, h) : await stripColumn(fit, x, y, w, h); if (made) return made; }
       if (fit && hero) { const made = await heroRow(items, fit, x, y, w, h); if (made) return made; }
       if (fit) {
-        const common = { id: 'm', x: x + 16, width: fit.width - 32, size: metricSize, figureSize: fit.size, columns: items.length, gap: 12, highlight: metricFocus(page.data), highlightStyle: 'solid', fill: surf, theme: solidTheme, items, iconCap: fit.icons ? 64 : 0 };
+        const spanFull = w >= W - 1;
+        const useW = spanFull ? w : fit.width;
+        const common = { id: 'm', x: x + 16, width: useW - 32, size: metricSize, figureSize: fit.size, columns: items.length, gap: 12, highlight: metricFocus(page.data), highlightStyle: 'solid', fill: surf, theme: solidTheme, items, iconCap: spanFull || fit.icons ? 68 : 0 };
         await settleFigures('metrics', common);
         const natural = metricTiles({ ...common, y: 0 }).height + 32, height = Math.max(natural, h || 0), real = metricTiles({ ...common, y: y + 16, tileHeight: height - 32 });
         const bindings = page.data.map((d, i) => ({ ref: `${pid}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(goals.length > 1 && d.target != null ? [`m-note-${i + 1}`] : [])] })), sizes = sizesOf(real.elements, bindings.flatMap((b) => b.elementIds));
-        return { height, width: fit.width, elements: [panel('metrics-panel', [x, y, fit.width, height]), ...real.elements], frame: 'metrics-panel', module: 'metricTiles', variant: `${page.data.length}-results${fit.tight ? '-tight' : ''}`, title: real.valueSize, sizes, reason: goals.length > 1 ? '实际值和目标放在同一色块' : fit.tight ? '数字色块按内容收紧' : '结果数字成组', bindings };
+        return { height, width: useW, elements: [panel('metrics-panel', [x, y, useW, height]), ...real.elements], frame: 'metrics-panel', module: 'metricTiles', variant: `${page.data.length}-results${!spanFull && fit.tight ? '-tight' : ''}`, title: real.valueSize, sizes, reason: goals.length > 1 ? '实际值和目标放在同一色块' : !spanFull && fit.tight ? '数字色块按内容收紧' : '结果数字成组铺满整行', bindings };
       }
       const t = tiles('m', x, y, w, items, h, stretch, metricFocus(page.data)), bindings = page.data.map((d, i) => ({ ref: `${pid}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`, ...(goals.length > 1 && d.target != null ? [`m-note-${i + 1}`] : [])] })), sizes = sizesOf(t.elements, bindings.flatMap((b) => b.elementIds));
       return { height: t.height, elements: [panel('metrics-panel', [x, y, w, t.height]), ...t.elements], frame: 'metrics-panel', module: 'metricTiles', variant: `${page.data.length}-results`, title: t.valueSize, sizes, reason: goals.length > 1 ? '实际值和目标放在同一色块' : '结果数字成组', bindings };
@@ -652,17 +660,144 @@ function pageWriter({ page, zones, theme, measurer }) {
       const built = hubArchitecture({ id: 'hb', x, y, width: w, height: h, title: hb.title, center: hb.center, inputs: asList(hb.inputs), outputs: asList(hb.outputs), theme, variant: hbStyle });
       return { height: built.height, width: w, elements: built.elements, frame: 'hb-panel', module: 'hubArchitecture', variant: `${asList(hb.inputs).length}-to-${asList(hb.outputs).length}-${hbStyle}`, title: 26, reason: '中心汇聚架构图直观表达多源输入与多端输出', bindings: [{ ref: `${pid}:hub-center`, elementIds: ['hb-hub-t'] }] };
     }
+    if (z === 'matrix') {
+      const mx = page.matrix || {}, mxStyle = page.matrixStyle || 'grid';
+      const built = quadrantMatrix({ id: 'mx', x, y, width: w, height: h, title: mx.title, xLabel: mx.xLabel, yLabel: mx.yLabel, quadrants: asList(mx.quadrants), theme, variant: mxStyle });
+      const ids = asList(mx.quadrants).map((_, i) => `mx-qt-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'mx-panel', module: 'quadrantMatrix', variant: `${asList(mx.quadrants).length}-${mxStyle}`, title: 22, sizes: sizesOf(built.elements, ids), reason: '2×2四象限矩阵清晰划分优先级与战略定位', bindings: asList(mx.quadrants).map((_, i) => ({ ref: `${pid}:matrix-${i + 1}`, elementIds: [`mx-qt-${i + 1}`] })) };
+    }
+    if (z === 'diagnosis') {
+      const dg = page.diagnosis || {}, dgStyle = page.diagnosisStyle || 'trio';
+      const dItems = Array.isArray(dg) ? dg : asList(dg.items);
+      const built = diagnosisTrio({ id: 'dg', x, y, width: w, height: h, title: dg.title || '', items: dItems, theme, variant: dgStyle });
+      const ids = dItems.map((_, i) => `dg-t-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: dgStyle === 'stacked' ? 'dg-panel' : 'dg-card-1', module: 'diagnosisTrio', variant: `${dItems.length}-${dgStyle}`, title: 24, sizes: sizesOf(built.elements, ids), reason: '问题→归因→解法三联诊断卡完整闭环复盘逻辑', bindings: dItems.map((_, i) => ({ ref: `${pid}:diagnosis-${i + 1}`, elementIds: [`dg-t-${i + 1}`, `dg-d-${i + 1}`] })) };
+    }
+    if (z === 'tracker') {
+      const tr = page.tracker || {}, trStyle = page.trackerStyle || 'blocks';
+      const tItems = Array.isArray(tr) ? tr : asList(tr.items);
+      const built = periodTracker({ id: 'tr', x, y, width: w, height: h, title: tr.title, summary: tr.summary, badge: tr.badge, legend: tr.legend, items: tItems, theme, variant: trStyle });
+      const ids = tItems.map((_, i) => `tr-lbl-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'tr-panel', module: 'periodTracker', variant: `${tItems.length}-${trStyle}`, title: 22, sizes: sizesOf(built.elements, ids), reason: '多周期达标追踪条直观呈现连续达成与波动状态', bindings: tItems.map((_, i) => ({ ref: `${pid}:tracker-${i + 1}`, elementIds: [`tr-lbl-${i + 1}`] })) };
+    }
+    if (z === 'featureMatrix') {
+      const fm = page.featureMatrix || {}, fmStyle = page.featureMatrixStyle || 'matrix';
+      const built = featureMatrixCard({ id: 'fm', x, y, width: w, height: h, title: fm.title, columns: asList(fm.columns), rows: asList(fm.rows), theme, variant: fmStyle });
+      const ids = asList(fm.rows).map((_, i) => `fm-rf-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: fmStyle === 'cards' ? 'fm-col-1' : 'fm-panel', module: 'featureMatrix', variant: `${asList(fm.columns).length}x${asList(fm.rows).length}-${fmStyle}`, title: 20, sizes: sizesOf(built.elements, ids), reason: 'SaaS方案能力勾选矩阵直观对比多方案差异与推荐项', bindings: asList(fm.rows).map((_, i) => ({ ref: `${pid}:feature-${i + 1}`, elementIds: [`fm-rf-${i + 1}`] })) };
+    }
+    if (z === 'gauges') {
+      const gg = page.gauges || {}, ggStyle = page.gaugesStyle || 'ring';
+      const gItems = Array.isArray(gg) ? gg : asList(gg.items);
+      const built = radialGauges({ id: 'gg', x, y, width: w, height: h, title: gg.title || '', items: gItems, theme, variant: ggStyle });
+      const ids = gItems.map((_, i) => `gg-pct-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'gg-card-1', module: 'radialGauges', variant: `${gItems.length}-${ggStyle}`, title: 28, sizes: sizesOf(built.elements, ids), reason: '环形达成率仪表以圆弧视觉突出核心目标完成度', bindings: gItems.map((_, i) => ({ ref: `${pid}:gauge-${i + 1}`, elementIds: [`gg-lbl-${i + 1}`, `gg-pct-${i + 1}`] })) };
+    }
+    if (z === 'pyramid') {
+      const py = page.pyramid || {}, pyStyle = page.pyramidStyle || 'pyramid';
+      const pLayers = Array.isArray(py) ? py : asList(py.layers);
+      const built = pyramidStack({ id: 'py', x, y, width: w, height: h, title: py.title || '', layers: pLayers, theme, variant: pyStyle });
+      const ids = pLayers.map((_, i) => `py-t-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'py-panel', module: 'pyramidStack', variant: `${pLayers.length}-${pyStyle}`, title: 21, sizes: sizesOf(built.elements, ids), reason: '金字塔与多层战略栈清晰表达自顶向下或底座支撑层级', bindings: pLayers.map((_, i) => ({ ref: `${pid}:pyramid-${i + 1}`, elementIds: [`py-t-${i + 1}`] })) };
+    }
+    if (z === 'gantt') {
+      const gn = page.gantt || {}, gnStyle = page.ganttStyle || 'gantt';
+      const gLanes = Array.isArray(gn) ? gn : asList(gn.lanes);
+      const built = modernGantt({ id: 'gn', x, y, width: w, height: h, title: gn.title || '', columns: asList(gn.columns), lanes: gLanes, theme, variant: gnStyle });
+      const ids = gLanes.map((_, i) => gnStyle === 'kanban' ? `gn-kt-1` : `gn-tsk-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: gnStyle === 'kanban' ? 'gn-kcol-1' : 'gn-panel', module: 'modernGantt', variant: `${gLanes.length}-${gnStyle}`, title: 20, sizes: sizesOf(built.elements, ids), reason: '多泳道现代甘特图清晰展示跨团队并行排期与状态进度', bindings: gLanes.map((_, i) => ({ ref: `${pid}:gantt-${i + 1}`, elementIds: [gnStyle === 'kanban' ? 'gn-kcol-1' : `gn-tsk-${i + 1}`] })) };
+    }
+    if (z === 'quotes') {
+      const qt = page.quotes || {}, qtStyle = page.quotesStyle || 'cards';
+      const qItems = Array.isArray(qt) ? qt : asList(qt.items);
+      const built = quoteCards({ id: 'qt', x, y, width: w, height: h, title: qt.title || '', items: qItems, theme, variant: qtStyle });
+      const ids = qItems.map((_, i) => `qt-au-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'qt-card-1', module: 'quoteCards', variant: `${qItems.length}-${qtStyle}`, title: 20, sizes: sizesOf(built.elements, ids), reason: '现代证言与负责人卡片直观呈现一线声音与核心角色', bindings: qItems.map((_, i) => ({ ref: `${pid}:quote-${i + 1}`, elementIds: [`qt-au-${i + 1}`, `qt-qt-${i + 1}`] })) };
+    }
+    if (z === 'barChart') {
+      const bc = page.barChart || {}, bcStyle = page.barChartStyle || 'grouped';
+      const built = groupedBarChart({ id: 'bc', x, y, width: w, height: h, title: bc.title, unit: bc.unit, badge: bc.badge, categories: asList(bc.categories), series: asList(bc.series), theme, variant: bcStyle });
+      const ids = asList(bc.categories).map((_, i) => `bc-cat-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'bc-panel', module: 'groupedBarChart', variant: `${asList(bc.categories).length}-${bcStyle}`, title: 21, sizes: sizesOf(built.elements, ids), reason: '分组柱状图清晰对比同比环比与多周期体量差异', bindings: asList(bc.categories).map((_, i) => ({ ref: `${pid}:bar-${i + 1}`, elementIds: [`bc-cat-${i + 1}`] })) };
+    }
+    if (z === 'lineChart') {
+      const lc = page.lineChart || {}, lcStyle = page.lineChartStyle || 'line';
+      const built = multiLineChart({ id: 'lc', x, y, width: w, height: h, title: lc.title, unit: lc.unit, badge: lc.badge, categories: asList(lc.categories), series: asList(lc.series), theme, variant: lcStyle });
+      const ids = asList(lc.categories).map((_, i) => `lc-cat-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'lc-panel', module: 'multiLineChart', variant: `${asList(lc.categories).length}-${lcStyle}`, title: 21, sizes: sizesOf(built.elements, ids), reason: '多序列平滑折线图直观呈现增长走势与目标对比', bindings: asList(lc.categories).map((_, i) => ({ ref: `${pid}:line-${i + 1}`, elementIds: [`lc-cat-${i + 1}`] })) };
+    }
+    if (z === 'rankList') {
+      const rl = page.rankList || {}, rlStyle = page.rankListStyle || 'bars';
+      const rItems = Array.isArray(rl) ? rl : asList(rl.items);
+      const built = rankedBarList({ id: 'rl', x, y, width: w, height: h, title: rl.title, unit: rl.unit, badge: rl.badge, items: rItems, theme, variant: rlStyle });
+      const ids = rItems.map((_, i) => `rl-lbl-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'rl-panel', module: 'rankedBarList', variant: `${rItems.length}-${rlStyle}`, title: 21, sizes: sizesOf(built.elements, ids), reason: 'TOP排行榜进度卡清晰呈现大区/渠道贡献梯队', bindings: rItems.map((_, i) => ({ ref: `${pid}:rank-${i + 1}`, elementIds: [`rl-lbl-${i + 1}`, `rl-val-${i + 1}`] })) };
+    }
+    if (z === 'execBrief') {
+      const eb = page.execBrief || {}, ebStyle = page.execBriefStyle || 'bento';
+      const built = executiveBriefCard({ id: 'eb', x, y, width: w, height: h, badge: eb.badge, headline: eb.headline, value: eb.value, unit: eb.unit, summary: eb.summary, metrics: asList(eb.metrics), theme, variant: ebStyle });
+      const ids = asList(eb.metrics).map((_, i) => `eb-mv-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'eb-hero', module: 'executiveBrief', variant: `${asList(eb.metrics).length}-${ebStyle}`, title: 28, sizes: sizesOf(built.elements, ids), reason: '高管一页纸Bento总览一屏浓缩核心定调与关键结果', bindings: [{ ref: `${pid}:exec-hero`, elementIds: ['eb-ht'] }] };
+    }
+    if (z === 'orbit') {
+      const ob = page.orbit || {}, obStyle = page.orbitStyle || 'orbit';
+      const built = orbitFlywheel({ id: 'ob', x, y, width: w, height: h, title: ob.title, center: ob.center, nodes: asList(ob.nodes), theme, variant: obStyle });
+      const ids = asList(ob.nodes).map((_, i) => `ob-nt-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'ob-panel', module: 'orbitFlywheel', variant: `${asList(ob.nodes).length}-${obStyle}`, title: 21, sizes: sizesOf(built.elements, ids), reason: '环形增长飞轮直观呈现核心引擎与生态闭环正循环', bindings: asList(ob.nodes).map((_, i) => ({ ref: `${pid}:orbit-${i + 1}`, elementIds: [`ob-nt-${i + 1}`] })) };
+    }
+    if (z === 'iceberg') {
+      const ic = page.iceberg || {}, icStyle = page.icebergStyle || 'iceberg';
+      const deepList = Array.isArray(ic.deep) ? ic.deep : asList(ic.deep?.items);
+      const built = icebergModel({ id: 'ic', x, y, width: w, height: h, title: ic.title, waterlineLabel: ic.waterlineLabel, surface: ic.surface, deep: ic.deep, theme, variant: icStyle });
+      const ids = deepList.map((_, i) => `ic-dt-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'ic-panel', module: 'icebergModel', variant: `${deepList.length}-${icStyle}`, title: 21, sizes: sizesOf(built.elements, ids), reason: '冰山模型一刀切开水面表象与水下深层根因', bindings: deepList.map((_, i) => ({ ref: `${pid}:iceberg-${i + 1}`, elementIds: [`ic-dt-${i + 1}`] })) };
+    }
+    if (z === 'radar') {
+      const rd = page.radar || {}, rdStyle = page.radarStyle || 'radar';
+      const rItems = Array.isArray(rd) ? rd : asList(rd.items);
+      const built = radarScoreCard({ id: 'rd', x, y, width: w, height: h, title: rd.title, max: rd.max, badge: rd.badge, items: rItems, theme, variant: rdStyle });
+      const ids = rItems.map((_, i) => `rd-lbl-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'rd-panel', module: 'radarScoreCard', variant: `${rItems.length}-${rdStyle}`, title: 21, sizes: sizesOf(built.elements, ids), reason: '多维能力雷达评估卡直观展现各维度均衡度与长短板', bindings: rItems.map((_, i) => ({ ref: `${pid}:radar-${i + 1}`, elementIds: [`rd-lbl-${i + 1}`, `rd-val-${i + 1}`] })) };
+    }
+    if (z === 'specCard') {
+      const sp = page.specCard || {}, spStyle = page.specCardStyle || 'grid';
+      const sItems = Array.isArray(sp) ? sp : asList(sp.items);
+      const built = specProfileCard({ id: 'sp', x, y, width: w, height: h, title: sp.title, badge: sp.badge, items: sItems, theme, variant: spStyle });
+      const ids = sItems.map((_, i) => `sp-v-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'sp-panel', module: 'specProfileCard', variant: `${sItems.length}-${spStyle}`, title: 21, sizes: sizesOf(built.elements, ids), reason: '项目档案键值卡以结构化网格清晰呈现立项与基础要素', bindings: sItems.map((_, i) => ({ ref: `${pid}:spec-${i + 1}`, elementIds: [`sp-k-${i + 1}`, `sp-v-${i + 1}`] })) };
+    }
+    if (z === 'okr') {
+      const ok = page.okr || {}, okStyle = page.okrStyle || 'tree';
+      const krs = asList(ok.keyResults);
+      const built = okrGoalTree({ id: 'ok', x, y, width: w, height: h, title: ok.title, objective: ok.objective || {}, keyResults: krs, theme, variant: okStyle });
+      const ids = krs.map((_, i) => `ok-krl-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'ok-panel', module: 'okrGoalTree', variant: `${krs.length}-${okStyle}`, title: 22, sizes: sizesOf(built.elements, ids), reason: 'OKR目标树清晰连接核心目标与关键结果达成进度', bindings: krs.map((_, i) => ({ ref: `${pid}:okr-${i + 1}`, elementIds: [`ok-krl-${i + 1}`] })) };
+    }
+    if (z === 'risks') {
+      const rk = page.risks || {}, rkStyle = page.risksStyle || 'rows';
+      const rItems = Array.isArray(rk) ? rk : asList(rk.items);
+      const built = riskMitigationStrip({ id: 'rk', x, y, width: w, height: h, title: rk.title, badge: rk.badge, items: rItems, theme, variant: rkStyle });
+      const ids = rItems.map((_, i) => `rk-rt-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'rk-panel', module: 'riskMitigationStrip', variant: `${rItems.length}-${rkStyle}`, title: 20, sizes: sizesOf(built.elements, ids), reason: '风险分级预案条以语义等级清晰呈现风险点与兜底方案', bindings: rItems.map((_, i) => ({ ref: `${pid}:risk-${i + 1}`, elementIds: [`rk-rt-${i + 1}`] })) };
+    }
+    if (z === 'dualTrack') {
+      const dt = page.dualTrack || {}, dtStyle = page.dualTrackStyle || 'tracks';
+      const trs = asList(dt.tracks);
+      const built = dualTrackRoadmap({ id: 'dt', x, y, width: w, height: h, title: dt.title, tracks: trs, theme, variant: dtStyle });
+      const ids = trs.map((_, i) => `dt-tn-${i + 1}`);
+      return { height: built.height, width: w, elements: built.elements, frame: 'dt-panel', module: 'dualTrackRoadmap', variant: `${trs.length}-${dtStyle}`, title: 20, sizes: sizesOf(built.elements, ids), reason: '双轨协同路线图清晰对齐业务与技术两条并行推进节奏', bindings: trs.map((_, i) => ({ ref: `${pid}:track-${i + 1}`, elementIds: [`dt-tn-${i + 1}`] })) };
+    }
     if (z === 'compare') {
       const c = page.compare, r = colorRoles(p), left = asList(c.left), right = asList(c.right), n = Math.max(left.length, right.length), { now, onward } = compareSides(c), nowLeft = now === 'left', paired = left.length === right.length && c.paired !== false;
       // The same measures on both sides, each a figure: the change is the point, so each pair is one tile reading "before → after" with the later figure large.
       const change = changeRow(w);
       if (change) {
-        const { items, fit, width, heading } = change, headH = 20 + headBox, common = { id: 'cmp', x: x + 16, width: fit.width - 32, size: metricSize, figureSize: fit.size, columns: items.length, gap: 12, highlight: metricFocus(items), highlightStyle: 'solid', fill: surf, theme: solidTheme, items, iconCap: 0 };
+        const { items, fit, width, heading } = change, spanFull = w >= W - 1, useW = spanFull ? w : width, headH = 20 + headBox, common = { id: 'cmp', x: x + 16, width: useW - 32, size: metricSize, figureSize: fit.size, columns: items.length, gap: 12, highlight: metricFocus(items), highlightStyle: 'solid', fill: surf, theme: solidTheme, items, iconCap: spanFull ? 64 : 0 };
         await settleFigures('compare', common);
         const natural = metricTiles({ ...common, y: 0 }).height + headH + 16, height = Math.max(natural, h || 0), real = metricTiles({ ...common, y: y + headH, tileHeight: height - headH - 16 }), ids = (k) => [`cmp-label-${k + 1}`, `cmp-value-${k + 1}`];
         const bindings = [...left.map((_, k) => ({ ref: `${pid}:compare-l${k + 1}`, elementIds: ids(k) })), ...right.map((_, k) => ({ ref: `${pid}:compare-r${k + 1}`, elementIds: ids(k) })), ...left.map((_, k) => ({ ref: `${pid}:compare`, rowId: `row-${k + 1}`, elementIds: ids(k) }))];
-        const elements = [panel('cmp-frame', [x, y, width, height]), text('cmp-head', heading, [x + 24, y + 12, width - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 })), ...real.elements];
-        return { height, width, elements, frame: 'cmp-frame', module: 'metricTiles', variant: `${items.length}-changes`, title: real.valueSize, sizes: sizesOf(real.elements, items.flatMap((_, k) => ids(k))), reason: '前后数值成对，变化放大', bindings };
+        const elements = [panel('cmp-frame', [x, y, useW, height]), text('cmp-head', heading, [x + 24, y + 12, useW - 48, headBox], theme.roleStyle('sectionTitle', { color: readableInk(p.accent, p.pale), lineHeight: 1.3 })), ...real.elements];
+        return { height, width: useW, elements, frame: 'cmp-frame', module: 'metricTiles', variant: `${items.length}-changes`, title: real.valueSize, sizes: sizesOf(real.elements, items.flatMap((_, k) => ids(k))), reason: '前后数值成对，变化放大', bindings };
       }
       // Otherwise two sides. Rows that pair up share a height and are tied by an arrow (one leads to the other) or a number (row by row); sides that do not pair each keep their own rows.
       const mid = paired || c.badge ? 56 : 24, sideW = Math.floor((w - mid) / 2), rightX = x + sideW + mid, capH = 48, pad = 22, innerW = sideW - pad * 2, textInnerW = Math.max(80, innerW - 34);
@@ -911,11 +1046,19 @@ function pageWriter({ page, zones, theme, measurer }) {
       return { height, elements, frame: `${z}-panel`, module: 'capacityFlow', variant: `${steps.length}-steps${cards ? '-cards' : ''}`, title: roles.sectionTitle.fontSize, ...(cards ? { sizes: sizesOf(parts, stepBindings.flatMap((b) => b.elementIds)) } : {}), reason: '箭头表达先后', bindings: [...stepBindings, ...flowEdgeBindings(fid, `${pid}:${z}`, steps.map((s) => s.id))] };
     }
     if (z === 'photos') {
-      const H = h || 420, cols = across ? singleColumns(page.photos) : photoColumns(page.photos), natural = naturalPhotoWidth(cols, H), scale = Math.min(1, (w - (cols.length - 1) * 24) / (natural - (cols.length - 1) * 24)), elements = [], bindings = [];
+      const H = h || 420, cols = across ? singleColumns(page.photos) : photoColumns(page.photos);
+      const availW = Math.max(120, w - (cols.length - 1) * 24);
+      const rawWeights = cols.map((col) => {
+        const cellH = Math.max(60, Math.floor((H - col.length * CAP - (col.length - 1) * PHOTO_GAP) / col.length));
+        const avgR = col.reduce((a, c) => a + Math.max(0.68, c.r), 0) / col.length;
+        return Math.max(80, cellH * avgR);
+      });
+      const weightSum = rawWeights.reduce((a, b) => a + b, 0) || 1;
+      const elements = [], bindings = [];
       let cx = x;
       cols.forEach((col, ci) => {
-        const cellH = Math.floor((H - col.length * CAP - (col.length - 1) * PHOTO_GAP) / col.length), share = cellH * (col.reduce((a, c) => a + c.r, 0) / col.length) * scale;
-        const cw = ci === cols.length - 1 ? x + w - cx : Math.round(share);
+        const cellH = Math.floor((H - col.length * CAP - (col.length - 1) * PHOTO_GAP) / col.length);
+        const cw = ci === cols.length - 1 ? x + w - cx : Math.round(availW * rawWeights[ci] / weightSum);
         col.forEach((ph, ri) => {
           const id = `ph${ph.index + 1}`, cy = y + ri * (cellH + CAP + PHOTO_GAP);
           if (isContainPhoto(ph)) {
@@ -1082,16 +1225,11 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
         const H = Math.min(curPhotoRowH, naturalPhotoHeight(singleColumns(page.photos), W)), m = await render(row, { x: L, y, w: W, h: H, across: true });
         placeModule(m, row, [L, y, W, H]); y += H + gap; naturalUsed += H;
       } else if (typeof row === 'string') {
-        // Figures that hug their content with no sentence to follow them: small, nearly square tiles sit in the middle of
-        // the line; wide tiles start at the left margin like the rest of the page (user decision 2026-11-10).
-        const big = !layout && heroFor(row, W), hug = big ? null : tightZoneWidth(row, W);
-        let mx = hug ? L + Math.round((W - hug) / 2) : L, m = await render(row, { x: mx, y, w: hug || W, hero: big });
-        // A large figure with its compact neighbours makes one group; when it still stops short of the line it sits in the middle.
-        if (big && m.width < W - 1) { mx = L + Math.round((W - m.width) / 2); m = await render(row, { x: mx, y, w: W, hero: big }); centred.add(row); }
-        const tile = hug && m.elements.find((e) => /-tile-1$/.test(e.id) && e.type === 'shape')?.bounds;
-        if (tile && tile[2] / tile[3] > SQUARE_TILE) { mx = L; m = await render(row, { x: mx, y, w: hug }); }
-        if (hug && mx !== L) centred.add(row);
-        placeModule(m, row, [mx, y, m.width || hug || W, m.height]); y += m.height + gap; naturalUsed += info.h;
+        // Standalone full-width module rows always span the full content width `W` from left margin `L` to right margin,
+        // keeping clean vertical alignment with every full-width card below instead of shrinking into a centred narrow patch.
+        const big = !layout && heroFor(row, W);
+        const m = await render(row, { x: L, y, w: W, hero: big });
+        placeModule(m, row, [L, y, m.width || W, m.height]); y += m.height + gap; naturalUsed += info.h;
       } else if (Array.isArray(row)) {
         const h = info.h; let x = L, tallest = h;
         for (const [i, z] of row.entries()) {
@@ -1147,15 +1285,40 @@ async function layoutPage({ page, plan, theme, measurer, layout, pageNo, total, 
   const intoFooter = elements.find((e) => Array.isArray(e.bounds) && e.bounds[1] + e.bounds[3] > BOTTOM + 2);
   if (intoFooter) throw new PageOverflow(`${page.id} 的 ${intoFooter.id} 伸进页脚`);
 
-  // Header: compact eyebrow pill stacked neatly above the conclusion headline + slim progress rule.
+  // Header: compact eyebrow pill stacked neatly above the conclusion headline + optional top-right Segmented Section Tabs (PILL-02) + slim progress rule.
   const tone = p.dark ? p.primary : readableInk(p.accent, p.bg || '#FFFFFF');
   const progW = Math.round(W * pageNo / total), tipW = Math.min(48, Math.max(20, Math.round(progW * 0.12)));
+  const navTabEls = [];
+  if (page._navTabs && Array.isArray(page._navTabs.sections) && page._navTabs.sections.length >= 2) {
+    const secs = page._navTabs.sections.slice(0, 5);
+    const activeIdx = Math.max(0, Math.min(secs.length - 1, page._navTabs.activeIndex ?? 0));
+    const maxNavW = Math.max(240, W - (tagText ? tagW : 320) - 36);
+    const tabPad = 4;
+    const rawWs = secs.map((s) => Math.max(76, Math.min(210, Math.ceil(textWidth(s, 13) * 1.15) + 22)));
+    const rawSum = rawWs.reduce((a, b) => a + b, 0) + tabPad * 2 + (secs.length - 1) * 4;
+    const scaleNav = rawSum > maxNavW ? maxNavW / rawSum : 1;
+    const ws = rawWs.map((rw) => Math.floor(rw * scaleNav));
+    const navW = ws.reduce((a, b) => a + b, 0) + tabPad * 2 + (secs.length - 1) * 4;
+    const navX = L + W - navW;
+    navTabEls.push({ id: 'hdr-nav-bg', type: 'shape', bounds: [navX, 24, navW, 30], style: { fill: rHdr.band, stroke: p.line || '#E2E6EE', strokeWidth: 1, radius: 15 } });
+    let tx = navX + tabPad;
+    secs.forEach((lbl, si) => {
+      const tw = ws[si];
+      const act = si === activeIdx;
+      if (act) {
+        navTabEls.push({ id: `hdr-nav-act-${si + 1}`, type: 'shape', bounds: [tx, 27, tw, 24], style: { fill: tone, radius: 12 } });
+      }
+      navTabEls.push({ id: `hdr-nav-tx-${si + 1}`, type: 'text', text: lbl, bounds: [tx + 4, 30, tw - 8, 18], style: theme.font(13, { fontWeight: act ? 700 : 400, color: act ? (p.inverse || '#FFFFFF') : p.muted, textAlign: 'center', lineHeight: 1.2 }) });
+      tx += tw + 4;
+    });
+  }
   const chrome = [
     ...(tagText ? [
       { id: 'hdr-tag', type: 'shape', bounds: [L, 24, tagW, 30], style: { fill: rHdr.band, stroke: p.line || '#E2E6EE', strokeWidth: 1.2, radius: 15 } },
       { id: 'hdr-dot', type: 'shape', bounds: [L + 12, 35, 8, 8], style: { fill: rHdr.pop, radius: 4 }, shape: 'ellipse' },
       { id: 'eyebrow', type: 'text', text: tagText, bounds: [L + 26, 29, tagW - 36, 22], style: tagStyle },
     ] : eyebrow ? [{ id: 'eyebrow', type: 'text', text: eyebrow, bounds: [L, 26, 1200, 24], style: theme.roleStyle('eyebrow', { color: p.muted }) }] : []),
+    ...navTabEls,
     { id: 'title', type: 'text', text: title, bounds: [titleX, titleY, titleW, titleBoxH], style: titleStyle, runs },
     { id: 'hdr-rule', type: 'shape', bounds: [L, ruleY + 2, W, 2], style: { fill: p.line } },
     { id: 'hdr-progress', type: 'shape', bounds: [L, ruleY, progW, 5], style: { fill: tone, radius: 3 } },
@@ -1329,9 +1492,13 @@ async function layoutCover({ page, plan, theme, measurer, deckTitle }) {
 }
 
 async function layoutSection({ page, plan, theme, measurer, sectionNo, pageNo, total, footer }) {
-  const p = theme.palette, roles = colorRoles(p), fill = p.dark ? p.bg : readableInk(roles.primary, '#FFFFFF');
-  const mainInk = p.dark ? p.ink : p.inverse, pop = roles.pop || p.pop || '#FA6500';
-  const soft = (k) => (p.dark ? p.body : (readableInk(lighten(roles.secondary, k), fill) === fill ? '#E2E8F0' : lighten(roles.secondary, k)));
+  const p = theme.palette, roles = colorRoles(p);
+  const heroFill = p.dark ? '#13223B' : readableInk(roles.primary, '#FFFFFF');
+  const canvasBg = p.bg || (p.dark ? '#0B1324' : '#F6F8FC');
+  const surf = p.surface || (p.dark ? '#16243D' : '#FFFFFF');
+  const mainInk = '#FFFFFF';
+  const pop = roles.pop || p.pop || '#FA6500';
+  const softOnHero = (k) => (readableInk(lighten(roles.secondary, k), heroFill) === heroFill ? '#E2E8F0' : lighten(roles.secondary, k));
   const secNum = String(sectionNo).padStart(2, '0');
   const eyebrow = page.part || page.eyebrow || `PART ${secNum}`;
   const data = asList(page.data).slice(0, 4);
@@ -1344,12 +1511,15 @@ async function layoutSection({ page, plan, theme, measurer, sectionNo, pageNo, t
   const secLead = !titleIsMain ? keyText : (page.subtitle || '');
   const subExtra = !titleIsMain && page.subtitle && page.subtitle !== keyText ? page.subtitle : '';
 
+  const stageTop = 82;
+  const stageH = 896;
   const hasRight = items.length > 0 || Boolean(photo);
-  const rightW = items.length && photo ? 760 : items.length ? 820 : photo ? 760 : 0;
-  const gapCol = rightW ? 56 : 0;
-  const leftX = L + 24;
-  const leftW = rightW ? W - 24 - rightW - gapCol : 1520;
-  const rx = leftX + leftW + gapCol;
+  const gapCol = hasRight ? 28 : 0;
+  const heroW = hasRight ? 856 : W;
+  const rx = L + heroW + gapCol;
+  const rightW = hasRight ? W - heroW - gapCol : 0;
+  const padX = hasRight ? 56 : 84;
+  const innerHeroW = heroW - padX * 2;
 
   const isShortDisplay = secTitle.replace(/[\s，。：；、,.!?！？·\-—]/g, '').length <= 14 && theme.displayFamily;
   const titleFontStyle = (sz, extra = {}) => theme.roleStyle('coverTitle', {
@@ -1359,38 +1529,61 @@ async function layoutSection({ page, plan, theme, measurer, sectionNo, pageNo, t
     lineHeight: 1.2,
     ...extra,
   });
-  let titleFont = rightW ? 64 : 76;
-  const [m1] = await measurer.texts([{ id: 'st1', type: 'text', text: secTitle, bounds: [0, 0, leftW, 240], style: titleFontStyle(titleFont), lastLine: true }]);
+  let titleFont = hasRight ? 62 : 74;
+  let titleWrapW = innerHeroW;
+  let [m1] = await measurer.texts([{ id: 'st1', type: 'text', text: secTitle, bounds: [0, 0, titleWrapW, 240], style: titleFontStyle(titleFont), lastLine: true }]);
   let titleLines = m1.lines || 1;
   if (titleLines > 2) {
-    titleFont = rightW ? 52 : 60;
-    const [m2] = await measurer.texts([{ id: 'st2', type: 'text', text: secTitle, bounds: [0, 0, leftW, 240], style: titleFontStyle(titleFont), lastLine: true }]);
-    titleLines = Math.min(3, m2.lines || 2);
+    titleFont = hasRight ? 50 : 60;
+    [m1] = await measurer.texts([{ id: 'st2', type: 'text', text: secTitle, bounds: [0, 0, titleWrapW, 240], style: titleFontStyle(titleFont), lastLine: true }]);
+    titleLines = Math.min(3, m1.lines || 2);
+  }
+  // Prevent awkward 1-2 character orphan tails on chapter titles (e.g. "年度统筹与核心业务战 / 役"):
+  // first try stepping down slightly to fit on one crisp line; otherwise narrow wrap width so both lines balance evenly.
+  if (titleLines === 2 && (m1.lastLineChars || 99) <= 3) {
+    let fitOne = false;
+    for (let f = titleFont - 2; f >= (hasRight ? 46 : 54); f -= 2) {
+      const [mp] = await measurer.texts([{ id: 'st1p', type: 'text', text: secTitle, bounds: [0, 0, innerHeroW, 240], style: titleFontStyle(f), lastLine: true }]);
+      if ((mp.lines || 1) === 1) {
+        titleFont = f;
+        titleLines = 1;
+        fitOne = true;
+        break;
+      }
+    }
+    if (!fitOne) {
+      for (let wTry = innerHeroW - 36; wTry >= Math.round(innerHeroW * 0.68); wTry -= 28) {
+        const [mp] = await measurer.texts([{ id: 'st2p', type: 'text', text: secTitle, bounds: [0, 0, wTry, 240], style: titleFontStyle(titleFont), lastLine: true }]);
+        if ((mp.lines || 1) === 2 && (mp.lastLineChars || 0) >= 4) {
+          titleWrapW = wTry;
+          break;
+        }
+      }
+    }
   }
   const titleH = Math.ceil(titleFont * 1.2 * titleLines) + 6;
   const focusWord = page.focus && secTitle.includes(page.focus) ? page.focus : null;
   const fAt = focusWord ? secTitle.indexOf(focusWord) : -1;
   const titleRuns = focusWord ? [
     secTitle.slice(0, fAt) && { text: secTitle.slice(0, fAt), style: { color: mainInk } },
-    { text: focusWord, style: { color: p.dark ? roles.primary : soft(0.25) } },
+    { text: focusWord, style: { color: softOnHero(0.25) } },
     secTitle.slice(fAt + focusWord.length) && { text: secTitle.slice(fAt + focusWord.length), style: { color: mainInk } },
   ].filter(Boolean) : undefined;
 
-  const leadStyle = theme.font(rightW ? 26 : 30, { fontWeight: 700, color: p.dark ? p.body : soft(0.35), lineHeight: 1.4 });
-  const subStyle = theme.font(21, { fontWeight: 400, color: p.dark ? p.muted : soft(0.55), lineHeight: 1.42 });
-  const leadMeasure = secLead ? (await measurer.texts([{ id: 'sl', type: 'text', text: secLead, bounds: [0, 0, leftW, 180], style: leadStyle }]))[0] : null;
-  const subMeasure = subExtra ? (await measurer.texts([{ id: 'sx', type: 'text', text: subExtra, bounds: [0, 0, leftW, 120], style: subStyle }]))[0] : null;
+  const leadStyle = theme.font(hasRight ? 24 : 28, { fontWeight: 500, color: softOnHero(0.45), lineHeight: 1.48 });
+  const subStyle = theme.font(20, { fontWeight: 400, color: softOnHero(0.6), lineHeight: 1.42 });
+  const leadMeasure = secLead ? (await measurer.texts([{ id: 'sl', type: 'text', text: secLead, bounds: [0, 0, innerHeroW, 180], style: leadStyle }]))[0] : null;
+  const subMeasure = subExtra ? (await measurer.texts([{ id: 'sx', type: 'text', text: subExtra, bounds: [0, 0, innerHeroW, 120], style: subStyle }]))[0] : null;
   const leadH = leadMeasure ? Math.ceil(leadMeasure.height) : 0;
   const subH = subMeasure ? Math.ceil(subMeasure.height) : 0;
 
   const secTiles = async (ty) => {
     const tItems = data.map(coverItem);
-    const cols = tItems.length === 4 && leftW < 980 ? 2 : tItems.length;
-    const g = 14, ls = 18;
-    const cw = Math.floor((leftW - g * (cols - 1)) / cols);
-    let fs = leftW < 980 ? 36 : 42;
-    const common = { id: 'm', x: leftX, width: leftW, size: 34, columns: cols, gap: g, highlight: -1, fill: p.surface || '#FFFFFF', theme, items: tItems };
-    for (; fs > 26; fs -= 2) {
+    const cols = tItems.length === 4 && innerHeroW < 980 ? 2 : tItems.length;
+    const g = 14;
+    let fs = innerHeroW < 980 ? 34 : 40;
+    const common = { id: 'm', x: L + padX, width: innerHeroW, size: 32, columns: cols, gap: g, highlight: -1, fill: surf, theme, items: tItems };
+    for (; fs > 24; fs -= 2) {
       const txts = metricTiles({ ...common, figureSize: fs, y: 0 }).elements.filter((e) => e.type === 'text' && e.text);
       const real = await measurer.texts(txts.map((e) => ({ ...e, bounds: [0, 0, 3000, e.bounds[3]] })));
       if (txts.every((e, k) => real[k].naturalWidth <= e.bounds[2])) break;
@@ -1398,57 +1591,65 @@ async function layoutSection({ page, plan, theme, measurer, sectionNo, pageNo, t
     return metricTiles({ ...common, figureSize: fs, y: ty });
   };
   const tileProbeH = data.length ? (await secTiles(0)).height : 0;
-  const leftTotalH = 44 + 22 + titleH + 18 + 6 + (leadH ? 24 + leadH : 0) + (subH ? 14 + subH : 0) + (tileProbeH ? 34 + tileProbeH : 0);
-  const leftTop = Math.max(120, Math.round((970 - leftTotalH) / 2));
+  const blockH = 40 + 26 + titleH + 22 + 6 + (leadH ? 24 + leadH : 0) + (subH ? 14 + subH : 0) + (tileProbeH ? 28 + tileProbeH : 0);
+  const contentStart = Math.max(stageTop + 68, stageTop + Math.round((stageH - 80 - blockH) / 2));
 
-  const wmColor = p.dark ? '#172640' : lighten(fill, 0.08);
+  const wmColor = lighten(heroFill, 0.13);
   const elements = [
-    { id: 'sec-panel', type: 'shape', bounds: [0, 0, 1920, 1080], style: { fill } },
-    { id: 'sec-side-rail', type: 'shape', bounds: [0, 0, 14, 1080], style: { fill: pop } },
-    { id: 'sec-watermark', type: 'text', text: secNum, bounds: [1460, 44, 364, 180], style: theme.font(176, { fontWeight: 900, color: wmColor, textAlign: 'right', lineHeight: 1.0 }) },
+    { id: 'sec-bg', type: 'shape', bounds: [0, 0, 1920, 1080], style: { fill: canvasBg } },
+    { id: 'sec-panel', type: 'shape', bounds: [L, stageTop, heroW, stageH], style: { fill: heroFill, radius: 28 } },
+    { id: 'sec-orb', type: 'shape', shape: 'ellipse', bounds: [L + heroW - 280, stageTop + 28, 240, 240], style: { fill: lighten(heroFill, 0.07), radius: 120 } },
+    { id: 'sec-watermark', type: 'text', text: secNum, bounds: [L + heroW - 310, stageTop + 42, 256, 176], style: theme.font(164, { fontWeight: 900, color: wmColor, textAlign: 'right', lineHeight: 1.0 }) },
   ];
 
-  let cy = leftTop;
-  const eyW = Math.max(120, Math.min(leftW, Math.ceil(textWidth(eyebrow, 16) * 1.15) + 52));
+  let cy = contentStart;
+  const eyW = Math.max(132, Math.min(innerHeroW, Math.ceil(textWidth(eyebrow, 16) * 1.15) + 56));
   elements.push(
-    { id: 'sec-ey-bg', type: 'shape', bounds: [leftX, cy, eyW, 34], style: { fill: p.dark ? '#1B2A44' : lighten(fill, 0.12), stroke: p.dark ? p.line : lighten(fill, 0.28), strokeWidth: 1.5, radius: 17 } },
-    { id: 'sec-ey-dot', type: 'shape', bounds: [leftX + 14, cy + 12, 10, 10], style: { fill: pop, radius: 5 }, shape: 'ellipse' },
-    { id: 'sec-ey-tx', type: 'text', text: eyebrow, bounds: [leftX + 32, cy + 5, eyW - 42, 24], style: theme.font(16, { fontWeight: 700, color: p.dark ? roles.primary : '#FFFFFF', lineHeight: 1.25 }) },
+    { id: 'sec-ey-bg', type: 'shape', bounds: [L + padX, cy, eyW, 38], style: { fill: lighten(heroFill, 0.12), stroke: lighten(heroFill, 0.28), strokeWidth: 1.5, radius: 19 } },
+    { id: 'sec-ey-dot', type: 'shape', bounds: [L + padX + 16, cy + 14, 10, 10], style: { fill: pop, radius: 5 }, shape: 'ellipse' },
+    { id: 'sec-ey-tx', type: 'text', text: eyebrow, bounds: [L + padX + 34, cy + 7, eyW - 44, 24], style: theme.font(16, { fontWeight: 700, color: '#FFFFFF', lineHeight: 1.25 }) },
   );
-  cy += 56;
+  cy += 64;
 
   elements.push({
     id: titleIsMain ? 'title' : 'sec-name',
     type: 'text',
     text: secTitle,
     ...(titleRuns ? { runs: titleRuns } : {}),
-    bounds: [leftX, cy, leftW, titleH],
+    bounds: [L + padX, cy, titleWrapW, titleH],
     style: titleFontStyle(titleFont),
   });
-  cy += titleH + 18;
-  elements.push({ id: 'sec-accent-bar', type: 'shape', bounds: [leftX, cy, 88, 6], style: { fill: pop, radius: 3 } });
+  cy += titleH + 22;
+  elements.push({ id: 'sec-accent-bar', type: 'shape', bounds: [L + padX, cy, 92, 6], style: { fill: pop, radius: 3 } });
   cy += 6;
 
   if (secLead) {
     cy += 24;
-    elements.push({ id: titleIsMain ? 'sec-lead' : 'title', type: 'text', text: secLead, bounds: [leftX, cy, leftW, leadH], style: leadStyle });
+    elements.push({ id: titleIsMain ? 'sec-lead' : 'title', type: 'text', text: secLead, bounds: [L + padX, cy, innerHeroW, leadH], style: leadStyle });
     cy += leadH;
   }
   if (subExtra) {
     cy += 14;
-    elements.push({ id: 'sec-sub', type: 'text', text: subExtra, bounds: [leftX, cy, leftW, subH], style: subStyle });
+    elements.push({ id: 'sec-sub', type: 'text', text: subExtra, bounds: [L + padX, cy, innerHeroW, subH], style: subStyle });
     cy += subH;
   }
 
+  // Subtle chapter anchor footer inside the hero card so the left stage feels balanced and intentional
+  const footBarY = stageTop + stageH - 68;
+  elements.push(
+    { id: 'sec-hero-div', type: 'shape', bounds: [L + padX, footBarY, innerHeroW, 1], style: { fill: lighten(heroFill, 0.2) } },
+    { id: 'sec-hero-tag', type: 'text', text: items.length ? `本章共包含 ${items.length} 项核心议题` : `CHAPTER ${secNum}`, bounds: [L + padX, footBarY + 18, innerHeroW, 24], style: theme.font(16, { fontWeight: 500, color: softOnHero(0.55), lineHeight: 1.25 }) },
+  );
+
   const design = {
     section: {
-      m: { frame: null, module: 'sectionPanel', variant: 'chapter', title: titleFont, reason: '章节过渡页锚定章节编号与核心命题', bindings: [{ ref: `${page.id}:status`, elementIds: ['title'] }] },
-      box: [leftX, leftTop, leftW, cy - leftTop],
+      m: { frame: 'sec-panel', module: 'sectionPanel', variant: 'chapter-bento', title: titleFont, reason: '左舱主色聚焦章节核心命题，右侧清晰展开本章议题脉络', bindings: [{ ref: `${page.id}:status`, elementIds: ['title'] }] },
+      box: [L, stageTop, heroW, stageH],
     },
   };
 
   if (data.length) {
-    const placedTiles = await secTiles(cy + 34);
+    const placedTiles = await secTiles(cy + 28);
     elements.push(...placedTiles.elements);
     design.metrics = {
       m: {
@@ -1460,46 +1661,49 @@ async function layoutSection({ page, plan, theme, measurer, sectionNo, pageNo, t
         reason: '章节页概览核心指标',
         bindings: data.map((d, i) => ({ ref: `${page.id}:data-${i + 1}`, elementIds: [`m-value-${i + 1}`] })),
       },
-      box: [leftX, cy + 34, leftW, placedTiles.height],
+      box: [L + padX, cy + 28, innerHeroW, placedTiles.height],
     };
   }
 
-  let itemsBottom = 0;
+  let itemsBottom = stageTop;
   if (items.length) {
-    const itemsTop = photo ? 210 : 232;
-    const itemsAreaH = photo ? 420 : 700;
-    const cardGap = items.length >= 4 ? 12 : 18;
-    const cardFill = p.dark ? '#172642' : lighten(fill, 0.09);
-    const cardStroke = p.dark ? '#283C5C' : lighten(fill, 0.24);
-    const iTitleStyle = theme.font(items.length >= 4 ? 20 : 23, { fontWeight: 700, color: mainInk, lineHeight: 1.3 });
-    const iDetailStyle = theme.font(items.length >= 4 ? 16 : 18, { fontWeight: 400, color: p.dark ? p.body : soft(0.4), lineHeight: 1.4 });
-    const textXOff = 78;
-    const textW = rightW - textXOff - 24;
+    const itemsTop = stageTop;
+    const availRightH = photo ? Math.round(stageH * 0.54) : stageH;
+    const cardGap = items.length >= 4 ? 16 : 20;
+    const cardFill = surf;
+    const cardStroke = p.line || (p.dark ? '#283C5C' : '#E2E8F0');
+    const iTitleStyle = theme.font(items.length >= 4 ? 22 : 25, { fontWeight: 700, color: p.ink || '#0F172A', lineHeight: 1.3 });
+    const iDetailStyle = theme.font(items.length >= 4 ? 17 : 18, { fontWeight: 400, color: p.body || '#475569', lineHeight: 1.42 });
+    const badgeSize = items.length >= 4 ? 44 : 50;
+    const textXOff = 30 + badgeSize + 20;
+    const textW = rightW - textXOff - 56;
     const tProbes = items.map((it, k) => ({ id: `sit-${k}`, type: 'text', text: it.title || '', bounds: [0, 0, textW, 60], style: iTitleStyle }));
     const dProbes = items.map((it, k) => (it.detail ? { id: `sid-${k}`, type: 'text', text: it.detail, bounds: [0, 0, textW, 80], style: iDetailStyle } : null));
     const allM = await measurer.texts([...tProbes, ...dProbes.filter(Boolean)]);
     const mMap = new Map(allM.map((m) => [m.id, Math.ceil(m.height)]));
-    const naturalHeights = items.map((it, k) => (photo ? 20 : 26) + mMap.get(`sit-${k}`) + (it.detail ? 6 + mMap.get(`sid-${k}`) : 0));
-    const naturalSum = naturalHeights.reduce((a, b) => a + b, 0) + cardGap * (items.length - 1);
-    const useH = photo ? Math.max(naturalSum, items.length * 76 + cardGap * (items.length - 1)) : Math.min(itemsAreaH, Math.max(naturalSum, items.length * 86 + cardGap * (items.length - 1)));
-    let iy = photo ? itemsTop : Math.max(itemsTop, Math.round((980 - useH) / 2));
-    const evenCardH = Math.floor((useH - cardGap * (items.length - 1)) / items.length);
+    const evenCardH = Math.floor((availRightH - cardGap * (items.length - 1)) / items.length);
+    let iy = itemsTop;
     const itemBindings = [];
     items.forEach((it, k) => {
-      const ch = Math.max(naturalHeights[k], evenCardH);
+      const ch = k === items.length - 1 && !photo ? stageTop + stageH - iy : evenCardH;
       const tH = mMap.get(`sit-${k}`), dH = it.detail ? mMap.get(`sid-${k}`) : 0;
-      const contentH = tH + (dH ? 6 + dH : 0);
-      const tTop = iy + Math.max(10, Math.round((ch - contentH) / 2));
-      const numFill = k === 0 ? pop : (p.dark ? roles.primary : lighten(fill, 0.22));
+      const contentH = tH + (dH ? 8 + dH : 0);
+      const tTop = iy + Math.max(12, Math.round((ch - contentH) / 2));
+      const isFirst = k === 0;
+      const barColor = isFirst ? pop : (k % 2 ? roles.secondary : heroFill);
+      const badgeBg = isFirst ? pop : (roles.band || '#EEF2FF');
+      const badgeInk = isFirst ? '#FFFFFF' : readableInk(heroFill, badgeBg);
       elements.push(
-        { id: `sec-card-${k + 1}`, type: 'shape', bounds: [rx, iy, rightW, ch], style: { fill: cardFill, stroke: cardStroke, strokeWidth: 1.5, radius: 14 } },
-        { id: `sec-num-bg-${k + 1}`, type: 'shape', bounds: [rx + 20, iy + Math.round((ch - 38) / 2), 38, 38], shape: 'ellipse', style: { fill: numFill, radius: 19 } },
-        { id: `sec-num-${k + 1}`, type: 'text', text: String(k + 1).padStart(2, '0'), bounds: [rx + 20, iy + Math.round((ch - 38) / 2) + 8, 38, 24], style: theme.font(16, { fontWeight: 900, color: '#FFFFFF', textAlign: 'center', lineHeight: 1.2 }) },
+        { id: `sec-card-${k + 1}`, type: 'shape', bounds: [rx, iy, rightW, ch], style: { fill: cardFill, stroke: isFirst ? pop : cardStroke, strokeWidth: isFirst ? 2 : 1.5, radius: 22 } },
+        { id: `sec-bar-${k + 1}`, type: 'shape', bounds: [rx, iy + 22, 6, Math.max(24, ch - 44)], style: { fill: barColor, radius: 3 } },
+        { id: `sec-num-bg-${k + 1}`, type: 'shape', bounds: [rx + 28, iy + Math.round((ch - badgeSize) / 2), badgeSize, badgeSize], style: { fill: badgeBg, radius: 14 } },
+        { id: `sec-num-${k + 1}`, type: 'text', text: String(k + 1).padStart(2, '0'), bounds: [rx + 28, iy + Math.round((ch - badgeSize) / 2) + Math.round((badgeSize - 22) / 2), badgeSize, 22], style: theme.font(17, { fontWeight: 900, color: badgeInk, textAlign: 'center', lineHeight: 1.2 }) },
         { id: `sec-item-title-${k + 1}`, type: 'text', text: it.title || '', bounds: [rx + textXOff, tTop, textW, tH], style: iTitleStyle },
+        { id: `sec-chev-${k + 1}`, type: 'vector', bounds: [rx + rightW - 38, iy + Math.round(ch / 2) - 12, 16, 24], viewBox: [0, 0, 20, 32], path: 'M5,4 L16,16 L5,28', style: { fill: 'none', stroke: isFirst ? pop : (p.muted || '#94A3B8'), strokeWidth: 3 } },
       );
       const eIds = [`sec-item-title-${k + 1}`];
       if (it.detail) {
-        elements.push({ id: `sec-item-detail-${k + 1}`, type: 'text', text: it.detail, bounds: [rx + textXOff, tTop + tH + 6, textW, dH], style: iDetailStyle });
+        elements.push({ id: `sec-item-detail-${k + 1}`, type: 'text', text: it.detail, bounds: [rx + textXOff, tTop + tH + 8, textW, dH], style: iDetailStyle });
         eIds.push(`sec-item-detail-${k + 1}`);
       }
       itemBindings.push({ ref: `${page.id}:item-${k + 1}`, elementIds: eIds });
@@ -1507,32 +1711,32 @@ async function layoutSection({ page, plan, theme, measurer, sectionNo, pageNo, t
     });
     itemsBottom = iy - cardGap;
     design.items = {
-      m: { frame: null, module: 'numberedList', variant: `${items.length}-agenda`, title: iTitleStyle.fontSize, reason: '章节页列出本板块子议题脉络', bindings: itemBindings },
-      box: [rx, photo ? itemsTop : Math.max(itemsTop, Math.round((980 - useH) / 2)), rightW, itemsBottom - (photo ? itemsTop : Math.max(itemsTop, Math.round((980 - useH) / 2)))],
+      m: { frame: null, module: 'numberedList', variant: `${items.length}-agenda-cards`, title: iTitleStyle.fontSize, reason: '右侧等高悬浮议题卡清晰呈现本章节结构脉络', bindings: itemBindings },
+      box: [rx, itemsTop, rightW, itemsBottom - itemsTop],
     };
   }
 
   if (photo) {
-    const py = items.length ? Math.max(240, itemsBottom + 20) : 232;
-    const phH = items.length ? Math.max(180, 960 - py) : 680;
-    const capH = photo.caption ? 34 : 0;
+    const py = items.length ? itemsBottom + 20 : stageTop;
+    const phH = stageTop + stageH - py;
+    const capH = photo.caption ? 32 : 0;
     const imgH = phH - capH;
     if (isContainPhoto(photo)) {
       const framed = framedContainPhoto({ id: 'ph1', ph: photo, bounds: [rx, py, rightW, imgH], theme, surfaceFill: p.dark ? '#162238' : '#FFFFFF' });
       elements.push(...framed.elements);
-      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [framed.cardBounds[0], py + imgH + 6, framed.cardBounds[2], 26], style: theme.font(16, { color: soft(0.45), lineHeight: 1.25 }) });
-      design.photos = { m: { frame: null, module: 'photoGroup', variant: 'section-contain', title: 16, reason: '章节配图完整装框展示', bindings: [{ ref: `${page.id}:photo-1`, elementIds: [framed.imageId] }] }, box: [framed.cardBounds[0], py, framed.cardBounds[2], phH] };
+      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [framed.cardBounds[0], py + imgH + 6, framed.cardBounds[2], 24], style: theme.font(15, { color: p.muted || '#64748B', lineHeight: 1.25 }) });
+      design.photos = { m: { frame: null, module: 'photoGroup', variant: 'section-contain', title: 15, reason: '章节配图完整装框展示', bindings: [{ ref: `${page.id}:photo-1`, elementIds: [framed.imageId] }] }, box: [framed.cardBounds[0], py, framed.cardBounds[2], phH] };
     } else {
       const sz = imageSize(photo.src), cr = fitCrop(photo.crop, sz, rightW / imgH, photo.focal || '50% 35%');
-      elements.push(imageElement({ id: 'ph1-img-1', src: photo.src, bounds: [rx, py, rightW, imgH], fit: 'cover', crop: cr, naturalSize: [sz.width, sz.height], style: { radius: 18 }, alt: photo.caption || '' }));
-      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [rx, py + imgH + 6, rightW, 26], style: theme.font(16, { color: soft(0.45), lineHeight: 1.25 }) });
-      design.photos = { m: { frame: null, module: 'photoGroup', variant: 'section-photo', title: 16, reason: '章节配图营造场景氛围', bindings: [{ ref: `${page.id}:photo-1`, elementIds: ['ph1-img-1'] }] }, box: [rx, py, rightW, phH] };
+      elements.push(imageElement({ id: 'ph1-img-1', src: photo.src, bounds: [rx, py, rightW, imgH], fit: 'cover', crop: cr, naturalSize: [sz.width, sz.height], style: { radius: 22 }, alt: photo.caption || '' }));
+      if (photo.caption) elements.push({ id: 'ph1-caption-1', type: 'text', text: photo.caption, bounds: [rx, py + imgH + 6, rightW, 24], style: theme.font(15, { color: p.muted || '#64748B', lineHeight: 1.25 }) });
+      design.photos = { m: { frame: null, module: 'photoGroup', variant: 'section-photo', title: 15, reason: '章节配图营造场景氛围', bindings: [{ ref: `${page.id}:photo-1`, elementIds: ['ph1-img-1'] }] }, box: [rx, py, rightW, phH] };
     }
   }
 
-  elements.push({ id: 'ftr-rule', type: 'shape', bounds: [L, 1006, W, 1], style: { fill: p.dark ? p.line : lighten(fill, 0.22) } });
-  if (footer) elements.push({ id: 'src', type: 'text', text: footer, bounds: [L, 1020, 1200, 26], style: theme.font(15, { color: soft(0.55), lineHeight: 1.3 }) });
-  elements.push({ id: 'num', type: 'text', text: `${String(pageNo).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, bounds: [L + W - 160, 1020, 160, 26], style: theme.font(15, { fontWeight: 700, color: soft(0.55), textAlign: 'right', lineHeight: 1.3 }) });
+  elements.push({ id: 'ftr-rule', type: 'shape', bounds: [L, 1018, W, 1], style: { fill: p.line || '#E2E8F0' } });
+  if (footer) elements.push({ id: 'src', type: 'text', text: footer, bounds: [L, 1028, 1200, 26], style: theme.font(14, { color: p.muted || '#64748B', lineHeight: 1.3 }) });
+  elements.push({ id: 'num', type: 'text', text: `${String(pageNo).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, bounds: [L + W - 160, 1028, 160, 26], style: theme.font(14, { fontWeight: 700, color: p.muted || '#64748B', textAlign: 'right', lineHeight: 1.3 }) });
 
   for (const [z, { m, box }] of Object.entries(design)) {
     const vz = plan.visualDecision.zones.find((v) => v.id === z);
@@ -1541,7 +1745,7 @@ async function layoutSection({ page, plan, theme, measurer, sectionNo, pageNo, t
     if (rg) Object.assign(rg, { frameElementId: undefined, openGroup: true, padding: 0, typography: { title: Math.max(m.title, theme.roles.body.fontSize), body: theme.roles.body.fontSize }, module: { name: m.module, variant: m.variant }, designReference: { source: '原创', principle: m.reason }, representation: m.variant, reason: m.reason, bindings: m.bindings });
   }
   plan.typographyRoles = theme.roles;
-  Object.assign(plan.visualDecision, { pattern: '章节页', focus: { elementId: 'title', ...(focusWord ? { text: focusWord } : {}) }, layout: hasRight ? '左侧章节标题与数字，右侧子议题或配图' : '主色画布居中呈现章节标题、导引句与数字' });
+  Object.assign(plan.visualDecision, { pattern: '章节页', focus: { elementId: 'title', ...(focusWord ? { text: focusWord } : {}) }, layout: hasRight ? '左舱主色标题导语，右侧等高议题卡片导览' : '旗舰圆角主舱居中呈现章节标题与导引句' });
   plan.composition = { alignments: [], gaps: [] };
   return { slide: { slideId: page.id, mode: 'composition', elements }, modules: Object.fromEntries(Object.entries(design).map(([z, { m }]) => [z, m.bindings[0]?.elementIds[0]])) };
 }
@@ -1855,10 +2059,26 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
   // Pages are numbered by their place in the deck, as the editor, the PDF and the user's own outline count them
   // ("第 2 页"): a cover is page 1 and only hides its number.
   const numbered = outline.pages.length;
+  // Auto-derive top Segmented Section Tabs (PILL-02) when >=2 section slides exist or outline.sections is set.
+  const derivedSections = Array.isArray(outline.sections) && outline.sections.length >= 2
+    ? outline.sections.map((s) => String(s).slice(0, 8))
+    : outline.pages
+        .filter((p) => p.role === 'section')
+        .map((p, idx) => {
+          const rawName = String(p.name || p.keyLine?.text || p.keyLine || `章节${idx + 1}`).replace(/^[0-9０-９一二三四五六七八九十]+[、.．\s]+/, '');
+          return `${String(idx + 1).padStart(2, '0')} ${rawName.slice(0, 8)}`;
+        });
+  const enableNavTabs = outline.navTabs !== false && derivedSections.length >= 2;
   let sectionCount = 0;
   for (const [i, rawPage] of outline.pages.entries()) {
     const raw = absolute(rawPage), plan = plans.find((s) => s.slideId === (raw.id || `p${i + 1}`)), page = { ...raw, id: plan.slideId };
-    if (!['cover', 'section', 'closing'].includes(raw.role)) { page.figureForm = figureForm(page, lastForm); page.itemForm = itemForm(page, lastItems); }
+    if (!['cover', 'section', 'closing'].includes(raw.role)) {
+      page.figureForm = figureForm(page, lastForm); page.itemForm = itemForm(page, lastItems);
+      if (enableNavTabs) {
+        const activeIndex = raw.sectionIndex != null ? Number(raw.sectionIndex) : Math.max(0, sectionCount - 1);
+        page._navTabs = { sections: derivedSections, activeIndex };
+      }
+    }
     const thisPage = i + 1;
     if (page.role === 'cover') { const made = await layoutCover({ page, plan, theme: dense, measurer, deckTitle: outline.title }); slides.push(made.slide); anchors[plan.slideId] = made.modules; scales[plan.slideId] = 'cover'; continue; }
     if (page.role === 'section') { sectionCount++; const made = await layoutSection({ page, plan, theme: dense, measurer, sectionNo: sectionCount, pageNo: thisPage, total: numbered, footer }); slides.push(made.slide); anchors[plan.slideId] = made.modules; scales[plan.slideId] = 'section'; continue; }
@@ -1968,8 +2188,8 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
   // directly through layoutPage + scaleUp so the right-hand "当前页版式 · 一键切换" panel works on EVERY slide.
   if (withVariants) {
     const fingerprintOf = (els) => els
-      .filter((e) => e.type === 'shape' && !/^(hdr-rule|hdr-progress|ftr-)/.test(e.id || '') && Array.isArray(e.bounds))
-      .map((e) => `${e.id}:${e.bounds.map((v) => Math.round(v / 24)).join(',')}:${e.style?.strokeDash || ''}`)
+      .filter((e) => (e.type === 'shape' || e.type === 'vector' || e.type === 'line') && !/^(hdr-rule|hdr-progress|ftr-)/.test(e.id || '') && Array.isArray(e.bounds))
+      .map((e) => `${e.type}:${e.id}:${e.bounds.map((v) => Math.round(v / 24)).join(',')}:${e.style?.fill || ''}:${e.style?.strokeDash || ''}`)
       .sort()
       .join('|');
     const tryVariant = async ({ meta, id, name, tag, preview, pagePatch = {}, layoutOverride = meta.layout, mirrorOverride = meta.mirror, headerOverride = header }) => {
@@ -2030,6 +2250,102 @@ export async function composeReportDeck({ outline, deck, palette = 'blue-gold', 
         queue.push({ id: 'hb-layered', name: '分层架构', tag: '流水', preview: 'layered', pagePatch: { hubStyle: 'layered' } });
         queue.push({ id: 'hb-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { hubStyle: 'horizontal' }, headerOverride: 'eyebrow' });
         queue.push({ id: 'hb-layered-exec', name: '分层高管', tag: '紧凑', preview: 'bento', pagePatch: { hubStyle: 'layered' }, headerOverride: 'eyebrow' });
+      }
+      if (has('matrix')) {
+        queue.push({ id: 'mx-cards', name: '四格Bento', tag: '网格', preview: 'bento', pagePatch: { matrixStyle: 'cards' } });
+        queue.push({ id: 'mx-split', name: '焦点放大', tag: '主次', preview: 'split', pagePatch: { matrixStyle: 'split' } });
+        queue.push({ id: 'mx-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { matrixStyle: 'cards' }, headerOverride: 'eyebrow' });
+      }
+      if (has('diagnosis')) {
+        queue.push({ id: 'dg-spot', name: '解法聚光灯', tag: '焦点', preview: 'cards', pagePatch: { diagnosisStyle: 'spotlight' } });
+        queue.push({ id: 'dg-stack', name: '条带递进', tag: '复盘', preview: 'bars', pagePatch: { diagnosisStyle: 'stacked' } });
+        queue.push({ id: 'dg-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { diagnosisStyle: 'spotlight' }, headerOverride: 'eyebrow' });
+        queue.push({ id: 'dg-trio-exec', name: '轻盈诊断', tag: '留白', preview: 'modern', pagePatch: { diagnosisStyle: 'trio' }, headerOverride: 'eyebrow' });
+      }
+      if (has('tracker')) {
+        queue.push({ id: 'tr-bars', name: '柱状追踪', tag: '趋势', preview: 'bars', pagePatch: { trackerStyle: 'bars' } });
+        queue.push({ id: 'tr-compact', name: '网格矩阵', tag: '明细', preview: 'bento', pagePatch: { trackerStyle: 'compact' } });
+        queue.push({ id: 'tr-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { trackerStyle: 'bars' }, headerOverride: 'eyebrow' });
+      }
+      if (has('featureMatrix')) {
+        queue.push({ id: 'fm-cards', name: '方案分栏卡', tag: '选型', preview: 'cards', pagePatch: { featureMatrixStyle: 'cards' } });
+        queue.push({ id: 'fm-compact', name: '紧凑对比表', tag: '高密', preview: 'bars', pagePatch: { featureMatrixStyle: 'compact' } });
+        queue.push({ id: 'fm-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { featureMatrixStyle: 'cards' }, headerOverride: 'eyebrow' });
+      }
+      if (has('gauges')) {
+        queue.push({ id: 'gg-radial', name: '刻度仪表盘', tag: '极客', preview: 'bento', pagePatch: { gaugesStyle: 'radial' } });
+        queue.push({ id: 'gg-row', name: '左环右数', tag: '横排', preview: 'bars', pagePatch: { gaugesStyle: 'row' } });
+        queue.push({ id: 'gg-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { gaugesStyle: 'radial' }, headerOverride: 'eyebrow' });
+      }
+      if (has('pyramid')) {
+        queue.push({ id: 'py-stack', name: '等宽分层栈', tag: '架构', preview: 'layered', pagePatch: { pyramidStyle: 'stack' } });
+        queue.push({ id: 'py-cards', name: '阶梯卡片', tag: '递进', preview: 'cards', pagePatch: { pyramidStyle: 'cards' } });
+        queue.push({ id: 'py-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { pyramidStyle: 'stack' }, headerOverride: 'eyebrow' });
+      }
+      if (has('gantt')) {
+        queue.push({ id: 'gn-kanban', name: '阶段看板列', tag: 'Kanban', preview: 'cards', pagePatch: { ganttStyle: 'kanban' } });
+        queue.push({ id: 'gn-compact', name: '紧凑甘特表', tag: '高密', preview: 'bars', pagePatch: { ganttStyle: 'compact' } });
+        queue.push({ id: 'gn-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { ganttStyle: 'kanban' }, headerOverride: 'eyebrow' });
+      }
+      if (has('quotes')) {
+        queue.push({ id: 'qt-spot', name: '金句聚光灯', tag: '焦点', preview: 'bento', pagePatch: { quotesStyle: 'spotlight' } });
+        queue.push({ id: 'qt-rows', name: '人物条带', tag: '分工', preview: 'bars', pagePatch: { quotesStyle: 'rows' } });
+        queue.push({ id: 'qt-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { quotesStyle: 'spotlight' }, headerOverride: 'eyebrow' });
+      }
+      if (has('barChart')) {
+        queue.push({ id: 'bc-stack', name: '堆叠柱图', tag: '总量', preview: 'bars', pagePatch: { barChartStyle: 'stacked' } });
+        queue.push({ id: 'bc-horiz', name: '横向条形', tag: '排行', preview: 'split', pagePatch: { barChartStyle: 'horizontal' } });
+        queue.push({ id: 'bc-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { barChartStyle: 'grouped' }, headerOverride: 'eyebrow' });
+      }
+      if (has('lineChart')) {
+        queue.push({ id: 'lc-area', name: '柔光面积图', tag: '趋势', preview: 'modern', pagePatch: { lineChartStyle: 'area' } });
+        queue.push({ id: 'lc-bars', name: '柱折结合', tag: '对比', preview: 'bars', pagePatch: { lineChartStyle: 'bars' } });
+        queue.push({ id: 'lc-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { lineChartStyle: 'area' }, headerOverride: 'eyebrow' });
+      }
+      if (has('rankList')) {
+        queue.push({ id: 'rl-podium', name: 'TOP3领奖台', tag: '榜首', preview: 'bento', pagePatch: { rankListStyle: 'podium' } });
+        queue.push({ id: 'rl-tiles', name: '双栏排行卡', tag: '网格', preview: 'cards', pagePatch: { rankListStyle: 'tiles' } });
+        queue.push({ id: 'rl-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { rankListStyle: 'podium' }, headerOverride: 'eyebrow' });
+      }
+      if (has('execBrief')) {
+        queue.push({ id: 'eb-top', name: '通栏主视觉', tag: '大气', preview: 'modern', pagePatch: { execBriefStyle: 'topHero' } });
+        queue.push({ id: 'eb-light', name: '极简白底版', tag: '素雅', preview: 'bento', pagePatch: { execBriefStyle: 'light' } });
+        queue.push({ id: 'eb-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { execBriefStyle: 'topHero' }, headerOverride: 'eyebrow' });
+      }
+      if (has('orbit')) {
+        queue.push({ id: 'ob-cycle', name: '闭环卡片流', tag: '循环', preview: 'cards', pagePatch: { orbitStyle: 'cycle' } });
+        queue.push({ id: 'ob-grid', name: '中枢Bento', tag: '网格', preview: 'bento', pagePatch: { orbitStyle: 'grid' } });
+        queue.push({ id: 'ob-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { orbitStyle: 'cycle' }, headerOverride: 'eyebrow' });
+      }
+      if (has('iceberg')) {
+        queue.push({ id: 'ic-dark', name: '深海强对比', tag: '聚焦', preview: 'modern', pagePatch: { icebergStyle: 'darkDeep' } });
+        queue.push({ id: 'ic-split', name: '左右显隐对照', tag: '分栏', preview: 'split', pagePatch: { icebergStyle: 'split' } });
+        queue.push({ id: 'ic-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { icebergStyle: 'darkDeep' }, headerOverride: 'eyebrow' });
+      }
+      if (has('radar')) {
+        queue.push({ id: 'rd-bars', name: '能力评测条', tag: '排行', preview: 'bars', pagePatch: { radarStyle: 'bars' } });
+        queue.push({ id: 'rd-cards', name: '多维得分卡', tag: '网格', preview: 'bento', pagePatch: { radarStyle: 'cards' } });
+        queue.push({ id: 'rd-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { radarStyle: 'bars' }, headerOverride: 'eyebrow' });
+      }
+      if (has('specCard')) {
+        queue.push({ id: 'sp-hi', name: '焦点档案卡', tag: '突出', preview: 'bento', pagePatch: { specCardStyle: 'highlight' } });
+        queue.push({ id: 'sp-rows', name: '双列属性表', tag: '紧凑', preview: 'bars', pagePatch: { specCardStyle: 'rows' } });
+        queue.push({ id: 'sp-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { specCardStyle: 'highlight' }, headerOverride: 'eyebrow' });
+      }
+      if (has('okr')) {
+        queue.push({ id: 'ok-top', name: '顶栏目标树', tag: '纵展', preview: 'cards', pagePatch: { okrStyle: 'top' } });
+        queue.push({ id: 'ok-cmp', name: '紧凑OKR', tag: '高密', preview: 'bars', pagePatch: { okrStyle: 'compact' } });
+        queue.push({ id: 'ok-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { okrStyle: 'top' }, headerOverride: 'eyebrow' });
+      }
+      if (has('risks')) {
+        queue.push({ id: 'rk-cards', name: '风险卡片组', tag: '并列', preview: 'cards', pagePatch: { risksStyle: 'cards' } });
+        queue.push({ id: 'rk-cmp', name: '紧凑预案表', tag: '高密', preview: 'bars', pagePatch: { risksStyle: 'compact' } });
+        queue.push({ id: 'rk-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { risksStyle: 'cards' }, headerOverride: 'eyebrow' });
+      }
+      if (has('dualTrack')) {
+        queue.push({ id: 'dt-pair', name: '阶段咬合列', tag: '对齐', preview: 'cards', pagePatch: { dualTrackStyle: 'paired' } });
+        queue.push({ id: 'dt-cmp', name: '紧凑双轨', tag: '高密', preview: 'bars', pagePatch: { dualTrackStyle: 'compact' } });
+        queue.push({ id: 'dt-exec', name: '极简顶眉', tag: '高管', preview: 'exec', pagePatch: { dualTrackStyle: 'paired' }, headerOverride: 'eyebrow' });
       }
       if (has('compare') && !changeItems(page.compare)) {
         queue.push({ id: 'cmp-solid', name: '双顶栏对比', tag: '醒目', preview: 'split', pagePatch: { compareStyle: 'solid' } });

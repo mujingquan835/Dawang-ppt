@@ -273,6 +273,7 @@ export async function collectProjectFromIr(project, { resolveSrc, measureImage }
         objects.push({
           id: e.id,
           type: 'vector',
+          ...(e.shape ? { shape: e.shape } : {}),
           bounds: [x, y, w, h],
           points: e.points || [],
           closed: e.closed !== false,
